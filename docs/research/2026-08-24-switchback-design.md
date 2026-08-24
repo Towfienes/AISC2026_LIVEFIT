@@ -1,0 +1,56 @@
+# Switchback Experiment Design for LiveLift — State of the Art 2023–2026
+
+**Research report · 2026-08-24 · Topic 1**
+
+---
+
+## TL;DR — What to change
+
+1. **Standardize on ~5-min blocks** (not a 5–15 min range) with **first/last block of each session doubled to ~10 min**, per Bojinov et al.'s optimal design. Drop 15-min blocks — they cost you randomization points, which are your real unit of power.
+2. **Kill design-time washout gaps.** Log everything; handle carryover at *analysis* time with a burn-in estimator (discard/reweight the first 1–2 min of each block in the estimator, chosen by sensitivity analysis). This is the Hu–Wager prescription and strictly dominates throwing away wall-clock time.
+3. **Randomize each block i.i.d. Bernoulli(0.5)** (as you plan), but add **within-session balance**: stratify by session thirds (open/mid/close) or use rerandomization to veto badly imbalanced sequences.
+4. **Analyze at block level with session-clustered robust SEs + session fixed effects**, and pre-register a Horvitz–Thompson estimator using your logged propensities as primary, regression-adjusted (CUPED-style) as secondary.
+5. **Spend pilot weeks 1–2 measuring carryover** (impulse response of CTR after un-pinning) — every optimal-design formula in the literature is parameterized by this one number, and you can measure it cheaply in your Live Lab.
+
+---
+
+## What the literature says
+
+### (a) Bojinov, Simchi-Levi & Zhao — "Design and Analysis of Switchback Experiments," *Management Science* 69(7), 2023 ([journal](https://pubsonline.informs.org/doi/10.1287/mnsc.2022.4583), [arXiv:2009.00148](https://arxiv.org/abs/2009.00148))
+
+The canonical minimax-optimal design result. If carryover lasts at most *m* minutes, the optimal design **randomizes independently at epochs of length m, except the first and last epochs, which are length 2m** — boundary blocks are more contaminated, so they're made longer rather than discarded. Estimation is **Horvitz–Thompson over exposure histories** (design-based, no outcome model), with conservative variance bounds and exact randomization tests. Practical upshots for LiveLift: (i) block length should be pegged to measured carryover, not convenience; (ii) i.i.d. per-block coin flips (your plan) are what make design-based inference valid — keep them, don't switch to fixed ON/OFF alternation, which admits no randomization inference and confounds with time-of-session trends; (iii) apply the 2m rule at session boundaries — each 90-min session is its own switchback with its own doubled end blocks.
+
+### (b) Hu & Wager — "Switchback Experiments under Geometric Mixing," 2022–24, *Journal of Business & Economic Statistics* ([arXiv:2209.00197](https://arxiv.org/abs/2209.00197))
+
+The key modern result on **burn-in vs. washout**. In a Markovian system with mixing time *t_mix*: standard switchbacks (use all data) force block length ~T^(1/3) and error decaying only T^(-1/3) due to carryover bias. But a **burn-in design** — keep short blocks, and in the *estimator* discard the first *b* periods after each switch (optimal b ≈ (t_mix/2)·log T) — recovers nearly the parametric √(log T / T) rate. Crucially, burn-in samples are **discarded in analysis, not in operation**: the treatment stays on, so no experiment time is wasted, and *b* can be chosen after the fact with sensitivity checks (their experiments show robustness to the choice of b). A bias-corrected variant reweights burn-in periods from non-switch blocks if you want the global (not "filtered") effect. **This is the direct answer to your washout question: drop scheduled washout gaps; adopt analysis-time burn-in.** Their empirical calibration on ride-sharing data also motivated DoorDash-style block lengths (~4,000 s there — but that system's carryover is a full delivery cycle; yours is minutes).
+
+### (c) Xiong, Chin & Taylor — "Data-Driven Switchback Experiments: Theoretical Tradeoffs and Empirical Bayes Designs," 2024 ([arXiv:2406.06768](https://arxiv.org/abs/2406.06768), [SSRN](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4626245))
+
+Bias–variance decomposition over four factors: carryover, **periodicity**, serial correlation, and simultaneous experiments. Three actionable insights: (1) **balance periodic structure between arms** — treated and control blocks should be evenly distributed over recurring time patterns; (2) switching less often trades carryover bias against serial-correlation variance — there is an interior optimum; (3) **randomizing interval start/end points** reduces bias from other concurrent interventions. Their empirical-Bayes design, fit on historical data, cut MSE 33% vs. a ride-share platform's status-quo design. For LiveLift: your 10 pilot weeks generate exactly the historical outcome series needed to fit such a design — treat block length as a *tunable output of pilot data*, and jitter block boundaries by ±30–60 s so boundaries don't sync with scripted show segments.
+
+### (d) 2024–2026 developments
+
+- **Wen, Shi, Yang, Tang & Zhu — "Unraveling the Interplay between Carryover Effects and Reward Autocorrelations in Switchback Experiments," 2024/25** ([arXiv:2403.17285](https://arxiv.org/abs/2403.17285)): with **weak carryover + positively autocorrelated outcomes, switch as often as possible**; with strong carryover, switch rarely. Live-stream CTR is strongly positively autocorrelated within a session (audience mood, traffic waves), and pin-carryover is short → this argues for your *shortest* (5-min) blocks, not 15.
+- **Ni, Kalfountzou & Bojinov — "Reliable Switchback Experiments with Rerandomization for Auction Environments at P&G," HBS WP 26-012, Sept 2025** ([PDF](https://www.hbs.edu/ris/Publication%20Files/26-012_e60b131f-aa68-4422-97e8-a478d6ed4baa.pdf)): rerandomization (redraw the assignment sequence until covariate balance passes a threshold) fixes both covariate imbalance and carryover exposure imbalance; deployed in 70 P&G experiments since Jan 2025. With only ~18 blocks/session, an unlucky draw (e.g., 14 ON / 4 OFF, or all OFF at session close) is likely — rerandomize per session subject to balance on block count per arm per session-third.
+- **Pankratev (DoorDash) — "Powerful Switchback Experiments – Or Not?", 2026** ([arXiv:2606.03012](https://arxiv.org/html/2606.03012)): closed-form power analysis showing macro-level (cluster × time) shocks impose a **structural power floor** scaled by (1+cv²) of cluster-size imbalance; more observations *within* blocks buy little — only more independent randomizations, balance, and macro-targeted variance reduction help. Your 650 blocks across ~30 sessions are not 650 i.i.d. units: session-level shocks (host, product mix, platform traffic) dominate. Also DoorDash engineering: use **cluster-robust SEs** (cluster = session) or you'll inflate false positives ([DoorDash blog, 2019–21](https://careersatdoordash.com/blog/cluster-robust-standard-error-in-switchback-experiments/)).
+- Related niche results if you extend to pricing/deals: switchbacks with forward-looking demand ([arXiv:2410.14904](https://arxiv.org/abs/2410.14904), 2024) — viewers who anticipate flash deals create *anticipation* carryover, which ordinary burn-in doesn't fix.
+
+---
+
+## Concrete design recommendations for LiveLift
+
+1. **Block length.** Weeks 1–2: run always-ON sessions, log per-minute CTR around pin changes, and estimate the impulse-response/mixing time (how long elevated clicks on product A persist after un-pinning). Expected t_mix in live commerce: 1–3 min. Then fix **block = ~5 min with 1–2 min analysis-time burn-in** (Hu–Wager: l = b + small constant focal window). Only lengthen blocks if measured carryover exceeds ~3 min. 15-min blocks give 6 randomization points/session — too few (Bojinov et al. recommend K well above 4 per unit; Pankratev shows switches, not minutes, drive power).
+2. **Session template (Bojinov et al. optimal design):** 90 min = 10-min opening block, 14 × 5-min middle blocks, 10-min closing block; randomize each ON/OFF independently, then **rerandomize** until each session-third has ≥2 blocks of each arm (Ni et al. 2025). Jitter boundaries ±30–60 s (Xiong et al.).
+3. **Washout → burn-in.** Remove any planned discarded gaps between blocks from the protocol. Pin switches happen instantly at block boundaries; the ETL tags each event with "seconds since last switch"; the primary estimator drops the first b minutes per block; pre-registered sensitivity analysis over b ∈ {0, 1, 2, 3} min. This converts a design decision you can't undo into an analysis decision you can audit — a strong point for judges.
+4. **Estimators.** Primary: block-level Horvitz–Thompson difference in mean CTR with burn-in filtering, propensities from your logs (this also unifies with your inner-tier logged-propensity analysis). Secondary: OLS of block CTR on assignment + session fixed effects + session-third dummies + pre-block covariates (concurrent viewers, comment rate at block start) — CUPED-style variance reduction targeting *macro* shocks, which Pankratev shows is where the gains are. Report both; use session-clustered SEs and a Fisher randomization test (feasible exactly because assignment is i.i.d. Bernoulli).
+5. **Outcome construction.** Define block CTR as clicks/impressions *attributed to the pin exposed in that block* (not by click timestamp alone), and analyze aggregate clicks with impression weights rather than an unweighted mean of per-block ratios — low-traffic blocks otherwise dominate noise.
+
+## Pitfalls your current plan misses
+
+- **Variable 5–15 min block lengths chosen ad hoc** would confound length with content/time; if you keep multiple lengths, randomize length itself per pre-registered schedule.
+- **Session-level shocks**: 30 sessions is the binding sample size for anything that varies by session; don't claim power based on 650 blocks alone.
+- **Operator-arm contamination**: in OFF blocks the human operator sees system output history; blind the operator UI during OFF blocks or the "default" arm drifts toward the system.
+- **Anticipation carryover** if the system arm runs price promos (viewers wait for deals) — restrict experimentation to pin ordering, or model anticipation separately.
+- **Boundary sessions**: first/last blocks are the show's scripted intro/outro — the doubled boundary blocks plus session-third stratification handle this; never let ON/OFF correlate with the show script.
+
+**Sources:** [Bojinov, Simchi-Levi & Zhao, *Mgmt Sci* 2023](https://pubsonline.informs.org/doi/10.1287/mnsc.2022.4583) · [arXiv:2009.00148](https://arxiv.org/abs/2009.00148) · [Hu & Wager, arXiv:2209.00197](https://arxiv.org/abs/2209.00197) · [Xiong, Chin & Taylor, arXiv:2406.06768](https://arxiv.org/abs/2406.06768) · [Wen et al., arXiv:2403.17285](https://arxiv.org/abs/2403.17285) · [Ni, Kalfountzou & Bojinov, HBS WP 26-012, 2025](https://www.hbs.edu/faculty/Pages/item.aspx?num=67890) · [Pankratev, arXiv:2606.03012, 2026](https://arxiv.org/html/2606.03012) · [DoorDash Eng: cluster-robust SEs](https://careersatdoordash.com/blog/cluster-robust-standard-error-in-switchback-experiments/) · [DoorDash Eng: switchback rigor](https://careersatdoordash.com/blog/experiment-rigor-for-switchback-experiment-analysis/) · [arXiv:2410.14904](https://arxiv.org/abs/2410.14904)

@@ -1,0 +1,209 @@
+"""Event normalization: raw platform events → 30s ticks → block-level outcomes.
+
+Two layers:
+
+1. :func:`build_ticks` — collapse the event stream into fixed 30-second buckets
+   (``session_tick`` rows). Viewer counts are snapshots carried forward;
+   comments/likes/clicks are counts per bucket.
+
+2. :func:`block_frame` — join ticks/clicks onto the experiment schedule and
+   compute the block-level analysis dataset. The primary outcome is
+   **exposure-weighted click rate**: clicks per 1000 viewer-seconds within the
+   block's analysis window. The analysis window drops the first ``burn_in_s``
+   seconds of each block (Hu & Wager, arXiv:2209.00197 — burn-in at analysis
+   time instead of design washout). Pre-block covariates (viewers, comment
+   rate in the trailing window before the block) are attached for variance
+   reduction (CUPED/CUPAC-style).
+
+Everything here is pure: no clocks, no I/O.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Iterable
+from dataclasses import dataclass
+from typing import Literal
+
+from livelift.core.assigner.outer import ON, Schedule
+
+EventKind = Literal["comment", "like", "click", "viewer_count", "pin"]
+
+
+@dataclass(frozen=True)
+class Event:
+    """A normalized session event. ``ts_offset_s`` is seconds from session start."""
+
+    kind: EventKind
+    ts_offset_s: float
+    value: float = 1.0  # viewer_count: the count; others: unused
+    product_id: str | None = None
+
+
+@dataclass(frozen=True)
+class Tick:
+    bucket_start_s: int
+    viewers: float
+    comment_count: int
+    like_count: int
+    click_count: int
+    pinned_product_id: str | None
+
+
+def build_ticks(
+    events: Iterable[Event],
+    session_duration_s: int,
+    tick_s: int = 30,
+) -> list[Tick]:
+    """Aggregate events into fixed buckets. Viewer count carries forward the
+    last snapshot; the pinned product carries forward the last pin event."""
+    n_buckets = max(1, -(-session_duration_s // tick_s))  # ceil
+    comments = [0] * n_buckets
+    likes = [0] * n_buckets
+    clicks = [0] * n_buckets
+    viewer_snapshots: list[list[float]] = [[] for _ in range(n_buckets)]
+    pins: list[tuple[float, str | None]] = []
+
+    for ev in sorted(events, key=lambda e: e.ts_offset_s):
+        if not 0 <= ev.ts_offset_s < session_duration_s:
+            continue
+        b = int(ev.ts_offset_s // tick_s)
+        if ev.kind == "comment":
+            comments[b] += 1
+        elif ev.kind == "like":
+            likes[b] += 1
+        elif ev.kind == "click":
+            clicks[b] += 1
+        elif ev.kind == "viewer_count":
+            viewer_snapshots[b].append(ev.value)
+        elif ev.kind == "pin":
+            pins.append((ev.ts_offset_s, ev.product_id))
+
+    ticks: list[Tick] = []
+    last_viewers = 0.0
+    pin_idx = 0
+    current_pin: str | None = None
+    for b in range(n_buckets):
+        bucket_start = b * tick_s
+        bucket_end = bucket_start + tick_s
+        if viewer_snapshots[b]:
+            last_viewers = sum(viewer_snapshots[b]) / len(viewer_snapshots[b])
+        while pin_idx < len(pins) and pins[pin_idx][0] < bucket_end:
+            current_pin = pins[pin_idx][1]
+            pin_idx += 1
+        ticks.append(
+            Tick(
+                bucket_start_s=bucket_start,
+                viewers=last_viewers,
+                comment_count=comments[b],
+                like_count=likes[b],
+                click_count=clicks[b],
+                pinned_product_id=current_pin,
+            )
+        )
+    return ticks
+
+
+@dataclass(frozen=True)
+class BlockRecord:
+    """One analysis row: a measurement block with outcome and covariates."""
+
+    block_index: int
+    phase: str
+    assignment: str  # ON / OFF
+    z: int  # 1 if ON
+    propensity: float
+    start_offset_s: int
+    end_offset_s: int
+    exposure_viewer_s: float
+    clicks: int
+    y: float  # clicks per 1000 viewer-seconds in the analysis window
+    pre_viewers: float  # mean viewers in the trailing pre-block window
+    pre_comment_rate: float  # comments/min in the trailing pre-block window
+
+
+def _window_stats(
+    events: list[Event], start_s: float, end_s: float, tick_viewers: list[tuple[float, float]]
+) -> tuple[float, int, int]:
+    """(viewer-seconds, clicks, comments) within [start_s, end_s).
+
+    ``tick_viewers`` is a list of (bucket_start_s, viewers) with bucket width
+    inferred from consecutive entries; exposure integrates the carried-forward
+    viewer count over the window.
+    """
+    clicks = sum(1 for e in events if e.kind == "click" and start_s <= e.ts_offset_s < end_s)
+    comments = sum(1 for e in events if e.kind == "comment" and start_s <= e.ts_offset_s < end_s)
+
+    exposure = 0.0
+    for i, (t0, viewers) in enumerate(tick_viewers):
+        t1 = tick_viewers[i + 1][0] if i + 1 < len(tick_viewers) else t0 + (
+            tick_viewers[1][0] - tick_viewers[0][0] if len(tick_viewers) > 1 else 30.0
+        )
+        lo, hi = max(t0, start_s), min(t1, end_s)
+        if hi > lo:
+            exposure += viewers * (hi - lo)
+    return exposure, clicks, comments
+
+
+def block_frame(
+    schedule: Schedule,
+    events: Iterable[Event],
+    burn_in_s: int = 60,
+    pre_window_s: int = 120,
+    tick_s: int = 30,
+) -> list[BlockRecord]:
+    """Build the block-level analysis dataset from the schedule and events.
+
+    ``burn_in_s`` seconds at the start of every measurement block are excluded
+    from the outcome window (carryover burn-in). Blocks whose analysis window
+    has zero viewer exposure get ``y = 0.0`` and should be flagged/excluded at
+    analysis time via the pre-registered minimum-exposure rule.
+    """
+    ev_list = sorted(events, key=lambda e: e.ts_offset_s)
+    session_s = schedule.session_duration_min * 60
+    ticks = build_ticks(ev_list, session_s, tick_s)
+    tick_viewers = [(float(t.bucket_start_s), t.viewers) for t in ticks]
+
+    records: list[BlockRecord] = []
+    for b in schedule.measurement_blocks:
+        win_start = b.start_offset_s + min(burn_in_s, max(b.duration_s - 30, 0))
+        exposure, clicks, _ = _window_stats(ev_list, win_start, b.end_offset_s, tick_viewers)
+        pre_start = max(0.0, b.start_offset_s - pre_window_s)
+        pre_exp, _, pre_comments = _window_stats(ev_list, pre_start, b.start_offset_s, tick_viewers)
+        pre_seconds = max(b.start_offset_s - pre_start, 1e-9)
+        assert b.assignment is not None
+        assert b.propensity is not None
+        records.append(
+            BlockRecord(
+                block_index=b.index,
+                phase=b.phase,
+                assignment=b.assignment,
+                z=1 if b.assignment == ON else 0,
+                propensity=b.propensity,
+                start_offset_s=b.start_offset_s,
+                end_offset_s=b.end_offset_s,
+                exposure_viewer_s=exposure,
+                clicks=clicks,
+                y=(clicks / exposure * 1000.0) if exposure > 0 else 0.0,
+                pre_viewers=pre_exp / pre_seconds,
+                pre_comment_rate=pre_comments / (pre_seconds / 60.0),
+            )
+        )
+    return records
+
+
+def blocks_to_dicts(records: list[BlockRecord]) -> list[dict]:
+    return [
+        {
+            "block_index": r.block_index,
+            "phase": r.phase,
+            "assignment": r.assignment,
+            "z": r.z,
+            "propensity": r.propensity,
+            "exposure_viewer_s": r.exposure_viewer_s,
+            "clicks": r.clicks,
+            "y": r.y,
+            "pre_viewers": r.pre_viewers,
+            "pre_comment_rate": r.pre_comment_rate,
+        }
+        for r in records
+    ]

@@ -1,0 +1,10 @@
+DROP TABLE IF EXISTS analysis_run;
+DROP TABLE IF EXISTS order_event;
+DROP TABLE IF EXISTS click_event;
+DROP TABLE IF EXISTS shortlink;
+DROP TABLE IF EXISTS comment_event;
+DROP TABLE IF EXISTS intervention_log;
+DROP TABLE IF EXISTS session_tick;
+DROP TABLE IF EXISTS experiment_block;
+DROP TABLE IF EXISTS live_session;
+DROP TABLE IF EXISTS product;

@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Environment / secrets — NEVER commit credentials
+.env
+*.pem
+*.key
+secrets/
+
+# Data — raw data never enters git (PII policy: only scrubbed data in DB, none in repo)
+data/raw/
+data/sessions/
+*.dump
+*.sql.gz
+
+# Node / Next.js
+web/node_modules/
+web/.next/
+web/out/
+
+# Notebooks: strip outputs before commit (see HARNESS.md); checkpoints never committed
+.ipynb_checkpoints/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,0 +1,60 @@
+{"text": "0901234567 gửi giúp em size M nha shop", "labels": {"phone": 1, "email": 0, "order": 0, "address": 0, "name": 0}}
+{"text": "shop oi goi em 0901 234 567 nhe", "labels": {"phone": 1, "email": 0, "order": 0, "address": 0, "name": 0}}
+{"text": "sdt 09.01.23.45.67 chốt 2 hộp", "labels": {"phone": 1, "email": 0, "order": 0, "address": 0, "name": 0}}
+{"text": "+84 901 234 567 tư vấn giúp em với", "labels": {"phone": 1, "email": 0, "order": 0, "address": 0, "name": 0}}
+{"text": "alo 84901234567 nha", "labels": {"phone": 1, "email": 0, "order": 0, "address": 0, "name": 0}}
+{"text": "O9O1234567 goi lai em nha shop", "labels": {"phone": 1, "email": 0, "order": 0, "address": 0, "name": 0}}
+{"text": "0 9 0 8 7 6 5 4 3 2 gọi em sau 6h", "labels": {"phone": 1, "email": 0, "order": 0, "address": 0, "name": 0}}
+{"text": "sđt em là không chín không một hai ba bốn năm sáu bảy nha shop", "labels": {"phone": 1, "email": 0, "order": 0, "address": 0, "name": 0}}
+{"text": "0901.234.567 lấy 1 cái màu đỏ", "labels": {"phone": 1, "email": 0, "order": 0, "address": 0, "name": 0}}
+{"text": "035 987 6543 ship COD nha", "labels": {"phone": 1, "email": 0, "order": 0, "address": 0, "name": 0}}
+{"text": "chốt đơn số 0779881234 giùm em", "labels": {"phone": 1, "email": 0, "order": 0, "address": 0, "name": 0}}
+{"text": "0568 123 456 em đặt 3 hộp", "labels": {"phone": 1, "email": 0, "order": 0, "address": 0, "name": 0}}
+{"text": "goi cho minh so 0912-345-678 nhe", "labels": {"phone": 1, "email": 0, "order": 0, "address": 0, "name": 0}}
+{"text": "0868123456 và 0979654321 đều được nha shop", "labels": {"phone": 2, "email": 0, "order": 0, "address": 0, "name": 0}}
+{"text": "gửi bill qua mail hoa.nguyen89@gmail.com giúp em", "labels": {"phone": 0, "email": 1, "order": 0, "address": 0, "name": 0}}
+{"text": "email em la shopcusa123@yahoo.com.vn nhé", "labels": {"phone": 0, "email": 1, "order": 0, "address": 0, "name": 0}}
+{"text": "liên hệ abc@shop.vn nha mọi người", "labels": {"phone": 0, "email": 1, "order": 0, "address": 0, "name": 0}}
+{"text": "hóa đơn gửi về ketoan.livemart@outlook.com", "labels": {"phone": 0, "email": 1, "order": 0, "address": 0, "name": 0}}
+{"text": "mã đơn ABC123XYZ của em sao rồi shop", "labels": {"phone": 0, "email": 0, "order": 1, "address": 0, "name": 0}}
+{"text": "kiểm tra giúp mã đơn 250803A1B2C3 với", "labels": {"phone": 0, "email": 0, "order": 1, "address": 0, "name": 0}}
+{"text": "mã vận đơn GHTK1234ABC đi tới đâu rồi", "labels": {"phone": 0, "email": 0, "order": 1, "address": 0, "name": 0}}
+{"text": "vận đơn SPXVN031234567890 chưa thấy giao", "labels": {"phone": 0, "email": 0, "order": 1, "address": 0, "name": 0}}
+{"text": "đơn hàng của chị mã là 240711KQWERTY sao huỷ vậy", "labels": {"phone": 0, "email": 0, "order": 1, "address": 0, "name": 0}}
+{"text": "mvd VTP987654321 tra cứu giúp em", "labels": {"phone": 0, "email": 0, "order": 1, "address": 0, "name": 0}}
+{"text": "ship về Gò Vấp nha shop", "labels": {"phone": 0, "email": 0, "order": 0, "address": 1, "name": 0}}
+{"text": "giao về quận 7 mất bao lâu vậy", "labels": {"phone": 0, "email": 0, "order": 0, "address": 1, "name": 0}}
+{"text": "số 12/3 đường Lê Lợi phường 5 nha shop", "labels": {"phone": 0, "email": 0, "order": 0, "address": 1, "name": 0}}
+{"text": "nhà em ở ngõ 12 Hàng Bạc gần chợ", "labels": {"phone": 0, "email": 0, "order": 0, "address": 1, "name": 0}}
+{"text": "gửi về Bình Dương giúp em nha", "labels": {"phone": 0, "email": 0, "order": 0, "address": 1, "name": 0}}
+{"text": "ship ve go vap dc ko shop", "labels": {"phone": 0, "email": 0, "order": 0, "address": 1, "name": 0}}
+{"text": "địa chỉ: 45 Nguyễn Trãi Thanh Xuân Hà Nội", "labels": {"phone": 0, "email": 0, "order": 0, "address": 1, "name": 0}}
+{"text": "số nhà 5 tổ 7 khu phố 3 nhé shop", "labels": {"phone": 0, "email": 0, "order": 0, "address": 1, "name": 0}}
+{"text": "em ở Đà Nẵng có ship không", "labels": {"phone": 0, "email": 0, "order": 0, "address": 1, "name": 0}}
+{"text": "giao đến chung cư Sky Garden block B nha", "labels": {"phone": 0, "email": 0, "order": 0, "address": 1, "name": 0}}
+{"text": "quê em ở Nghệ An gửi xe khách được không", "labels": {"phone": 0, "email": 0, "order": 0, "address": 1, "name": 0}}
+{"text": "ship về Củ Chi phí bao nhiêu", "labels": {"phone": 0, "email": 0, "order": 0, "address": 1, "name": 0}}
+{"text": "chuyển về Hải Phòng trước thứ 6 nha", "labels": {"phone": 0, "email": 0, "order": 0, "address": 1, "name": 0}}
+{"text": "đc: 78 đường 3 tháng 2 phường 12", "labels": {"phone": 0, "email": 0, "order": 0, "address": 1, "name": 0}}
+{"text": "tên em là Nguyễn Thị Hoa đặt 2 hộp", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 1}}
+{"text": "chị Hương ơi chốt cho em màu đen", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 1}}
+{"text": "đặt cho anh Tuấn 3 cái nhé", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 1}}
+{"text": "Trần Văn Bình đặt hàng lúc nãy đó shop", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 1}}
+{"text": "ghi tên khách là Phạm Minh Châu nha", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 1}}
+{"text": "của cô Lan Anh ở đơn trước đó ạ", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 1}}
+{"text": "Nguyễn Văn An 0901234567 giao trước 6 giờ", "labels": {"phone": 1, "email": 0, "order": 0, "address": 0, "name": 1}}
+{"text": "giá bao nhiêu vậy shop", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 0}}
+{"text": "size M còn không ạ", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 0}}
+{"text": "150k có freeship không", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 0}}
+{"text": "20h30 mới live à mọi người", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 0}}
+{"text": "sản phẩm số 2 đẹp quá", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 0}}
+{"text": "mua 2 tặng 1 thật hả shop", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 0}}
+{"text": "chốt đơn cho em với", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 0}}
+{"text": "ship bao nhiêu vậy shop", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 0}}
+{"text": "hàng về chưa shop ơi", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 0}}
+{"text": "đường nào cũng được miễn rẻ", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 0}}
+{"text": "đắt quá giảm giá đi shop", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 0}}
+{"text": "cái này dùng được mấy năm", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 0}}
+{"text": "mình lấy 1 cái màu xanh", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 0}}
+{"text": "livestream vui quá trời", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 0}}
+{"text": "có bảo hành không ạ", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 0}}

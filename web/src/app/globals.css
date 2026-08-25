@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  height: 100%;
+  background: #0d0d0d;
+  color: #ffffff;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* Recessive scrollbars for the dark desk */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #383835 transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #383835;
+  border-radius: 4px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Washout blocks on the timeline strip: 45deg texture, tone-on-tone */
+.washout-stripes {
+  background-image: repeating-linear-gradient(
+    45deg,
+    #232322 0px,
+    #232322 4px,
+    #2c2c2a 4px,
+    #2c2c2a 8px
+  );
+}
+
+/* Alias used by BlockStrip for washout blocks (same 45deg tone-on-tone texture) */
+.hatch-washout {
+  background-image: repeating-linear-gradient(
+    45deg,
+    #232322 0px,
+    #232322 4px,
+    #2c2c2a 4px,
+    #2c2c2a 8px
+  );
+}
+
+/* Respect prefers-reduced-motion: collapse all animation/transition time */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Axis ticks and table-like columns align with tabular figures */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}

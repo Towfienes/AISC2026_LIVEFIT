@@ -9,8 +9,7 @@ from livelift.dbops.migrate import load_migrations
 def test_schedule_cli_writes_valid_json(tmp_path, capsys):
     out = tmp_path / "schedule.json"
     rc = schedule_main(
-        ["--duration", "90", "--block", "5", "--washout", "0", "--seed", "99",
-         "--out", str(out)]
+        ["--duration", "90", "--block", "5", "--washout", "0", "--seed", "99", "--out", str(out)]
     )
     assert rc == 0
     payload = json.loads(out.read_text(encoding="utf-8"))
@@ -19,8 +18,9 @@ def test_schedule_cli_writes_valid_json(tmp_path, capsys):
     assert len(payload["blocks"]) >= payload["n_measurement_blocks"]
     # regenerating with the same seed gives the identical schedule (auditable)
     out2 = tmp_path / "schedule2.json"
-    schedule_main(["--duration", "90", "--block", "5", "--washout", "0",
-                   "--seed", "99", "--out", str(out2)])
+    schedule_main(
+        ["--duration", "90", "--block", "5", "--washout", "0", "--seed", "99", "--out", str(out2)]
+    )
     assert out.read_text(encoding="utf-8") == out2.read_text(encoding="utf-8")
 
 

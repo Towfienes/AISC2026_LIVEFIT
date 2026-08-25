@@ -69,11 +69,19 @@ def test_effect_recovery_bias_and_coverage():
 @pytest.mark.slow
 def test_power_improves_with_more_sessions():
     small = run_validation(
-        n_reps=20, n_sessions_per_rep=3, session_minutes=60,
-        sim_params=SimParams(treatment_effect=0.4), n_draws=200, master_seed=17,
+        n_reps=20,
+        n_sessions_per_rep=3,
+        session_minutes=60,
+        sim_params=SimParams(treatment_effect=0.4),
+        n_draws=200,
+        master_seed=17,
     )
     large = run_validation(
-        n_reps=20, n_sessions_per_rep=10, session_minutes=60,
-        sim_params=SimParams(treatment_effect=0.4), n_draws=200, master_seed=17,
+        n_reps=20,
+        n_sessions_per_rep=10,
+        session_minutes=60,
+        sim_params=SimParams(treatment_effect=0.4),
+        n_draws=200,
+        master_seed=17,
     )
     assert large.rejection_rate >= small.rejection_rate

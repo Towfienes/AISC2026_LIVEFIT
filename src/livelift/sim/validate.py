@@ -79,8 +79,13 @@ def run_validation(
             rep_truths.append(true_effect(schedule, sim_params, seed, burn_in_s))
 
         res = analyze_outer(
-            np.array(ys), np.array(zs), np.array(sess_ids), phases,
-            alpha=alpha, n_draws=n_draws, seed=seed_rng.randrange(2**31),
+            np.array(ys),
+            np.array(zs),
+            np.array(sess_ids),
+            phases,
+            alpha=alpha,
+            n_draws=n_draws,
+            seed=seed_rng.randrange(2**31),
         )
         truth = float(np.mean(rep_truths))
         estimates.append(res.estimate)

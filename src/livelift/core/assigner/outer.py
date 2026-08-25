@@ -130,9 +130,7 @@ def _block_lengths_min(duration_min: int, params: DesignParams) -> list[int]:
 
     if params.endpoint_double:
         # total(n) = 4L + (n-2)L + (n-1)w  for n >= 2 doubled-endpoint layout
-        n = (duration_min - 2 * length + washout) // (length + washout) if (
-            length + washout
-        ) else 0
+        n = (duration_min - 2 * length + washout) // (length + washout) if (length + washout) else 0
         if n >= 4:
             return [2 * length] + [length] * (n - 2) + [2 * length]
         # too short for a doubled-endpoint layout — fall through to uniform
@@ -181,9 +179,7 @@ def draw_assignments(
                 break
         if ok:
             return arms, redraw
-    raise RuntimeError(
-        f"rerandomization failed to satisfy constraints in {max_redraws} draws"
-    )
+    raise RuntimeError(f"rerandomization failed to satisfy constraints in {max_redraws} draws")
 
 
 def generate_schedule(
@@ -217,9 +213,7 @@ def generate_schedule(
             offsets[j] = rng.randint(-max_shift, max_shift)
 
     # Phases from nominal (pre-jitter) midpoints — stable strata definitions.
-    phases = [
-        _phase_of(starts[m] + lengths[m] * 30, total_s) for m in range(n_meas)
-    ]
+    phases = [_phase_of(starts[m] + lengths[m] * 30, total_s) for m in range(n_meas)]
 
     arms, n_redraws = draw_assignments(
         phases, rng, params.p, params.min_per_arm_per_phase, params.max_redraws

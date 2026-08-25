@@ -64,9 +64,7 @@ def _phase_curve(t_s: float, session_s: float) -> float:
     return 1.0
 
 
-def _treatment_exposure(
-    t_s: float, schedule: Schedule, override: str | None
-) -> float:
+def _treatment_exposure(t_s: float, schedule: Schedule, override: str | None) -> float:
     """Instantaneous treatment intensity in [0,1] at time t, including
     exponential carryover from earlier ON exposure when the knob is set."""
     if override == "all_on":

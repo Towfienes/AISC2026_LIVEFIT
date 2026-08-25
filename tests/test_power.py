@@ -13,8 +13,13 @@ from livelift.analysis.power import (
 
 def base(cv, n, **kw):
     defaults = {
-        "cv": cv, "n_blocks_total": n, "n_sessions": 30, "compliance": 1.0,
-        "icc_session": 0.0, "resid_autocorr": 0.0, "burn_in_share": 0.0,
+        "cv": cv,
+        "n_blocks_total": n,
+        "n_sessions": 30,
+        "compliance": 1.0,
+        "icc_session": 0.0,
+        "resid_autocorr": 0.0,
+        "burn_in_share": 0.0,
         "var_reduction_r2": 0.0,
     }
     defaults.update(kw)

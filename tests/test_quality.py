@@ -44,15 +44,36 @@ def test_event_continuity():
 
 
 def test_intervention_log_completeness():
-    good = [{"action_id": "a", "block_id": "b1", "inner_propensity": 0.5,
-             "source": "model", "executed": True}]
+    good = [
+        {
+            "action_id": "a",
+            "block_id": "b1",
+            "inner_propensity": 0.5,
+            "source": "model",
+            "executed": True,
+        }
+    ]
     assert check_intervention_log(good).passed
-    bad = [{"action_id": "a", "block_id": None, "inner_propensity": 0.5,
-            "source": "model", "executed": True}]
+    bad = [
+        {
+            "action_id": "a",
+            "block_id": None,
+            "inner_propensity": 0.5,
+            "source": "model",
+            "executed": True,
+        }
+    ]
     assert not check_intervention_log(bad).passed
     # unexecuted rows may be partial
-    skipped = [{"action_id": "a", "block_id": None, "inner_propensity": None,
-                "source": "", "executed": False}]
+    skipped = [
+        {
+            "action_id": "a",
+            "block_id": None,
+            "inner_propensity": None,
+            "source": "",
+            "executed": False,
+        }
+    ]
     assert check_intervention_log(skipped).passed
 
 

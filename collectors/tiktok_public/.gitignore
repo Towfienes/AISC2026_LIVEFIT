@@ -1,0 +1,4 @@
+# Captured data never enters git (PII policy — even scrubbed capture stays local)
+data/
+# Collector's own venv
+.venv/

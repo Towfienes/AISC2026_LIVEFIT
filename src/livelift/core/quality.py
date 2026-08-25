@@ -21,9 +21,7 @@ class CheckResult:
     detail: str
 
 
-def check_block_integrity(
-    scheduled_blocks: list[dict], recorded_blocks: list[dict]
-) -> CheckResult:
+def check_block_integrity(scheduled_blocks: list[dict], recorded_blocks: list[dict]) -> CheckResult:
     """Recorded blocks must match the pre-generated schedule exactly."""
     ok = len(scheduled_blocks) == len(recorded_blocks)
     mismatches = []
@@ -33,9 +31,8 @@ def check_block_integrity(
                 if s.get(key) != r.get(key):
                     mismatches.append(f"block {s.get('block_index')}: {key}")
         ok = not mismatches
-    detail = (
-        f"{len(recorded_blocks)}/{len(scheduled_blocks)} blocks"
-        + (f"; mismatches: {mismatches[:5]}" if mismatches else "")
+    detail = f"{len(recorded_blocks)}/{len(scheduled_blocks)} blocks" + (
+        f"; mismatches: {mismatches[:5]}" if mismatches else ""
     )
     return CheckResult("block_integrity", ok, detail)
 
@@ -45,9 +42,7 @@ def check_assignment_balance(blocks: list[dict], lo: float = 0.4, hi: float = 0.
     if not meas:
         return CheckResult("assignment_balance", False, "no measurement blocks")
     share_on = sum(1 for b in meas if b.get("assignment") == "ON") / len(meas)
-    return CheckResult(
-        "assignment_balance", lo <= share_on <= hi, f"ON share = {share_on:.2f}"
-    )
+    return CheckResult("assignment_balance", lo <= share_on <= hi, f"ON share = {share_on:.2f}")
 
 
 def check_event_continuity(

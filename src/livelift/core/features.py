@@ -135,8 +135,10 @@ def _window_stats(
 
     exposure = 0.0
     for i, (t0, viewers) in enumerate(tick_viewers):
-        t1 = tick_viewers[i + 1][0] if i + 1 < len(tick_viewers) else t0 + (
-            tick_viewers[1][0] - tick_viewers[0][0] if len(tick_viewers) > 1 else 30.0
+        t1 = (
+            tick_viewers[i + 1][0]
+            if i + 1 < len(tick_viewers)
+            else t0 + (tick_viewers[1][0] - tick_viewers[0][0] if len(tick_viewers) > 1 else 30.0)
         )
         lo, hi = max(t0, start_s), min(t1, end_s)
         if hi > lo:

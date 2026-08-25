@@ -23,12 +23,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--duration", type=int, required=True, help="session length, minutes")
     parser.add_argument("--block", type=int, default=5, help="block length, minutes")
     parser.add_argument(
-        "--washout", type=int, default=0,
+        "--washout",
+        type=int,
+        default=0,
         help="design washout, minutes (default 0: analysis burn-in instead)",
     )
     parser.add_argument("--jitter", type=int, default=30, help="boundary jitter, seconds")
     parser.add_argument(
-        "--no-endpoint-double", action="store_true",
+        "--no-endpoint-double",
+        action="store_true",
         help="disable doubled first/last blocks",
     )
     parser.add_argument("--seed", type=int, default=None)

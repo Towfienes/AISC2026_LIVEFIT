@@ -1,0 +1,6 @@
+# Isolated collector deps — install in this folder's OWN venv, never the core one.
+# TikTokLive is a reverse-engineered library (unofficial); see README.md for risks.
+TikTokLive>=6
+# The PII filter comes from the core package; install it separately with:
+#   pip install -e ../..
+# (collectors may depend on livelift — the reverse is forbidden and CI-checked)

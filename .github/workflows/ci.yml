@@ -1,0 +1,92 @@
+# LiveLift CI — quality gates from HARNESS.md §2.
+# Red CI = no merge, no exceptions.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Nightly slow suite (statistical validation on simulation).
+    # 18:00 UTC = 01:00 Asia/Ho_Chi_Minh.
+    - cron: "0 18 * * *"
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: ruff lint + format
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install ruff
+        run: pip install ruff
+      - name: ruff check
+        run: ruff check src tests
+      - name: ruff format --check
+        run: ruff format --check src tests
+
+  test:
+    name: pytest (fast) + coverage
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install package with dev extras
+        run: pip install -e ".[dev,server,ml]"
+      - name: Run fast test suite
+        run: pytest -m "not slow" --cov=src/livelift --cov-report=term
+
+  isolation:
+    name: VLiveBench isolation gate
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Check src/ <-> collectors/ import isolation
+        run: python scripts/check_isolation.py
+
+  web:
+    name: web build (Next.js)
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    continue-on-error: false
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+
+  nightly:
+    name: pytest (slow statistical validation)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install package with dev extras
+        run: pip install -e ".[dev,server,ml]"
+      - name: Run slow suite (estimator validation on simulation)
+        run: pytest -m slow

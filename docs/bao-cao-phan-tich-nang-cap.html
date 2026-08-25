@@ -1,0 +1,228 @@
+<title>LiveLift — Phân tích &amp; Nâng cấp</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@500;600;700;800&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #f6faf8;
+    --surface: #ffffff;
+    --ink: #17241f;
+    --ink-2: #55665f;
+    --line: #dbe6e1;
+    --accent: #0e7a5f;          /* "tác động đo được" */
+    --accent-soft: #e3f2ec;
+    --forecast: #8a6d3b;        /* "ước lượng dự báo" */
+    --forecast-soft: #f4ecdd;
+    --p0: #b3352c;              /* on-air red — chỉ dành cho P0/tồn vong */
+    --p0-soft: #f9e9e7;
+    --code-bg: #eef4f1;
+  }
+  :root:not([data-theme="light"]) { }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #101816; --surface: #16211e; --ink: #e6efe9; --ink-2: #9fb2aa;
+      --line: #2a3b35; --accent: #3fc79c; --accent-soft: #123a2f;
+      --forecast: #d3a95e; --forecast-soft: #33291a;
+      --p0: #e4685f; --p0-soft: #3a1f1c; --code-bg: #1c2926;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #101816; --surface: #16211e; --ink: #e6efe9; --ink-2: #9fb2aa;
+    --line: #2a3b35; --accent: #3fc79c; --accent-soft: #123a2f;
+    --forecast: #d3a95e; --forecast-soft: #33291a;
+    --p0: #e4685f; --p0-soft: #3a1f1c; --code-bg: #1c2926;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Lora", Georgia, "Times New Roman", serif;
+    font-size: 16.5px; line-height: 1.65;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 48px 24px 96px; }
+  header.masthead { border-bottom: 3px solid var(--accent); padding-bottom: 28px; margin-bottom: 40px; }
+  .kicker {
+    font-family: "IBM Plex Mono", monospace; font-size: 12.5px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--accent); font-weight: 600; margin-bottom: 10px;
+  }
+  h1 {
+    font-family: "Be Vietnam Pro", system-ui, sans-serif; font-weight: 800;
+    font-size: clamp(30px, 5vw, 44px); line-height: 1.12; margin: 0 0 14px; text-wrap: balance;
+  }
+  .meta { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; color: var(--ink-2); display: flex; flex-wrap: wrap; gap: 8px 22px; }
+  h2 {
+    font-family: "Be Vietnam Pro", system-ui, sans-serif; font-weight: 700;
+    font-size: 23px; line-height: 1.25; margin: 52px 0 6px; text-wrap: balance;
+  }
+  h2 .no {
+    font-family: "IBM Plex Mono", monospace; font-size: 13px; color: var(--accent);
+    font-weight: 600; letter-spacing: .1em; display: block; margin-bottom: 4px;
+  }
+  h3 { font-family: "Be Vietnam Pro", system-ui, sans-serif; font-weight: 600; font-size: 17.5px; margin: 26px 0 6px; }
+  p { margin: 10px 0; max-width: 70ch; }
+  .lede { font-size: 18.5px; line-height: 1.6; }
+  strong { font-weight: 600; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  .verdict {
+    background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--accent);
+    padding: 20px 24px; margin: 26px 0; border-radius: 4px;
+  }
+  .verdict p { margin: 6px 0; }
+  .chip {
+    display: inline-block; font-family: "Be Vietnam Pro", sans-serif; font-weight: 600;
+    font-size: 11.5px; letter-spacing: .06em; padding: 2px 9px; border-radius: 999px;
+    vertical-align: 1px; white-space: nowrap;
+  }
+  .chip.p0 { background: var(--p0-soft); color: var(--p0); }
+  .chip.p1 { background: var(--forecast-soft); color: var(--forecast); }
+  .chip.p2 { background: var(--accent-soft); color: var(--accent); }
+  .chip.ok { background: var(--accent-soft); color: var(--accent); }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin: 22px 0; }
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--p0);
+    border-radius: 4px; padding: 16px 18px;
+  }
+  .card h3 { margin: 4px 0 8px; font-size: 16px; }
+  .card .tag { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: var(--p0); font-weight: 600; letter-spacing: .08em; }
+  .card p { font-size: 14.5px; margin: 6px 0 0; color: var(--ink-2); }
+  .card p b { color: var(--ink); font-weight: 600; }
+  .tablewrap { overflow-x: auto; margin: 18px 0; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; font-family: "Be Vietnam Pro", system-ui, sans-serif; }
+  th {
+    text-align: left; font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--ink-2); font-weight: 600; padding: 10px 14px; border-bottom: 2px solid var(--line);
+    white-space: nowrap;
+  }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; line-height: 1.5; }
+  tr:last-child td { border-bottom: none; }
+  td.id { font-family: "IBM Plex Mono", monospace; font-weight: 600; white-space: nowrap; }
+  td .fix { color: var(--accent); font-weight: 600; }
+  code, .mono { font-family: "IBM Plex Mono", monospace; font-size: .88em; background: var(--code-bg); padding: 1px 6px; border-radius: 3px; }
+  ul { padding-left: 22px; margin: 10px 0; }
+  li { margin: 6px 0; max-width: 68ch; }
+  .note {
+    background: var(--forecast-soft); border-left: 3px solid var(--forecast);
+    padding: 12px 16px; border-radius: 3px; margin: 16px 0; font-size: 14.5px;
+  }
+  .note b { color: var(--forecast); }
+  .status { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin: 20px 0; }
+  .stat {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 14px 16px;
+  }
+  .stat .n { font-family: "IBM Plex Mono", monospace; font-size: 24px; font-weight: 600; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .stat .l { font-size: 13px; color: var(--ink-2); font-family: "Be Vietnam Pro", sans-serif; margin-top: 2px; }
+  .filelist { font-family: "IBM Plex Mono", monospace; font-size: 13px; line-height: 1.9; color: var(--ink-2); }
+  .filelist b { color: var(--ink); font-weight: 500; }
+  footer { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-2); font-family: "Be Vietnam Pro", sans-serif; }
+  @media (max-width: 640px) { .wrap { padding: 32px 16px 64px; } }
+</style>
+
+<div class="wrap">
+<header class="masthead">
+  <div class="kicker">AISC'26 · Data Driven Business · Báo cáo nội bộ nhóm</div>
+  <h1>LiveLift — Phân tích &amp; Nâng cấp</h1>
+  <div class="meta">
+    <span>25/08/2026</span>
+    <span>Nguồn: 6 báo cáo nghiên cứu đa nguồn + phản biện tài liệu</span>
+    <span>Chi tiết: <code>livelift/docs/research/</code></span>
+  </div>
+</header>
+
+<p class="lede">Hai tài liệu dự án đặt nền phương pháp <strong>thuộc nhóm 1% đội thi sinh viên</strong> — switchback hai tầng, tiền đăng ký, quy tắc chống overclaim cấp giao diện. Nhưng ở trạng thái nộp hiện tại, hồ sơ còn <strong>ba lỗ hổng có thể đánh sập toàn bộ luận điểm</strong> trước 14/09. Cả ba đều sửa được, và lời giải đã được xác minh từ tài liệu nghiên cứu. Phần mềm nền tảng đã được dựng và vượt toàn bộ gate kiểm định thống kê.</p>
+
+<h2><span class="no">01</span>Ba việc quyết định thắng thua</h2>
+<div class="cards">
+  <div class="card">
+    <div class="tag">L5 · ĐO LƯỜNG</div>
+    <h3>"Click sản phẩm" chưa đo được trên Facebook Live</h3>
+    <p>Facebook Live không có thẻ sản phẩm gốc — biến kết quả chính <b>không tồn tại</b> nếu không định nghĩa lại. <b>Lời giải đã triển khai:</b> shortlink UTM tự host + endpoint redirect <span class="mono">GET /r/{code}</span> ghi <span class="mono">click_event</span> theo khối.</p>
+  </div>
+  <div class="card">
+    <div class="tag">R1 · KHÁN GIẢ</div>
+    <h3>Toán quảng cáo thiếu ~10 lần</h3>
+    <p>CPM Việt Nam 25–60k → 300k/phiên mua được <b>~5–15 người xem đồng thời</b>, không phải 80. <b>Hành động:</b> chạy 2–3 phiên đo chi phí thật/lượt vào; hạ ngưỡng tiên quyết xuống 40–50 hoặc tuyên bố đối tác dữ liệu là đường sống chính.</p>
+  </div>
+  <div class="card">
+    <div class="tag">L1 · LỰC THỐNG KÊ</div>
+    <h3>Bảng MDE mâu thuẫn với quy tắc washout</h3>
+    <p>Quy tắc "khối ≥ 2×washout" + dwell 5–7 phút ép chu kỳ ≥15 phút → MDE ≈28%, phá mục tiêu ≤20%. <b>Lời giải đã triển khai:</b> bỏ washout thiết kế, dùng <b>burn-in phân tích</b> (Hu–Wager) — không mất phút phát sóng nào, sensitivity b ∈ {0..3} phút.</p>
+  </div>
+</div>
+
+<h2><span class="no">02</span>Lỗi &amp; mâu thuẫn phải sửa trước khi nộp</h2>
+<div class="tablewrap"><table>
+  <tr><th>Mã</th><th>Vấn đề</th><th>Cách sửa</th></tr>
+  <tr><td class="id">L2</td><td>3.900 phút trộn dữ liệu hiệu chỉnh với dữ liệu khẳng định; 1.200 phút đối tác <em>chưa ký</em> vẫn được đếm</td><td><span class="fix">Bảng lực hai kịch bản trung thực</span> (không/có đối tác) — đã có sẵn trong <code>analysis/power/</code></td></tr>
+  <tr><td class="id">L3·L4</td><td>Hai tài liệu lệch nhau: ngân sách 17,2M vs 15,2M; hạn nộp 14/09 vs 15/09; khung 12 vs 14 tuần</td><td><span class="fix">Chốt một bộ số duy nhất</span>, xác minh hạn nộp với BTC</td></tr>
+  <tr><td class="id">L6</td><td>Màn hình host hiện thời gian còn lại của khối → host suy ra BẬT/TẮT, phá mù thí nghiệm</td><td><span class="fix">Làm mù host</span> — trang <code>/host</code> chỉ hiện sản phẩm ghim + giá + tồn kho; ghi vào tiền đăng ký như biện pháp chống nhiễu</td></tr>
+  <tr><td class="id">L7</td><td>"Thông báo" bị đánh tráo thành "đồng ý" — mâu thuẫn với chính Nghị định 356 nhóm trích ("cấm mặc định đồng ý")</td><td><span class="fix">Lập luận khử nhận dạng tại ingest + lợi ích chính đáng</span>; thừa nhận rủi ro ToS của TikTokLive trong một câu</td></tr>
+  <tr><td class="id">L8</td><td>ICC đo sai cấp cụm: "tương quan khối liền kề" là tự tương quan; cụm thật là <b>phiên</b> (~30), không phải 650 khối</td><td><span class="fix">Đo ICC cấp phiên</span>, đưa design effect cụm-phiên vào MDE — đã có trong <code>PowerInputs</code></td></tr>
+  <tr><td class="id">R2–R5</td><td>SP quá tải (ai đóng gói ≥8 đơn/phiên?); TN là single point of failure; giá vốn ~19k/đơn khiến GMV thành nhiễu</td><td><span class="fix">Phân công đóng gói</span>; NC học backup phân tích; xem lại danh mục hàng</td></tr>
+</table></div>
+
+<h2><span class="no">03</span>Nâng cấp phương pháp (đã đưa vào mã nguồn)</h2>
+<h3>Thiết kế switchback</h3>
+<ul>
+  <li><strong>Khối ~5 phút chuẩn hóa, khối đầu/cuối phiên nhân đôi</strong> — thiết kế tối ưu của Bojinov, Simchi-Levi &amp; Zhao (<em>Management Science</em> 2023). Số lần ngẫu nhiên hóa, không phải số phút, mới là đơn vị lực thống kê.</li>
+  <li><strong>Bernoulli(0.5) i.i.d. + rerandomization</strong> (mỗi ⅓ phiên ≥2 khối mỗi nhánh) + <strong>jitter ranh giới ±30s</strong> để không đồng bộ với kịch bản show (Xiong et al. 2024).</li>
+  <li><strong>Washout thiết kế → burn-in phân tích</strong> (Hu &amp; Wager, <em>JBES</em>): ghi log tất cả, phân tích bỏ 1 phút đầu khối, sensitivity trên b ∈ {0..3}.</li>
+</ul>
+<div class="note"><b>Bất đồng phải giải bằng dữ liệu pilot:</b> khối 5 phút (carryover ngắn) hay 15 phút (nếu t_mix &gt; 3 phút)? Tuần 1–2 đo t_mix (impulse response CTR sau bỏ ghim) rồi mới chốt — tiền đăng ký <em>quy trình chọn</em>, không chọn trước kết quả.</div>
+<h3>Ước lượng &amp; suy diễn</h3>
+<ul>
+  <li><strong>Đơn vị = khối, cụm = phiên</strong> — 30 phiên mới là cỡ mẫu ràng buộc (DoorDash, Bojinov &amp; Shephard <em>JASA</em> 2019).</li>
+  <li><strong>Kiểm định chính: randomization inference studentized</strong>, redraw bằng chính hàm gán production; CI Fisher bằng nghịch đảo kiểm định. Điểm: Horvitz–Thompson (ít giả định nhất) + OLS FE-phiên với hiệp biến Lin 2013 (giảm phương sai). LATE qua IV khi có non-compliance.</li>
+  <li><strong>CUPED/CUPAC</strong> với hiệp biến tiền-khối — kỳ vọng giảm 20–40% phương sai, gần triệt tiêu phạt compliance.</li>
+</ul>
+<h3>NLP tiếng Việt</h3>
+<ul>
+  <li><strong>ViSoBERT thay PhoBERT</strong> (EMNLP 2023) — pre-train đúng trên bình luận mạng xã hội Việt, không cần tách từ. Serving ONNX INT8 trên CPU.</li>
+  <li><strong>Keyword baseline ship trước</strong> (radar chạy ngày một, nguồn weak-label, mốc ablation); tự gán nhãn 2–3k bình luận Live Lab với 2 annotator + hệ số κ.</li>
+  <li><strong>PII rules-first</strong>: regex SĐT chống lách (tách số, o→0, viết chữ), gazetteer <em>cả 63 tỉnh cũ lẫn 34 tỉnh mới</em> (sáp nhập 07/2025 — người xem vẫn gõ "quận 7" nhiều năm nữa).</li>
+</ul>
+
+<h2><span class="no">04</span>Thực tế API đã xác minh (08/2026)</h2>
+<div class="tablewrap"><table>
+  <tr><th>Nền tảng</th><th>Phát hiện</th><th>Hệ quả</th></tr>
+  <tr><td class="id">Facebook</td><td>App ở <b>Development Mode đọc được Page của chính nhóm</b> — không cần chờ App Review</td><td>Live Lab chạy được <b>ngay hôm nay</b>; App Review (budget 4–6 tuần) chỉ cần cho Page đối tác tuần 8. Polling phải tắt <code>live_filter</code> kẻo mất bình luận.</td></tr>
+  <tr><td class="id">YouTube</td><td>Polling 5s cố định ăn &gt;50% quota ngày cho một phiên</td><td>Dùng <code>streamList</code> (push) hoặc tôn trọng <code>pollingIntervalMillis</code>; lấy chat id qua <code>videos.list</code>, không <code>search.list</code></td></tr>
+  <tr><td class="id">TikTok</td><td>TikTokLive v6 còn sống (07/2026) nhưng reverse-engineered, chết bất kỳ lúc nào</td><td>Cách ly hoàn toàn trong <code>collectors/</code>; thí nghiệm không phụ thuộc</td></tr>
+  <tr><td class="id">Cạnh tranh</td><td>Không công cụ nào (Chanmama, Feigua, Kalodata…) chạy thí nghiệm ngẫu nhiên trong phiên. Tiền lệ học thuật duy nhất: ISR 2025</td><td>Trích ISR 2025 vào related work — <b>hợp thức hóa hướng đi</b>; định vị "moat phương pháp"</td></tr>
+</table></div>
+
+<h2><span class="no">05</span>Dataset &amp; mô phỏng</h2>
+<ul>
+  <li><strong>KuaiLive — tải ngay</strong> (858MB, Zenodo, SIGIR 2026): có impression không-click → tính được CTR cấp phòng, đúng hình dạng outcome. Chỉ dùng rates/timing. Coi license là NC.</li>
+  <li><strong>LiveRec/Twitch</strong>: calibrate arrival/dwell. <strong>Bỏ LSEC</strong> (không timestamp, không license) và KuaiLive-M3.</li>
+  <li><strong>Simulator study là mục headline của bài nộp</strong>: nó biến "chúng em mở một shop" thành "ước lượng viên của chúng em được chứng minh đã hiệu chỉnh" — A/A 1.000 phiên, power curve theo độ dài khối × carryover.</li>
+</ul>
+
+<h2><span class="no">06</span>Trạng thái triển khai phần mềm</h2>
+<p>Repo <code>D:\AISC2026\livelift</code> — Python 3.12 · FastAPI · PostgreSQL+TimescaleDB · Redis · Next.js. Quy trình phát triển theo <code>HARNESS.md</code>: test-first, quality gate CI, root-cause bắt buộc, dữ liệu thí nghiệm chỉ flag không sửa.</p>
+<div class="status">
+  <div class="stat"><div class="n">89</div><div class="l">kiểm thử tự động, 100% pass (86 nhanh + 3 Monte-Carlo)</div></div>
+  <div class="stat"><div class="n">≥95%</div><div class="l">recall PII (SĐT·email·mã đơn·địa chỉ) — gate CI</div></div>
+  <div class="stat"><div class="n">&lt;10%</div><div class="l">bias ước lượng trên mô phỏng tác động biết trước</div></div>
+  <div class="stat"><div class="n">✓</div><div class="l">A/A false-positive ≈ α · CI coverage 90–98%</div></div>
+</div>
+<div class="filelist" id="modlist">
+  <b>core/assigner</b> — gán hai tầng: Bernoulli+rerandomization, endpoint double, jitter, seed audit được<br>
+  <b>ingest/pii</b> — lọc PII tiếng Việt tại ingest, trước mọi lần ghi<br>
+  <b>analysis/estimators</b> — RI studentized + Fisher CI, HT, OLS-FE+Lin, LATE, CUPED<br>
+  <b>analysis/power</b> — MDE đủ hiệu chỉnh (compliance, ICC phiên, autocorr, burn-in, CUPED)<br>
+  <b>sim</b> — mô phỏng phiên live có carryover knob + CRN ground truth, harness thẩm định<br>
+  <b>migrations</b> — schema 10 bảng (thêm click_event/shortlink, cờ compliance, ts server)<br>
+  <b>ingest/youtube·facebook</b> — client API chính thức theo đúng quota/filter đã xác minh<br>
+  <b>api · web · ops</b> — FastAPI + bàn trung control Next.js (3 vùng, /host làm mù, replay) + runbook
+</div>
+
+<h2><span class="no">07</span>Hành động ưu tiên</h2>
+<div class="tablewrap"><table>
+  <tr><th></th><th>Việc</th><th>Ai</th></tr>
+  <tr><td><span class="chip p0">P0 · trước 14/09</span></td><td>Hợp nhất hai tài liệu (một ngân sách, một lịch); viết mục "định nghĩa đo click"; bảng MDE hai kịch bản; bật Live Lab ở Facebook Dev Mode ngay; pilot toán quảng cáo 2–3 phiên; tải KuaiLive</td><td>SP·TN·KS</td></tr>
+  <tr><td><span class="chip p1">P1 · trước tuần 6</span></td><td>Đo t_mix tuần 1–2 → chốt độ dài khối bằng power curve; tiền đăng ký thiết kế mới; làm mù host; sửa mục pháp lý; ICC cấp phiên; keyword baseline + gán nhãn intent</td><td>TN·FS·NC</td></tr>
+  <tr><td><span class="chip p2">P2 · trước chung kết</span></td><td>A/A 1.000 phiên + power study thành mục headline; đóng băng assigner/ingest tuần 6; slide "giới hạn tự khai"; phân công đóng gói–giao hàng</td><td>Cả nhóm</td></tr>
+</table></div>
+
+<footer>
+  Báo cáo đầy đủ kèm trích dẫn: <code>livelift/docs/research/2026-08-24-bao-cao-tong-hop-nghien-cuu.md</code> + 6 báo cáo chuyên đề cùng thư mục · Quy trình làm việc: <code>livelift/HARNESS.md</code>
+</footer>
+</div>

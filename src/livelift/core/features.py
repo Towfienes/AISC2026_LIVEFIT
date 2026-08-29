@@ -119,12 +119,17 @@ class BlockRecord:
     y: float  # clicks per 1000 viewer-seconds in the analysis window
     pre_viewers: float  # mean viewers in the trailing pre-block window
     pre_comment_rate: float  # comments/min in the trailing pre-block window
+    # Arousal proxy (S-O-R: sensory/social stimuli -> arousal -> impulsive
+    # purchase; Nguyễn et al., IMCOM 2026): like tempo before the block. Used
+    # ONLY as a pre-treatment covariate for variance reduction / heterogeneity
+    # exploration — never as an outcome.
+    pre_like_rate: float  # likes/min in the trailing pre-block window
 
 
 def _window_stats(
     events: list[Event], start_s: float, end_s: float, tick_viewers: list[tuple[float, float]]
-) -> tuple[float, int, int]:
-    """(viewer-seconds, clicks, comments) within [start_s, end_s).
+) -> tuple[float, int, int, int]:
+    """(viewer-seconds, clicks, comments, likes) within [start_s, end_s).
 
     ``tick_viewers`` is a list of (bucket_start_s, viewers) with bucket width
     inferred from consecutive entries; exposure integrates the carried-forward
@@ -132,6 +137,7 @@ def _window_stats(
     """
     clicks = sum(1 for e in events if e.kind == "click" and start_s <= e.ts_offset_s < end_s)
     comments = sum(1 for e in events if e.kind == "comment" and start_s <= e.ts_offset_s < end_s)
+    likes = sum(1 for e in events if e.kind == "like" and start_s <= e.ts_offset_s < end_s)
 
     exposure = 0.0
     for i, (t0, viewers) in enumerate(tick_viewers):
@@ -143,7 +149,7 @@ def _window_stats(
         lo, hi = max(t0, start_s), min(t1, end_s)
         if hi > lo:
             exposure += viewers * (hi - lo)
-    return exposure, clicks, comments
+    return exposure, clicks, comments, likes
 
 
 def block_frame(
@@ -168,9 +174,11 @@ def block_frame(
     records: list[BlockRecord] = []
     for b in schedule.measurement_blocks:
         win_start = b.start_offset_s + min(burn_in_s, max(b.duration_s - 30, 0))
-        exposure, clicks, _ = _window_stats(ev_list, win_start, b.end_offset_s, tick_viewers)
+        exposure, clicks, _, _ = _window_stats(ev_list, win_start, b.end_offset_s, tick_viewers)
         pre_start = max(0.0, b.start_offset_s - pre_window_s)
-        pre_exp, _, pre_comments = _window_stats(ev_list, pre_start, b.start_offset_s, tick_viewers)
+        pre_exp, _, pre_comments, pre_likes = _window_stats(
+            ev_list, pre_start, b.start_offset_s, tick_viewers
+        )
         pre_seconds = max(b.start_offset_s - pre_start, 1e-9)
         assert b.assignment is not None
         assert b.propensity is not None
@@ -188,6 +196,7 @@ def block_frame(
                 y=(clicks / exposure * 1000.0) if exposure > 0 else 0.0,
                 pre_viewers=pre_exp / pre_seconds,
                 pre_comment_rate=pre_comments / (pre_seconds / 60.0),
+                pre_like_rate=pre_likes / (pre_seconds / 60.0),
             )
         )
     return records
@@ -206,6 +215,7 @@ def blocks_to_dicts(records: list[BlockRecord]) -> list[dict]:
             "y": r.y,
             "pre_viewers": r.pre_viewers,
             "pre_comment_rate": r.pre_comment_rate,
+            "pre_like_rate": r.pre_like_rate,
         }
         for r in records
     ]

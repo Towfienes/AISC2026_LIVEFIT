@@ -55,11 +55,13 @@ def test_block_frame_pre_covariates():
     schedule = generate_schedule(60, DesignParams(jitter_s=0), seed=2)
     events = [Event("viewer_count", t, value=60.0) for t in range(0, 3600, 30)]
     events += [Event("comment", t) for t in range(0, 3600, 6)]  # 10 comments/min
+    events += [Event("like", t) for t in range(0, 3600, 3)]  # 20 likes/min (arousal proxy)
     frame = block_frame(schedule, events, burn_in_s=30)
     # skip the first block (no pre-window)
     for r in frame[1:]:
         assert 50 <= r.pre_viewers <= 70
         assert 8 <= r.pre_comment_rate <= 12
+        assert 17 <= r.pre_like_rate <= 23
 
 
 def test_zero_exposure_block_has_zero_outcome():

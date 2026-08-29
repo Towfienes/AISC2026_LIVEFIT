@@ -161,3 +161,21 @@ tự viết IPS/DR tầng trong (dùng Open Bandit Pipeline).
 
 **Quyết định (2026-08-24):** tải KuaiLive + LiveRec tuần 1; thẩm định mọi ước lượng viên
 trên mô phỏng có tác động biết trước trước khi chạm dữ liệu thật (HARNESS gate E3-06/07).
+
+## 2026-08-26 — S-O-R Model of Impulsive Purchase in TikTok Livestream Commerce (IMCOM 2026)
+
+- **Nguồn:** Nguyễn T.H. Nhung et al., IMCOM 2026, doi:10.1109/IMCOM69009.2026.11360852.
+  Khảo sát 212 người tiêu dùng Gen Z TP.HCM (mẫu thuận tiện), PLS-SEM theo khung
+  Stimulus-Organism-Response: âm thanh + hình ảnh + ảnh hưởng xã hội → hưng phấn
+  (arousal, biến trung gian) → mua hàng bốc đồng.
+- **Dùng được:** (1) related work — bằng chứng Việt Nam/Gen Z rằng kích thích cảm quan-xã hội
+  trong phiên live thúc đẩy mua bốc đồng qua kênh cảm xúc → củng cố luận điểm "thời điểm
+  can thiệp trong phiên quan trọng"; (2) proxy hưng phấn từ log hành vi (nhịp thả tim,
+  nhịp bình luận) làm hiệp biến tiền-khối (CUPED/CUPAC) và biến điều tiết cho phân tích
+  tác động không đồng nhất (khám phá, ghi vào phụ lục tiền đăng ký).
+- **KHÔNG dùng được:** hệ số đường dẫn PLS-SEM không nhập được vào mô hình LiveLift
+  (đo self-report cắt ngang, tương quan, khác tầng khái niệm); không phải bằng chứng
+  nhân quả — LiveLift chính là phần bù thực nghiệm cho dòng nghiên cứu khảo sát này,
+  và nên trình bày đúng như vậy trong hồ sơ.
+- **Đã áp dụng:** thêm `pre_like_rate` (nhịp thả tim/phút cửa sổ tiền-khối) vào
+  BlockRecord làm hiệp biến — commit cùng ngày.

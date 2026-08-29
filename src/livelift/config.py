@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     facebook_page_id: str = ""
     facebook_page_access_token: str = ""
     facebook_graph_version: str = "v23.0"
+    # Opt-in workaround for YouTube's anti-bot check on VOD replay analysis:
+    # "chrome" / "edge" / "firefox" — yt-dlp reads the local browser's login
+    # cookies (nothing leaves the machine except the normal YouTube request).
+    ytdlp_cookies_from_browser: str = ""
 
 
 @lru_cache

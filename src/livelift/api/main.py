@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from livelift import __version__
-from livelift.api.routes import actions, demo, events, redirect, reports, sessions, ws
+from livelift.api.routes import actions, demo, events, redirect, replays, reports, sessions, ws
 from livelift.api.store import Store, build_store
 
 
@@ -57,6 +57,7 @@ def create_app(store: Store | None = None) -> FastAPI:
     app.include_router(actions.router, tags=["actions"])
     app.include_router(redirect.router, tags=["redirect"])
     app.include_router(reports.router, tags=["reports"])
+    app.include_router(replays.router, tags=["replays"])
     app.include_router(demo.router, tags=["demo"])
     app.include_router(ws.router)
     return app

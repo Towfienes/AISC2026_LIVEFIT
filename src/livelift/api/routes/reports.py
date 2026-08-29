@@ -76,9 +76,31 @@ def _compliance(session_id: str, store) -> ComplianceStats:
     )
 
 
+OBSERVATIONAL_LABEL = "phân tích quan sát — không phải thí nghiệm"
+
+
+def _is_analysis_only(session: dict[str, Any]) -> bool:
+    return bool((session.get("design") or {}).get("analysis_only"))
+
+
 @router.get("/sessions/{session_id}/report", response_model=SessionReport)
 def session_report(session_id: str, store: StoreDep) -> SessionReport:
     session = service.require_session(store, session_id)
+    # OBSERVATIONAL GUARD (E2-04 corollary): a replay analysis of someone
+    # else's video — or any session without an assignment schedule — had no
+    # randomization, so no experiment quantity (ON/OFF diff, CI) may ever be
+    # displayed for it. Return an explicitly labeled observational report.
+    if _is_analysis_only(session) or not store.get_blocks(session_id):
+        return SessionReport(
+            session_id=session_id,
+            label=OBSERVATIONAL_LABEL,
+            n_blocks=0,
+            n_on=0,
+            n_off=0,
+            diff_in_means=None,
+            blocks=[],
+            compliance=_compliance(session_id, store),
+        )
     frame = _session_frame(session, store)
     ys = np.array([r["y"] for r in frame], dtype=float)
     zs = np.array([r["z"] for r in frame], dtype=int)
@@ -107,7 +129,11 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
     phases: list[str] = []
     compliance_rates: list[float] = []
 
-    ended = [s for s in store.list_sessions() if s.get("status") == "ended"]
+    ended = [
+        s
+        for s in store.list_sessions()
+        if s.get("status") == "ended" and not _is_analysis_only(s)
+    ]
     for session in ended:
         frame = _session_frame(session, store)
         for r in frame:

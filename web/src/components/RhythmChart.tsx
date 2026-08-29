@@ -23,6 +23,8 @@ import {
 
 import { CHART, type Tick } from "@/lib/types";
 
+import Term from "./Term";
+
 interface MinutePoint {
   offset_s: number;
   viewers: number | null;
@@ -96,11 +98,13 @@ export default function RhythmChart({ ticks }: { ticks: Tick[] }) {
       <div className="flex items-center gap-4 px-1 pb-1 text-[11px] text-sec">
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-0.5 w-4 rounded" style={{ background: CHART.s1 }} />
-          Người xem
+          <Term tip="Số người đang xem phiên live tại mỗi phút.">Người xem</Term>
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-0.5 w-4 rounded" style={{ background: CHART.s2 }} />
-          Lượt bấm link / phút
+          <Term tip="Số lần người xem bấm vào link sản phẩm trong mỗi phút — chỉ số chính để so khối BẬT với khối TẮT.">
+            Lượt bấm link / phút
+          </Term>
         </span>
         <span className="flex items-center gap-1.5">
           <svg width="18" height="4" aria-hidden>
@@ -114,7 +118,9 @@ export default function RhythmChart({ ticks }: { ticks: Tick[] }) {
               strokeDasharray="4 3"
             />
           </svg>
-          Đường dự báo baseline
+          <Term tip="Con số từ mô hình dự báo — chưa qua thí nghiệm nên không có khoảng tin cậy.">
+            Đường dự báo baseline
+          </Term>
         </span>
       </div>
 

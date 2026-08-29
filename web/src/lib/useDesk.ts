@@ -62,7 +62,13 @@ export interface DeskState {
   override: (productId: string, reason: OverrideReason) => Promise<void>;
 }
 
-export function useDesk(): DeskState {
+export interface UseDeskOptions {
+  /** Switch to the deterministic mock demo (e.g. the desk empty-state button). */
+  forceMock?: boolean;
+}
+
+export function useDesk(opts?: UseDeskOptions): DeskState {
+  const forceMock = opts?.forceMock === true;
   const [connection, setConnection] = useState<ConnectionKind>(
     MOCK_FORCED ? "mock" : "connecting",
   );
@@ -94,6 +100,12 @@ export function useDesk(): DeskState {
   // -------------------------------------------------------------------------
   useEffect(() => {
     if (MOCK_FORCED) return;
+    if (forceMock) {
+      setSessions(MOCK_SESSIONS);
+      setSessionId(MOCK_SESSIONS[0].session_id);
+      setConnection("mock");
+      return;
+    }
     let cancelled = false;
     listSessions(2500)
       .then((list) => {
@@ -112,7 +124,7 @@ export function useDesk(): DeskState {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [forceMock]);
 
   // Reset per-session UI state on switch.
   useEffect(() => {

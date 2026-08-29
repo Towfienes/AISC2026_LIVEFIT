@@ -10,6 +10,8 @@ import { fmtElapsed } from "@/lib/format";
 import { BLOCK_OFF_COLOR, BLOCK_ON_COLOR } from "@/lib/palette";
 import { BlockInfo } from "@/lib/types";
 
+import Term from "./Term";
+
 interface Props {
   blocks: BlockInfo[];
   /** Total planned duration in seconds (defines the strip's scale). */
@@ -66,20 +68,22 @@ export default function BlockStrip({ blocks, durationS, positionS }: Props) {
       <div className="mt-1 flex items-center gap-4 px-0.5 text-[10px] text-muted">
         <span className="flex items-center gap-1">
           <span className="inline-block h-2 w-3 rounded-sm" style={{ background: BLOCK_ON_COLOR }} />
-          Khối BẬT (can thiệp)
+          <Term tip="Hệ thống điều khiển việc ghim sản phẩm trong khối này.">Khối BẬT</Term>
         </span>
         <span className="flex items-center gap-1">
           <span
             className="inline-block h-2 w-3 rounded-sm border border-edge"
             style={{ background: BLOCK_OFF_COLOR }}
           />
-          Khối TẮT (đối chứng)
+          <Term tip="Đội vận hành làm như thường lệ (nhánh đối chứng).">Khối TẮT</Term>
         </span>
         <span className="flex items-center gap-1">
           <span className="hatch-washout inline-block h-2 w-3 rounded-sm border border-edge" />
-          Trôi (washout)
+          <Term tip="Phút chuyển tiếp giữa hai khối — không tính vào kết quả đo.">
+            Trôi (washout)
+          </Term>
         </span>
-        <span className="ml-auto">Chỉ hiển thị cho trung control — màn hình host không thấy khối</span>
+        <span className="ml-auto">Chỉ hiển thị cho bàn điều khiển — màn hình host không thấy khối</span>
       </div>
     </div>
   );

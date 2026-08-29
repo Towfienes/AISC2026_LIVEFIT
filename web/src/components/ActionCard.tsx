@@ -18,6 +18,8 @@
 import { fmtPct } from "@/lib/format";
 import type { ActionCardData, SessionMode } from "@/lib/types";
 
+import Term from "./Term";
+
 interface Props {
   card: ActionCardData;
   mode: SessionMode;
@@ -31,16 +33,30 @@ interface Props {
 function SourceBadge({ card }: { card: ActionCardData }) {
   if (card.source === "experiment") {
     return (
-      <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#0ca30c66] bg-[#0ca30c1f] px-2 py-0.5 text-[10px] font-semibold text-[#4ed44e]">
-        <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full bg-[#0ca30c]" />
-        Tác động đo được · KTC 95%
-      </span>
+      <Term
+        tip="Đo được từ các khối BẬT/TẮT trong chính phiên này — kèm khoảng tin cậy 95%."
+        side="bottom"
+        underline={false}
+        className="shrink-0"
+      >
+        <span className="inline-flex items-center gap-1 rounded-full border border-[#0ca30c66] bg-[#0ca30c1f] px-2 py-0.5 text-[10px] font-semibold text-[#4ed44e]">
+          <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full bg-[#0ca30c]" />
+          Tác động đo được · KTC 95%
+        </span>
+      </Term>
     );
   }
   return (
-    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-hairline bg-axis px-2 py-0.5 text-[10px] font-semibold text-sec">
-      Ước lượng dự báo
-    </span>
+    <Term
+      tip="Con số từ mô hình dự báo — chưa qua thí nghiệm nên không có khoảng tin cậy."
+      side="bottom"
+      underline={false}
+      className="shrink-0"
+    >
+      <span className="inline-flex items-center gap-1 rounded-full border border-hairline bg-axis px-2 py-0.5 text-[10px] font-semibold text-sec">
+        Ước lượng dự báo
+      </span>
+    </Term>
   );
 }
 

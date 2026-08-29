@@ -69,9 +69,7 @@ export default function StatusBar({
 }: Props) {
   return (
     <header className="flex h-11 shrink-0 items-center gap-3 rounded-lg border border-hairline bg-surface px-3">
-      <span className="text-sm font-bold tracking-tight text-ink">
-        LiveLift <span className="font-normal text-mut">· bàn trung control</span>
-      </span>
+      <span className="shrink-0 text-xs font-semibold text-sec">Phiên đang xem</span>
 
       <select
         value={sessionId ?? ""}
@@ -115,8 +113,10 @@ export default function StatusBar({
               } ${canToggleMode ? "hover:text-ink" : "cursor-default"}`}
               title={
                 canToggleMode
-                  ? undefined
-                  : "Chế độ do backend quyết định khi kết nối trực tiếp"
+                  ? m === "suggest"
+                    ? "Hệ thống chỉ đề xuất — bạn bấm Thực hiện mới ghim"
+                    : "Hệ thống tự ghim theo gợi ý sau khi đếm ngược"
+                  : "Chế độ do máy chủ quyết định khi kết nối trực tiếp"
               }
             >
               {m === "suggest" ? "Gợi ý" : "Tự động"}

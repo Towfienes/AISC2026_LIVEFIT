@@ -15,7 +15,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getCards, getComments, getState, getTicks, listSessions } from "./api";
-import { MOCK_SESSIONS, mockRecording, recomputeCards } from "./mock";
+import { MOCK_ANALYSIS_SESSION, MOCK_SESSIONS, mockRecording, recomputeCards } from "./mock";
 import type {
   ActionCardData,
   CommentItem,
@@ -72,24 +72,34 @@ function synthesizeTimeline(
   return out;
 }
 
+/** An analysis-only session (someone else's video) — observational, never an experiment. */
+export function isAnalysisSession(session: SessionSummary | null | undefined): boolean {
+  return session?.platform === "replay";
+}
+
 async function loadApiRecording(session: SessionSummary): Promise<SessionRecording> {
+  const analysis = isAnalysisSession(session);
   const [state, ticks, comments] = await Promise.all([
     getState(session.session_id),
     getTicks(session.session_id),
     getComments(session.session_id, { limit: 2000 }),
   ]);
-  const durationS = session.planned_duration_min * 60;
+  const lastTickEnd = ticks.length > 0 ? ticks[ticks.length - 1].offset_s + 30 : 0;
+  const lastComment = comments.length > 0 ? comments[comments.length - 1].offset_s : 0;
+  const durationS = Math.max(session.planned_duration_min * 60, lastTickEnd, lastComment);
   const ids = [...new Set(ticks.map((t) => t.pinned_product_id).filter((x): x is string => !!x))];
   const products: Product[] =
-    ids.length > 0
-      ? ids.map((id) => ({ product_id: id, name: id, category: null, price: 0, stock: 0 }))
-      : [];
+    analysis || ids.length === 0
+      ? []
+      : ids.map((id) => ({ product_id: id, name: id, category: null, price: 0, stock: 0 }));
   return {
     session,
-    blocks: state.blocks,
+    // Analysis sessions have no experiment schedule — force-empty defensively.
+    blocks: analysis ? [] : state.blocks,
     ticks,
     comments,
-    cards_timeline: synthesizeTimeline(ticks, products, durationS),
+    // Never synthesize action cards over an observational recording.
+    cards_timeline: analysis ? [] : synthesizeTimeline(ticks, products, durationS),
     products,
     duration_s: durationS,
   };

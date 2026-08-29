@@ -158,6 +158,31 @@ export interface SessionRecording {
   duration_s: number;
 }
 
+// ---------------------------------------------------------------------------
+// Replay-analysis (YouTube VOD ingestion) — SHARED API CONTRACT
+// ---------------------------------------------------------------------------
+
+/** Lifecycle of one POST /replays/youtube ingestion job. */
+export type ReplayJobStatus = "queued" | "downloading" | "ingesting" | "done" | "error";
+
+/** GET /replays/jobs/{job_id} response. */
+export interface ReplayJob {
+  job_id: string;
+  status: ReplayJobStatus;
+  detail: string | null;
+  session_id: string | null;
+  n_comments: number | null;
+  video_title: string | null;
+}
+
+/** POST /demo/seed response. */
+export interface DemoSeedResult {
+  session_ids: string[];
+  replay_session_id: string;
+  product_ids: string[];
+  shortlink_codes: string[];
+}
+
 /** Chart chrome tokens (dataviz reference palette, dark column). */
 export const CHART = {
   surface: "#1a1a19",

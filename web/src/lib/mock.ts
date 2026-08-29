@@ -296,6 +296,70 @@ export const MOCK_SESSIONS: SessionSummary[] = [
   },
 ];
 
+/**
+ * Mock OBSERVATIONAL analysis session (someone else's YouTube VOD). Used only
+ * by the replay page so the "PHÂN TÍCH QUAN SÁT" screen can demo offline.
+ * NO blocks, NO cards, NO viewer/click data — comment tempo and intents only
+ * (E2-04 corollary: an analysis of an external video is never an experiment).
+ */
+export const MOCK_ANALYSIS_SESSION: SessionSummary = {
+  session_id: "mock-analysis-01",
+  platform: "replay",
+  title: "Phân tích: Live bán quần áo (video YouTube mẫu)",
+  mode: "suggest",
+  status: "ended",
+  planned_duration_min: 30,
+  start_ts: "2026-08-24T12:00:00Z",
+  end_ts: "2026-08-24T12:30:00Z",
+};
+
+function generateAnalysisRecording(session: SessionSummary, seed: number): SessionRecording {
+  const rng = mulberry32(seed);
+  const durationS = session.planned_duration_min * 60;
+  const startMs = session.start_ts ? Date.parse(session.start_ts) : Date.now();
+  const ticks: Tick[] = [];
+  const comments: CommentItem[] = [];
+  let commentSeq = 0;
+  for (let t = 0; t < durationS; t += 30) {
+    // Comment tempo only — external videos expose no viewer or click data.
+    const rate = 6 + 4 * Math.sin((t / durationS) * Math.PI * 2.3) + rng() * 3;
+    ticks.push({
+      offset_s: t,
+      ts_bucket: new Date(startMs + t * 1000).toISOString(),
+      viewers: 0,
+      comment_rate: Math.round(rate * 10) / 10,
+      like_rate: 0,
+      click_count: 0,
+      pinned_product_id: null,
+      baseline_viewers: null,
+      baseline_clicks_per_min: null,
+    });
+    const n = Math.max(0, Math.round(rate / 2 + (rng() - 0.5) * 2));
+    for (let i = 0; i < n; i++) {
+      const [text, intent] = COMMENT_POOL[Math.floor(rng() * COMMENT_POOL.length)];
+      const off = t + Math.floor(rng() * 30);
+      comments.push({
+        comment_id: `a-${seed}-${commentSeq++}`,
+        offset_s: off,
+        ts: new Date(startMs + off * 1000).toISOString(),
+        text_scrubbed: text,
+        intent_label: intent,
+        pii_kinds: PII_KINDS_BY_TOKEN.filter(([tok]) => text.includes(tok)).map(([, k]) => k),
+      });
+    }
+  }
+  comments.sort((a, b) => a.offset_s - b.offset_s);
+  return {
+    session,
+    blocks: [], // observational: no experiment schedule, ever
+    ticks,
+    comments,
+    cards_timeline: [],
+    products: [],
+    duration_s: durationS,
+  };
+}
+
 const RECORDING_SEEDS: Record<string, number> = {
   "mock-live-01": 20260825,
   "mock-ended-01": 20260822,
@@ -307,8 +371,12 @@ const recordingCache = new Map<string, SessionRecording>();
 export function mockRecording(sessionId: string): SessionRecording {
   let rec = recordingCache.get(sessionId);
   if (!rec) {
-    const session = MOCK_SESSIONS.find((s) => s.session_id === sessionId) ?? MOCK_SESSIONS[0];
-    rec = generateRecording(session, RECORDING_SEEDS[session.session_id] ?? 1234);
+    if (sessionId === MOCK_ANALYSIS_SESSION.session_id) {
+      rec = generateAnalysisRecording(MOCK_ANALYSIS_SESSION, 20260824);
+    } else {
+      const session = MOCK_SESSIONS.find((s) => s.session_id === sessionId) ?? MOCK_SESSIONS[0];
+      rec = generateRecording(session, RECORDING_SEEDS[session.session_id] ?? 1234);
+    }
     recordingCache.set(sessionId, rec);
   }
   return rec;

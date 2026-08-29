@@ -9,8 +9,10 @@
 import type {
   ActionCardData,
   CommentItem,
+  DemoSeedResult,
   HostState,
   OverrideReason,
+  ReplayJob,
   SessionState,
   SessionSummary,
   Tick,
@@ -162,6 +164,28 @@ export function getReport(sessionId: string): Promise<unknown> {
   return request(`/sessions/${sessionId}/report`);
 }
 
-export function seedDemo(): Promise<{ ok: boolean }> {
-  return request("/demo/seed", { method: "POST", timeoutMs: 15000 });
+export function seedDemo(nSessions = 3): Promise<DemoSeedResult> {
+  return request("/demo/seed", {
+    method: "POST",
+    body: JSON.stringify({ n_sessions: nSessions }),
+    timeoutMs: 20000,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Replay-analysis (YouTube VOD ingestion) — SHARED API CONTRACT
+// ---------------------------------------------------------------------------
+
+/** Submit a finished YouTube live URL for observational analysis (202 → job). */
+export function submitYoutubeReplay(url: string): Promise<{ job_id: string }> {
+  return request("/replays/youtube", {
+    method: "POST",
+    body: JSON.stringify({ url }),
+    timeoutMs: 10000,
+  });
+}
+
+/** Poll one ingestion job. */
+export function getReplayJob(jobId: string): Promise<ReplayJob> {
+  return request(`/replays/jobs/${encodeURIComponent(jobId)}`);
 }

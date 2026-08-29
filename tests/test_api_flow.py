@@ -236,3 +236,20 @@ def test_summary_insufficient_data_message(client):
     summary = client.get("/experiment/summary").json()
     assert summary["estimate"] is None
     assert "Chưa đủ dữ liệu" in summary["message"]
+
+
+def test_demo_seed_is_repeatable(client):
+    """Regression (incident 27/08): the user clicks "Xem thử ngay" more than
+    once — the second seed must succeed, not 500 on a duplicate shortlink code."""
+    first = client.post("/demo/seed", json={"n_sessions": 1})
+    assert first.status_code == 200, first.text
+    second = client.post("/demo/seed", json={"n_sessions": 1})
+    assert second.status_code == 200, second.text
+    codes_a = set(first.json()["shortlink_codes"])
+    codes_b = set(second.json()["shortlink_codes"])
+    assert codes_a
+    assert codes_b
+    assert not (codes_a & codes_b), "mã liên kết phải khác nhau giữa hai lần seed"
+    # Both runs must leave usable sessions behind for the replay screen.
+    sessions = client.get("/sessions").json()
+    assert sum(1 for s in sessions if s["status"] == "ended") >= 2

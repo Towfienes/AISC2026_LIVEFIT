@@ -92,6 +92,16 @@ class Broadcaster:
 # ---------------------------------------------------------------------------
 
 
+class ShortlinkCodeTakenError(Exception):
+    """A shortlink code already exists.
+
+    Shortlink codes are the operational definition of a product click, so a
+    silent overwrite would misattribute clicks between products/sessions —
+    an experiment-integrity bug. Both store backends must therefore REJECT a
+    duplicate code rather than replace it; the API turns this into a 409.
+    """
+
+
 class Store(Protocol):
     """Persistence + pubsub seam used by every route module."""
 
@@ -187,6 +197,8 @@ class InMemoryStore:
 
     # -- shortlinks --------------------------------------------------------
     def create_shortlink(self, row: dict[str, Any]) -> dict[str, Any]:
+        if row["code"] in self._shortlinks:
+            raise ShortlinkCodeTakenError(row["code"])
         self._shortlinks[row["code"]] = dict(row)
         return dict(row)
 
@@ -389,19 +401,24 @@ class PostgresStore:
 
     # -- shortlinks --------------------------------------------------------
     def create_shortlink(self, row: dict[str, Any]) -> dict[str, Any]:
-        out = self._one(
-            """
-            INSERT INTO shortlink (code, product_id, session_id, target_url, created_at)
-            VALUES (%s, %s, %s, %s, %s) RETURNING *
-            """,
-            (
-                row["code"],
-                row["product_id"],
-                row.get("session_id"),
-                row["target_url"],
-                row["created_at"],
-            ),
-        )
+        import psycopg
+
+        try:
+            out = self._one(
+                """
+                INSERT INTO shortlink (code, product_id, session_id, target_url, created_at)
+                VALUES (%s, %s, %s, %s, %s) RETURNING *
+                """,
+                (
+                    row["code"],
+                    row["product_id"],
+                    row.get("session_id"),
+                    row["target_url"],
+                    row["created_at"],
+                ),
+            )
+        except psycopg.errors.UniqueViolation as exc:
+            raise ShortlinkCodeTakenError(row["code"]) from exc
         assert out is not None
         return out
 

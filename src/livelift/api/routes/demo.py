@@ -10,6 +10,7 @@ scrubber working ([SĐT], [ĐỊA CHỈ] visibly in the feed)."""
 from __future__ import annotations
 
 import random
+import secrets
 from datetime import timedelta
 from typing import Any
 
@@ -192,6 +193,10 @@ def _seed_one_session(
 def seed_demo(body: DemoSeedRequest, store: StoreDep) -> DemoSeedOut:
     rng = random.Random(4242)
     now = service.now_utc()
+    # Shortlink codes must be unique per seed run: re-seeding is a normal user
+    # action ("Xem thử ngay" can be clicked repeatedly) and a fixed code would
+    # collide with the previous run's link (incident 27/08).
+    run_tag = secrets.token_hex(2)
     product_ids = []
     codes = []
     for p in DEMO_PRODUCTS:
@@ -199,7 +204,7 @@ def seed_demo(body: DemoSeedRequest, store: StoreDep) -> DemoSeedOut:
         product_ids.append(stored["product_id"])
         link = store.create_shortlink(
             {
-                "code": f"demo{len(codes)}",
+                "code": f"demo{run_tag}{len(codes)}",
                 "product_id": p["product_id"],
                 "session_id": None,
                 "target_url": f"https://shop.example/{p['product_id']}",

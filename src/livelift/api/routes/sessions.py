@@ -27,6 +27,7 @@ from livelift.api.schemas import (
     ShortlinkOut,
 )
 from livelift.api.service import StoreDep
+from livelift.api.store import ShortlinkCodeTakenError
 from livelift.core.assigner import DesignParams
 
 router = APIRouter()
@@ -55,9 +56,16 @@ def create_shortlink(body: ShortlinkIn, store: StoreDep) -> ShortlinkOut:
     if store.get_product(body.product_id) is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
     row = body.model_dump()
-    row["code"] = secrets.token_urlsafe(6)[:8]
     row["created_at"] = service.now_utc()
-    return ShortlinkOut(**store.create_shortlink(row))
+    # Random 8-char code; retry on the (astronomically unlikely) collision so a
+    # duplicate never silently overwrites an existing click-attribution link.
+    for _ in range(5):
+        row["code"] = secrets.token_urlsafe(6)[:8]
+        try:
+            return ShortlinkOut(**store.create_shortlink(row))
+        except ShortlinkCodeTakenError:
+            continue
+    raise HTTPException(status_code=409, detail="Không sinh được mã liên kết, thử lại")
 
 
 # -- sessions ---------------------------------------------------------------

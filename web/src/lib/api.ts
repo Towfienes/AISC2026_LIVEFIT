@@ -8,8 +8,10 @@
 
 import type {
   ActionCardData,
+  BlockInfo,
   CommentItem,
   DemoSeedResult,
+  ExperimentSummary,
   HostState,
   OverrideReason,
   ReplayJob,
@@ -81,41 +83,79 @@ export function listSessions(timeoutMs?: number): Promise<SessionSummary[]> {
 }
 
 export function getState(sessionId: string): Promise<SessionState> {
-  return request<SessionState>(`/sessions/${sessionId}/state`);
+  return request<SessionState>(`/sessions/${sessionId}/state?role=operator`);
 }
 
 /**
- * BLINDED host state (rule L6). Prefers the dedicated host-safe endpoint; if
- * the backend does not expose one, projects the operator state down to the
- * HostState boundary type so nothing block-related can reach the host screen.
+ * BLINDED host state (rule 3 / L6).
+ *
+ * Calls the host-role endpoint DIRECTLY and never falls back to the operator
+ * payload: a fallback would put `assignment` and `seconds_remaining` into the
+ * host machine's Network tab even though the UI does not draw them, which is
+ * exactly the leak the blinding rule exists to prevent (incident 27/08).
+ *
+ * The strip below is defence in depth — if a future backend change ever leaks
+ * a block field into the host payload, it dies here instead of reaching a
+ * component.
  */
+const HOST_FORBIDDEN_KEYS = [
+  "block",
+  "current_block",
+  "assignment",
+  "arm",
+  "treatment",
+  "seconds_remaining",
+  "remaining",
+  "phase",
+  "propensity",
+  "schedule",
+  "seed",
+  "cards",
+] as const;
+
 export async function getHostState(sessionId: string): Promise<HostState> {
-  try {
-    return await request<HostState>(`/sessions/${sessionId}/host`);
-  } catch {
-    const s = await getState(sessionId);
-    return {
-      product_name: s.pinned_product?.name ?? null,
-      price: s.pinned_product?.price ?? null,
-      stock: s.pinned_product?.stock ?? null,
-      elapsed_s: s.elapsed_s,
-    };
+  const raw = await request<Record<string, unknown>>(
+    `/sessions/${sessionId}/state?role=host`,
+  );
+  const leaked = HOST_FORBIDDEN_KEYS.filter((k) => k in raw);
+  if (leaked.length > 0) {
+    console.warn(
+      `[livelift] payload host chứa trường bị cấm (${leaked.join(", ")}) — đã loại bỏ.`,
+    );
   }
+  const product = raw.pinned_product as
+    | { name?: string; price?: number; stock?: number }
+    | string
+    | null
+    | undefined;
+  const productName =
+    typeof product === "string" ? product : (product?.name ?? null);
+  return {
+    product_name: productName,
+    price: (raw.price as number | null) ?? (typeof product === "object" ? (product?.price ?? null) : null),
+    stock: (raw.stock as number | null) ?? (typeof product === "object" ? (product?.stock ?? null) : null),
+    elapsed_s: (raw.elapsed_s as number) ?? 0,
+  };
 }
 
+/**
+ * Action cards.
+ *
+ * The API has no `/cards` route: cards are part of the operator state payload
+ * (`GET /sessions/{id}/state?role=operator`). Calling a non-existent path used
+ * to 404 and — via Promise.all — took the whole desk poll down with it
+ * (incident 27/08). Client-side `exclude` supports the replay what-if panel.
+ */
 export async function getCards(
   sessionId: string,
-  opts?: { excludeProductIds?: string[]; atOffsetS?: number },
+  opts?: { excludeProductIds?: string[] },
 ): Promise<ActionCardData[]> {
-  const params = new URLSearchParams();
+  const state = await getState(sessionId);
+  let cards = state.cards ?? [];
   if (opts?.excludeProductIds?.length) {
-    params.set("exclude", opts.excludeProductIds.join(","));
+    const excluded = new Set(opts.excludeProductIds);
+    cards = cards.filter((c) => !excluded.has(c.product_id));
   }
-  if (opts?.atOffsetS != null) params.set("at_s", String(Math.floor(opts.atOffsetS)));
-  const qs = params.toString();
-  const cards = await request<ActionCardData[]>(
-    `/sessions/${sessionId}/cards${qs ? `?${qs}` : ""}`,
-  );
   return sanitizeCards(cards);
 }
 
@@ -123,7 +163,7 @@ export function executeCard(
   sessionId: string,
   cardId: string,
 ): Promise<{ ok: boolean; action_id?: string }> {
-  return request(`/sessions/${sessionId}/execute`, {
+  return request(`/sessions/${sessionId}/actions/execute`, {
     method: "POST",
     body: JSON.stringify({ card_id: cardId }),
   });
@@ -139,25 +179,105 @@ export function postOverride(
       new Error(`Lý do không hợp lệ. Chỉ chấp nhận: ${OVERRIDE_REASONS.join(", ")}.`),
     );
   }
-  return request(`/sessions/${sessionId}/override`, {
+  return request(`/sessions/${sessionId}/actions/override`, {
     method: "POST",
     body: JSON.stringify(body),
   });
 }
 
-export function getComments(
+/** Comments (already PII-scrubbed server-side). The API takes no query
+ * parameters — filtering/trimming happens client-side. */
+export async function getComments(
   sessionId: string,
-  opts?: { sinceOffsetS?: number; limit?: number },
+  startIso?: string | null,
 ): Promise<CommentItem[]> {
-  const params = new URLSearchParams();
-  if (opts?.sinceOffsetS != null) params.set("since_s", String(Math.floor(opts.sinceOffsetS)));
-  if (opts?.limit != null) params.set("limit", String(opts.limit));
-  const qs = params.toString();
-  return request<CommentItem[]>(`/sessions/${sessionId}/comments${qs ? `?${qs}` : ""}`);
+  const raw = await request<
+    {
+      comment_id: string;
+      ts: string | null;
+      text: string;
+      intent: string | null;
+      pii_kinds: string[];
+    }[]
+  >(`/sessions/${sessionId}/comments`);
+  return toOffsets(raw, startIso).map((r) => ({
+    comment_id: r.comment_id,
+    offset_s: r.offset_s,
+    ts: r.ts,
+    // The API field is `text`; it is ALREADY PII-scrubbed server-side (raw text
+    // never leaves the ingest process). The web name keeps that explicit.
+    text_scrubbed: r.text,
+    intent_label: (r.intent as CommentItem["intent_label"]) ?? null,
+    pii_kinds: r.pii_kinds ?? [],
+  }));
 }
 
-export function getTicks(sessionId: string): Promise<Tick[]> {
-  return request<Tick[]>(`/sessions/${sessionId}/ticks`);
+/**
+ * Adapter layer: the API speaks absolute timestamps (`ts_bucket`, `ts`), the
+ * charts want seconds-since-start. Normalising here keeps every component on
+ * one shape and means a backend field rename breaks ONE function, not ten.
+ *
+ * The baseline series is derived CLIENT-SIDE (trailing mean) and is a forecast
+ * -sourced number: per E2-04 it must never be rendered with an interval, and
+ * it must be labeled "đường tham chiếu (trung bình trượt)" — the server does
+ * not send a baseline and we must not invent one that looks authoritative.
+ */
+const BASELINE_WINDOW = 6; // 6 x 30s buckets = trailing 3 minutes
+
+function toOffsets<T extends { ts: string | null }>(
+  rows: T[],
+  startIso?: string | null,
+): (T & { offset_s: number })[] {
+  const times = rows
+    .map((r) => (r.ts ? Date.parse(r.ts) : NaN))
+    .filter((t) => Number.isFinite(t));
+  const base = startIso ? Date.parse(startIso) : Math.min(...times);
+  const origin = Number.isFinite(base) ? base : 0;
+  return rows.map((r) => {
+    const t = r.ts ? Date.parse(r.ts) : NaN;
+    return { ...r, offset_s: Number.isFinite(t) ? Math.max(0, (t - origin) / 1000) : 0 };
+  });
+}
+
+function trailingMean(values: number[], i: number, window: number): number | null {
+  const from = Math.max(0, i - window + 1);
+  const slice = values.slice(from, i + 1).filter((v) => Number.isFinite(v));
+  if (slice.length === 0) return null;
+  return slice.reduce((a, b) => a + b, 0) / slice.length;
+}
+
+export async function getTicks(sessionId: string, startIso?: string | null): Promise<Tick[]> {
+  const raw = await request<
+    {
+      ts_bucket: string | null;
+      viewers: number;
+      comment_rate: number;
+      like_rate: number;
+      click_count: number;
+      pinned_product_id: string | null;
+    }[]
+  >(`/sessions/${sessionId}/ticks`);
+  const withTs = raw.map((r) => ({ ...r, ts: r.ts_bucket }));
+  const rows = toOffsets(withTs, startIso);
+  const viewers = rows.map((r) => r.viewers);
+  const clicksPerMin = rows.map((r) => r.click_count * 2); // 30s bucket -> per minute
+  return rows.map((r, i) => ({
+    offset_s: r.offset_s,
+    ts_bucket: r.ts_bucket,
+    viewers: r.viewers,
+    comment_rate: r.comment_rate,
+    like_rate: r.like_rate,
+    click_count: r.click_count,
+    pinned_product_id: r.pinned_product_id,
+    baseline_viewers: trailingMean(viewers, i, BASELINE_WINDOW),
+    baseline_clicks_per_min: trailingMean(clicksPerMin, i, BASELINE_WINDOW),
+  }));
+}
+
+/** The pre-session randomization schedule (blocks). `GET` returns a plain
+ * array, unlike `POST` which wraps it — the API is asymmetric here. */
+export function getSchedule(sessionId: string): Promise<BlockInfo[]> {
+  return request<BlockInfo[]>(`/sessions/${sessionId}/schedule`);
 }
 
 export function getReport(sessionId: string): Promise<unknown> {
@@ -188,4 +308,13 @@ export function submitYoutubeReplay(url: string): Promise<{ job_id: string }> {
 /** Poll one ingestion job. */
 export function getReplayJob(jobId: string): Promise<ReplayJob> {
   return request(`/replays/jobs/${encodeURIComponent(jobId)}`);
+}
+
+/**
+ * Pooled experiment result — the project's headline scientific output.
+ * This IS `source: "experiment"`, so a confidence interval is required here
+ * (E2-04 forbids intervals only on forecast-sourced numbers).
+ */
+export function getExperimentSummary(): Promise<ExperimentSummary> {
+  return request<ExperimentSummary>("/experiment/summary", { timeoutMs: 15000 });
 }

@@ -22,19 +22,40 @@ class CheckResult:
 
 
 def check_block_integrity(scheduled_blocks: list[dict], recorded_blocks: list[dict]) -> CheckResult:
-    """Recorded blocks must match the pre-generated schedule exactly."""
-    ok = len(scheduled_blocks) == len(recorded_blocks)
+    """Recorded blocks must match the schedule generated BEFORE broadcast.
+
+    Two distinct failures, reported differently because they mean different
+    things:
+    (a) no schedule was persisted at all -> there is no audit trail, so the
+        randomization cannot be verified by anyone (including a judge). This
+        must never read as a pass.
+    (b) recorded blocks disagree with the schedule -> data loss or tampering.
+    """
+    if not scheduled_blocks:
+        return CheckResult(
+            "block_integrity",
+            False,
+            "KHÔNG có lịch gán lưu trước phiên (design['blocks'] rỗng) — "
+            "không thể đối chiếu, mất dấu vết kiểm chứng ngẫu nhiên hóa",
+        )
+    if len(scheduled_blocks) != len(recorded_blocks):
+        return CheckResult(
+            "block_integrity",
+            False,
+            f"số khối lệch: ghi nhận {len(recorded_blocks)}, lịch gán {len(scheduled_blocks)}",
+        )
     mismatches = []
-    if ok:
-        for s, r in zip(scheduled_blocks, recorded_blocks, strict=True):
-            for key in ("block_index", "assignment", "is_washout"):
-                if s.get(key) != r.get(key):
-                    mismatches.append(f"block {s.get('block_index')}: {key}")
-        ok = not mismatches
-    detail = f"{len(recorded_blocks)}/{len(scheduled_blocks)} blocks" + (
-        f"; mismatches: {mismatches[:5]}" if mismatches else ""
+    for sched, rec in zip(scheduled_blocks, recorded_blocks, strict=True):
+        for key in ("block_index", "assignment", "is_washout"):
+            if sched.get(key) != rec.get(key):
+                mismatches.append(f"khối {sched.get('block_index')}: {key}")
+    return CheckResult(
+        "block_integrity",
+        not mismatches,
+        f"{len(recorded_blocks)} khối khớp lịch gán"
+        if not mismatches
+        else f"lệch so với lịch gán: {mismatches[:5]}",
     )
-    return CheckResult("block_integrity", ok, detail)
 
 
 def check_assignment_balance(blocks: list[dict], lo: float = 0.4, hi: float = 0.6) -> CheckResult:
@@ -59,22 +80,44 @@ def check_event_continuity(
     return CheckResult("event_continuity", worst <= max_gap_s, f"max gap = {worst:.0f}s")
 
 
+ALLOWED_OVERRIDE_REASONS = ("hết hàng", "sai giá", "sự cố kỹ thuật")
+
+
 def check_intervention_log(interventions: list[dict]) -> CheckResult:
-    """Every executed action needs block_id, source and a propensity."""
-    bad = [
-        i.get("action_id", "?")
-        for i in interventions
-        if i.get("executed")
-        and (
-            i.get("block_id") in (None, "")
-            or i.get("inner_propensity") is None
-            or i.get("source") in (None, "")
-        )
-    ]
+    """Every executed action must be auditable — but the rule differs by source.
+
+    - ``source="model"``: the assignment probability MUST be logged. This is the
+      scientific core: without a propensity the action cannot enter any
+      off-policy or heterogeneous-effect estimate.
+    - ``source="human"``: an operator override is not randomized, so it has NO
+      propensity by definition. Requiring one made every legitimate override
+      fail the gate (incident 27/08) — a quality gate that cries wolf gets
+      ignored. What an override must carry instead is one of the three allowed
+      reasons, so non-compliance stays measurable.
+    - Every executed row, whatever the source, must name the block it ran in.
+    """
+    problems: list[str] = []
+    for i in interventions:
+        if not i.get("executed"):
+            continue  # skipped/proposed rows may be partial
+        action_id = i.get("action_id", "?")
+        source = i.get("source") or ""
+        if i.get("block_id") in (None, ""):
+            problems.append(f"{action_id}: thiếu block_id")
+        if not source:
+            problems.append(f"{action_id}: thiếu source")
+        elif source == "model" and i.get("inner_propensity") is None:
+            problems.append(f"{action_id}: hành động của mô hình thiếu inner_propensity")
+        elif source == "human":
+            reason = i.get("override_reason")
+            if not reason:
+                problems.append(f"{action_id}: can thiệp tay thiếu override_reason")
+            elif reason not in ALLOWED_OVERRIDE_REASONS:
+                problems.append(f"{action_id}: lý do can thiệp không hợp lệ ({reason!r})")
     return CheckResult(
         "intervention_log_complete",
-        not bad,
-        "ok" if not bad else f"{len(bad)} incomplete rows, e.g. {bad[:3]}",
+        not problems,
+        "ok" if not problems else f"{len(problems)} vấn đề, ví dụ: {problems[:3]}",
     )
 
 

@@ -14,10 +14,11 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getCards, getComments, getState, getTicks, listSessions } from "./api";
+import { getCards, getComments, getSchedule, getState, getTicks, listSessions } from "./api";
 import { MOCK_ANALYSIS_SESSION, MOCK_SESSIONS, mockRecording, recomputeCards } from "./mock";
 import type {
   ActionCardData,
+  BlockInfo,
   CommentItem,
   ConnectionKind,
   Product,
@@ -79,11 +80,15 @@ export function isAnalysisSession(session: SessionSummary | null | undefined): b
 
 async function loadApiRecording(session: SessionSummary): Promise<SessionRecording> {
   const analysis = isAnalysisSession(session);
-  const [state, ticks, comments] = await Promise.all([
+  // Blocks live on the schedule endpoint, not on the state payload; an
+  // analysis session has none by design, so its schedule call is skipped.
+  const [state, ticks, comments, blocks] = await Promise.all([
     getState(session.session_id),
-    getTicks(session.session_id),
-    getComments(session.session_id, { limit: 2000 }),
+    getTicks(session.session_id, session.start_ts),
+    getComments(session.session_id, session.start_ts),
+    analysis ? Promise.resolve([] as BlockInfo[]) : getSchedule(session.session_id),
   ]);
+  void state;
   const lastTickEnd = ticks.length > 0 ? ticks[ticks.length - 1].offset_s + 30 : 0;
   const lastComment = comments.length > 0 ? comments[comments.length - 1].offset_s : 0;
   const durationS = Math.max(session.planned_duration_min * 60, lastTickEnd, lastComment);
@@ -95,7 +100,7 @@ async function loadApiRecording(session: SessionSummary): Promise<SessionRecordi
   return {
     session,
     // Analysis sessions have no experiment schedule — force-empty defensively.
-    blocks: analysis ? [] : state.blocks,
+    blocks: analysis ? [] : blocks,
     ticks,
     comments,
     // Never synthesize action cards over an observational recording.
@@ -225,7 +230,9 @@ export function useReplay(): ReplayState {
   useEffect(() => {
     if (connection !== "live" || !sessionId || apiCardsBroken.current) return;
     let cancelled = false;
-    getCards(sessionId, { atOffsetS: bucket, excludeProductIds: [...excluded] })
+    // Cards come from the live state payload; the API has no historical
+    // "cards at offset T" route, so a replay re-ranks client-side instead.
+    getCards(sessionId, { excludeProductIds: [...excluded] })
       .then((cds) => {
         if (!cancelled) setServerCards(cds);
       })

@@ -104,3 +104,66 @@ def test_run_all_returns_six_results():
     )
     assert len(res) == 6
     assert all(r.passed for r in res)
+
+
+# --- incident 27/08: the gate was crying wolf on clean sessions -------------
+
+
+def test_human_override_passes_without_propensity():
+    """An operator override is not randomized, so it has no propensity by
+    definition. Requiring one made every legitimate override fail the gate."""
+    rows = [
+        {
+            "action_id": "a1",
+            "block_id": "b1",
+            "source": "human",
+            "executed": True,
+            "inner_propensity": None,
+            "override_reason": "hết hàng",
+        }
+    ]
+    assert check_intervention_log(rows).passed
+
+
+def test_human_override_needs_an_allowed_reason():
+    base = {
+        "action_id": "a1", "block_id": "b1", "source": "human",
+        "executed": True, "inner_propensity": None,
+    }
+    assert not check_intervention_log([{**base, "override_reason": None}]).passed
+    assert not check_intervention_log([{**base, "override_reason": "tui thích thế"}]).passed
+    for reason in ("hết hàng", "sai giá", "sự cố kỹ thuật"):
+        assert check_intervention_log([{**base, "override_reason": reason}]).passed
+
+
+def test_model_action_without_propensity_still_fails():
+    """The scientific core: a model action MUST log its assignment probability."""
+    rows = [
+        {
+            "action_id": "m1", "block_id": "b1", "source": "model",
+            "executed": True, "inner_propensity": None,
+        }
+    ]
+    assert not check_intervention_log(rows).passed
+
+
+def test_missing_schedule_is_a_distinct_failure():
+    """No persisted schedule = no audit trail; it must never read as a pass,
+    and its message must differ from a mismatch."""
+    res = check_block_integrity([], blocks(2, 2))
+    assert not res.passed
+    assert "lịch gán" in res.detail.lower()
+
+    mismatch = [dict(b) for b in blocks(2, 2)]
+    mismatch[0]["assignment"] = "OFF"
+    res2 = check_block_integrity(blocks(2, 2), mismatch)
+    assert not res2.passed
+    assert res2.detail != res.detail
+
+
+def test_early_finished_session_passes_continuity():
+    """Continuity is judged over the REAL elapsed window; a session that ended
+    at 20 minutes must not be charged for the 70 unplayed minutes."""
+    ticks = [float(t) for t in range(0, 1200, 30)]
+    assert check_event_continuity(ticks, 1200).passed  # real window
+    assert not check_event_continuity(ticks, 5400).passed  # planned window (old bug)

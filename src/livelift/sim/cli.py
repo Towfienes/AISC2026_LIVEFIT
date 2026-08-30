@@ -10,12 +10,14 @@ from __future__ import annotations
 
 import argparse
 
+from livelift.console import configure as _configure_console
 from livelift.core.assigner.outer import DesignParams
 from livelift.sim.simulator import SimParams
 from livelift.sim.validate import run_validation
 
 
 def main(argv: list[str] | None = None) -> int:
+    _configure_console()
     parser = argparse.ArgumentParser(prog="livelift-simulate", description=__doc__)
     parser.add_argument("--reps", type=int, default=50)
     parser.add_argument("--sessions", type=int, default=10, help="sessions per replication")

@@ -13,10 +13,12 @@ import sys
 import psycopg
 
 from livelift.config import get_settings
+from livelift.console import configure as _configure_console
 from livelift.core.quality import run_all
 
 
 def main(argv: list[str] | None = None) -> int:
+    _configure_console()
     parser = argparse.ArgumentParser(prog="livelift-qc", description=__doc__)
     parser.add_argument("--session-id", required=True)
     parser.add_argument(
@@ -32,14 +34,23 @@ def main(argv: list[str] | None = None) -> int:
     sid = args.session_id
     with psycopg.connect(url) as conn:
         session = conn.execute(
-            "SELECT planned_duration_min, design FROM live_session WHERE session_id = %s",
+            "SELECT planned_duration_min, design, start_ts, end_ts "
+            "FROM live_session WHERE session_id = %s",
             (sid,),
         ).fetchone()
         if session is None:
             print(f"session {sid} not found", file=sys.stderr)
             return 2
-        duration_s = session[0] * 60
+        planned_s = session[0] * 60
         design = session[1] or {}
+        start_ts, end_ts = session[2], session[3]
+        # Continuity must be judged over the window the session ACTUALLY ran.
+        # Using the planned duration made every early-finished session report a
+        # huge phantom gap (incident 27/08).
+        if start_ts is not None and end_ts is not None:
+            duration_s = max((end_ts - start_ts).total_seconds(), 0.0)
+        else:
+            duration_s = planned_s
         scheduled = design.get("blocks", [])
 
         blocks = [
@@ -70,10 +81,11 @@ def main(argv: list[str] | None = None) -> int:
                 "inner_propensity": r[2],
                 "source": r[3],
                 "executed": r[4],
+                "override_reason": r[5],
             }
             for r in conn.execute(
-                "SELECT action_id, block_id, inner_propensity, source, executed "
-                "FROM intervention_log WHERE session_id = %s",
+                "SELECT action_id, block_id, inner_propensity, source, executed, "
+                "override_reason FROM intervention_log WHERE session_id = %s",
                 (sid,),
             ).fetchall()
         ]

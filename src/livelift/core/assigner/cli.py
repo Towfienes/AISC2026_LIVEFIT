@@ -15,10 +15,12 @@ import json
 import secrets
 import sys
 
+from livelift.console import configure as _configure_console
 from livelift.core.assigner.outer import DesignParams, generate_schedule
 
 
 def main(argv: list[str] | None = None) -> int:
+    _configure_console()
     parser = argparse.ArgumentParser(prog="livelift-schedule", description=__doc__)
     parser.add_argument("--duration", type=int, required=True, help="session length, minutes")
     parser.add_argument("--block", type=int, default=5, help="block length, minutes")

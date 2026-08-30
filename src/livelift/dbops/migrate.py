@@ -19,6 +19,7 @@ from importlib import resources
 import psycopg
 
 from livelift.config import get_settings
+from livelift.console import configure as _configure_console
 
 _NAME_RE = re.compile(r"^(\d{4})_(.+)\.(up|down)\.sql$")
 
@@ -103,6 +104,7 @@ def migrate_down(
 
 
 def main(argv: list[str] | None = None) -> int:
+    _configure_console()
     parser = argparse.ArgumentParser(prog="livelift-migrate", description=__doc__)
     parser.add_argument("command", choices=["up", "down", "status"])
     parser.add_argument("steps", nargs="?", type=int, default=1)

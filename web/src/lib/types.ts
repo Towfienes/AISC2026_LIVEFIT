@@ -41,13 +41,58 @@ export interface BlockInfo {
 }
 
 /** Operator-facing session state (NOT blinded). */
+/**
+ * Operator state — mirrors `GET /sessions/{id}/state?role=operator` EXACTLY.
+ * Verified against the running API on 27/08; keep it in lockstep with the
+ * backend schema (tests/test_web_api_contract.py guards the paths).
+ */
 export interface SessionState {
-  session: SessionSummary;
+  role: "operator";
+  session_id: string;
+  status: SessionStatus;
+  mode: SessionMode;
   elapsed_s: number;
-  viewers: number;
+  current_block: CurrentBlock | null;
   pinned_product: Product | null;
-  blocks: BlockInfo[];
-  current_block_index: number | null;
+  cards: ActionCardData[];
+}
+
+/** The block the session is in right now (operator view only — never host). */
+export interface CurrentBlock {
+  index: number;
+  phase: "early" | "mid" | "late";
+  assignment: "ON" | "OFF";
+  is_washout: boolean;
+  seconds_remaining: number;
+}
+
+/** Pooled experiment result from `GET /experiment/summary`. */
+export interface ExperimentSummary {
+  label: string;
+  source: "experiment";
+  n_sessions: number;
+  n_blocks: number;
+  n_on: number;
+  n_off: number;
+  estimate: number | null;
+  estimate_ht: number | null;
+  ci_low: number | null;
+  ci_high: number | null;
+  p_value: number | null;
+  n_draws: number | null;
+  measured_cv: number | null;
+  measured_compliance: number | null;
+  power_table: PowerRow[];
+  message?: string | null;
+}
+
+export interface PowerRow {
+  scenario: string;
+  n_sessions: number;
+  blocks_per_session: number;
+  n_blocks_total: number;
+  cv: number;
+  mde_relative: number;
 }
 
 /**

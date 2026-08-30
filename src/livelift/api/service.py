@@ -45,6 +45,21 @@ def new_id() -> str:
 
 
 def require_session(store: Store, session_id: str) -> dict[str, Any]:
+    """Fetch a session or 404.
+
+    The id is validated as a UUID first: passing a malformed id straight to
+    Postgres raised InvalidTextRepresentation and surfaced as a 500 with an ASGI
+    traceback (incident 27/08). A typo in a URL is a client mistake, not a
+    server fault — it gets the same Vietnamese 404 as a well-formed id that
+    does not exist. Every session-scoped route goes through here, so fixing it
+    once covers all of them.
+    """
+    try:
+        uuid.UUID(str(session_id))
+    except (ValueError, AttributeError, TypeError):
+        raise HTTPException(  # noqa: B904 — the cause adds nothing for the client
+            status_code=404, detail="Không tìm thấy phiên live (mã phiên không hợp lệ)"
+        ) from None
     session = store.get_session(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy phiên live")
@@ -104,6 +119,13 @@ def schedule_session(
         "n_redraws": schedule.n_redraws,
         "n_on": schedule.n_on,
         "n_off": schedule.n_off,
+        # The schedule VERBATIM as drawn before broadcast. This is the
+        # pre-registration audit trail: the post-session QC gate compares it
+        # against the blocks that actually ran, and a judge can verify the
+        # randomization was not touched mid-session. Omitting it made
+        # block_integrity unpassable for any API-created session (incident
+        # 27/08).
+        "blocks": schedule.to_rows(),
     }
     updated = store.update_session(session["session_id"], {"status": "scheduled", "design": design})
     return updated, blocks

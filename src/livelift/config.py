@@ -15,8 +15,12 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     livelift_env: str = "dev"
-    database_url: str = "postgresql://livelift:livelift@localhost:5432/livelift"
-    redis_url: str = "redis://localhost:6379/0"
+    # 127.0.0.1, NOT "localhost": on Windows localhost resolves to ::1 first
+    # while Docker publishes only 127.0.0.1:5432, so psycopg waits out the
+    # IPv6 connect timeout before falling back — measured 2m10s vs 0.5s
+    # (incident 27/08). Every CLI looked hung.
+    database_url: str = "postgresql://livelift:livelift@127.0.0.1:5432/livelift"
+    redis_url: str = "redis://127.0.0.1:6379/0"
 
     youtube_api_key: str = ""
     facebook_page_id: str = ""
@@ -28,6 +32,24 @@ class Settings(BaseSettings):
     ytdlp_cookies_from_browser: str = ""
 
 
+def _prefer_ipv4_loopback(url: str) -> str:
+    """Rewrite a ``localhost`` host to ``127.0.0.1``.
+
+    On Windows ``localhost`` resolves to ``::1`` first, but Docker publishes
+    only ``127.0.0.1:5432``; psycopg then waits out the full IPv6 connect
+    timeout before falling back — measured 2m10s vs 0.5s (incident 27/08).
+    Every CLI looked hung. The two spellings mean the same host here, so we
+    normalize rather than let a stale .env cost two minutes per command.
+    """
+    return url.replace("@localhost:", "@127.0.0.1:").replace("//localhost:", "//127.0.0.1:")
+
+
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    s = Settings()
+    return s.model_copy(
+        update={
+            "database_url": _prefer_ipv4_loopback(s.database_url),
+            "redis_url": _prefer_ipv4_loopback(s.redis_url),
+        }
+    )

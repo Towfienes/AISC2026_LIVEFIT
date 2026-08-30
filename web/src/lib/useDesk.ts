@@ -23,6 +23,7 @@ import { MOCK_SESSIONS, mockElapsedS, mockRecording } from "./mock";
 import type {
   ActionCardData,
   BlockInfo,
+  CurrentBlock,
   CommentItem,
   ConnectionKind,
   OverrideReason,
@@ -49,6 +50,10 @@ export interface DeskState {
   viewers: number;
   pinned: Product | null;
   blocks: BlockInfo[];
+  /** Operator-only: the block the session is in right now (null on the host view). */
+  currentBlock: CurrentBlock | null;
+  /** Vietnamese warning when a data source is failing; null when all is well. */
+  degraded: string | null;
   ticks: Tick[];
   comments: CommentItem[]; // ascending by offset
   cards: ActionCardData[];
@@ -88,12 +93,19 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
   const [skippedIds, setSkippedIds] = useState<Set<string>>(new Set());
   const [executedIds, setExecutedIds] = useState<Set<string>>(new Set());
   const [manualPin, setManualPin] = useState<{ product: Product; atS: number } | null>(null);
+  /** Current block, operator view only — never handed to the host screen. */
+  const [currentBlock, setCurrentBlock] = useState<CurrentBlock | null>(null);
+  /** Vietnamese warning when one data source is failing (see the poll loop). */
+  const [degraded, setDegraded] = useState<string | null>(null);
+  /** Session start, used to turn API timestamps into seconds-since-start. */
+  const sessionStartIso = useRef<string | null>(null);
 
   const session = useMemo(
     () => sessions.find((s) => s.session_id === sessionId) ?? null,
     [sessions, sessionId],
   );
   const durationS = (session?.planned_duration_min ?? 90) * 60;
+  sessionStartIso.current = session?.start_ts ?? null;
 
   // -------------------------------------------------------------------------
   // Probe the API once; fall back to mock if unreachable.
@@ -182,28 +194,46 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
     if (connection !== "live" || !sessionId) return;
     let cancelled = false;
     const pull = async () => {
-      try {
-        const [st, tks, cds, cms] = await Promise.all([
-          getState(sessionId),
-          getTicks(sessionId),
-          getCards(sessionId),
-          getComments(sessionId, { sinceOffsetS: lastCommentOffset.current, limit: 100 }),
-        ]);
-        if (cancelled) return;
+      // allSettled, not all: one failing source must degrade ONE panel, never
+      // freeze the whole desk. Promise.all rejected the entire poll when a
+      // single call failed and the catch silently kept the empty first render,
+      // so the desk looked "connected" but never updated (incident 27/08).
+      const [stR, tksR, cdsR, cmsR] = await Promise.allSettled([
+        getState(sessionId),
+        getTicks(sessionId, sessionStartIso.current),
+        getCards(sessionId),
+        getComments(sessionId, sessionStartIso.current),
+      ]);
+      if (cancelled) return;
+
+      if (stR.status === "fulfilled") {
+        const st = stR.value;
         setElapsedS(st.elapsed_s);
-        setViewers(st.viewers);
-        setPinned(st.pinned_product);
-        setBlocks(st.blocks);
-        setModeState(st.session.mode);
-        setTicks(tks);
-        setCards(cds);
-        if (cms.length) {
-          lastCommentOffset.current = cms[cms.length - 1].offset_s;
-          setComments((prev) => [...prev, ...cms].slice(-200));
-        }
-      } catch {
-        // keep the previous render; the WS status dot reports connectivity
+        setPinned(st.pinned_product ?? null);
+        setModeState(st.mode);
+        setCurrentBlock(st.current_block ?? null);
       }
+      if (tksR.status === "fulfilled") {
+        setTicks(tksR.value);
+        const last = tksR.value[tksR.value.length - 1];
+        if (last) setViewers(last.viewers);
+      }
+      if (cdsR.status === "fulfilled") setCards(cdsR.value);
+      if (cmsR.status === "fulfilled" && cmsR.value.length) {
+        const fresh = cmsR.value.filter((c) => c.offset_s > lastCommentOffset.current);
+        if (fresh.length) {
+          lastCommentOffset.current = fresh[fresh.length - 1].offset_s;
+          setComments((prev) => [...prev, ...fresh].slice(-200));
+        }
+      }
+
+      const failed = [
+        stR.status === "rejected" ? "trạng thái phiên" : null,
+        tksR.status === "rejected" ? "người xem" : null,
+        cdsR.status === "rejected" ? "thẻ hành động" : null,
+        cmsR.status === "rejected" ? "bình luận" : null,
+      ].filter(Boolean) as string[];
+      setDegraded(failed.length ? `Không tải được: ${failed.join(", ")}` : null);
     };
     pull();
     const timer = setInterval(pull, POLL_MS);
@@ -230,11 +260,13 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
     } else if (msg.type === "cards") {
       setCards(sanitizeCards(msg.cards));
     } else if (msg.type === "state") {
+      // The API pushes the same flat operator-state shape the REST route
+      // returns; viewers/blocks are NOT part of it (they come from the ticks
+      // and schedule endpoints) — reading them here used to yield undefined.
       setElapsedS(msg.state.elapsed_s);
-      setViewers(msg.state.viewers);
-      setPinned(msg.state.pinned_product);
-      setBlocks(msg.state.blocks);
-      setModeState(msg.state.session.mode);
+      setPinned(msg.state.pinned_product ?? null);
+      setModeState(msg.state.mode);
+      setCurrentBlock(msg.state.current_block ?? null);
     }
   }, []);
   const wsStatus = useLiveSocket(connection === "live" ? sessionId : null, onWs, connection === "live");
@@ -317,6 +349,8 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
     viewers,
     pinned,
     blocks,
+    currentBlock,
+    degraded,
     ticks,
     comments,
     cards: visibleCards,

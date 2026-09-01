@@ -183,8 +183,18 @@ def true_effect(schedule: Schedule, params: SimParams, seed: int, burn_in_s: int
     off = simulate_session(schedule, params, seed, override="all_off")
     f_on = block_frame(schedule, on.events, burn_in_s=burn_in_s)
     f_off = block_frame(schedule, off.events, burn_in_s=burn_in_s)
-    y_on = sum(r.y for r in f_on) / len(f_on)
-    y_off = sum(r.y for r in f_off) / len(f_off)
+    # Ground truth must be taken over the SAME blocks the estimator sees:
+    # averaging over blocks the analysis excludes would make the comparison
+    # target differ from the estimand and disguise real bias (audit 30/08).
+    keep = [
+        i
+        for i, (a, b) in enumerate(zip(f_on, f_off, strict=True))
+        if a.measurable and b.measurable
+    ]
+    if not keep:
+        return 0.0
+    y_on = sum(f_on[i].y for i in keep) / len(keep)
+    y_off = sum(f_off[i].y for i in keep) / len(keep)
     return y_on - y_off
 
 

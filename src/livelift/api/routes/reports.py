@@ -46,12 +46,24 @@ def _events_from_store(session: dict[str, Any], store) -> list[Event]:
 
 
 def _session_frame(session: dict[str, Any], store) -> list[dict[str, Any]]:
+    """Block-level analysis rows for one session.
+
+    Only blocks that actually aired AND carry enough exposure are returned:
+    a session that ends early keeps its planned blocks, and entering those as
+    y = 0.0 attenuated the pooled estimate by ~38% (audit 30/08).
+    """
     blocks = store.get_blocks(session["session_id"])
-    if not blocks or session.get("start_ts") is None:
+    start = session.get("start_ts")
+    if not blocks or start is None:
         return []
     schedule = service.rebuild_schedule(session, blocks)
     events = _events_from_store(session, store)
-    return blocks_to_dicts(block_frame(schedule, events, burn_in_s=BURN_IN_S))
+    end = session.get("end_ts")
+    live_until_s = (end - start).total_seconds() if end is not None else None
+    rows = blocks_to_dicts(
+        block_frame(schedule, events, burn_in_s=BURN_IN_S, live_until_s=live_until_s)
+    )
+    return [r for r in rows if r.get("measurable", True)]
 
 
 def _compliance(session_id: str, store) -> ComplianceStats:

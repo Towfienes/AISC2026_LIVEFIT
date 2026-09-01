@@ -71,7 +71,12 @@ def run_validation(
             schedule = generate_schedule(session_minutes, design, seed)
             out = simulate_session(schedule, sim_params, seed)
             frame = block_frame(schedule, out.events, burn_in_s=burn_in_s)
+            # Same exclusion rule as production (reports.py): unmeasurable
+            # blocks never enter estimation, so the harness must not feed them
+            # either — otherwise it validates a pipeline nobody runs.
             for r in blocks_to_dicts(frame):
+                if not r.get("measurable", True):
+                    continue
                 ys.append(r["y"])
                 zs.append(r["z"])
                 sess_ids.append(f"s{s}")

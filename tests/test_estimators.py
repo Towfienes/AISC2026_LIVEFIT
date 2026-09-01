@@ -133,3 +133,115 @@ def test_cuped_no_variance_no_crash():
     y_adj, vr = cuped_adjust(y, x)
     assert vr == 0.0
     assert np.allclose(y_adj, y)
+
+
+# ---------------------------------------------------------------------------
+# Audit 30/08 — degenerate designs must be REFUSED, never reported
+# ---------------------------------------------------------------------------
+
+
+def _degenerate(n_on=1, n_off=5, seed=0):
+    """A session where one arm has too few blocks to studentize."""
+    rng = np.random.default_rng(seed)
+    z = np.array([1] * n_on + [0] * n_off)
+    y = rng.normal(5.0, 1.0, size=len(z))
+    sids = np.array(["s0"] * len(z))
+    phases = ["early", "mid", "late"] * len(z)
+    return y, z, sids, phases[: len(z)]
+
+
+def test_single_block_arm_is_not_estimable():
+    """FATAL (audit 30/08): with one arm below 2 blocks the studentized
+    statistic is NaN. Every NaN comparison is False, so the p-value used to
+    collapse to its floor and the Fisher CI to zero width — i.e. pure noise was
+    reported as 'p < 0.001, significant'."""
+    y, z, sids, phases = _degenerate(n_on=1, n_off=5)
+    res = analyze_outer(y, z, sids, phases, n_draws=200, seed=1)
+    assert not res.estimable
+    assert np.isnan(res.p_value)
+    assert np.isnan(res.ci_low)
+    assert np.isnan(res.ci_high)
+    assert not res.significant
+    assert res.reason is not None
+    assert "khối" in res.reason
+
+
+def test_all_one_arm_is_not_estimable():
+    y, z, sids, phases = _degenerate(n_on=0, n_off=6)
+    res = analyze_outer(y, z, sids, phases, n_draws=200, seed=2)
+    assert not res.estimable
+    assert not res.significant
+
+
+def test_significant_is_false_when_a_bound_is_unbounded():
+    """An unidentified bound (-inf/+inf) must never read as significance."""
+    from livelift.analysis.estimators import RandomizationResult
+
+    res = RandomizationResult(
+        estimate=0.5, estimate_ht=0.5, p_value=0.2,
+        ci_low=0.1, ci_high=float("inf"),
+        n_blocks=10, n_on=5, n_off=5, n_draws=100,
+    )
+    assert not res.significant
+
+
+def test_identical_outcomes_do_not_produce_a_spurious_rejection():
+    """SERIOUS (audit 30/08): an exact `se == 0` check missed floating-point
+    dust, giving t ~ 1e16 and a false rejection. Constant outcomes carry no
+    evidence of an effect."""
+    y = np.full(12, 3.3)
+    z = np.array([1, 0] * 6)
+    sids = np.array(["s0"] * 12)
+    phases = ["early", "mid", "late"] * 4
+    res = analyze_outer(y, z, sids, phases, n_draws=300, seed=3)
+    assert res.estimable
+    assert not res.significant
+    assert res.p_value > 0.05
+
+
+def test_degenerate_redraws_are_dropped_not_counted_as_zero():
+    """Degenerate reference draws (NaN) must leave the reference set, not be
+    mapped to 0.0 — counting them as 'not extreme' biases p downward."""
+    from livelift.analysis.estimators import _batch_studentized
+
+    y = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+    zmat = np.array(
+        [
+            [1, 1, 1, 0, 0, 0],  # fine
+            [1, 0, 0, 0, 0, 0],  # one ON block -> undefined
+            [0, 0, 0, 0, 0, 0],  # no ON blocks -> undefined
+        ],
+        dtype=np.int8,
+    )
+    t = _batch_studentized(y, zmat)
+    assert np.isfinite(t[0])
+    assert np.isnan(t[1])
+    assert np.isnan(t[2])
+
+
+@pytest.mark.slow
+def test_null_false_positive_rate_is_nominal_on_short_sessions():
+    """End-to-end guard on the exact scenario the audit used: 30-minute null
+    sessions. Before the fix 52% of them were declared significant."""
+    from livelift.core.assigner.outer import DesignParams, generate_schedule
+    from livelift.core.features import block_frame
+    from livelift.sim.simulator import SimParams, simulate_session
+
+    sig = tested = 0
+    for seed in range(120):
+        sched = generate_schedule(30, DesignParams(), seed)
+        out = simulate_session(sched, SimParams(treatment_effect=0.0), seed)
+        frame = block_frame(sched, out.events, burn_in_s=60)
+        y = np.array([r.y for r in frame])
+        z = np.array([r.z for r in frame])
+        res = analyze_outer(
+            y, z, np.array(["s0"] * len(y)), [r.phase for r in frame],
+            n_draws=299, seed=seed,
+        )
+        if not res.estimable:
+            continue
+        tested += 1
+        sig += res.significant
+    assert tested >= 30, f"quá ít phiên kiểm định được ({tested})"
+    rate = sig / tested
+    assert rate <= 0.20, f"tỷ lệ dương tính giả {rate:.1%} — kiểm định sai hiệu chỉnh"

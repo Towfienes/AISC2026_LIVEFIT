@@ -15,16 +15,20 @@ def test_build_ticks_counts_and_carry_forward():
         Event("pin", 20, product_id="P9"),
     ]
     ticks = build_ticks(events, session_duration_s=120, tick_s=30)
-    assert len(ticks) == 4
+    # Buckets 0..2 are covered by viewer snapshots (t=0 and t=70). Bucket 3 has
+    # NO telemetry after the last snapshot, so it is not emitted — inventing
+    # coverage there fabricated exposure for time that may never have aired
+    # (audit 30/08).
+    assert len(ticks) == 3
     assert ticks[0].comment_count == 1
     assert ticks[0].like_count == 1
     assert ticks[0].viewers == 50
     assert ticks[1].comment_count == 1
-    assert ticks[1].viewers == 50  # carried forward
+    assert ticks[1].viewers == 50  # carried forward WITHIN covered span
     assert ticks[2].click_count == 1
     assert ticks[2].viewers == 80
     assert ticks[0].pinned_product_id == "P9"  # pin at 20s lands in bucket 0
-    assert ticks[3].pinned_product_id == "P9"  # carried forward
+    assert ticks[2].pinned_product_id == "P9"  # carried forward
 
 
 def test_out_of_range_events_ignored():

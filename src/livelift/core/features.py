@@ -55,7 +55,12 @@ def build_ticks(
     tick_s: int = 30,
 ) -> list[Tick]:
     """Aggregate events into fixed buckets. Viewer count carries forward the
-    last snapshot; the pinned product carries forward the last pin event."""
+    last snapshot; the pinned product carries forward the last pin event.
+
+    Buckets BEFORE the first viewer snapshot and AFTER the last one are not
+    emitted: there is no measurement there, and forward-filling to the planned
+    session end invented exposure for blocks that never aired (audit 30/08).
+    """
     n_buckets = max(1, -(-session_duration_s // tick_s))  # ceil
     comments = [0] * n_buckets
     likes = [0] * n_buckets
@@ -78,11 +83,18 @@ def build_ticks(
         elif ev.kind == "pin":
             pins.append((ev.ts_offset_s, ev.product_id))
 
+    # Only buckets covered by real viewer telemetry are measured.
+    observed = [b for b, snaps in enumerate(viewer_snapshots) if snaps]
+    first_obs = observed[0] if observed else None
+    last_obs = observed[-1] if observed else None
+
     ticks: list[Tick] = []
     last_viewers = 0.0
     pin_idx = 0
     current_pin: str | None = None
     for b in range(n_buckets):
+        if first_obs is None or b < first_obs or b > last_obs:
+            continue
         bucket_start = b * tick_s
         bucket_end = bucket_start + tick_s
         if viewer_snapshots[b]:
@@ -124,6 +136,13 @@ class BlockRecord:
     # ONLY as a pre-treatment covariate for variance reduction / heterogeneity
     # exploration — never as an outcome.
     pre_like_rate: float  # likes/min in the trailing pre-block window
+    # Measurability. A block scheduled past the moment the host actually
+    # stopped streaming, or one with no viewer telemetry, carries NO outcome —
+    # it must be EXCLUDED, never entered as y = 0.0. Feeding fabricated zeros
+    # into the estimator attenuated the effect by ~38% and dropped Fisher-CI
+    # coverage to 72% (audit 30/08).
+    measurable: bool = True
+    exclude_reason: str | None = None
 
 
 def _window_stats(
@@ -152,29 +171,57 @@ def _window_stats(
     return exposure, clicks, comments, likes
 
 
+MIN_EXPOSURE_VIEWER_S = 60.0
+"""Minimum viewer-seconds for a block to carry an outcome.
+
+One viewer for one minute. Below this the click rate is dominated by counting
+noise (a single click implies a rate of 1000+), so the block is excluded rather
+than allowed to swing the unweighted mean. Pre-registered rule.
+"""
+
+
 def block_frame(
     schedule: Schedule,
     events: Iterable[Event],
     burn_in_s: int = 60,
     pre_window_s: int = 120,
     tick_s: int = 30,
+    live_until_s: float | None = None,
 ) -> list[BlockRecord]:
     """Build the block-level analysis dataset from the schedule and events.
 
     ``burn_in_s`` seconds at the start of every measurement block are excluded
-    from the outcome window (carryover burn-in). Blocks whose analysis window
-    has zero viewer exposure get ``y = 0.0`` and should be flagged/excluded at
-    analysis time via the pre-registered minimum-exposure rule.
+    from the outcome window (carryover burn-in).
+
+    ``live_until_s`` is when the broadcast ACTUALLY ended, in seconds from
+    start. Sessions routinely end before the planned duration, and the schedule
+    keeps its planned blocks; without this bound those never-aired blocks were
+    given fabricated exposure and a hard ``y = 0.0``, which attenuated the
+    estimate by ~38% and dropped Fisher-CI coverage to 72% (audit 30/08).
+    Blocks that did not air — or whose measured window carries less than
+    ``MIN_EXPOSURE_VIEWER_S`` of exposure — come back with ``measurable=False``
+    and MUST be dropped before estimation.
     """
     ev_list = sorted(events, key=lambda e: e.ts_offset_s)
     session_s = schedule.session_duration_min * 60
+    horizon = session_s if live_until_s is None else min(session_s, max(live_until_s, 0.0))
     ticks = build_ticks(ev_list, session_s, tick_s)
     tick_viewers = [(float(t.bucket_start_s), t.viewers) for t in ticks]
 
     records: list[BlockRecord] = []
     for b in schedule.measurement_blocks:
         win_start = b.start_offset_s + min(burn_in_s, max(b.duration_s - 30, 0))
-        exposure, clicks, _, _ = _window_stats(ev_list, win_start, b.end_offset_s, tick_viewers)
+        # Clip the outcome window to the real broadcast span.
+        win_end = min(float(b.end_offset_s), horizon)
+        unmeasurable: str | None = None
+        if win_end <= win_start:
+            unmeasurable = "khối không phát sóng (phiên kết thúc trước khối này)"
+        exposure, clicks, _, _ = _window_stats(ev_list, win_start, win_end, tick_viewers)
+        if unmeasurable is None and exposure < MIN_EXPOSURE_VIEWER_S:
+            unmeasurable = (
+                f"phơi nhiễm {exposure:.0f} giây·người xem < ngưỡng "
+                f"{MIN_EXPOSURE_VIEWER_S:.0f} — tỷ lệ nhấp không đo được"
+            )
         pre_start = max(0.0, b.start_offset_s - pre_window_s)
         pre_exp, _, pre_comments, pre_likes = _window_stats(
             ev_list, pre_start, b.start_offset_s, tick_viewers
@@ -194,6 +241,8 @@ def block_frame(
                 exposure_viewer_s=exposure,
                 clicks=clicks,
                 y=(clicks / exposure * 1000.0) if exposure > 0 else 0.0,
+                measurable=unmeasurable is None,
+                exclude_reason=unmeasurable,
                 pre_viewers=pre_exp / pre_seconds,
                 pre_comment_rate=pre_comments / (pre_seconds / 60.0),
                 pre_like_rate=pre_likes / (pre_seconds / 60.0),
@@ -216,6 +265,8 @@ def blocks_to_dicts(records: list[BlockRecord]) -> list[dict]:
             "pre_viewers": r.pre_viewers,
             "pre_comment_rate": r.pre_comment_rate,
             "pre_like_rate": r.pre_like_rate,
+            "measurable": r.measurable,
+            "exclude_reason": r.exclude_reason,
         }
         for r in records
     ]

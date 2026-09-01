@@ -150,8 +150,30 @@ def test_full_flow(client):
     assert client.post(f"/sessions/{sid}/end").status_code == 200
     report = client.get(f"/sessions/{sid}/report").json()
     assert report["source"] == "experiment"
-    assert report["n_blocks"] == sched["n_on"] + sched["n_off"]
+    # The report contains only blocks that ACTUALLY AIRED. This session ends a
+    # second after it starts, so the scheduled blocks beyond that never ran and
+    # must be excluded — entering them as y = 0.0 attenuated the pooled
+    # estimate by ~38% (audit 30/08).
+    assert report["n_blocks"] <= sched["n_on"] + sched["n_off"]
     assert report["compliance"]["override_count"] == 1
+
+
+def test_unaired_blocks_are_excluded_from_the_report(client):
+    """Regression (audit 30/08): a session that ends early keeps its planned
+    blocks in the schedule; they must NOT enter the analysis with y = 0.0."""
+    make_product(client, "P1")
+    session = make_session(client, duration=60)
+    sid = session["session_id"]
+    sched = client.post(f"/sessions/{sid}/schedule", json={"seed": 5}).json()
+    client.post(f"/sessions/{sid}/start")
+    client.post(f"/sessions/{sid}/end")
+
+    report = client.get(f"/sessions/{sid}/report").json()
+    scheduled = sched["n_on"] + sched["n_off"]
+    assert scheduled >= 8, "cần đủ khối để phép kiểm có ý nghĩa"
+    assert report["n_blocks"] < scheduled, (
+        "khối chưa phát sóng vẫn lọt vào báo cáo — sẽ làm loãng ước lượng"
+    )
 
 
 def test_execute_only_in_on_blocks(client):

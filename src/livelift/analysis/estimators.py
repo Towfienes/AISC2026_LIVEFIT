@@ -53,17 +53,45 @@ def ht_effect(y: np.ndarray, z: np.ndarray, p: np.ndarray | float = 0.5) -> floa
     return float((y * z / p_arr).sum() / n - (y * (1 - z) / (1 - p_arr)).sum() / n)
 
 
+MIN_BLOCKS_PER_ARM = 2
+"""Below this the studentized statistic is undefined (no within-arm variance).
+
+Reporting anything for such a configuration is worse than reporting nothing:
+see :func:`analyze_outer` and the audit note in ``docs/incident-log.md``.
+"""
+
+
+def _se_is_degenerate(se: float, m1: float, m0: float) -> bool:
+    """Scale-aware zero test for the studentized denominator.
+
+    An exact ``se == 0`` check misses floating-point dust: identical block
+    outcomes can leave an SE of ~1e-17 instead of 0, which turns a zero
+    numerator difference into t ~ 1e16 and a spurious rejection. Compare
+    against the scale of the means instead.
+    """
+    if not np.isfinite(se):
+        return True
+    return se <= 1e-12 * max(1.0, abs(m1) + abs(m0))
+
+
 def studentized_stat(y: np.ndarray, z: np.ndarray) -> float:
     """Two-sample t-type statistic — studentization gives the randomization
-    test better behavior under heteroskedasticity (Chung & Romano, 2013)."""
+    test better behavior under heteroskedasticity (Chung & Romano, 2013).
+
+    Returns NaN when either arm holds fewer than ``MIN_BLOCKS_PER_ARM`` blocks.
+    Callers MUST treat that NaN as "cannot test", never as a value: comparing
+    NaN with the reference draws is False everywhere, which would silently
+    collapse the p-value to its floor.
+    """
     y, z = np.asarray(y, float), np.asarray(z, int)
     y1, y0 = y[z == 1], y[z == 0]
-    if len(y1) < 2 or len(y0) < 2:
+    if len(y1) < MIN_BLOCKS_PER_ARM or len(y0) < MIN_BLOCKS_PER_ARM:
         return float("nan")
-    se = np.sqrt(y1.var(ddof=1) / len(y1) + y0.var(ddof=1) / len(y0))
-    if se == 0:
+    m1, m0 = y1.mean(), y0.mean()
+    se = float(np.sqrt(y1.var(ddof=1) / len(y1) + y0.var(ddof=1) / len(y0)))
+    if _se_is_degenerate(se, m1, m0):
         return 0.0
-    return float((y1.mean() - y0.mean()) / se)
+    return float((m1 - m0) / se)
 
 
 # ---------------------------------------------------------------------------
@@ -75,13 +103,26 @@ def studentized_stat(y: np.ndarray, z: np.ndarray) -> float:
 class RandomizationResult:
     estimate: float  # difference in means (per-1000-viewer-second click rate)
     estimate_ht: float
-    p_value: float
-    ci_low: float
-    ci_high: float
+    p_value: float  # NaN when the design cannot be tested (see `estimable`)
+    ci_low: float  # NaN if not estimable; -inf if the lower side is unbounded
+    ci_high: float  # NaN if not estimable; +inf if the upper side is unbounded
     n_blocks: int
     n_on: int
     n_off: int
     n_draws: int
+    estimable: bool = True
+    reason: str | None = None  # Vietnamese, user-facing, set when not estimable
+
+    @property
+    def significant(self) -> bool:
+        """Whether the interval excludes zero — False whenever not estimable.
+
+        Callers must use THIS rather than comparing ci_low/ci_high themselves:
+        a NaN or unbounded side must never read as significance.
+        """
+        if not self.estimable or not np.isfinite(self.ci_low) or not np.isfinite(self.ci_high):
+            return False
+        return self.ci_low > 0 or self.ci_high < 0
 
 
 def _redraw_matrix(
@@ -107,21 +148,55 @@ def _redraw_matrix(
 
 
 def _batch_studentized(y: np.ndarray, zmat: np.ndarray) -> np.ndarray:
-    """Vectorized studentized statistic for every row of the redraw matrix."""
+    """Vectorized studentized statistic for every row of the redraw matrix.
+
+    Rows whose arms are too small for a within-arm variance return NaN — the
+    same convention as :func:`studentized_stat`. They must be EXCLUDED from the
+    reference distribution, not mapped to 0.0: a degenerate draw is not
+    evidence of "no effect", and counting it as a non-extreme statistic biases
+    every p-value downward.
+    """
     y = np.asarray(y, float)
     n1 = zmat.sum(axis=1)
     n0 = zmat.shape[1] - n1
-    s1 = zmat @ y
-    s0 = y.sum() - s1
-    m1, m0 = s1 / n1, s0 / n0
-    q1 = zmat @ (y**2)
-    q0 = (y**2).sum() - q1
-    # unbiased variances
-    v1 = (q1 - n1 * m1**2) / np.maximum(n1 - 1, 1)
-    v0 = (q0 - n0 * m0**2) / np.maximum(n0 - 1, 1)
-    se = np.sqrt(v1 / n1 + v0 / n0)
+    ok = (n1 >= MIN_BLOCKS_PER_ARM) & (n0 >= MIN_BLOCKS_PER_ARM)
     with np.errstate(divide="ignore", invalid="ignore"):
-        return np.where(se > 0, (m1 - m0) / se, 0.0)
+        s1 = zmat @ y
+        s0 = y.sum() - s1
+        m1 = np.where(n1 > 0, s1 / np.maximum(n1, 1), np.nan)
+        m0 = np.where(n0 > 0, s0 / np.maximum(n0, 1), np.nan)
+        q1 = zmat @ (y**2)
+        q0 = (y**2).sum() - q1
+        # unbiased variances
+        v1 = (q1 - n1 * m1**2) / np.maximum(n1 - 1, 1)
+        v0 = (q0 - n0 * m0**2) / np.maximum(n0 - 1, 1)
+        se = np.sqrt(np.maximum(v1, 0) / np.maximum(n1, 1) + np.maximum(v0, 0) / np.maximum(n0, 1))
+        scale = 1e-12 * np.maximum(1.0, np.abs(m1) + np.abs(m0))
+        t = np.where(se > scale, (m1 - m0) / se, 0.0)
+    return np.where(ok, t, np.nan)
+
+
+def _p_from_stats(t_obs: float, t_draws: np.ndarray) -> float:
+    """Two-sided randomization p-value from an observed statistic and its
+    reference draws.
+
+    Returns NaN when the observed statistic is undefined (an arm too small to
+    studentize). Letting a NaN flow into the comparison would make every
+    ``>=`` False and collapse p to its floor 1/(draws+1) — i.e. report maximal
+    confidence on a configuration that carries no information at all. That is
+    the single most dangerous failure mode this module can have, so it is
+    refused explicitly (audit 30/08, docs/incident-log.md).
+
+    Degenerate draws (NaN) are dropped from the reference set and the p-value
+    is computed over the valid ones only.
+    """
+    if not np.isfinite(t_obs):
+        return float("nan")
+    valid = t_draws[np.isfinite(t_draws)]
+    if valid.size == 0:
+        return float("nan")
+    # add-one correction keeps the p-value valid (never exactly 0)
+    return float((1 + np.sum(np.abs(valid) >= abs(t_obs))) / (1 + valid.size))
 
 
 def randomization_test(
@@ -142,11 +217,8 @@ def randomization_test(
     z = np.asarray(z, int)
     if zmat is None:
         zmat = _redraw_matrix(np.asarray(session_ids), list(phases), n_draws, seed)
-    t_obs = studentized_stat(y, z)
-    t_draws = _batch_studentized(y, zmat)
-    # add-one correction keeps the p-value valid (never exactly 0)
-    p = (1 + np.sum(np.abs(t_draws) >= abs(t_obs))) / (1 + len(t_draws))
-    return float(p), zmat
+    p = _p_from_stats(studentized_stat(y, z), _batch_studentized(y, zmat))
+    return p, zmat
 
 
 def randomization_ci(
@@ -170,30 +242,50 @@ def randomization_ci(
     if zmat is None:
         zmat = _redraw_matrix(np.asarray(session_ids), list(phases), n_draws, seed)
 
+    # Undefined statistic -> no interval. Returning [tau_hat, tau_hat] here
+    # would advertise a zero-width 95% CI on a configuration that cannot be
+    # tested at all (audit 30/08).
+    if not np.isfinite(studentized_stat(y, z)):
+        return float("nan"), float("nan")
+
     def pval(tau0: float) -> float:
         y_adj = y - tau0 * z
-        t_obs = studentized_stat(y_adj, z)
-        t_draws = _batch_studentized(y_adj, zmat)
-        return (1 + np.sum(np.abs(t_draws) >= abs(t_obs))) / (1 + len(t_draws))
+        return _p_from_stats(studentized_stat(y_adj, z), _batch_studentized(y_adj, zmat))
 
     tau_hat = diff_in_means(y, z)
     spread = max(float(np.std(y)) * 4, 1e-6)
 
+    def rejects(tau0: float) -> bool:
+        """Reject only on a DEFINED p-value below alpha.
+
+        A NaN p (undefined statistic at this tau0) is not a rejection —
+        treating it as one used to let an isolated numerical dip terminate the
+        expansion and collapse the interval.
+        """
+        p_val = pval(tau0)
+        return bool(np.isfinite(p_val)) and p_val < alpha
+
     def search(direction: int) -> float:
         lo, hi = tau_hat, tau_hat + direction * spread
-        # expand until rejected
+        # Expand until rejected. Require TWO consecutive rejecting points
+        # before accepting the bracket: the Monte-Carlo p-surface is noisy and
+        # a single dip below alpha is not evidence the true bound is here.
+        bracketed = False
         for _ in range(30):
-            if pval(hi) < alpha:
+            if rejects(hi) and rejects(hi + direction * spread * 0.25):
+                bracketed = True
                 break
             hi += direction * spread
-        else:
-            return hi  # never rejected within range — CI effectively unbounded
+        if not bracketed:
+            # Never rejected within a wide range: the bound is not identified
+            # by this data. Report an open side rather than a fabricated one.
+            return float("-inf") if direction < 0 else float("inf")
         for _ in range(40):
             mid = (lo + hi) / 2
-            if pval(mid) >= alpha:
-                lo = mid
-            else:
+            if rejects(mid):
                 hi = mid
+            else:
+                lo = mid
         return lo
 
     return search(-1), search(+1)
@@ -208,9 +300,33 @@ def analyze_outer(
     n_draws: int = 2000,
     seed: int = 12345,
 ) -> RandomizationResult:
-    """Full primary analysis: point estimates, p-value, Fisher CI."""
+    """Full primary analysis: point estimates, p-value, Fisher CI.
+
+    When either arm holds fewer than ``MIN_BLOCKS_PER_ARM`` blocks the design
+    cannot be tested at all; the result is returned with ``estimable=False``,
+    NaN inference fields and a Vietnamese ``reason``. Publishing anything else
+    in that case would present pure noise as a significant finding.
+    """
     y = np.asarray(y, float)
     z = np.asarray(z, int)
+    n_on, n_off = int(z.sum()), int(len(z) - z.sum())
+    if min(n_on, n_off) < MIN_BLOCKS_PER_ARM:
+        return RandomizationResult(
+            estimate=diff_in_means(y, z),
+            estimate_ht=ht_effect(y, z, 0.5),
+            p_value=float("nan"),
+            ci_low=float("nan"),
+            ci_high=float("nan"),
+            n_blocks=len(y),
+            n_on=n_on,
+            n_off=n_off,
+            n_draws=0,
+            estimable=False,
+            reason=(
+                f"Mỗi nhánh cần ít nhất {MIN_BLOCKS_PER_ARM} khối để kiểm định "
+                f"(hiện có BẬT {n_on} / TẮT {n_off}) — chưa ước lượng được"
+            ),
+        )
     p, zmat = randomization_test(y, z, session_ids, phases, n_draws, seed)
     lo, hi = randomization_ci(y, z, session_ids, phases, alpha, n_draws, seed, zmat=zmat)
     return RandomizationResult(

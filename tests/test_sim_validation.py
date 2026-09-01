@@ -5,11 +5,15 @@ nightly / pre-release with `pytest -m slow`.
 """
 
 import pytest
+from scipy.stats import binomtest
 
 from livelift.core.assigner.outer import DesignParams, generate_schedule
 from livelift.core.features import block_frame
 from livelift.sim.simulator import SimParams, simulate_session, true_effect
 from livelift.sim.validate import run_validation
+
+ALPHA = 0.05
+"""Nominal significance level the calibration gates test against."""
 
 
 def test_simulator_produces_events_and_blocks():
@@ -38,16 +42,37 @@ def test_crn_true_effect_zero_when_no_effect():
 
 @pytest.mark.slow
 def test_aa_false_positive_rate_near_alpha():
-    """A/A gate: with zero effect, rejection rate ≈ 5% (Monte-Carlo error band)."""
+    """A/A gate: under a true null the rejection rate must match alpha.
+
+    The gate is an EXACT TWO-SIDED BINOMIAL TEST of H0: FPR = alpha, failing
+    when its p-value drops below 0.01. The previous version (40 reps, "reject
+    rate <= 0.15") was close to useless: a test whose true FPR was 12% — 2.4x
+    nominal — passed it 80% of the time, and it said nothing at all about
+    over-conservatism even though HARNESS.md states the criterion two-sidedly.
+
+    Measured power of THIS gate at 200 reps (scipy.stats.binomtest):
+    true FPR  5% -> false alarm  0.8%   (acceptable flakiness)
+    true FPR 10% -> detected    62.8%
+    true FPR 12% -> detected    88.7%   (old gate: 19.8%)
+    true FPR 15% -> detected    99.2%
+    true FPR  1% -> detected    67.7%   (over-conservative, also a defect)
+    """
+    n_reps = 200
     res = run_validation(
-        n_reps=40,
+        n_reps=n_reps,
         n_sessions_per_rep=6,
         session_minutes=60,
         sim_params=SimParams(treatment_effect=0.0),
         n_draws=300,
         master_seed=11,
     )
-    assert res.rejection_rate <= 0.15, res.summary()
+    n_reject = round(res.rejection_rate * n_reps)
+    gate = binomtest(n_reject, n_reps, ALPHA).pvalue
+    assert gate >= 0.01, (
+        f"tỷ lệ bác bỏ {res.rejection_rate:.1%} ({n_reject}/{n_reps}) không khớp mức "
+        f"ý nghĩa {ALPHA:.0%} — kiểm định nhị thức hai phía p={gate:.4f}\n"
+        f"{res.summary()}"
+    )
 
 
 @pytest.mark.slow
@@ -63,7 +88,16 @@ def test_effect_recovery_bias_and_coverage():
         master_seed=13,
     )
     assert abs(res.relative_bias) < 0.10, res.summary()
-    assert 0.88 <= res.ci_coverage <= 0.99, res.summary()
+    # Coverage is a proportion too: a correctly-calibrated 95% interval hits
+    # 95% only in expectation. A hard [0.88, 0.99] band on 40 reps fails a
+    # perfect estimator surprisingly often, so test the proportion properly.
+    n_covered = round(res.ci_coverage * res.n_reps)
+    cov_gate = binomtest(n_covered, res.n_reps, 1 - ALPHA).pvalue
+    assert cov_gate >= 0.01, (
+        f"độ phủ KTC {res.ci_coverage:.1%} ({n_covered}/{res.n_reps}) lệch khỏi 95% "
+        f"— kiểm định nhị thức p={cov_gate:.4f}\n"
+        f"{res.summary()}"
+    )
 
 
 @pytest.mark.slow

@@ -15,6 +15,7 @@ const LINKS = [
   { href: "/desk", label: "Bàn điều khiển" },
   { href: "/host", label: "Màn hình host" },
   { href: "/replay", label: "Phát lại / Phân tích" },
+  { href: "/ket-qua", label: "Kết quả" },
 ] as const;
 
 export default function TopNav() {

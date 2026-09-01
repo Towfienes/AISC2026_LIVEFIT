@@ -26,7 +26,10 @@ export default function TopNav() {
       aria-label="Điều hướng chính"
       className="flex h-9 shrink-0 items-center gap-1 overflow-x-auto border-b border-hairline bg-page px-3"
     >
-      <Link href="/" className="mr-2 shrink-0 text-[13px] font-bold tracking-tight text-ink">
+      <Link
+        href="/"
+        className="focus-ring mr-2 shrink-0 rounded px-1 text-[13px] font-bold tracking-tight text-ink"
+      >
         LiveLift
       </Link>
       {LINKS.map((l) => {
@@ -36,7 +39,7 @@ export default function TopNav() {
             key={l.href}
             href={l.href}
             aria-current={active ? "page" : undefined}
-            className={`shrink-0 rounded px-2.5 py-1 text-xs transition-colors ${
+            className={`focus-ring shrink-0 rounded-md px-2.5 py-1 text-xs transition-colors duration-150 ${
               active
                 ? "bg-raised font-semibold text-ink"
                 : "text-sec hover:bg-surface hover:text-ink"

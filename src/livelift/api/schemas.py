@@ -355,6 +355,31 @@ class ExperimentSummary(BaseModel):
     (audit 30/08)."""
 
 
+class SignalStateOut(BaseModel):
+    name: str
+    status: Literal["ok", "degraded", "missing"]
+    detail: str
+
+
+class CapabilityOut(BaseModel):
+    name: str
+    status: Literal["ok", "degraded", "missing"]
+    reason: str
+
+
+class SignalCoverageOut(BaseModel):
+    """Which conclusions this session's data can honestly support.
+
+    The answer to "can LiveLift measure any sales video?" is this matrix, not
+    a yes: each capability names its required signals, and a missing signal
+    downgrades the capability EXPLICITLY instead of silently producing weaker
+    numbers."""
+
+    session_id: str
+    signals: list[SignalStateOut]
+    capabilities: list[CapabilityOut]
+
+
 # ---------------------------------------------------------------------------
 # Demo
 # ---------------------------------------------------------------------------

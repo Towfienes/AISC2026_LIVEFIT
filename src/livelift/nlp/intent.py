@@ -129,14 +129,89 @@ _MATCHERS: tuple[tuple[str, re.Pattern[str]], ...] = tuple(
 )
 
 
-def classify(text: str) -> str:
-    """Classify one comment into an intent label.
-
-    Returns the first matching label in priority order
+def classify_keywords(text: str) -> str:
+    """The keyword baseline: first matching label in priority order
     (chot_don > hoi_size > van_chuyen > hoi_gia > che_dat), else ``khac``.
+
+    Kept verbatim as the pre-registered ablation baseline — every trained
+    model is benchmarked against THIS function.
     """
     normalized = strip_diacritics(text)
     for label, pattern in _MATCHERS:
         if pattern.search(normalized):
             return label
     return "khac"
+
+
+# ---------------------------------------------------------------------------
+# Trained model (TF-IDF char/word n-grams + logistic regression)
+# ---------------------------------------------------------------------------
+
+_MODEL_PATH = __import__("pathlib").Path(__file__).parent / "model" / "intent_clf.joblib"
+_model = None
+_model_tried = False
+
+
+def _load_model():
+    """Lazily load the trained pipeline; never raises.
+
+    sklearn/joblib live in the [ml] extra — a server-only install, or a
+    missing artifact, must degrade to the keyword baseline instead of taking
+    the ingest path down.
+    """
+    global _model, _model_tried
+    if _model_tried:
+        return _model
+    _model_tried = True
+    try:
+        import joblib
+
+        if _MODEL_PATH.exists():
+            _model = joblib.load(_MODEL_PATH)
+    except Exception:  # noqa: BLE001 — any failure means "use the baseline"
+        _model = None
+    return _model
+
+
+_model_failure_logged = False
+
+
+def _log_once_model_failure() -> None:
+    """Log the first prediction failure (not every comment) then stay quiet."""
+    global _model_failure_logged
+    if not _model_failure_logged:
+        _model_failure_logged = True
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "intent model prediction failed — falling back to keyword baseline"
+        )
+
+
+def classifier_info() -> dict:
+    """Which classifier is live — surfaced in reports so numbers carry their
+    provenance (trained model vs keyword baseline)."""
+    model = _load_model()
+    return {
+        "backend": "tfidf_logreg" if model is not None else "keyword_baseline",
+        "model_file": _MODEL_PATH.name if model is not None else None,
+    }
+
+
+def classify(text: str) -> str:
+    """Classify one comment into an intent label.
+
+    Uses the trained model when its artifact is available (benchmarked at
+    ~0.9 macro-F1 on the authored dataset vs ~0.7 for keywords — see
+    docs/benchmarks/intent-classifier.md for the honest caveats), otherwise
+    the keyword baseline. Both are diacritics/teencode tolerant.
+    """
+    model = _load_model()
+    if model is not None:
+        try:
+            label = model.predict([text])[0]
+            if label in INTENT_LABELS:
+                return str(label)
+        except Exception:  # noqa: BLE001, S110 — any failure -> keyword baseline
+            _log_once_model_failure()
+    return classify_keywords(text)

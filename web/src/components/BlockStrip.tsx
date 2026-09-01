@@ -65,7 +65,7 @@ export default function BlockStrip({ blocks, durationS, positionS }: Props) {
           />
         )}
       </div>
-      <div className="mt-1 flex items-center gap-4 px-0.5 text-[10px] text-muted">
+      <div className="mt-1 flex items-center gap-4 px-0.5 text-[11px] text-muted">
         <span className="flex items-center gap-1">
           <span className="inline-block h-2 w-3 rounded-sm" style={{ background: BLOCK_ON_COLOR }} />
           <Term tip="Hệ thống điều khiển việc ghim sản phẩm trong khối này.">Khối BẬT</Term>

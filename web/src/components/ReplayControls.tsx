@@ -9,6 +9,9 @@ import { fmtDateHCM, fmtElapsed } from "@/lib/format";
 import type { SessionSummary } from "@/lib/types";
 import type { ReplaySpeed } from "@/lib/useReplay";
 
+import Button from "./ui/Button";
+import { fieldCls } from "./ui/field";
+
 const SPEEDS: ReplaySpeed[] = [1, 4, 16];
 
 interface Props {
@@ -43,7 +46,7 @@ export default function ReplayControls({
       <select
         value={sessionId ?? ""}
         onChange={(e) => onSelectSession(e.target.value)}
-        className="max-w-[320px] rounded border border-hairline bg-raised px-2 py-1 text-xs text-ink outline-none"
+        className={`${fieldCls} max-w-[320px] px-2 py-1 text-xs`}
         aria-label="Chọn phiên đã kết thúc"
       >
         {sessions.map((s) => (
@@ -54,17 +57,12 @@ export default function ReplayControls({
         ))}
       </select>
 
-      <button
-        type="button"
-        onClick={onTogglePlay}
-        disabled={disabled}
-        className="w-24 rounded bg-s1 px-3 py-1 text-xs font-semibold text-ink transition-colors hover:bg-[#5099ea] disabled:cursor-not-allowed disabled:bg-raised disabled:text-mut"
-      >
+      <Button size="sm" onClick={onTogglePlay} disabled={disabled} className="w-24 py-1.5">
         {playing ? "Tạm dừng" : "Phát"}
-      </button>
+      </Button>
 
       <div
-        className="flex items-center overflow-hidden rounded border border-hairline"
+        className="flex items-center overflow-hidden rounded-md border border-hairline"
         role="group"
         aria-label="Tốc độ phát lại"
       >
@@ -74,7 +72,8 @@ export default function ReplayControls({
             type="button"
             disabled={disabled}
             onClick={() => onSetSpeed(s)}
-            className={`tnum px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+            aria-pressed={speed === s}
+            className={`focus-ring tnum px-2.5 py-1 text-[11px] font-semibold transition-colors duration-150 ${
               speed === s ? "bg-s7 text-page" : "bg-raised text-sec hover:text-ink"
             } disabled:cursor-not-allowed disabled:text-mut`}
           >
@@ -91,7 +90,7 @@ export default function ReplayControls({
         value={Math.floor(t)}
         onChange={(e) => onSeek(Number(e.target.value))}
         disabled={disabled}
-        className="min-w-0 flex-1 accent-[#9085e9]"
+        className="focus-ring min-w-0 flex-1 accent-[#9085e9]"
         aria-label="Tua đến vị trí"
       />
 

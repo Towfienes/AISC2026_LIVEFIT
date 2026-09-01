@@ -69,3 +69,13 @@ body {
 .tnum {
   font-variant-numeric: tabular-nums;
 }
+
+/* Keyboard focus ring (shadcn/ui convention): visible only on :focus-visible,
+   offset from the control, accent-colored. Shared by every interactive element. */
+.focus-ring {
+  outline: none;
+}
+.focus-ring:focus-visible {
+  outline: 2px solid rgba(57, 135, 229, 0.75);
+  outline-offset: 2px;
+}

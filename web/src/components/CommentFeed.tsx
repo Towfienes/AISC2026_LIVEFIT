@@ -17,14 +17,14 @@ import { INTENT_META, type CommentItem } from "@/lib/types";
 function IntentChip({ intent }: { intent: CommentItem["intent_label"] }) {
   if (!intent) {
     return (
-      <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-hairline px-1.5 py-px text-[10px] text-mut">
+      <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-hairline px-1.5 py-px text-[11px] text-mut">
         Chưa phân loại
       </span>
     );
   }
   const meta = INTENT_META[intent];
   return (
-    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-hairline bg-raised px-1.5 py-px text-[10px] text-sec">
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-hairline bg-raised px-1.5 py-px text-[11px] text-sec">
       <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: meta.color }} />
       {meta.label}
     </span>
@@ -65,15 +65,15 @@ export default function CommentFeed({ comments }: { comments: CommentItem[] }) {
           {comments.map((c) => (
             <li
               key={c.comment_id}
-              className="flex items-start gap-2 rounded border border-transparent px-2 py-1 text-xs hover:border-hairline hover:bg-raised"
+              className="flex items-start gap-2 rounded border border-transparent px-2 py-1 text-xs transition-colors duration-150 hover:border-hairline hover:bg-raised"
             >
-              <span className="tnum mt-px shrink-0 text-[10px] text-mut">
+              <span className="tnum mt-px shrink-0 text-[11px] text-mut">
                 {fmtElapsed(c.offset_s)}
               </span>
               <span className="min-w-0 flex-1 break-words leading-snug text-ink">
                 {c.text_scrubbed}
                 {c.pii_kinds.length > 0 && (
-                  <span className="ml-1.5 rounded bg-axis px-1 py-px text-[9px] font-semibold text-sec align-middle">
+                  <span className="ml-1.5 rounded bg-axis px-1 py-px text-[10px] font-semibold text-sec align-middle">
                     PII đã ẩn
                   </span>
                 )}

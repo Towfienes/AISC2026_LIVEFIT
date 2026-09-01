@@ -13,6 +13,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import TopNav from "@/components/TopNav";
+import Button, { buttonCls } from "@/components/ui/Button";
+import Callout from "@/components/ui/Callout";
+import Card from "@/components/ui/Card";
+import { fieldCls } from "@/components/ui/field";
 import { getReplayJob, listSessions, seedDemo, submitYoutubeReplay } from "@/lib/api";
 import type { ReplayJob } from "@/lib/types";
 
@@ -36,16 +40,17 @@ function CardShell({
   dimmed?: boolean;
 }) {
   return (
-    <section
-      className={`relative rounded-xl border border-hairline bg-surface p-5 transition-colors ${
-        dimmed ? "opacity-60" : "hover:border-mut"
-      }`}
+    <Card
+      as="section"
+      padding="lg"
+      interactive={!dimmed}
+      className={`relative ${dimmed ? "opacity-60" : ""}`}
     >
       <span className="absolute -left-2.5 -top-2.5 flex h-6 w-6 items-center justify-center rounded-full border border-hairline bg-raised text-[11px] font-bold text-sec">
         {step}
       </span>
       {children}
-    </section>
+    </Card>
   );
 }
 
@@ -101,7 +106,7 @@ export default function HomePage() {
     }
   }, [api, router]);
 
-  // ---- Card 2: analyze a finished YouTube live --------------------------
+  // ---- Card 2: analyze an existing YouTube live --------------------------
   const analyze = useCallback(async () => {
     const u = url.trim();
     if (!u) return;
@@ -167,27 +172,26 @@ export default function HomePage() {
             Biến mỗi quyết định trong phiên live thành thí nghiệm đo được.
           </p>
           {api === "down" && (
-            <p className="mx-auto mt-3 inline-block rounded border border-warn/60 bg-warn/10 px-3 py-1 text-[11px] font-semibold text-warn">
+            <Callout tone="warn" slim className="mx-auto mt-3 inline-flex text-left">
               Chưa kết nối được máy chủ — bạn vẫn xem thử được bằng dữ liệu mô phỏng.
-            </p>
+            </Callout>
           )}
         </header>
 
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-4">
           {/* Card 1 — one-click demo */}
           <CardShell step="1">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-lg font-bold text-ink">🔬 Xem thử ngay (30 giây)</h2>
+                <h2 className="text-base font-semibold text-ink">🔬 Xem thử ngay (30 giây)</h2>
                 <p className="mt-1 text-xs leading-relaxed text-sec">
                   Tạo dữ liệu mô phỏng và mở bản phát lại — không cần cài gì thêm.
                 </p>
               </div>
-              <button
-                type="button"
+              <Button
                 onClick={() => void startDemo()}
                 disabled={demoBusy || api === "checking"}
-                className="shrink-0 rounded-lg bg-s1 px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-[#5099ea] disabled:cursor-not-allowed disabled:bg-raised disabled:text-mut"
+                className="shrink-0"
               >
                 {demoBusy
                   ? "Đang tạo dữ liệu…"
@@ -196,14 +200,16 @@ export default function HomePage() {
                     : api === "down"
                       ? "Xem thử với dữ liệu mô phỏng"
                       : "Bắt đầu xem thử"}
-              </button>
+              </Button>
             </div>
             {demoErr && <p className="mt-2 text-xs text-critical">{demoErr}</p>}
           </CardShell>
 
           {/* Card 2 — analyze an existing YouTube live */}
           <CardShell step="2" dimmed={api === "down"}>
-            <h2 className="text-lg font-bold text-ink">🎬 Phân tích một video live có sẵn</h2>
+            <h2 className="text-base font-semibold text-ink">
+              🎬 Phân tích một video live có sẵn
+            </h2>
             <p className="mt-1 text-xs leading-relaxed text-sec">
               Dán đường dẫn một buổi live YouTube <strong>đã kết thúc</strong> — hệ thống tải
               phần chat và dựng lại nhịp bình luận cùng radar ý định.
@@ -222,20 +228,16 @@ export default function HomePage() {
                 placeholder="https://www.youtube.com/watch?v=…"
                 disabled={api !== "ok" || jobRunning}
                 aria-label="Đường dẫn video YouTube"
-                className="min-w-0 flex-1 rounded-lg border border-hairline bg-raised px-3 py-2.5 text-sm text-ink outline-none placeholder:text-mut focus:border-s1 disabled:cursor-not-allowed disabled:text-mut"
+                className={`${fieldCls} min-w-0 flex-1 px-3 py-2 text-sm`}
               />
-              <button
-                type="submit"
-                disabled={api !== "ok" || jobRunning || url.trim() === ""}
-                className="shrink-0 rounded-lg bg-s1 px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-[#5099ea] disabled:cursor-not-allowed disabled:bg-raised disabled:text-mut"
-              >
+              <Button type="submit" disabled={api !== "ok" || jobRunning || url.trim() === ""}>
                 {jobRunning ? "Đang xử lý…" : "Phân tích"}
-              </button>
+              </Button>
             </form>
 
             {/* job progress */}
             {(job || jobRunning) && (
-              <div className="mt-3 flex items-center gap-2 rounded border border-hairline bg-raised px-3 py-2 text-xs text-sec">
+              <div className="mt-3 flex items-center gap-2 rounded-md border border-hairline bg-raised px-3 py-2 text-xs text-sec">
                 {job?.status !== "error" && (
                   <span
                     aria-hidden
@@ -272,20 +274,19 @@ export default function HomePage() {
           <CardShell step="3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-lg font-bold text-ink">📡 Chạy phiên live thật của bạn</h2>
+                <h2 className="text-base font-semibold text-ink">
+                  📡 Chạy phiên live thật của bạn
+                </h2>
                 <p className="mt-1 text-xs leading-relaxed text-sec">
                   Khi đã sẵn sàng lên sóng: chuẩn bị theo 4 bước bên dưới rồi mở Bàn điều khiển.
                 </p>
               </div>
-              <Link
-                href="/desk"
-                className="shrink-0 rounded-lg border border-hairline bg-raised px-5 py-2.5 text-center text-sm font-semibold text-ink transition-colors hover:border-mut"
-              >
+              <Link href="/desk" className={`${buttonCls("ghost")} bg-raised text-ink`}>
                 Mở Bàn điều khiển
               </Link>
             </div>
             <details className="mt-3 border-t border-hairline pt-2">
-              <summary className="cursor-pointer select-none text-xs font-semibold text-sec hover:text-ink">
+              <summary className="focus-ring cursor-pointer select-none rounded text-xs font-semibold text-sec transition-colors duration-150 hover:text-ink">
                 Xem 4 bước chuẩn bị (tạo sản phẩm → tạo phiên → sinh lịch gán → bắt đầu)
               </summary>
               <ol className="mt-2 space-y-2 text-xs leading-relaxed text-sec">
@@ -321,8 +322,32 @@ export default function HomePage() {
           </CardShell>
         </div>
 
-        <footer className="mt-auto pt-4 text-center text-[11px] text-mut">
-          LiveLift · nền tảng thí nghiệm switchback cho live-commerce (AISC&apos;26)
+        {/* slim footer: version + quick links */}
+        <footer className="mt-auto flex flex-col items-center gap-2 border-t border-hairline pt-4 text-[11px] text-mut sm:flex-row sm:justify-between">
+          <span>
+            LiveLift <span className="tnum">v0.1.0</span> · thí nghiệm switchback cho
+            live-commerce · AISC&apos;26
+          </span>
+          <span className="flex items-center gap-3">
+            <Link
+              href="/chay-phien"
+              className="focus-ring rounded transition-colors duration-150 hover:text-sec"
+            >
+              Chạy phiên
+            </Link>
+            <Link
+              href="/replay"
+              className="focus-ring rounded transition-colors duration-150 hover:text-sec"
+            >
+              Phát lại
+            </Link>
+            <Link
+              href="/ket-qua"
+              className="focus-ring rounded transition-colors duration-150 hover:text-sec"
+            >
+              Kết quả
+            </Link>
+          </span>
         </footer>
       </main>
     </div>

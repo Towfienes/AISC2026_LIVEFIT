@@ -1,19 +1,23 @@
 "use client";
 
 /**
- * Desk header: session picker, live/mock status, mode toggle, session vitals.
- * Shows the "DEMO DATA" badge whenever the hook reports mock mode.
+ * Desk toolbar: one compact row — session picker, live/mock status, vitals
+ * (viewers, clock), and the mode toggle. Shows the "DEMO DATA" badge whenever
+ * the hook reports mock mode.
  */
 
 import { fmtClock, fmtNumber } from "@/lib/format";
 import type { ConnectionKind, SessionMode, SessionSummary } from "@/lib/types";
 import type { SocketStatus } from "@/lib/useLiveSocket";
 
+import Badge from "./ui/Badge";
+import { fieldCls } from "./ui/field";
+
 export function DemoBadge() {
   return (
-    <span className="rounded border border-warn/60 bg-warn/10 px-2 py-0.5 text-[10px] font-bold tracking-wider text-warn">
+    <Badge tone="warn" className="tracking-wider">
       DEMO DATA
-    </span>
+    </Badge>
   );
 }
 
@@ -26,11 +30,11 @@ export function ConnectionBadge({
 }) {
   if (connection === "mock") return <DemoBadge />;
   if (connection === "connecting") {
-    return <span className="text-[10px] text-mut">Đang kết nối…</span>;
+    return <span className="text-[11px] text-mut">Đang kết nối…</span>;
   }
   const wsOpen = wsStatus === "open";
   return (
-    <span className="flex items-center gap-1.5 text-[10px] text-sec">
+    <span className="flex items-center gap-1.5 text-[11px] text-sec">
       <span
         aria-hidden
         className={`inline-block h-2 w-2 rounded-full ${wsOpen ? "bg-good motion-safe:animate-pulse" : "bg-warn"}`}
@@ -74,7 +78,7 @@ export default function StatusBar({
       <select
         value={sessionId ?? ""}
         onChange={(e) => onSelectSession(e.target.value)}
-        className="max-w-[340px] rounded border border-hairline bg-raised px-2 py-1 text-xs text-ink outline-none"
+        className={`${fieldCls} max-w-[340px] px-2 py-1 text-xs`}
         aria-label="Chọn phiên"
       >
         {sessions.map((s) => (
@@ -96,9 +100,9 @@ export default function StatusBar({
           <span className="text-mut"> / {fmtClock(durationS)}</span>
         </span>
 
-        {/* mode toggle */}
+        {/* mode toggle — segmented control */}
         <div
-          className="flex items-center overflow-hidden rounded border border-hairline"
+          className="flex items-center overflow-hidden rounded-md border border-hairline"
           role="group"
           aria-label="Chế độ vận hành"
         >
@@ -108,9 +112,12 @@ export default function StatusBar({
               type="button"
               disabled={!canToggleMode}
               onClick={() => onSetMode?.(m)}
-              className={`px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+              aria-pressed={mode === m}
+              className={`focus-ring px-2.5 py-1 text-[11px] font-semibold transition-colors duration-150 ${
                 mode === m ? "bg-s7 text-page" : "bg-raised text-sec"
-              } ${canToggleMode ? "hover:text-ink" : "cursor-default"}`}
+              } ${canToggleMode ? "hover:text-ink" : "cursor-default"} ${
+                mode === m && canToggleMode ? "hover:text-page" : ""
+              }`}
               title={
                 canToggleMode
                   ? m === "suggest"

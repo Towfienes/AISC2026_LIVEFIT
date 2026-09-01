@@ -35,12 +35,24 @@ from livelift.core.features import Event
 
 @dataclass(frozen=True)
 class SimParams:
+    """Simulator parameters.
+
+    Defaults CALIBRATED against KuaiLive (SIGIR 2026; 1.16M shop rooms,
+    445k entries — docs/benchmarks/kuailive-calibration.md, 02/09):
+    engaged-viewer dwell mean 10.0 min (median 3.6), comment rate
+    0.016/viewer·min, like rate 0.014/viewer·min. Platform caveat: Kuaishou
+    shop-room behaviour, to be re-measured on the team's own Facebook pilots
+    (week-3 calibration). ``base_click_prob_per_min`` CANNOT be calibrated
+    from KuaiLive (its "click" means entering a room, not clicking a pinned
+    product) and stays an assumption until pilot data exists.
+    """
+
     tick_s: int = 5
     base_arrival_per_min: float = 6.0  # new viewers per minute at plateau
-    mean_stay_min: float = 6.0
-    base_click_prob_per_min: float = 0.06  # per viewer per minute on pinned product
-    comment_rate_per_viewer_min: float = 0.25
-    like_rate_per_viewer_min: float = 0.8
+    mean_stay_min: float = 10.0  # KuaiLive engaged-viewer mean
+    base_click_prob_per_min: float = 0.06  # ASSUMPTION — pilot-only quantity
+    comment_rate_per_viewer_min: float = 0.016  # KuaiLive shop rooms
+    like_rate_per_viewer_min: float = 0.014  # KuaiLive shop rooms
     treatment_effect: float = 0.15  # multiplicative lift on click propensity in ON
     carryover_halflife_s: float = 0.0  # 0 = no carryover; >0 = interference
     session_shock_sd: float = 0.25  # lognormal sigma of session-level multiplier

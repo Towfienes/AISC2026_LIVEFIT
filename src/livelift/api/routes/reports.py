@@ -21,9 +21,15 @@ from livelift.analysis.power import (
     within_session_cv,
 )
 from livelift.api import service
-from livelift.api.schemas import ComplianceStats, ExperimentSummary, SessionReport
+from livelift.api.schemas import (
+    ComplianceStats,
+    ExperimentSummary,
+    SessionReport,
+    SignalCoverageOut,
+)
 from livelift.api.service import StoreDep
 from livelift.core.features import Event, block_frame, blocks_to_dicts
+from livelift.core.signals import assess as assess_signals
 
 router = APIRouter()
 
@@ -260,3 +266,27 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
         measured_compliance=(float(np.mean(compliance_rates)) if compliance_rates else None),
         power_table=power_rows,
     )
+
+@router.get("/sessions/{session_id}/signals", response_model=SignalCoverageOut)
+def session_signals(session_id: str, store: StoreDep) -> SignalCoverageOut:
+    """Signal coverage matrix: what this session's data can honestly support."""
+    session = service.require_session(store, session_id)
+    ticks = store.list_ticks(session_id)
+    start, end = session.get("start_ts"), session.get("end_ts")
+    coverage_share = 0.0
+    if ticks and start is not None:
+        horizon = ((end or ticks[-1]["ts_bucket"]) - start).total_seconds()
+        if horizon > 0:
+            covered = len(ticks) * 30.0  # one tick bucket = 30s of telemetry
+            coverage_share = max(0.0, min(1.0, covered / horizon))
+    cov = assess_signals(
+        has_schedule=bool(store.get_blocks(session_id)),
+        n_ticks=len(ticks),
+        tick_coverage_share=coverage_share,
+        n_comments=len(store.list_comments(session_id)),
+        n_clicks=len(store.list_clicks(session_id)),
+        n_orders=len(getattr(store, "list_orders", lambda _sid: [])(session_id)),
+        analysis_only=_is_analysis_only(session),
+    )
+    d = cov.to_dict()
+    return SignalCoverageOut(session_id=session_id, **d)

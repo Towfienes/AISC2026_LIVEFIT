@@ -19,6 +19,9 @@ import { fmtPct } from "@/lib/format";
 import type { ActionCardData, SessionMode } from "@/lib/types";
 
 import Term from "./Term";
+import Badge from "./ui/Badge";
+import Button from "./ui/Button";
+import Card from "./ui/Card";
 
 interface Props {
   card: ActionCardData;
@@ -39,10 +42,9 @@ function SourceBadge({ card }: { card: ActionCardData }) {
         underline={false}
         className="shrink-0"
       >
-        <span className="inline-flex items-center gap-1 rounded-full border border-[#0ca30c66] bg-[#0ca30c1f] px-2 py-0.5 text-[10px] font-semibold text-[#4ed44e]">
-          <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full bg-[#0ca30c]" />
+        <Badge tone="good" dot>
           Tác động đo được · KTC 95%
-        </span>
+        </Badge>
       </Term>
     );
   }
@@ -53,9 +55,7 @@ function SourceBadge({ card }: { card: ActionCardData }) {
       underline={false}
       className="shrink-0"
     >
-      <span className="inline-flex items-center gap-1 rounded-full border border-hairline bg-axis px-2 py-0.5 text-[10px] font-semibold text-sec">
-        Ước lượng dự báo
-      </span>
+      <Badge tone="neutral">Ước lượng dự báo</Badge>
     </Term>
   );
 }
@@ -65,10 +65,11 @@ export default function ActionCard({ card, mode, executed, readOnly, onExecute, 
   const showCi = card.source === "experiment" && card.ci_low != null && card.ci_high != null;
 
   return (
-    <article
-      className={`flex min-h-0 flex-col gap-1.5 rounded-lg border border-hairline bg-surface p-3 ${
-        executed ? "opacity-60" : ""
-      }`}
+    <Card
+      as="article"
+      padding="sm"
+      interactive={!executed}
+      className={`flex min-h-0 flex-col gap-1.5 ${executed ? "opacity-60" : ""}`}
       aria-label={`Gợi ý hạng ${card.rank}: ${card.headline}`}
     >
       <div className="flex items-start justify-between gap-2">
@@ -97,53 +98,37 @@ export default function ActionCard({ card, mode, executed, readOnly, onExecute, 
         </div>
 
         {readOnly ? (
-          <span className="text-[10px] text-mut">Bản ghi phát lại</span>
+          <span className="text-[11px] text-mut">Bản ghi phát lại</span>
         ) : executed ? (
           <span className="rounded px-2 py-1 text-[11px] font-semibold text-[#4ed44e]">
             Đã thực hiện
           </span>
         ) : mode === "auto" ? (
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-mut">
+            <span className="text-[11px] text-mut">
               Tự động thực thi
               {card.auto_execute_in_s != null && (
                 <span className="tnum"> · {Math.max(0, Math.round(card.auto_execute_in_s))}s</span>
               )}
             </span>
-            <button
-              type="button"
-              disabled
-              className="cursor-not-allowed rounded border border-hairline bg-raised px-2.5 py-1 text-[11px] font-semibold text-mut"
-            >
+            <Button size="sm" disabled>
               Thực hiện
-            </button>
-            <button
-              type="button"
-              disabled
-              className="cursor-not-allowed rounded border border-hairline px-2.5 py-1 text-[11px] text-mut"
-            >
+            </Button>
+            <Button size="sm" variant="ghost" disabled>
               Bỏ qua
-            </button>
+            </Button>
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onExecute}
-              className="rounded bg-s1 px-2.5 py-1 text-[11px] font-semibold text-ink transition-colors hover:bg-[#5099ea]"
-            >
+            <Button size="sm" onClick={onExecute}>
               Thực hiện
-            </button>
-            <button
-              type="button"
-              onClick={onSkip}
-              className="rounded border border-hairline px-2.5 py-1 text-[11px] text-sec transition-colors hover:bg-raised"
-            >
+            </Button>
+            <Button size="sm" variant="ghost" onClick={onSkip}>
               Bỏ qua
-            </button>
+            </Button>
           </div>
         )}
       </div>
-    </article>
+    </Card>
   );
 }

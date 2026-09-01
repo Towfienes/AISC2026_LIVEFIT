@@ -6,6 +6,7 @@ LiveLift biến mỗi quyết định trong phiên livestream (ghim sản phẩm
 
 Tài liệu gốc: `../LiveLift-Mo-Ta-Du-An-Ban-Trien-Khai (1).md` (mô tả dự án) và `../LiveLift-Ke-Hoach-Trien-Khai.md` (kế hoạch).
 Quy trình phát triển: xem [HARNESS.md](HARNESS.md).
+**Cách kiểm thử từng khả năng: xem [docs/HUONG-DAN-TEST.md](docs/HUONG-DAN-TEST.md)** — mọi lệnh đã chạy thật và ghi lại kết quả.
 
 ## Khởi động nhanh
 

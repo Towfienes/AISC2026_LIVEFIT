@@ -14,7 +14,12 @@ import numpy as np
 from fastapi import APIRouter
 
 from livelift.analysis.estimators import analyze_outer, diff_in_means
-from livelift.analysis.power import Scenario, scenario_table, within_session_cv
+from livelift.analysis.power import (
+    Scenario,
+    poisson_floor,
+    scenario_table,
+    within_session_cv,
+)
 from livelift.api import service
 from livelift.api.schemas import ComplianceStats, ExperimentSummary, SessionReport
 from livelift.api.service import StoreDep
@@ -46,11 +51,12 @@ def _events_from_store(session: dict[str, Any], store) -> list[Event]:
 
 
 def _session_frame(session: dict[str, Any], store) -> list[dict[str, Any]]:
-    """Block-level analysis rows for one session.
+    """Block-level analysis rows for one session — ALL scheduled blocks.
 
-    Only blocks that actually aired AND carry enough exposure are returned:
-    a session that ends early keeps its planned blocks, and entering those as
-    y = 0.0 attenuated the pooled estimate by ~38% (audit 30/08).
+    Rows carry ``measurable`` / ``exclude_reason``; the caller filters. The
+    full set is returned deliberately: the randomization test needs the whole
+    schedule to redraw the design that actually ran, and only then applies the
+    same exclusion mask (audit 30/08 + method review 02/09).
     """
     blocks = store.get_blocks(session["session_id"])
     start = session.get("start_ts")
@@ -60,10 +66,9 @@ def _session_frame(session: dict[str, Any], store) -> list[dict[str, Any]]:
     events = _events_from_store(session, store)
     end = session.get("end_ts")
     live_until_s = (end - start).total_seconds() if end is not None else None
-    rows = blocks_to_dicts(
+    return blocks_to_dicts(
         block_frame(schedule, events, burn_in_s=BURN_IN_S, live_until_s=live_until_s)
     )
-    return [r for r in rows if r.get("measurable", True)]
 
 
 def _compliance(session_id: str, store) -> ComplianceStats:
@@ -113,7 +118,9 @@ def session_report(session_id: str, store: StoreDep) -> SessionReport:
             blocks=[],
             compliance=_compliance(session_id, store),
         )
-    frame = _session_frame(session, store)
+    # Report only the blocks that carry an outcome; the excluded ones keep
+    # their reason in the frame for the QC gate, not for the reader.
+    frame = [r for r in _session_frame(session, store) if r.get("measurable", True)]
     ys = np.array([r["y"] for r in frame], dtype=float)
     zs = np.array([r["z"] for r in frame], dtype=int)
     diff = diff_in_means(ys, zs) if len(frame) >= 4 else None
@@ -146,13 +153,27 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
         for s in store.list_sessions()
         if s.get("status") == "ended" and not _is_analysis_only(s)
     ]
+    # Keep the FULL schedule alongside the analyzed subset: the reference
+    # distribution has to be redrawn over the design that actually ran, then
+    # masked to the analyzed blocks (method review 02/09).
+    all_phases: list[str] = []
+    all_session_ids: list[str] = []
+    keep: list[bool] = []
+    clicks: list[int] = []
+    exposures: list[float] = []
     for session in ended:
-        frame = _session_frame(session, store)
-        for r in frame:
-            ys.append(r["y"])
-            zs.append(r["z"])
-            session_ids.append(session["session_id"])
-            phases.append(r["phase"])
+        for r in _session_frame(session, store):
+            all_phases.append(r["phase"])
+            all_session_ids.append(session["session_id"])
+            measurable = bool(r.get("measurable", True))
+            keep.append(measurable)
+            if measurable:
+                ys.append(r["y"])
+                zs.append(r["z"])
+                session_ids.append(session["session_id"])
+                phases.append(r["phase"])
+                clicks.append(int(r.get("clicks", 0)))
+                exposures.append(float(r.get("exposure_viewer_s", 0.0)))
         comp = _compliance(session["session_id"], store)
         if comp.compliance_rate is not None:
             compliance_rates.append(comp.compliance_rate)
@@ -174,7 +195,12 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
     y = np.array(ys)
     z = np.array(zs)
     sids = np.array(session_ids)
-    res = analyze_outer(y, z, sids, phases, n_draws=1000, seed=2026)
+    res = analyze_outer(
+        y, z, sids, phases, n_draws=1000, seed=2026,
+        all_phases=all_phases,
+        all_session_ids=np.array(all_session_ids),
+        analyzed_mask=np.array(keep, dtype=bool),
+    )
 
     # WITHIN-session CV, not the pooled one: the primary analysis differences
     # out the session effect (redraws per session, session FE, cluster-robust
@@ -182,6 +208,14 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
     # between-session variance it never pays (audit 30/08).
     cv_val = within_session_cv(y, sids)
     cv = float(cv_val) if np.isfinite(cv_val) else None
+
+    # How much of that variance is irreducible counting noise? If almost all of
+    # it is, no covariate can help and the only lever is design (longer blocks,
+    # more viewers). Reporting this stops the team spending weeks on a
+    # prognostic model with a measured R² ceiling of zero (method review 02/09).
+    cv_floor, reducible = poisson_floor(
+        y, np.array(clicks, dtype=float), np.array(exposures, dtype=float), sids
+    )
 
     # Compliance: use the MEASURED value when there is one. A field literally
     # named measured_compliance sitting next to a table that ignored it and
@@ -221,6 +255,8 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
         p_value=res.p_value if res.estimable else None,
         n_draws=res.n_draws if res.estimable else None,
         measured_cv=cv,
+        cv_poisson_floor=float(cv_floor) if np.isfinite(cv_floor) else None,
+        reducible_share=float(reducible) if np.isfinite(reducible) else None,
         measured_compliance=(float(np.mean(compliance_rates)) if compliance_rates else None),
         power_table=power_rows,
     )

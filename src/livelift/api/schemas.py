@@ -339,6 +339,13 @@ class ExperimentSummary(BaseModel):
     n_draws: int | None = None
     measured_cv: float | None = None
     measured_compliance: float | None = None
+    cv_poisson_floor: float | None = None
+    """CV the design would still have if every systematic source were
+    predicted perfectly — the floor set by click counting noise."""
+    reducible_share: float | None = None
+    """Fraction of within-session variance that is NOT counting noise: the hard
+    ceiling on any covariate-adjustment R². Near zero means variance reduction
+    cannot help and only a design change (longer blocks, more viewers) can."""
     power_table: list[dict[str, Any]] = Field(default_factory=list)
     message: str | None = None  # Vietnamese, set when data is insufficient
     estimable: bool = True

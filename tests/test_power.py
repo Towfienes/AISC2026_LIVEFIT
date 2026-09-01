@@ -252,3 +252,47 @@ def test_predicted_mde_matches_achieved_power():
         f"lực thống kê thực tế {power:.0%} tại MDE dự đoán {predicted:.1%} — "
         "công thức MDE lệch khỏi lực thống kê thật"
     )
+
+
+# --- irreducible noise (method review 02/09) -------------------------------
+
+
+def test_poisson_floor_detects_pure_counting_noise():
+    """When clicks ARE Poisson, the reducible share must be ~0 — the signal
+    that covariate adjustment cannot help and the fix has to be the design."""
+    from livelift.analysis.power import poisson_floor
+
+    rng = np.random.default_rng(0)
+    n = 400
+    exposure = np.full(n, 5000.0)  # identical exposure -> no systematic spread
+    clicks = rng.poisson(10.0, n).astype(float)
+    y = 1000.0 * clicks / exposure
+    sids = np.array([f"s{i // 20}" for i in range(n)])
+
+    cv_floor, reducible = poisson_floor(y, clicks, exposure, sids)
+    assert 0.2 < cv_floor < 0.5
+    assert abs(reducible) < 0.25, f"reducible share {reducible:.2f} — kỳ vọng ~0"
+
+
+def test_poisson_floor_detects_reducible_structure():
+    """With a strong systematic component on top of counting noise, the
+    reducible share must be clearly positive."""
+    from livelift.analysis.power import poisson_floor
+
+    rng = np.random.default_rng(1)
+    n = 400
+    exposure = np.full(n, 5000.0)
+    base = np.where(np.arange(n) % 2 == 0, 4.0, 30.0)  # big systematic swing
+    clicks = rng.poisson(base).astype(float)
+    y = 1000.0 * clicks / exposure
+    sids = np.array([f"s{i // 20}" for i in range(n)])
+
+    _, reducible = poisson_floor(y, clicks, exposure, sids)
+    assert reducible > 0.5, f"reducible share {reducible:.2f} — kỳ vọng lớn"
+
+
+def test_poisson_floor_degenerate():
+    from livelift.analysis.power import poisson_floor
+
+    z = np.array([0.0])
+    assert not np.isfinite(poisson_floor(z, z, z, np.array(["a"]))[0])

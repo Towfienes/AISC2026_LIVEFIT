@@ -89,7 +89,9 @@ y_b = 1000 × (số click hợp lệ trong khối b, sau burn-in) / (viewer-giâ
   dùng số liệu click của nền tảng.
 - **Viewer-giây exposure** = tích phân số người xem đồng thời trên phần khối sau burn-in
   (từ `session_tick` 30 giây).
-- **Quy tắc tối thiểu:** khối có exposure < `<E_min — chốt từ hiệu chỉnh, dự kiến 1.000>`
+- **Quy tắc tối thiểu:** khối có exposure < `E_min` giây·người xem bị loại khỏi phân tích.
+  Giá trị đang cài đặt: `MIN_EXPOSURE_VIEWER_S = 60` (một người xem trong một phút) —
+  `<chốt lại từ hiệu chỉnh tuần 3; phải khớp hằng số trong core/features.py>`
   viewer-giây bị loại (`excluded_reason='low_exposure'`), tiền đăng ký trước, áp dụng
   mù với nhánh gán.
 
@@ -116,13 +118,34 @@ hằng τ₀. (Bojinov & Shephard 2019; Bojinov et al. 2023. Cài đặt:
 định nhất, báo cáo cạnh (a) (`RandomizationResult.estimate_ht`).
 
 **(c) Secondary giảm phương sai — OLS FE-phiên + hiệp biến kiểu Lin (2013).**
-`y_b` hồi quy trên gán + FE phiên + hiệp biến tiền-khối demeaned và tương tác với gán
-(Lin 2013 — không bao giờ hại độ chính xác tiệm cận). Hiệp biến (tất cả đo TRƯỚC khối):
-người xem cuối khối liền trước (`pre_viewers`), tốc độ bình luận khối liền trước
-(`pre_comment_rate`), chỉ số khối trong phiên, `<bổ sung từ hiệu chỉnh>`. SE cụm theo
-phiên; với ~30 cụm dùng **wild cluster bootstrap** (9.999 reps). CUPED/CUPAC nếu thêm
-phải chạy chẩn đoán carryover (hồi quy lag-augmented, plot τ theo b) trước khi tin CI.
-(Cài đặt: `ols_fe_lin`, `cuped_adjust`.)
+`y_b` hồi quy trên gán + FE phiên + hiệp biến demeaned và tương tác với gán
+(Lin 2013 — không bao giờ hại độ chính xác tiệm cận). SE cụm theo phiên; với ~30 cụm
+dùng **wild cluster bootstrap** (9.999 reps).
+
+> **QUY TẮC HỢP LỆ CỦA HIỆP BIẾN (sửa 02/09).** Mọi hiệp biến phải được xác định tại
+> **thời điểm sinh lịch gán**, tức không đổi khi vẽ lại vector gán.
+>
+> - **Hợp lệ:** chỉ số khối, vị trí chuẩn hóa trong phiên `t/T`, giai đoạn (đầu/giữa/cuối),
+>   độ dài khối, `start_offset_s`, và các đặc trưng cấp phiên có TRƯỚC phiên (host, nền
+>   tảng, thứ trong tuần, khung giờ, lượng người xem lúc mở phòng).
+> - **KHÔNG hợp lệ:** `pre_viewers`, `pre_comment_rate`, `pre_like_rate` — chúng đo trong
+>   cửa sổ thuộc khối **liền trước**, mà khối đó đã được ngẫu nhiên hóa. Vì rerandomization
+>   tạo tương quan âm giữa các gán liền kề (đo được: −0,169), các biến này là **hậu can
+>   thiệp** so với khối k−1 và đưa vào sẽ gây thiên lệch. Cũng không hợp lệ: hiệp biến lấy
+>   từ cửa sổ burn-in của **chính khối đang xét** — đó là cửa sổ hậu-can-thiệp rõ nhất.
+>
+> Ba trường `pre_*` vẫn được TÍNH và lưu để phân tích khám phá hậu nghiệm (ví dụ hiệu ứng
+> không đồng nhất theo mức hưng phấn — S-O-R, IMCOM 2026), nhưng **không vào ước lượng
+> viên khẳng định**.
+
+> **Trước khi đầu tư vào giảm phương sai, chạy `poisson_floor()` trên dữ liệu thăm dò.**
+> Nếu `reducible_share < 0,15` thì phương sai gần như thuần nhiễu đếm và **không hiệp biến
+> nào giúp được** — khi đó bỏ hẳn (c), ghi rõ kết quả đo này trong báo cáo, và đòn bẩy duy
+> nhất là THIẾT KẾ (khối dài hơn → nhiều click mỗi khối → CV giảm theo 1/√click). Đo trên
+> bộ mô phỏng đã hiệu chỉnh: CV trong-phiên 0,352 vs sàn Poisson 0,356 → phần giảm được
+> ≈ 0.
+
+(Cài đặt: `ols_fe_lin`, `cuped_adjust`, `poisson_floor`.)
 
 **(d) LATE qua biến công cụ** — cho chế độ đề xuất (suggest) và dữ liệu đối tác:
 2SLS với Z (gán) làm công cụ cho D = "sản phẩm hệ thống đề xuất thực sự được ghim ≥

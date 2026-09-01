@@ -140,9 +140,24 @@ def _redraw_matrix(
     phases: list[str],
     n_draws: int,
     seed: int,
+    analyzed_mask: np.ndarray | None = None,
 ) -> np.ndarray:
-    """(n_draws, n_blocks) matrix of assignment redraws, using the production
-    mechanism independently within each session."""
+    """(n_draws, n_analyzed) matrix of assignment redraws.
+
+    The reference distribution must come from the design that WAS ACTUALLY RUN.
+    Assignment was drawn over every SCHEDULED block of each session, so the
+    redraw has to be too — including blocks later dropped from the analysis
+    (never aired, too little exposure). Redrawing over only the surviving
+    blocks would rerandomize a design nobody ran: different stratum sizes, a
+    different rerandomization constraint, hence a wrong p-value.
+
+    ``analyzed_mask`` marks which of those scheduled blocks entered the
+    analysis. Each redraw is generated over the full schedule and then
+    subset by the SAME fixed mask, which keeps the test exact under the sharp
+    null provided the exclusions do not depend on the assignment. Exclusions
+    for "block never aired" cannot; the minimum-exposure rule could in
+    principle, and that is recorded as a limitation in PREREGISTRATION.md.
+    """
     rng = random.Random(seed)
     n = len(phases)
     sessions: dict = {}
@@ -154,7 +169,9 @@ def _redraw_matrix(
             arms, _ = draw_assignments([phases[i] for i in idx], rng)
             for i, arm in zip(idx, arms, strict=True):
                 out[d, i] = 1 if arm == ON else 0
-    return out
+    if analyzed_mask is None:
+        return out
+    return out[:, np.asarray(analyzed_mask, bool)]
 
 
 def _batch_studentized(y: np.ndarray, zmat: np.ndarray) -> np.ndarray:
@@ -209,6 +226,27 @@ def _p_from_stats(t_obs: float, t_draws: np.ndarray) -> float:
     return float((1 + np.sum(np.abs(valid) >= abs(t_obs))) / (1 + valid.size))
 
 
+def _build_zmat(
+    session_ids,
+    phases,
+    n_draws: int,
+    seed: int,
+    all_phases: list[str] | None,
+    all_session_ids=None,
+    analyzed_mask: np.ndarray | None = None,
+) -> np.ndarray:
+    """Redraw matrix over the design that was actually run.
+
+    When the caller knows the FULL schedule (including blocks dropped from the
+    analysis) it must pass it: the assignment mechanism operated over those
+    blocks, so the reference distribution has to as well.
+    """
+    if all_phases is not None and analyzed_mask is not None:
+        sids = np.asarray(all_session_ids if all_session_ids is not None else session_ids)
+        return _redraw_matrix(sids, list(all_phases), n_draws, seed, analyzed_mask)
+    return _redraw_matrix(np.asarray(session_ids), list(phases), n_draws, seed)
+
+
 def randomization_test(
     y: np.ndarray,
     z: np.ndarray,
@@ -217,6 +255,9 @@ def randomization_test(
     n_draws: int = 2000,
     seed: int = 12345,
     zmat: np.ndarray | None = None,
+    all_phases: list[str] | None = None,
+    all_session_ids: np.ndarray | None = None,
+    analyzed_mask: np.ndarray | None = None,
 ) -> tuple[float, np.ndarray]:
     """Two-sided randomization p-value for the sharp null of no effect.
 
@@ -226,7 +267,9 @@ def randomization_test(
     y = np.asarray(y, float)
     z = np.asarray(z, int)
     if zmat is None:
-        zmat = _redraw_matrix(np.asarray(session_ids), list(phases), n_draws, seed)
+        zmat = _build_zmat(
+            session_ids, phases, n_draws, seed, all_phases, all_session_ids, analyzed_mask
+        )
     p = _p_from_stats(studentized_stat(y, z), _batch_studentized(y, zmat))
     return p, zmat
 
@@ -240,6 +283,9 @@ def randomization_ci(
     n_draws: int = 2000,
     seed: int = 12345,
     zmat: np.ndarray | None = None,
+    all_phases: list[str] | None = None,
+    all_session_ids: np.ndarray | None = None,
+    analyzed_mask: np.ndarray | None = None,
 ) -> tuple[float, float]:
     """Fisher CI: invert the randomization test over constant additive effects.
 
@@ -250,7 +296,9 @@ def randomization_ci(
     y = np.asarray(y, float)
     z = np.asarray(z, int)
     if zmat is None:
-        zmat = _redraw_matrix(np.asarray(session_ids), list(phases), n_draws, seed)
+        zmat = _build_zmat(
+            session_ids, phases, n_draws, seed, all_phases, all_session_ids, analyzed_mask
+        )
 
     # Undefined statistic -> no interval. Returning [tau_hat, tau_hat] here
     # would advertise a zero-width 95% CI on a configuration that cannot be
@@ -309,8 +357,17 @@ def analyze_outer(
     alpha: float = 0.05,
     n_draws: int = 2000,
     seed: int = 12345,
+    all_phases: list[str] | None = None,
+    all_session_ids: np.ndarray | None = None,
+    analyzed_mask: np.ndarray | None = None,
 ) -> RandomizationResult:
     """Full primary analysis: point estimates, p-value, Fisher CI.
+
+    ``all_phases`` / ``all_session_ids`` / ``analyzed_mask`` describe the FULL
+    schedule when some blocks were dropped from the analysis (never aired, too
+    little exposure). Pass them whenever blocks were excluded: the reference
+    distribution must be redrawn over the design that actually ran, not over
+    the surviving subset.
 
     When either arm holds fewer than ``MIN_BLOCKS_PER_ARM`` blocks the design
     cannot be tested at all; the result is returned with ``estimable=False``,
@@ -337,7 +394,10 @@ def analyze_outer(
                 f"(hiện có BẬT {n_on} / TẮT {n_off}) — chưa ước lượng được"
             ),
         )
-    p, zmat = randomization_test(y, z, session_ids, phases, n_draws, seed)
+    p, zmat = randomization_test(
+        y, z, session_ids, phases, n_draws, seed,
+        all_phases=all_phases, all_session_ids=all_session_ids, analyzed_mask=analyzed_mask,
+    )
     lo, hi = randomization_ci(y, z, session_ids, phases, alpha, n_draws, seed, zmat=zmat)
     return RandomizationResult(
         estimate=diff_in_means(y, z),

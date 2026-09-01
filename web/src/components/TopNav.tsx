@@ -12,6 +12,7 @@ import { usePathname } from "next/navigation";
 
 const LINKS = [
   { href: "/", label: "Trang chính" },
+  { href: "/chay-phien", label: "Chạy phiên" },
   { href: "/desk", label: "Bàn điều khiển" },
   { href: "/host", label: "Màn hình host" },
   { href: "/replay", label: "Phát lại / Phân tích" },

@@ -14,7 +14,9 @@ import type {
   ExperimentSummary,
   HostState,
   OverrideReason,
+  Product,
   ReplayJob,
+  SessionMode,
   SessionState,
   SessionSummary,
   Tick,
@@ -317,4 +319,77 @@ export function getReplayJob(jobId: string): Promise<ReplayJob> {
  */
 export function getExperimentSummary(): Promise<ExperimentSummary> {
   return request<ExperimentSummary>("/experiment/summary", { timeoutMs: 15000 });
+}
+
+// ---------------------------------------------------------------------------
+// Session lifecycle — everything the "Chạy phiên" screen needs.
+//
+// These endpoints existed from day one but had no UI, so running an experiment
+// meant typing curl commands. That is fine for the team's own Live Lab (an
+// engineer is sitting there) and unacceptable for a seller.
+// ---------------------------------------------------------------------------
+
+export function listProducts(): Promise<Product[]> {
+  return request<Product[]>("/products");
+}
+
+export function createProduct(body: {
+  product_id: string;
+  name: string;
+  category?: string | null;
+  cost: number;
+  price: number;
+  stock: number;
+}): Promise<Product> {
+  return request<Product>("/products", { method: "POST", body: JSON.stringify(body) });
+}
+
+export function createSession(body: {
+  platform: string;
+  title?: string;
+  mode?: SessionMode;
+  planned_duration_min: number;
+  host_id?: string | null;
+}): Promise<SessionSummary> {
+  return request<SessionSummary>("/sessions", { method: "POST", body: JSON.stringify(body) });
+}
+
+/**
+ * Draw and persist the randomization schedule. HARD RULE: this must happen
+ * BEFORE the session goes live — the API refuses (409) once a session has
+ * started, which is what makes the randomization auditable.
+ */
+export function createSchedule(
+  sessionId: string,
+  body: { block_min?: number; washout_min?: number; jitter_s?: number; seed?: number },
+): Promise<{
+  session_id: string;
+  status: string;
+  seed: number;
+  n_redraws: number;
+  n_on: number;
+  n_off: number;
+  blocks: BlockInfo[];
+}> {
+  return request(`/sessions/${sessionId}/schedule`, {
+    method: "POST",
+    body: JSON.stringify(body),
+    timeoutMs: 10000,
+  });
+}
+
+export function startSession(sessionId: string): Promise<SessionSummary> {
+  return request<SessionSummary>(`/sessions/${sessionId}/start`, { method: "POST" });
+}
+
+export function endSession(sessionId: string): Promise<SessionSummary> {
+  return request<SessionSummary>(`/sessions/${sessionId}/end`, { method: "POST" });
+}
+
+export function createShortlink(body: {
+  product_id: string;
+  session_id?: string | null;
+  target_url: string;
+}): Promise<{ code: string; product_id: string; target_url: string }> {
+  return request("/shortlinks", { method: "POST", body: JSON.stringify(body) });
 }

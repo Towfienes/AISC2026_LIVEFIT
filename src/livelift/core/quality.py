@@ -61,9 +61,9 @@ def check_block_integrity(scheduled_blocks: list[dict], recorded_blocks: list[di
 def check_assignment_balance(blocks: list[dict], lo: float = 0.4, hi: float = 0.6) -> CheckResult:
     meas = [b for b in blocks if not b.get("is_washout")]
     if not meas:
-        return CheckResult("assignment_balance", False, "no measurement blocks")
+        return CheckResult("assignment_balance", False, "không có khối đo nào")
     share_on = sum(1 for b in meas if b.get("assignment") == "ON") / len(meas)
-    return CheckResult("assignment_balance", lo <= share_on <= hi, f"ON share = {share_on:.2f}")
+    return CheckResult("assignment_balance", lo <= share_on <= hi, f"tỷ lệ BẬT = {share_on:.2f}")
 
 
 def check_event_continuity(
@@ -71,13 +71,19 @@ def check_event_continuity(
 ) -> CheckResult:
     """No gap longer than ``max_gap_s`` in the tick stream."""
     if not tick_timestamps_s:
-        return CheckResult("event_continuity", False, "no ticks recorded")
+        return CheckResult(
+            "event_continuity",
+            False,
+            "không có dữ liệu người xem — ingest chưa chạy hoặc chưa gửi tick nào",
+        )
     ts = sorted(tick_timestamps_s)
     gaps = [b - a for a, b in zip(ts, ts[1:], strict=False)]
     gaps.append(ts[0] - 0.0)
     gaps.append(session_duration_s - ts[-1])
     worst = max(gaps) if gaps else 0.0
-    return CheckResult("event_continuity", worst <= max_gap_s, f"max gap = {worst:.0f}s")
+    return CheckResult(
+        "event_continuity", worst <= max_gap_s, f"khoảng trống lớn nhất = {worst:.0f}s"
+    )
 
 
 ALLOWED_OVERRIDE_REASONS = ("hết hàng", "sai giá", "sự cố kỹ thuật")
@@ -117,7 +123,7 @@ def check_intervention_log(interventions: list[dict]) -> CheckResult:
     return CheckResult(
         "intervention_log_complete",
         not problems,
-        "ok" if not problems else f"{len(problems)} vấn đề, ví dụ: {problems[:3]}",
+        "đầy đủ" if not problems else f"{len(problems)} vấn đề, ví dụ: {problems[:3]}",
     )
 
 
@@ -140,7 +146,7 @@ def check_pii_clean(
     return CheckResult(
         "pii_clean",
         dirty == 0,
-        f"sampled {len(sample)}; leaks: {dirty}" + (f" ({sorted(kinds)})" if kinds else ""),
+        f"quét {len(sample)} bình luận; rò rỉ: {dirty}" + (f" ({sorted(kinds)})" if kinds else ""),
     )
 
 
@@ -149,12 +155,16 @@ def check_order_reconciliation(
 ) -> CheckResult:
     if platform_report_total <= 0:
         ok = db_order_total == 0
-        return CheckResult("order_reconciliation", ok, "platform total is zero")
+        return CheckResult(
+            "order_reconciliation",
+            ok,
+            "chưa ghi nhận đơn hàng nào cho phiên — chưa đối soát được doanh thu",
+        )
     rel = abs(db_order_total - platform_report_total) / platform_report_total
     return CheckResult(
         "order_reconciliation",
         rel <= tolerance,
-        f"db={db_order_total:.0f} platform={platform_report_total:.0f} diff={rel:.1%}",
+        f"CSDL={db_order_total:.0f} nền tảng={platform_report_total:.0f} lệch={rel:.1%}",
     )
 
 

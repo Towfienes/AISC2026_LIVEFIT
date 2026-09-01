@@ -9,8 +9,8 @@
  * - Zone 3 (bottom-right): comment radar (last 5 min) + scrolling feed.
  *
  * First-time-user rules: an empty state instead of a blank screen when no
- * session is running, plain-Vietnamese labels, jargon explained in-context
- * via <Term> tooltips.
+ * session is running, skeletons instead of a blank screen while connecting,
+ * plain-Vietnamese labels, jargon explained in-context via <Term> tooltips.
  */
 
 import { useState } from "react";
@@ -22,13 +22,45 @@ import CommentRadar from "@/components/CommentRadar";
 import RhythmChart from "@/components/RhythmChart";
 import StatusBar from "@/components/StatusBar";
 import TopNav from "@/components/TopNav";
+import Button, { buttonCls } from "@/components/ui/Button";
+import Callout from "@/components/ui/Callout";
+import Card from "@/components/ui/Card";
+import EmptyState from "@/components/ui/EmptyState";
+import SectionTitle from "@/components/ui/SectionTitle";
+import Skeleton from "@/components/ui/Skeleton";
 import { useDesk } from "@/lib/useDesk";
 
-function ZoneTitle({ children }: { children: React.ReactNode }) {
+/** Mirror of the three-zone layout while the first connection is racing. */
+function DeskSkeleton() {
   return (
-    <h2 className="mb-1.5 shrink-0 text-[11px] font-bold uppercase tracking-widest text-mut">
-      {children}
-    </h2>
+    <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3" aria-busy>
+      <Skeleton className="h-11 shrink-0 rounded-lg" />
+      <Card padding="sm" className="flex min-h-0 basis-[40%] flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-3 w-40" />
+        </div>
+        <Skeleton className="min-h-0 flex-1" />
+        <Skeleton className="h-7 shrink-0" />
+      </Card>
+      <div className="grid min-h-0 flex-1 grid-cols-2 gap-3">
+        <Card padding="sm" className="flex min-h-0 flex-col gap-2">
+          <Skeleton className="h-3 w-32" />
+          <Skeleton className="h-20" />
+          <Skeleton className="h-20" />
+          <Skeleton className="h-20" />
+        </Card>
+        <Card padding="sm" className="flex min-h-0 flex-col gap-2">
+          <Skeleton className="h-3 w-40" />
+          <Skeleton className="min-h-0 flex-[2]" />
+          <div className="flex min-h-0 flex-[3] flex-col gap-1.5 border-t border-hairline pt-2">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-2/3" />
+            <Skeleton className="h-4 w-4/5" />
+          </div>
+        </Card>
+      </div>
+    </main>
   );
 }
 
@@ -43,35 +75,25 @@ function EmptyDesk({
   onShowAnyway: () => void;
 }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
-      <div className="text-5xl" aria-hidden>
-        📭
-      </div>
-      <h2 className="text-2xl font-bold text-ink">Chưa có phiên nào đang chạy</h2>
-      <p className="max-w-md text-sm leading-relaxed text-sec">
-        Bàn điều khiển sẽ hiển thị nhịp phiên, thẻ gợi ý và bình luận khi một phiên live bắt đầu.
-        Trong lúc chờ, bạn có thể xem thử với dữ liệu mô phỏng.
-      </p>
-      <div className="flex flex-wrap items-center justify-center gap-3">
-        <button
-          type="button"
-          onClick={onDemo}
-          className="rounded-lg bg-s1 px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-[#5099ea]"
-        >
-          Xem thử với dữ liệu mô phỏng
-        </button>
-        <Link
-          href="/"
-          className="rounded-lg border border-hairline bg-raised px-5 py-2.5 text-sm font-semibold text-sec transition-colors hover:border-mut hover:text-ink"
-        >
-          Về trang chính
-        </Link>
-      </div>
+    <div className="flex flex-1 flex-col items-center justify-center">
+      <EmptyState
+        icon="📭"
+        title="Chưa có phiên nào đang chạy"
+        hint="Bàn điều khiển sẽ hiển thị nhịp phiên, thẻ gợi ý và bình luận khi một phiên live bắt đầu. Trong lúc chờ, bạn có thể xem thử với dữ liệu mô phỏng."
+        action={
+          <>
+            <Button onClick={onDemo}>Xem thử với dữ liệu mô phỏng</Button>
+            <Link href="/" className={buttonCls("ghost")}>
+              Về trang chính
+            </Link>
+          </>
+        }
+      />
       {hasEndedSessions && (
         <button
           type="button"
           onClick={onShowAnyway}
-          className="text-xs text-mut underline decoration-dotted underline-offset-2 hover:text-sec"
+          className="focus-ring rounded text-xs text-mut underline decoration-dotted underline-offset-2 transition-colors duration-150 hover:text-sec"
         >
           Vẫn mở bàn điều khiển với phiên đã kết thúc
         </button>
@@ -95,9 +117,7 @@ export default function DeskPage() {
     <div className="flex h-screen flex-col overflow-hidden bg-page">
       <TopNav />
       {desk.connection === "connecting" ? (
-        <div className="flex flex-1 items-center justify-center text-sm text-mut">
-          Đang kết nối…
-        </div>
+        <DeskSkeleton />
       ) : showEmpty ? (
         <EmptyDesk
           hasEndedSessions={desk.sessions.length > 0}
@@ -106,6 +126,7 @@ export default function DeskPage() {
         />
       ) : (
         <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3">
+          {/* compact toolbar: picker · status · vitals · mode */}
           <StatusBar
             connection={desk.connection}
             wsStatus={desk.wsStatus}
@@ -120,15 +141,27 @@ export default function DeskPage() {
             canToggleMode={desk.canToggleMode}
           />
 
+          {/* degraded-data banner: slim, amber, right under the toolbar */}
+          {desk.degraded && (
+            <Callout tone="warn" slim className="shrink-0">
+              <strong>Dữ liệu suy giảm</strong> — {desk.degraded}. Bàn vẫn chạy với các nguồn còn
+              lại.
+            </Callout>
+          )}
+
           {/* Zone 1 — nhịp phiên + dải khối switchback */}
-          <section className="flex min-h-0 basis-[40%] flex-col rounded-lg border border-hairline bg-surface p-3">
-            <div className="flex shrink-0 items-baseline justify-between">
-              <ZoneTitle>Nhịp phiên</ZoneTitle>
-              <span className="text-[11px] text-sec">
-                Đang ghim:{" "}
-                <span className="font-semibold text-ink">{desk.pinned?.name ?? "—"}</span>
-              </span>
-            </div>
+          <Card as="section" padding="sm" className="flex min-h-0 basis-[40%] flex-col">
+            <SectionTitle
+              className="mb-1.5"
+              meta={
+                <>
+                  Đang ghim:{" "}
+                  <span className="font-semibold text-ink">{desk.pinned?.name ?? "—"}</span>
+                </>
+              }
+            >
+              Nhịp phiên
+            </SectionTitle>
             <div className="min-h-0 flex-1">
               <RhythmChart ticks={desk.ticks} />
             </div>
@@ -139,17 +172,17 @@ export default function DeskPage() {
                 positionS={desk.elapsedS}
               />
             </div>
-          </section>
+          </Card>
 
           <div className="grid min-h-0 flex-1 grid-cols-2 gap-3">
             {/* Zone 2 — action cards */}
-            <section className="flex min-h-0 flex-col rounded-lg border border-hairline bg-surface p-3">
-              <ZoneTitle>
-                Hành động gợi ý{" "}
-                <span className="normal-case tracking-normal text-sec">
-                  · chế độ {desk.mode === "auto" ? "tự động" : "gợi ý"}
-                </span>
-              </ZoneTitle>
+            <Card as="section" padding="sm" className="flex min-h-0 flex-col">
+              <SectionTitle
+                className="mb-1.5"
+                meta={<>chế độ {desk.mode === "auto" ? "tự động" : "gợi ý"}</>}
+              >
+                Hành động gợi ý
+              </SectionTitle>
               <div className="flex min-h-0 flex-1 flex-col justify-start gap-2 overflow-y-auto">
                 {desk.cards.length === 0 ? (
                   <div className="px-2 py-4 text-xs text-mut">
@@ -168,18 +201,20 @@ export default function DeskPage() {
                   ))
                 )}
               </div>
-            </section>
+            </Card>
 
             {/* Zone 3 — comment radar + feed */}
-            <section className="flex min-h-0 flex-col rounded-lg border border-hairline bg-surface p-3">
-              <ZoneTitle>Radar bình luận · 5 phút gần nhất</ZoneTitle>
+            <Card as="section" padding="sm" className="flex min-h-0 flex-col">
+              <SectionTitle className="mb-1.5" meta="5 phút gần nhất">
+                Radar bình luận
+              </SectionTitle>
               <div className="min-h-0 flex-[2]">
                 <CommentRadar comments={desk.comments} nowS={desk.elapsedS} />
               </div>
               <div className="mt-2 flex min-h-0 flex-[3] flex-col border-t border-hairline pt-2">
                 <CommentFeed comments={desk.comments} />
               </div>
-            </section>
+            </Card>
           </div>
         </main>
       )}

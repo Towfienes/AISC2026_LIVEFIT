@@ -6,8 +6,11 @@
  * Plays a finished session's recorded data back through the same three-zone
  * layout as the live desk, with transport controls and a what-if parameter
  * panel: toggling "hết hàng" on a product re-ranks / removes its action cards
- * client-side.
+ * client-side. While the recording loads, every zone shows a skeleton instead
+ * of an empty panel.
  */
+
+import Link from "next/link";
 
 import ActionCard from "@/components/ActionCard";
 import BlockStrip from "@/components/BlockStrip";
@@ -16,32 +19,30 @@ import CommentRadar from "@/components/CommentRadar";
 import ReplayControls from "@/components/ReplayControls";
 import RhythmChart from "@/components/RhythmChart";
 import { DemoBadge } from "@/components/StatusBar";
+import Card from "@/components/ui/Card";
+import SectionTitle from "@/components/ui/SectionTitle";
+import Skeleton from "@/components/ui/Skeleton";
 import { fmtDateHCM } from "@/lib/format";
 import { useReplay } from "@/lib/useReplay";
-
-function ZoneTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="mb-1.5 shrink-0 text-[11px] font-bold uppercase tracking-widest text-mut">
-      {children}
-    </h2>
-  );
-}
 
 export default function ReplayPage() {
   const rp = useReplay();
   const rec = rp.recording;
+  const loading = rp.connection === "connecting" || (rp.sessionId != null && !rec);
   const recordedOn = rec?.session.start_ts ? fmtDateHCM(rec.session.start_ts) : "—";
 
   return (
-    <main className="flex h-screen flex-col gap-3 overflow-hidden p-3">
+    <main className="flex h-screen flex-col gap-3 overflow-hidden bg-page p-3">
       {/* header + provenance banner */}
       <header className="flex h-11 shrink-0 items-center gap-3 rounded-lg border border-hairline bg-surface px-3">
-        <span className="text-sm font-bold tracking-tight text-ink">
+        <Link href="/" className="focus-ring shrink-0 rounded text-sm font-bold tracking-tight text-ink">
           LiveLift <span className="font-normal text-mut">· phát lại phiên</span>
-        </span>
+        </Link>
         {rp.connection === "mock" && <DemoBadge />}
-        <div className="ml-auto flex min-w-0 items-center gap-2 rounded border border-warn/60 bg-warn/10 px-3 py-1">
-          <span aria-hidden className="text-warn">⏮</span>
+        <div className="ml-auto flex min-w-0 items-center gap-2 rounded-md border border-warn/60 bg-warn/10 px-3 py-1">
+          <span aria-hidden className="text-warn">
+            ⏮
+          </span>
           <span className="truncate text-xs font-bold tracking-wide text-warn">
             PHÁT LẠI DỮ LIỆU THẬT — ghi ngày {recordedOn}
           </span>
@@ -63,34 +64,58 @@ export default function ReplayPage() {
       />
 
       {/* Zone 1 — same rhythm + block strip as the live desk */}
-      <section className="flex min-h-0 basis-[36%] flex-col rounded-lg border border-hairline bg-surface p-3">
-        <ZoneTitle>Nhịp phiên (bản ghi)</ZoneTitle>
-        <div className="min-h-0 flex-1">
-          <RhythmChart ticks={rp.visibleTicks} />
-        </div>
-        <div className="mt-2 shrink-0">
-          <BlockStrip blocks={rec?.blocks ?? []} durationS={rec?.duration_s ?? 0} positionS={rp.t} />
-        </div>
-      </section>
+      <Card as="section" padding="sm" className="flex min-h-0 basis-[36%] flex-col">
+        <SectionTitle className="mb-1.5">Nhịp phiên (bản ghi)</SectionTitle>
+        {loading ? (
+          <div className="flex min-h-0 flex-1 flex-col gap-2" aria-busy>
+            <Skeleton className="min-h-0 flex-1" />
+            <Skeleton className="h-7 shrink-0" />
+          </div>
+        ) : (
+          <>
+            <div className="min-h-0 flex-1">
+              <RhythmChart ticks={rp.visibleTicks} />
+            </div>
+            <div className="mt-2 shrink-0">
+              <BlockStrip
+                blocks={rec?.blocks ?? []}
+                durationS={rec?.duration_s ?? 0}
+                positionS={rp.t}
+              />
+            </div>
+          </>
+        )}
+      </Card>
 
       <div className="grid min-h-0 flex-1 grid-cols-2 gap-3">
         {/* Zone 2 — cards + what-if parameter panel */}
-        <section className="flex min-h-0 rounded-lg border border-hairline bg-surface p-3">
+        <Card as="section" padding="sm" className="flex min-h-0">
           <div className="flex min-h-0 min-w-0 flex-1 flex-col pr-3">
-            <ZoneTitle>
-              Hành động gợi ý{" "}
-              <span className="normal-case tracking-normal text-sec">
-                · {rp.cardsFromServer ? "thẻ từ máy chủ" : "tổng hợp lại phía client"}
-              </span>
-            </ZoneTitle>
+            <SectionTitle
+              className="mb-1.5"
+              meta={rec ? (rp.cardsFromServer ? "thẻ từ máy chủ" : "tổng hợp lại phía client") : undefined}
+            >
+              Hành động gợi ý
+            </SectionTitle>
             <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
-              {rp.cards.length === 0 ? (
+              {loading ? (
+                <div className="flex flex-col gap-2" aria-busy>
+                  <Skeleton className="h-24" />
+                  <Skeleton className="h-24" />
+                  <Skeleton className="h-24" />
+                </div>
+              ) : rp.cards.length === 0 ? (
                 <div className="px-2 py-4 text-xs text-mut">
                   Không còn thẻ nào cho thời điểm này (kiểm tra tham số bên phải).
                 </div>
               ) : (
                 rp.cards.map((c) => (
-                  <ActionCard key={c.card_id} card={c} mode={rec?.session.mode ?? "suggest"} readOnly />
+                  <ActionCard
+                    key={c.card_id}
+                    card={c}
+                    mode={rec?.session.mode ?? "suggest"}
+                    readOnly
+                  />
                 ))
               )}
             </div>
@@ -98,55 +123,80 @@ export default function ReplayPage() {
 
           {/* parameter panel */}
           <aside className="flex w-60 shrink-0 flex-col border-l border-hairline pl-3">
-            <ZoneTitle>Tham số what-if</ZoneTitle>
+            <SectionTitle className="mb-1.5">Tham số what-if</SectionTitle>
             <p className="mb-2 shrink-0 text-[11px] leading-snug text-mut">
-              Đánh dấu sản phẩm <span className="font-semibold text-sec">hết hàng</span> để xem hệ
-              thống xếp hạng lại thẻ hành động.
+              Đánh dấu sản phẩm <span className="font-semibold text-sec">hết hàng</span> để xem
+              hệ thống xếp hạng lại thẻ hành động.
             </p>
-            <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto">
-              {(rec?.products ?? []).map((p) => {
-                const off = rp.excluded.has(p.product_id);
-                return (
-                  <li key={p.product_id}>
-                    <label
-                      className={`flex cursor-pointer items-center gap-2 rounded border px-2 py-1.5 text-xs transition-colors ${
-                        off
-                          ? "border-critical/60 bg-critical/10 text-sec"
-                          : "border-hairline bg-raised text-ink hover:border-mut"
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={off}
-                        onChange={() => rp.toggleExcluded(p.product_id)}
-                        className="accent-[#d03b3b]"
-                      />
-                      <span className={`min-w-0 flex-1 truncate ${off ? "line-through" : ""}`}>
-                        {p.name}
-                      </span>
-                      {off && (
-                        <span className="shrink-0 text-[10px] font-bold text-critical">
-                          HẾT HÀNG
+            {loading ? (
+              <div className="flex flex-col gap-1.5" aria-busy>
+                <Skeleton className="h-8" />
+                <Skeleton className="h-8" />
+                <Skeleton className="h-8" />
+                <Skeleton className="h-8" />
+              </div>
+            ) : (
+              <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto">
+                {(rec?.products ?? []).map((p) => {
+                  const off = rp.excluded.has(p.product_id);
+                  return (
+                    <li key={p.product_id}>
+                      <label
+                        className={`flex cursor-pointer items-center gap-2 rounded-md border px-2 py-1.5 text-xs transition-colors duration-150 ${
+                          off
+                            ? "border-critical/60 bg-critical/10 text-sec"
+                            : "border-hairline bg-raised text-ink hover:border-white/20"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={off}
+                          onChange={() => rp.toggleExcluded(p.product_id)}
+                          className="focus-ring accent-[#d03b3b]"
+                        />
+                        <span className={`min-w-0 flex-1 truncate ${off ? "line-through" : ""}`}>
+                          {p.name}
                         </span>
-                      )}
-                    </label>
-                  </li>
-                );
-              })}
-            </ul>
+                        {off && (
+                          <span className="shrink-0 text-[10px] font-bold text-critical">
+                            HẾT HÀNG
+                          </span>
+                        )}
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </aside>
-        </section>
+        </Card>
 
         {/* Zone 3 — radar + feed over the recorded comments */}
-        <section className="flex min-h-0 flex-col rounded-lg border border-hairline bg-surface p-3">
-          <ZoneTitle>Radar bình luận · 5 phút quanh vị trí phát</ZoneTitle>
-          <div className="min-h-0 flex-[2]">
-            <CommentRadar comments={rp.visibleComments} nowS={rp.t} />
-          </div>
-          <div className="mt-2 flex min-h-0 flex-[3] flex-col border-t border-hairline pt-2">
-            <CommentFeed comments={rp.visibleComments} />
-          </div>
-        </section>
+        <Card as="section" padding="sm" className="flex min-h-0 flex-col">
+          <SectionTitle className="mb-1.5" meta="5 phút quanh vị trí phát">
+            Radar bình luận
+          </SectionTitle>
+          {loading ? (
+            <div className="flex min-h-0 flex-1 flex-col gap-2" aria-busy>
+              <Skeleton className="min-h-0 flex-[2]" />
+              <div className="flex min-h-0 flex-[3] flex-col gap-1.5 border-t border-hairline pt-2">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-4 w-4/5" />
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="min-h-0 flex-[2]">
+                <CommentRadar comments={rp.visibleComments} nowS={rp.t} />
+              </div>
+              <div className="mt-2 flex min-h-0 flex-[3] flex-col border-t border-hairline pt-2">
+                <CommentFeed comments={rp.visibleComments} />
+              </div>
+            </>
+          )}
+        </Card>
       </div>
     </main>
   );

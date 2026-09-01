@@ -35,13 +35,14 @@ Dừng khi không dùng: `docker compose down` (dữ liệu vẫn giữ nguyên)
 | # | Việc | Làm thế nào | Kết quả đúng |
 |---|---|---|---|
 | 1.1 | Xem thử toàn hệ thống | Mở http://localhost:3000 → bấm **"Xem thử ngay (30 giây)"** | Tạo dữ liệu mô phỏng rồi tự chuyển sang trang phát lại |
-| 1.2 | Xem kết quả khoa học | Bấm **"Kết quả"** trên thanh trên | Tác động ước lượng, KTC 95%, p-value, bảng MDE |
-| 1.3 | Bàn điều khiển | Bấm **"Bàn điều khiển"** | 3 vùng: nhịp phiên + dải khối BẬT/TẮT, thẻ hành động, radar bình luận |
-| 1.4 | Chú giải thuật ngữ | Rê chuột vào chữ **BẬT** / **TẮT** trên dải khối | Hiện giải thích tiếng Việt |
-| 1.5 | Màn hình host | Bấm **"Màn hình host"** | **Chỉ** 4 thông tin cỡ lớn: sản phẩm, giá, tồn kho, thời gian |
-| 1.6 | Phân tích video YouTube | Trang chính → ô số 2, dán link live đã kết thúc | Hiện tiến trình rồi mở trang phân tích |
+| 1.2 | **Chạy một phiên thật** | Bấm **"Chạy phiên"** → làm theo 4 bước | Tạo SP → tạo phiên → bốc lịch → phát sóng, không cần gõ lệnh |
+| 1.3 | Xem kết quả khoa học | Bấm **"Kết quả"** trên thanh trên | Tác động ước lượng, KTC 95%, p-value, bảng MDE |
+| 1.4 | Bàn điều khiển | Bấm **"Bàn điều khiển"** | 3 vùng: nhịp phiên + dải khối BẬT/TẮT, thẻ hành động, radar bình luận |
+| 1.5 | Chú giải thuật ngữ | Rê chuột vào chữ **BẬT** / **TẮT** trên dải khối | Hiện giải thích tiếng Việt |
+| 1.6 | Màn hình host | Bấm **"Màn hình host"** | **Chỉ** 4 thông tin cỡ lớn: sản phẩm, giá, tồn kho, thời gian |
+| 1.7 | Phân tích video YouTube | Trang chính → ô số 2, dán link live đã kết thúc | Hiện tiến trình rồi mở trang phân tích |
 
-### Về mục 1.5 — vì sao màn hình host "thiếu" thông tin
+### Về mục 1.6 — vì sao màn hình host "thiếu" thông tin
 
 Đây là **thiết kế có chủ đích**, không phải bug. Nếu người dẫn biết mình đang ở khối
 BẬT hay TẮT, họ sẽ vô thức nói năng khác đi, và thí nghiệm không còn đo tác động của
@@ -242,14 +243,16 @@ nhập YouTube), rồi `docker compose up -d`. Cookie chỉ được đọc cụ
 - Phát lại phiên + phân tích video YouTube
 - **Trang kết quả thí nghiệm** (tác động, KTC, p-value, bảng MDE)
 
-### Chỉ dùng được bằng lệnh (chưa có nút)
-- Tạo sản phẩm, tạo phiên, bốc lịch gán, bắt đầu/kết thúc phiên
-- Tạo link rút gọn để đo lượt bấm
-- Chấm chất lượng dữ liệu (`livelift-qc`)
+- **Chạy trọn một phiên thí nghiệm** (`/chay-phien`): tạo sản phẩm → tạo phiên →
+  bốc lịch gán → phát sóng → kết thúc, kèm link đo lượt nhấp tự sinh
 
-> Đây là hạn chế đã biết: **toàn bộ vòng đời một phiên thí nghiệm vẫn phải chạy bằng
-> lệnh.** Giao diện hiện là màn hình xem + demo. Với Live Lab của nhóm thì chấp nhận
-> được (kỹ sư ngồi cạnh), nhưng trước khi giao cho nhà bán ngoài thì phải làm nốt.
+### Chỉ dùng được bằng lệnh (chưa có nút)
+- Chấm chất lượng dữ liệu (`livelift-qc`) — chạy sau mỗi phiên
+- Mô phỏng thẩm định ước lượng viên (`livelift-simulate`)
+- Migration CSDL (`livelift-migrate`)
+
+> Đây là các công cụ vận hành/kỹ thuật, chạy định kỳ chứ không nằm trong luồng
+> dùng hằng ngày — để ở CLI là hợp lý.
 
 ### Chưa có
 - Nhập đơn hàng / doanh thu (bảng `order_event` tồn tại nhưng không có API ghi)

@@ -49,8 +49,17 @@ def create_app(store: Store | None = None) -> FastAPI:
     )
 
     @app.get("/health")
-    def health() -> dict[str, str]:
-        return {"status": "ok", "store_backend": app.state.store.backend}
+    def health() -> dict[str, str | None]:
+        from livelift.nlp.intent import classifier_info
+
+        info = classifier_info()
+        return {
+            "status": "ok",
+            "store_backend": app.state.store.backend,
+            # provenance: which intent classifier is live (trained model vs
+            # keyword baseline) — numbers must carry their source
+            "intent_backend": info["backend"],
+        }
 
     app.include_router(sessions.router, tags=["sessions"])
     app.include_router(events.router, tags=["events"])

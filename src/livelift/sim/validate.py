@@ -55,22 +55,27 @@ def run_validation(
 ) -> ValidationResult:
     """Monte-Carlo study over replications of a multi-session experiment.
 
-    MEASURED behaviour (25 reps x 6 sessions x 90 min, effect 0.4, audit 30/08):
+    MEASURED behaviour (25 reps x 6 sessions x 90 min, effect 0.4,
+    re-measured 02/09 with KuaiLive-calibrated SimParams — engaged-viewer
+    mean stay 10 min):
 
     ==========================  ==========  ==========  =========
     carryover half-life         estimate    rel. bias   coverage
     ==========================  ==========  ==========  =========
-    0 s (no interference)          +0.398       +0.3%        96%
-    120 s                          +0.328      -17.4%        96%
-    180 s                          +0.296      -25.2%        76%
+    0 s (no interference)          +0.395       -0.3%       100%
+    120 s                          +0.316      -20.3%        84%
+    180 s                          +0.278      -29.8%        60%
     ==========================  ==========  ==========  =========
 
     Carryover attenuates the block contrast toward zero — the conservative
     direction: the system under-states its own effect rather than inventing
-    one. Coverage holds to ~2-minute carryover and degrades beyond it, which is
-    why the week-3 calibration measures the real decay time before the block
-    length is fixed. Quote these numbers rather than the no-carryover ones
-    alone: the clean-world figure on its own is circular evidence.
+    one. NOTE the calibrated world is HARDER than the pre-calibration one
+    (longer stays carry more effect across block boundaries): coverage at a
+    3-minute half-life dropped from 76% to 60%. This is precisely why the
+    week-3 calibration measures the real decay time (t_mix) BEFORE the block
+    length is fixed — if t_mix approaches minutes, blocks must lengthen.
+    Quote these numbers rather than the no-carryover ones alone: the
+    clean-world figure on its own is circular evidence.
     """
     design = design or DesignParams()
     sim_params = sim_params or SimParams()

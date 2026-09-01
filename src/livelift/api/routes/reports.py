@@ -14,7 +14,7 @@ import numpy as np
 from fastapi import APIRouter
 
 from livelift.analysis.estimators import analyze_outer, diff_in_means
-from livelift.analysis.power import Scenario, scenario_table
+from livelift.analysis.power import Scenario, scenario_table, within_session_cv
 from livelift.api import service
 from livelift.api.schemas import ComplianceStats, ExperimentSummary, SessionReport
 from livelift.api.service import StoreDep
@@ -173,9 +173,15 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
 
     y = np.array(ys)
     z = np.array(zs)
-    res = analyze_outer(y, z, np.array(session_ids), phases, n_draws=1000, seed=2026)
-    mean_y = float(y.mean())
-    cv = float(y.std(ddof=1) / mean_y) if mean_y > 0 else None
+    sids = np.array(session_ids)
+    res = analyze_outer(y, z, sids, phases, n_draws=1000, seed=2026)
+
+    # WITHIN-session CV, not the pooled one: the primary analysis differences
+    # out the session effect (redraws per session, session FE, cluster-robust
+    # SEs), so pooling raw blocks across sessions would charge the design for
+    # between-session variance it never pays (audit 30/08).
+    cv_val = within_session_cv(y, sids)
+    cv = float(cv_val) if np.isfinite(cv_val) else None
 
     power_rows = []
     if cv is not None:
@@ -184,7 +190,9 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
                 Scenario("không đối tác (18 phiên)", 18, 90, 5, compliance=0.95),
                 Scenario("có đối tác (+10 phiên)", 28, 90, 5, compliance=0.85),
             ],
-            cv_grid=(round(cv, 2),),
+            # Pass the measured value, not a rounded one — the table must show
+            # the number that was actually measured.
+            cv_grid=(cv,),
         )
 
     return ExperimentSummary(

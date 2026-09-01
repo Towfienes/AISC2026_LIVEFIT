@@ -84,6 +84,8 @@ export interface ExperimentSummary {
   measured_compliance: number | null;
   power_table: PowerRow[];
   message?: string | null;
+  /** False when the design cannot be tested — render nothing inferential. */
+  estimable?: boolean;
 }
 
 export interface PowerRow {

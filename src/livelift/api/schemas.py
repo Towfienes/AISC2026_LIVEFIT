@@ -341,6 +341,11 @@ class ExperimentSummary(BaseModel):
     measured_compliance: float | None = None
     power_table: list[dict[str, Any]] = Field(default_factory=list)
     message: str | None = None  # Vietnamese, set when data is insufficient
+    estimable: bool = True
+    """False when the design cannot be tested at all (an arm below the minimum
+    block count). Clients MUST NOT render an effect, interval or p-value in
+    that case — the fields are null and any 'significant' styling is wrong
+    (audit 30/08)."""
 
 
 # ---------------------------------------------------------------------------

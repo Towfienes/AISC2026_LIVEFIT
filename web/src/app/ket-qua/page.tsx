@@ -80,7 +80,13 @@ export default function KetQuaPage() {
     void load();
   }, [load]);
 
-  const enough = data != null && data.n_blocks > 0 && data.estimate != null;
+  // `estimable === false` means the API refused to test this design; treat a
+  // missing flag as true only because older payloads predate it.
+  const enough =
+    data != null &&
+    data.estimable !== false &&
+    data.n_blocks > 0 &&
+    data.estimate != null;
   const significant =
     enough && data.ci_low != null && data.ci_high != null
       ? data.ci_low > 0 || data.ci_high < 0
@@ -114,8 +120,9 @@ export default function KetQuaPage() {
         <div className="rounded-lg border border-hairline bg-surface p-5">
           <h2 className="text-base font-semibold text-ink">Chưa đủ dữ liệu để kết luận</h2>
           <p className="mt-2 text-sm leading-relaxed text-sec">
-            Hiện có {data.n_sessions} phiên và {data.n_blocks} khối. Cần chạy thêm phiên có lịch gán
-            ngẫu nhiên thì mới ước lượng được tác động.{" "}
+            {data.message
+              ? data.message
+              : `Hiện có ${data.n_sessions} phiên và ${data.n_blocks} khối. Cần chạy thêm phiên có lịch gán ngẫu nhiên thì mới ước lượng được tác động.`}{" "}
             <Link href="/" className="underline underline-offset-2">
               Tạo dữ liệu mô phỏng để xem thử
             </Link>

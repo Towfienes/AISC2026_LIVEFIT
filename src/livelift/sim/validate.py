@@ -53,7 +53,25 @@ def run_validation(
     n_draws: int = 500,
     master_seed: int = 2026,
 ) -> ValidationResult:
-    """Monte-Carlo study over replications of a multi-session experiment."""
+    """Monte-Carlo study over replications of a multi-session experiment.
+
+    MEASURED behaviour (25 reps x 6 sessions x 90 min, effect 0.4, audit 30/08):
+
+    ==========================  ==========  ==========  =========
+    carryover half-life         estimate    rel. bias   coverage
+    ==========================  ==========  ==========  =========
+    0 s (no interference)          +0.398       +0.3%        96%
+    120 s                          +0.328      -17.4%        96%
+    180 s                          +0.296      -25.2%        76%
+    ==========================  ==========  ==========  =========
+
+    Carryover attenuates the block contrast toward zero — the conservative
+    direction: the system under-states its own effect rather than inventing
+    one. Coverage holds to ~2-minute carryover and degrades beyond it, which is
+    why the week-3 calibration measures the real decay time before the block
+    length is fixed. Quote these numbers rather than the no-carryover ones
+    alone: the clean-world figure on its own is circular evidence.
+    """
     design = design or DesignParams()
     sim_params = sim_params or SimParams()
     seed_rng = random.Random(master_seed)

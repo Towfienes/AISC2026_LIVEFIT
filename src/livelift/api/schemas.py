@@ -129,6 +129,12 @@ class ScheduleOut(BaseModel):
     n_on: int
     n_off: int
     blocks: list[BlockOut]
+    realized_min_per_arm_per_phase: int = 0
+    """Balance guarantee the layout could actually deliver (see `warning`)."""
+    warning: str | None = None
+    """Vietnamese warning when the schedule cannot meet the design guarantee —
+    short sessions silently degrade it, and an operator must be told BEFORE
+    going live rather than discovering it in the analysis (audit 30/08)."""
 
 
 # ---------------------------------------------------------------------------

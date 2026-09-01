@@ -119,6 +119,7 @@ def schedule_session(
         "n_redraws": schedule.n_redraws,
         "n_on": schedule.n_on,
         "n_off": schedule.n_off,
+        "realized_min_per_arm_per_phase": schedule.realized_min_per_arm_per_phase,
         # The schedule VERBATIM as drawn before broadcast. This is the
         # pre-registration audit trail: the post-session QC gate compares it
         # against the blocks that actually ran, and a judge can verify the

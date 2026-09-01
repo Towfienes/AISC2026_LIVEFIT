@@ -112,6 +112,16 @@ def create_schedule(session_id: str, body: ScheduleRequest, store: StoreDep) -> 
     seed = body.seed if body.seed is not None else secrets.randbits(63)
     updated, blocks = service.schedule_session(store, session, params, seed)
     design = updated["design"]
+    realized = int(design.get("realized_min_per_arm_per_phase", 0))
+    warning = None
+    if realized < params.min_per_arm_per_phase:
+        n_meas = len([b for b in blocks if not b.get("is_washout")])
+        warning = (
+            f"Phiên {session['planned_duration_min']} phút chỉ cho {n_meas} khối, nên mỗi "
+            f"giai đoạn chỉ đảm bảo được {realized} khối/nhánh (thiết kế yêu cầu "
+            f"{params.min_per_arm_per_phase}). Kết quả sẽ kém tin cậy hơn — cân nhắc "
+            f"phiên dài hơn (từ 90 phút) hoặc khối ngắn hơn."
+        )
     return ScheduleOut(
         session_id=session_id,
         status=updated["status"],
@@ -120,6 +130,8 @@ def create_schedule(session_id: str, body: ScheduleRequest, store: StoreDep) -> 
         n_on=design["n_on"],
         n_off=design["n_off"],
         blocks=[BlockOut(**b) for b in blocks],
+        realized_min_per_arm_per_phase=realized,
+        warning=warning,
     )
 
 

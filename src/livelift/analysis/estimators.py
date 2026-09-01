@@ -42,15 +42,25 @@ def diff_in_means(y: np.ndarray, z: np.ndarray) -> float:
 
 
 def ht_effect(y: np.ndarray, z: np.ndarray, p: np.ndarray | float = 0.5) -> float:
-    """Horvitz–Thompson estimate of the average block-level effect.
+    """Hájek (self-normalized) inverse-propensity estimate of the block effect.
 
-    With constant p=0.5 this reduces to 2*mean(y*z) - 2*mean(y*(1-z)); with
-    per-block propensities (inner tier, holdback months) it stays unbiased.
+    Each arm's weighted sum is divided by its REALIZED weight total, not by n.
+    The un-normalized Horvitz–Thompson form is unbiased at p=0.5, but its error
+    picks up a term proportional to (n_on - n_off) times the LEVEL of y — which
+    carries no information about the treatment effect. Under a Bernoulli
+    switchback the arm counts are random, so that term is pure noise: the
+    estimate could differ from the difference in means by more than the whole
+    effect under study, and even flip sign (audit 30/08). Normalizing removes
+    it and makes this agree with the difference in means at constant p, while
+    staying valid for the per-block propensities of the inner tier.
     """
     y, z = np.asarray(y, float), np.asarray(z, int)
-    p_arr = np.full_like(y, p) if np.isscalar(p) else np.asarray(p, float)
-    n = len(y)
-    return float((y * z / p_arr).sum() / n - (y * (1 - z) / (1 - p_arr)).sum() / n)
+    p_arr = np.full_like(y, float(p)) if np.isscalar(p) else np.asarray(p, float)
+    w1 = z / p_arr
+    w0 = (1 - z) / (1 - p_arr)
+    if w1.sum() == 0 or w0.sum() == 0:
+        return float("nan")
+    return float((y * w1).sum() / w1.sum() - (y * w0).sum() / w0.sum())
 
 
 MIN_BLOCKS_PER_ARM = 2

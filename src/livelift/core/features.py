@@ -146,29 +146,43 @@ class BlockRecord:
 
 
 def _window_stats(
-    events: list[Event], start_s: float, end_s: float, tick_viewers: list[tuple[float, float]]
+    events: list[Event],
+    start_s: float,
+    end_s: float,
+    tick_viewers: list[tuple[float, float]],
+    tick_s: int = 30,
 ) -> tuple[float, int, int, int]:
     """(viewer-seconds, clicks, comments, likes) within [start_s, end_s).
 
-    ``tick_viewers`` is a list of (bucket_start_s, viewers) with bucket width
-    inferred from consecutive entries; exposure integrates the carried-forward
-    viewer count over the window.
+    The numerator and the denominator MUST share the same support. Exposure can
+    only be integrated where viewer telemetry exists, so the counts are taken
+    over that same measured span — counting clicks from before the first
+    snapshot while their exposure contributed zero inflated that block's rate
+    by up to 26% (audit 30/08).
     """
-    clicks = sum(1 for e in events if e.kind == "click" and start_s <= e.ts_offset_s < end_s)
-    comments = sum(1 for e in events if e.kind == "comment" and start_s <= e.ts_offset_s < end_s)
-    likes = sum(1 for e in events if e.kind == "like" and start_s <= e.ts_offset_s < end_s)
+    if not tick_viewers:
+        return 0.0, 0, 0, 0
+
+    width = (
+        tick_viewers[1][0] - tick_viewers[0][0] if len(tick_viewers) > 1 else float(tick_s)
+    )
+    measured_lo = max(start_s, tick_viewers[0][0])
+    measured_hi = min(end_s, tick_viewers[-1][0] + width)
+    if measured_hi <= measured_lo:
+        return 0.0, 0, 0, 0
+
+    def count(kind: str) -> int:
+        return sum(
+            1 for e in events if e.kind == kind and measured_lo <= e.ts_offset_s < measured_hi
+        )
 
     exposure = 0.0
     for i, (t0, viewers) in enumerate(tick_viewers):
-        t1 = (
-            tick_viewers[i + 1][0]
-            if i + 1 < len(tick_viewers)
-            else t0 + (tick_viewers[1][0] - tick_viewers[0][0] if len(tick_viewers) > 1 else 30.0)
-        )
-        lo, hi = max(t0, start_s), min(t1, end_s)
+        t1 = tick_viewers[i + 1][0] if i + 1 < len(tick_viewers) else t0 + width
+        lo, hi = max(t0, measured_lo), min(t1, measured_hi)
         if hi > lo:
             exposure += viewers * (hi - lo)
-    return exposure, clicks, comments, likes
+    return exposure, count("click"), count("comment"), count("like")
 
 
 MIN_EXPOSURE_VIEWER_S = 60.0
@@ -216,7 +230,7 @@ def block_frame(
         unmeasurable: str | None = None
         if win_end <= win_start:
             unmeasurable = "khối không phát sóng (phiên kết thúc trước khối này)"
-        exposure, clicks, _, _ = _window_stats(ev_list, win_start, win_end, tick_viewers)
+        exposure, clicks, _, _ = _window_stats(ev_list, win_start, win_end, tick_viewers, tick_s)
         if unmeasurable is None and exposure < MIN_EXPOSURE_VIEWER_S:
             unmeasurable = (
                 f"phơi nhiễm {exposure:.0f} giây·người xem < ngưỡng "
@@ -224,7 +238,7 @@ def block_frame(
             )
         pre_start = max(0.0, b.start_offset_s - pre_window_s)
         pre_exp, _, pre_comments, pre_likes = _window_stats(
-            ev_list, pre_start, b.start_offset_s, tick_viewers
+            ev_list, pre_start, b.start_offset_s, tick_viewers, tick_s
         )
         pre_seconds = max(b.start_offset_s - pre_start, 1e-9)
         assert b.assignment is not None

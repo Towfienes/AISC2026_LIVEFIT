@@ -86,6 +86,18 @@ class Schedule:
     params: DesignParams
     seed: int
     n_redraws: int
+    realized_min_per_arm_per_phase: int = 0
+    """Smallest per-arm-per-phase guarantee the layout could actually deliver.
+
+    ``DesignParams.min_per_arm_per_phase`` is a request; short phases cap it.
+    Recording the realized value keeps the design claim honest — see
+    :meth:`constraint_met`.
+    """
+
+    @property
+    def constraint_met(self) -> bool:
+        """Whether the schedule delivers the requested balance guarantee."""
+        return self.realized_min_per_arm_per_phase >= self.params.min_per_arm_per_phase
     blocks: tuple[Block, ...] = field(default_factory=tuple)
 
     @property
@@ -167,6 +179,11 @@ def draw_assignments(
     strata: dict[str, list[int]] = {}
     for i, ph in enumerate(phases):
         strata.setdefault(ph, []).append(i)
+    # The constraint is capped by what each stratum can physically hold. That
+    # cap BINDS at ordinary session lengths (endpoint doubling spends 4L of the
+    # timeline on 2 blocks), so the schedule can silently deliver a weaker
+    # guarantee than the docs advertise. The realized value is returned so the
+    # caller can record it and warn (audit 30/08).
     required = {ph: min(min_per_arm_per_phase, len(idx) // 2) for ph, idx in strata.items()}
 
     for redraw in range(max_redraws):
@@ -218,6 +235,12 @@ def generate_schedule(
     arms, n_redraws = draw_assignments(
         phases, rng, params.p, params.min_per_arm_per_phase, params.max_redraws
     )
+    # What the layout could actually guarantee, per stratum.
+    stratum_sizes = [phases.count(ph) for ph in PHASES if ph in phases]
+    realized_min = min(
+        (min(params.min_per_arm_per_phase, size // 2) for size in stratum_sizes),
+        default=0,
+    )
 
     blocks: list[Block] = []
     out_index = 0
@@ -256,5 +279,6 @@ def generate_schedule(
         params=params,
         seed=seed,
         n_redraws=n_redraws,
+        realized_min_per_arm_per_phase=realized_min,
         blocks=tuple(blocks),
     )

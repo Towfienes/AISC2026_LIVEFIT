@@ -183,12 +183,23 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
     cv_val = within_session_cv(y, sids)
     cv = float(cv_val) if np.isfinite(cv_val) else None
 
+    # Compliance: use the MEASURED value when there is one. A field literally
+    # named measured_compliance sitting next to a table that ignored it and
+    # used a literal 0.95 was indefensible (audit 30/08). No CUPED R² is
+    # estimated anywhere in this path, so none is claimed: assuming R²=0.3
+    # would shave 16% off the MDE on the strength of nothing.
+    measured_comp = (
+        float(np.mean(compliance_rates)) if compliance_rates else None
+    )
+    comp_auto = measured_comp if measured_comp is not None else 0.95
+    comp_partner = min(comp_auto, 0.85)
+
     power_rows = []
     if cv is not None:
         power_rows = scenario_table(
             [
-                Scenario("không đối tác (18 phiên)", 18, 90, 5, compliance=0.95),
-                Scenario("có đối tác (+10 phiên)", 28, 90, 5, compliance=0.85),
+                Scenario("không đối tác (18 phiên)", 18, 90, 5, compliance=comp_auto),
+                Scenario("có đối tác (+10 phiên)", 28, 90, 5, compliance=comp_partner),
             ],
             # Pass the measured value, not a rounded one — the table must show
             # the number that was actually measured.

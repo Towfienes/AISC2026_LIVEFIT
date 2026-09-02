@@ -147,6 +147,9 @@ def classify_keywords(text: str) -> str:
 # Trained model (TF-IDF char/word n-grams + logistic regression)
 # ---------------------------------------------------------------------------
 
+MIN_CONFIDENCE = 0.45
+"""Below this the model abstains to "khac" — out-of-domain guard (see classify)."""
+
 _MODEL_PATH = __import__("pathlib").Path(__file__).parent / "model" / "intent_clf.joblib"
 _model = None
 _model_tried = False
@@ -209,9 +212,18 @@ def classify(text: str) -> str:
     model = _load_model()
     if model is not None:
         try:
-            label = model.predict([text])[0]
-            if label in INTENT_LABELS:
-                return str(label)
+            proba = model.predict_proba([text])[0]
+            i = int(proba.argmax())
+            label = str(model.classes_[i])
+            # Confidence floor, calibrated on the 02/09 real-VOD live-fire: an
+            # English chess-stream chat pushed 12% of messages into che_dat —
+            # the model is Vietnamese-specific and must say "khac" instead of
+            # guessing on out-of-domain text. At 0.45 the Vietnamese dataset
+            # loses nothing (in-sample acc 1.000) while English text routed to
+            # khac rises 62% -> 81%.
+            if proba[i] >= MIN_CONFIDENCE and label in INTENT_LABELS:
+                return label
+            return "khac"
         except Exception:  # noqa: BLE001, S110 — any failure -> keyword baseline
             _log_once_model_failure()
     return classify_keywords(text)

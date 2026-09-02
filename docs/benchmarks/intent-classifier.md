@@ -55,6 +55,15 @@ Câu hỏi đúng — và câu trả lời có ba tầng:
    ablation. Kỳ vọng thực tế theo văn liệu: macro-F1 0.80–0.88 trên dữ liệu
    thật nhiễu hơn.
 
+### Ngưỡng tự tin — bài học từ live-fire video thật (02/09)
+
+Chạy pipeline trên một VOD livestream thật 262 phút / 14.903 bình luận (tiếng
+Anh — stream cờ vua) lộ ra: model tiếng Việt gán nhầm `che_dat` cho 12% chat
+tiếng Anh. Thêm **ngưỡng tự tin 0.45**: dưới ngưỡng → trả `khac` (kiêng đoán
+ngoài miền). Đo được: độ chính xác tiếng Việt không đổi (in-sample 1.000),
+tiếng Anh về `khac` tăng 62% → 81%. Test hồi quy:
+`test_out_of_domain_text_mostly_abstains_to_khac`.
+
 ### Giới hạn phải nói khi trình bày
 
 - Con số 0.87 đo trên **cùng phân phối** với dữ liệu huấn luyện (biên soạn).

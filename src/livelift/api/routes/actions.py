@@ -71,7 +71,9 @@ def execute_action(session_id: str, body: ExecuteRequest, store: StoreDep) -> Ex
         pid = c.get("product_id")
         if pid:
             recent_clicks[pid] = recent_clicks.get(pid, 0) + 1
-    candidates = build_candidates(store.list_products(), recent_clicks)
+    candidates = build_candidates(
+        store.list_products(), recent_clicks, store.list_ticks(session_id)
+    )
     if not candidates:
         raise HTTPException(status_code=409, detail="Không có sản phẩm còn hàng để ghim")
 

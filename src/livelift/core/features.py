@@ -115,6 +115,26 @@ def build_ticks(
     return ticks
 
 
+def product_exposure(ticks: list[Tick]) -> dict[str, float]:
+    """Viewer-seconds of pin exposure attributed to each product.
+
+    Each 30-second tick bucket accrues ``viewers * 30`` viewer-seconds to the
+    product pinned during that bucket; buckets with nothing pinned accrue to
+    no one. Because ticks only exist where viewer telemetry was measured, a
+    per-product click numerator gets a denominator with the SAME support
+    (audit 30/08: never count clicks over a window whose exposure wasn't
+    measured).
+    """
+    exposure: dict[str, float] = {}
+    for t in ticks:
+        if t.pinned_product_id is None:
+            continue
+        exposure[t.pinned_product_id] = (
+            exposure.get(t.pinned_product_id, 0.0) + t.viewers * 30.0
+        )
+    return exposure
+
+
 @dataclass(frozen=True)
 class BlockRecord:
     """One analysis row: a measurement block with outcome and covariates."""

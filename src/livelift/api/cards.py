@@ -1,6 +1,6 @@
 """Action-card and inner-candidate generation.
 
-Two distinct artifacts come out of the same heuristic, and the distinction IS
+Two distinct artifacts come out of the same posterior, and the distinction IS
 the E2-04 rule:
 
 - :func:`build_candidates` — internal ``Candidate`` objects with interval
@@ -11,68 +11,126 @@ the E2-04 rule:
   are ``source='forecast'`` and therefore carry NO interval fields (the
   schema validator would reject them anyway).
 
-The scoring heuristic is deliberately simple and transparent (description
-§4.2: margin-weighted with a recent-click signal — no full optimization in
-competition season). Model A (LightGBM forecast) can replace ``_score``
-behind the same signatures later.
+Scoring model (adversarial method review, 09/2026): a Gamma-Poisson conjugate
+click rate per product, in the SAME units as the primary outcome — clicks per
+1000 viewer-seconds. ``clicks_j`` within the session is the Poisson count; the
+denominator is the viewer-seconds actually measured while product j was pinned
+(:func:`livelift.core.features.product_exposure`), so numerator and
+denominator share the same support (the lesson of the 30/08 audit). The
+earlier margin heuristic FABRICATED its intervals, which made the inner tier's
+overlap-randomization arbitrary; posterior intervals give that exploration
+behavior a real statistical meaning.
 """
 
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from livelift.api.schemas import ActionCard
 from livelift.core.assigner import Candidate
+from livelift.core.features import Tick, product_exposure
 
 MAX_CARDS = 3
 
+UNIT_VIEWER_S = 1000.0
+"""One exposure unit = 1000 viewer-seconds (the primary-outcome denominator)."""
 
-def _score(product: dict[str, Any], recent_clicks: int, total_recent_clicks: int) -> float:
-    """Margin share x recent-interest multiplier, in [0, ~2]."""
-    price = float(product.get("price") or 0.0)
-    margin = float(product.get("margin") or 0.0)
-    margin_share = margin / price if price > 0 else 0.0
-    interest = recent_clicks / total_recent_clicks if total_recent_clicks > 0 else 0.0
-    return margin_share * (1.0 + interest)
+PRIOR_PSEUDO_EXPOSURE_UNITS = 5.0
+"""``n0``: prior pseudo-exposure, in units of 1000 viewer-seconds."""
+
+FALLBACK_POOLED_RATE = 1.0
+"""Clicks per 1000 viewer-seconds assumed when the session has no data at all."""
+
+INTERVAL_K = 1.0
+"""Candidate intervals are ``mu ± K*sd``. The width is tunable from pilot
+logs; K=1 keeps healthy overlap early (more inner-tier exploration) without
+letting clearly separated products keep randomizing."""
+
+
+def _as_ticks(ticks: Sequence[Tick | Mapping[str, Any]] | None) -> list[Tick]:
+    """Adapt persisted ``session_tick`` rows to feature-layer ``Tick``s.
+
+    Only the fields :func:`product_exposure` reads (``viewers``,
+    ``pinned_product_id``) matter here; the bucket offset is synthesized
+    because store rows carry wall-clock buckets, not session offsets.
+    """
+    out: list[Tick] = []
+    for i, t in enumerate(ticks or ()):
+        if isinstance(t, Tick):
+            out.append(t)
+            continue
+        out.append(
+            Tick(
+                bucket_start_s=i * 30,
+                viewers=float(t.get("viewers") or 0.0),
+                comment_count=0,
+                like_count=0,
+                click_count=int(t.get("click_count") or 0),
+                pinned_product_id=t.get("pinned_product_id"),
+            )
+        )
+    return out
 
 
 def build_candidates(
     products: list[dict[str, Any]],
     recent_clicks_by_product: dict[str, int],
+    ticks: Sequence[Tick | Mapping[str, Any]] | None = None,
     top_k: int = MAX_CARDS,
 ) -> list[Candidate]:
-    """Rank in-stock products and wrap the top ``top_k`` as inner-tier
-    candidates with uncertainty intervals.
+    """Score in-stock products with a Gamma-Poisson posterior and wrap the
+    top ``top_k`` as inner-tier candidates with posterior intervals.
 
-    Interval width shrinks with click evidence (±0.5/√(1+n)): with little
-    data the intervals overlap, so the inner assigner explores; as evidence
-    accumulates they separate and the choice becomes deterministic — exactly
-    the "controlled exploration" contract of §6.2.
+    Prior: ``a0 = pooled_rate * n0``, ``b0 = n0`` with ``n0 = 5`` units of
+    pseudo-exposure, where ``pooled_rate`` is the session's overall clicks
+    per 1000 viewer-seconds (falling back to ``FALLBACK_POOLED_RATE`` when
+    nothing has been measured yet). Posterior per product j:
+    ``alpha_j = a0 + clicks_j``, ``beta_j = b0 + exposure_units_j``;
+    ``mu_j = alpha_j / beta_j``, ``sd_j = sqrt(alpha_j) / beta_j``; the
+    candidate interval is ``mu ± INTERVAL_K * sd`` clipped at 0.
+
+    COLD-START PROPERTY (the point of the design): with zero data every
+    product carries exactly the prior, so all candidates have IDENTICAL
+    estimates and intervals → the intervals fully overlap → the inner tier
+    (:func:`livelift.core.assigner.choose_action`) explores uniformly with a
+    correctly logged propensity ``1/k``, instead of locking onto an arbitrary
+    margin ranking. As exposure accumulates, ``beta`` grows linearly while
+    ``sqrt(alpha)`` grows sub-linearly: intervals shrink and separate, and
+    the choice becomes deterministic — the controlled-exploration contract of
+    §6.2.
+
+    ``ticks`` may be feature-layer :class:`Tick` objects or persisted
+    ``session_tick`` rows. Display ranking is by posterior mean descending,
+    ties broken stably by ``product_id``.
     """
     in_stock = [p for p in products if int(p.get("stock") or 0) > 0]
-    total_recent = sum(recent_clicks_by_product.get(p["product_id"], 0) for p in in_stock)
-    scored = sorted(
-        in_stock,
-        key=lambda p: (
-            -_score(p, recent_clicks_by_product.get(p["product_id"], 0), total_recent),
-            p["product_id"],
-        ),
-    )
-    candidates = []
-    for p in scored[:top_k]:
-        n_clicks = recent_clicks_by_product.get(p["product_id"], 0)
-        est = _score(p, n_clicks, total_recent)
-        half_width = 0.5 / math.sqrt(1.0 + n_clicks)
-        candidates.append(
-            Candidate(
-                product_id=p["product_id"],
-                estimate=est,
-                ci_low=est - half_width,
-                ci_high=est + half_width,
-            )
+    exposure_units = {
+        pid: vs / UNIT_VIEWER_S for pid, vs in product_exposure(_as_ticks(ticks)).items()
+    }
+    total_clicks = sum(recent_clicks_by_product.values())
+    total_units = sum(exposure_units.values())
+    pooled_rate = total_clicks / total_units if total_units > 0 else FALLBACK_POOLED_RATE
+    a0 = pooled_rate * PRIOR_PSEUDO_EXPOSURE_UNITS
+    b0 = PRIOR_PSEUDO_EXPOSURE_UNITS
+
+    posterior: list[tuple[str, float, float]] = []
+    for p in in_stock:
+        pid = p["product_id"]
+        alpha = a0 + recent_clicks_by_product.get(pid, 0)
+        beta = b0 + exposure_units.get(pid, 0.0)
+        posterior.append((pid, alpha / beta, math.sqrt(alpha) / beta))
+    posterior.sort(key=lambda item: (-item[1], item[0]))
+    return [
+        Candidate(
+            product_id=pid,
+            estimate=mu,
+            ci_low=max(0.0, mu - INTERVAL_K * sd),
+            ci_high=mu + INTERVAL_K * sd,
         )
-    return candidates
+        for pid, mu, sd in posterior[:top_k]
+    ]
 
 
 def build_cards(

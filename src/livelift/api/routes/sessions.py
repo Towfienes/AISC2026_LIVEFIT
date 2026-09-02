@@ -212,7 +212,9 @@ def get_state(
         pid = c.get("product_id")
         if pid:
             recent_clicks[pid] = recent_clicks.get(pid, 0) + 1
-    candidates = build_candidates(store.list_products(), recent_clicks)
+    candidates = build_candidates(
+        store.list_products(), recent_clicks, store.list_ticks(session_id)
+    )
     cards = build_cards(candidates, {p["product_id"]: p for p in store.list_products()})
     return OperatorState(
         session_id=session_id,

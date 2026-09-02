@@ -166,6 +166,13 @@ def download_chat_replay(
         "quiet": True,
         "no_warnings": True,
         "noprogress": True,
+        # YouTube intermittently 503s the live_chat track (measured in the
+        # 02/09 live-fire: the same chat that had just downloaded fine from
+        # another process got a 503 on the immediate retry). Back off and
+        # retry instead of failing the whole job on one transient response.
+        "retries": 5,
+        "fragment_retries": 5,
+        "retry_sleep_functions": {"http": lambda n: min(5 * (n + 1), 30)},
     }
     if cookies_from_browser:
         opts["cookiesfrombrowser"] = (cookies_from_browser,)
@@ -178,7 +185,20 @@ def download_chat_replay(
             return DownloadResult(
                 chat_path=None, video_title="", duration_s=0.0, error=ERR_BOT_CHECK
             )
-        if "urlopen error" in msg or "Network" in msg or "timed out" in msg:
+        transient = (
+            "urlopen error" in msg
+            or "Network" in msg
+            or "timed out" in msg
+            # 5xx/429 are YouTube-side throttles, not a bad URL. Reporting them
+            # as "URL sai" sent the operator hunting a typo that did not exist
+            # (incident 02/09 — the misdiagnosis cost a debugging round).
+            or "503" in msg
+            or "Service Unavailable" in msg
+            or "429" in msg
+            or "Too Many Requests" in msg
+            or "502" in msg
+        )
+        if transient:
             return DownloadResult(chat_path=None, video_title="", duration_s=0.0, error=ERR_NETWORK)
         return DownloadResult(chat_path=None, video_title="", duration_s=0.0, error=ERR_UNAVAILABLE)
     except OSError:

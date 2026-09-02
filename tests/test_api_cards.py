@@ -69,6 +69,10 @@ def test_candidates_intervals_shrink_with_evidence():
         {"product_id": "B", "name": "SP B", "price": 100, "margin": 50, "stock": 5},
     ]
     sparse = build_candidates(products, {})
-    rich = build_candidates(products, {"A": 100, "B": 100})
+    # Evidence in the Gamma-Poisson model is MEASURED exposure alongside the
+    # clicks (30/08 audit: a numerator without a measured denominator is not
+    # evidence): 10 tick buckets of 1000 viewers pinned per product.
+    ticks = [{"viewers": 1000, "pinned_product_id": pid} for pid in ["A", "B"] * 10]
+    rich = build_candidates(products, {"A": 100, "B": 100}, ticks)
     width = lambda c: c.ci_high - c.ci_low  # noqa: E731
     assert width(rich[0]) < width(sparse[0])

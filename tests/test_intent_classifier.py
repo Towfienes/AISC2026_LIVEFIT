@@ -61,3 +61,18 @@ def test_teencode_and_no_diacritics_still_classified():
     assert classify("gia bn v shop") == "hoi_gia"
     assert classify("chot 1 don di shop") == "chot_don"
     assert classify("ship cod duoc khong") == "van_chuyen"
+
+
+def test_out_of_domain_text_mostly_abstains_to_khac():
+    """Real-VOD live-fire finding (02/09): English chat was mis-labeled
+    che_dat 12% of the time. The confidence floor must route clearly
+    non-Vietnamese text to 'khac' most of the time without hurting Vietnamese
+    accuracy (checked by the benchmark test above)."""
+    english = [
+        "gg that was insane", "what an opening", "rook takes rook",
+        "chat is this real", "top engine move", "blunder??",
+        "the price of that pawn grab", "queen trade incoming",
+        "im calling it now", "he sacrificed THE ROOK",
+    ]
+    khac_share = sum(classify(t) == "khac" for t in english) / len(english)
+    assert khac_share >= 0.7, f"chỉ {khac_share:.0%} tiếng Anh về 'khac'"

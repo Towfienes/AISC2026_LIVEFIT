@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "Nếu sử dụng LiveLift trong nghiên cứu, vui lòng trích dẫn như sau."
+title: "LiveLift: Causal Experimentation Infrastructure for Live Commerce Operations"
+type: software
+authors:
+  - name: "LiveLift Team (AISC'26)"
+repository-code: "https://github.com/bminhnemhoi/AISC2026_LIVEFIT"
+license: AGPL-3.0
+date-released: "2026-09-03"
+keywords:
+  - switchback experiments
+  - causal inference
+  - live commerce
+  - randomization inference
+  - vietnamese nlp
+abstract: >-
+  A control-desk platform that turns in-session live-commerce decisions into
+  valid randomized experiments via a two-tier switchback design, with
+  studentized randomization inference validated end-to-end on a simulator
+  calibrated against KuaiLive (SIGIR 2026).

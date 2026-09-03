@@ -39,3 +39,10 @@ web/out/
 Thumbs.db
 .vscode/
 .idea/
+
+# DB backups — operational artifacts, never in git
+backups/
+
+# scratch working files
+audit_findings.txt
+research_specs.txt

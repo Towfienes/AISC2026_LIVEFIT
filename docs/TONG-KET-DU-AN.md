@@ -1,6 +1,17 @@
 # LiveLift — Tổng kết dự án
 
-*Cập nhật 03/09/2026 · tài liệu sống — cập nhật sau mỗi cột mốc*
+*Cập nhật 07/09/2026 · tài liệu sống — cập nhật sau mỗi cột mốc*
+
+> **Cột mốc 06–07/09:** kiểm toán toàn diện 13 tác tử (6 phân hệ mã + 5 khảo sát SOTA
+> 2024–2026 + phản biện đối kháng) rồi triển khai 6 gói fix P0 trong ngày:
+> (A) ingest sống — hợp đồng sink→API, idempotency, spool + backfill, phân loại lỗi
+> 401/403; (B) web demo-to-real — WebSocket envelope, dải khối BẬT/TẮT ở live mode,
+> link đo thật, execute đúng thẻ; (C) liêm chính — `RESULTS_FREEZE_UNTIL` cưỡng chế
+> prereg §7, DesignParams vào redraw, gỡ HT trùng lặp; (D) PII đối kháng — 95 case;
+> (E) Caddy public HTTPS + backup verify; (F) pipeline nhãn LLM (`label_llm`).
+> Kết quả: 157 → **249 test pass**, gate Monte-Carlo 7/7, đã chạy demo end-to-end thật.
+> Chi tiết: `docs/research/2026-09-06-danh-gia-toan-dien-va-ke-hoach.md` · hồ sơ thi:
+> `docs/competition/`.
 
 Ba phần: **(I) đã đạt được gì** (kèm số kiểm chứng được), **(II) cần làm thêm gì**
 (ưu tiên P0/P1/P2, ghi rõ việc nào cần con người), **(III) mục tiêu & tầm nhìn khi
@@ -20,7 +31,7 @@ hoàn thành**.
 | Từ chối có kỷ luật: thiết kế không kiểm định được → `estimable=False` + lý do, **không bao giờ bịa số** | ✅ | sửa lỗi FATAL "NaN→significance" (52% dương tính giả → 6.2%) |
 | MDE gắn với **lực thống kê đo được** (margin 1.2 đo bằng sweep), within-session CV, poisson_floor | ✅ | `analysis/power.py`, gate MDE-khớp-lực |
 | Mô phỏng **hiệu chỉnh theo KuaiLive** (1.16M phòng shop thật) + đo trung thực dưới hiệu ứng lưu | ✅ | `docs/benchmarks/kuailive-calibration.md` |
-| Kiểm toán đối kháng 4 góc + 2 phản biện/phát hiện: 16/16 xử lý | ✅ | `docs/incident-log.md` (13 sự cố đủ root cause) |
+| Kiểm toán đối kháng 4 góc + 2 phản biện/phát hiện: 16/16 xử lý; đợt 2 (06/09, 13 tác tử): 5 nhóm lỗi chặn đã sửa | ✅ | `docs/incident-log.md` (18 sự cố đủ root cause) |
 | Tiền đăng ký phân tích bản mẫu đầy đủ (quy tắc hiệp biến hợp lệ, sensitivity burn-in, 2 kịch bản lực) | ✅ chưa khóa | `PREREGISTRATION.md` — khóa tuần 6 |
 
 ### I.2 Sản phẩm
@@ -40,9 +51,10 @@ hoàn thành**.
 
 ### I.3 Kỷ luật kỹ thuật
 
-157 test (4 hành trình người dùng end-to-end) · contract test web↔API sinh từ sự cố
-thật · hai store chung contract · CI 5 job + nightly gate thống kê · 13 sự cố ghi sổ
-với root cause + gate chặn tái diễn · mọi benchmark sinh lại được bằng script.
+249 test (4 hành trình người dùng end-to-end · tích hợp ingest→API · contract WS
+envelope) · contract test web↔API sinh từ sự cố thật · hai store chung contract ·
+CI 5 job + nightly gate thống kê · 18 sự cố ghi sổ với root cause + gate chặn tái
+diễn · mọi benchmark sinh lại được bằng script.
 
 ---
 

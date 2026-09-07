@@ -1,10 +1,15 @@
 """PII filter quality gate (plan §8.2, HARNESS §2).
 
 Recall gates on the labeled comment set:
-- phone / email / order / address: >= 95% each (hard project rule)
+- phone / email / order / address / social / bank: >= 95% each (hard project
+  rule; luật 91/2025/QH15)
 - name: >= 70% (honest rule-based ceiling for Vietnamese names —
   docs/research/2026-08-24-vietnamese-nlp.md; NER hook raises it later)
 Precision guard: clean comments must stay essentially untouched.
+
+The dataset includes the adversarial probe set from the 09/2026 red-team run
+(multi-separator/fullwidth/keycap phones, out-of-gazetteer cities, q7/p5
+abbreviations, lowercase names, social links, bank accounts).
 """
 
 from __future__ import annotations
@@ -18,7 +23,7 @@ import pytest
 from livelift.ingest.pii import scrub
 
 DATA = Path(__file__).parent / "data" / "pii_comments.jsonl"
-HARD_KINDS = ("phone", "email", "order", "address")
+HARD_KINDS = ("phone", "email", "order", "address", "social", "bank")
 
 
 def load_cases() -> list[dict]:
@@ -52,7 +57,7 @@ def test_recall_gates():
 def test_no_digits_survive_phone_scrub():
     """After scrubbing, no 10+ digit runs may remain in any labeled-phone text."""
     for case in load_cases():
-        if case["labels"]["phone"] == 0:
+        if case["labels"].get("phone", 0) == 0:
             continue
         out = scrub(case["text"]).text
         digits = re.sub(r"\D", "", out)
@@ -103,3 +108,127 @@ def test_result_never_carries_original_text():
 )
 def test_marketing_text_untouched(text):
     assert scrub(text).text == text
+
+
+# --- probe đối kháng 09/2026: SĐT nguỵ trang ---------------------------------
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "0901,234,567",  # separator dấu phẩy
+        "0901/234/567",  # separator gạch chéo
+        "0901 - 234 - 567",  # cụm " - "
+        "０９０１２３４５６７",  # chữ số fullwidth (NFKC)
+        "0️⃣9️⃣0️⃣1️⃣2️⃣3️⃣4️⃣5️⃣6️⃣7️⃣",  # emoji keycap
+        "sdt0901234567",  # số dính tiền tố chữ
+        "zalo0901234567",
+        "09012345 sáu bảy",  # trộn chữ số + số viết chữ
+    ],
+)
+def test_obfuscated_phone_scrubbed(text):
+    res = scrub(text)
+    assert res.counts.get("phone", 0) >= 1, f"lọt SĐT nguỵ trang: {text!r} -> {res.text!r}"
+    assert len(re.sub(r"\D", "", res.text)) < 8, f"còn sót chữ số: {res.text!r}"
+
+
+# --- probe đối kháng 09/2026: địa chỉ ---------------------------------------
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "ship về Nha Trang",  # thành phố khác tên tỉnh (gazetteer mở rộng)
+        "giao về Đà Lạt",
+        "ship về Buôn Ma Thuột",
+        "q7 có ship không",  # viết tắt quận đứng một mình
+        "giao về q.7 nha",
+        "ship về p5 giúp em",  # viết tắt phường cần ngữ cảnh
+        "mình ở bên Gò Vấp",  # từ ngữ cảnh "ở bên"
+        "về tận Gò Vấp luôn",  # từ ngữ cảnh "về tận"
+    ],
+)
+def test_adversarial_address_scrubbed(text):
+    res = scrub(text)
+    assert res.counts.get("address", 0) >= 1, f"lọt địa chỉ: {text!r} -> {res.text!r}"
+
+
+def test_p_abbreviation_needs_context():
+    """ "p5" đứng một mình dễ trùng tên model sản phẩm — chỉ bắt khi có ngữ cảnh."""
+    assert scrub("điện thoại p5 còn hàng không").counts.get("address", 0) == 0
+    assert scrub("ship về p5 giúp em").counts.get("address", 0) == 1
+
+
+# --- probe đối kháng 09/2026: tên viết thường --------------------------------
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "chị hương ơi chốt cho em màu đen",  # hô ngữ + tên thường
+        "tên em là hoa",  # tự giới thiệu viết thường
+        "nguyễn thị hoa đặt 2 hộp",  # họ tên đầy đủ viết thường
+    ],
+)
+def test_lowercase_name_scrubbed(text):
+    res = scrub(text)
+    assert res.counts.get("name", 0) >= 1, f"lọt tên viết thường: {text!r} -> {res.text!r}"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "chị ơi chốt giúp em",  # hô ngữ không kèm tên
+        "em lấy 1 cái màu đỏ",
+        "shop ơi hàng về chưa",
+        "tên gì vậy shop",
+    ],
+)
+def test_honorific_without_name_untouched(text):
+    assert scrub(text).text == text
+
+
+# --- pattern mới: MXH + số tài khoản ----------------------------------------
+
+
+def test_social_links_and_handles_scrubbed():
+    for text in (
+        "fb.com/nguyenvana",
+        "facebook.com/hoa.nguyen.123",
+        "zalo.me/0901234567",
+        "tiktok.com/@shopcuahoa",
+        "ib em @hoa_nguyen nha",
+    ):
+        res = scrub(text)
+        assert res.counts.get("social", 0) >= 1, f"lọt link MXH: {text!r} -> {res.text!r}"
+        assert "[MXH]" in res.text
+
+
+def test_email_not_double_counted_as_handle():
+    res = scrub("gửi bill qua mail hoa.nguyen89@gmail.com giúp em")
+    assert res.counts == {"email": 1}
+    assert "[EMAIL]" in res.text
+
+
+def test_bank_account_with_context_scrubbed():
+    for text in (
+        "stk 19036512345678 vietcombank",
+        "số tk: 0071000123456",
+        "số tài khoản 9704229912345678",
+        "tk: 106868686868",
+    ):
+        res = scrub(text)
+        assert res.counts.get("bank", 0) >= 1, f"lọt số tài khoản: {text!r} -> {res.text!r}"
+        assert "[STK]" in res.text
+        assert len(re.sub(r"\D", "", res.text)) < 6
+
+
+def test_bare_tai_khoan_with_amount_untouched():
+    """ "tài khoản" không có "số"/"stk" thường đi với số tiền — không được bắt."""
+    text = "nạp vào tài khoản 500000 là được nha"
+    assert scrub(text).counts.get("bank", 0) == 0
+
+
+def test_new_tokens_idempotent():
+    once = scrub("stk 19036512345678, fb.com/nguyenvana, chị hương ơi q7 nha").text
+    assert scrub(once).text == once

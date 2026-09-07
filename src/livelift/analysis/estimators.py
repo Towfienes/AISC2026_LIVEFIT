@@ -8,9 +8,13 @@ Pre-registered analysis pipeline (docs/research/2026-08-24-estimators.md):
   (:func:`livelift.core.assigner.outer.draw_assignments`) independently per
   session — the reference distribution therefore matches the actual design
   exactly (Bojinov & Shephard, JASA 2019).
-- Point estimators: Horvitz–Thompson / inverse-propensity (design-based, fewest
-  assumptions) and OLS with session fixed effects + Lin (2013) interacted
-  covariates (variance-reduced). Report both.
+- Point estimate: the difference in means. The Hájek/IPW form
+  (:func:`ht_effect`) is algebraically IDENTICAL to it at constant propensity —
+  the outer tier's p=0.5 included — so it is not an independent second
+  estimator and is never reported next to the primary number
+  (PREREGISTRATION.md §5b); it exists for the inner tier's per-block
+  propensities. OLS with session fixed effects + Lin (2013) interacted
+  covariates is the variance-reduced secondary.
 - Confidence interval: inversion of the randomization test over a grid of
   constant additive effects (Fisher CI).
 - LATE under partial compliance: Wald / IV estimator with assignment as the
@@ -27,7 +31,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from livelift.core.assigner.outer import ON, draw_assignments
+from livelift.core.assigner.outer import ON, DesignParams, draw_assignments
 
 # ---------------------------------------------------------------------------
 # Point estimators
@@ -53,6 +57,15 @@ def ht_effect(y: np.ndarray, z: np.ndarray, p: np.ndarray | float = 0.5) -> floa
     effect under study, and even flip sign (audit 30/08). Normalizing removes
     it and makes this agree with the difference in means at constant p, while
     staying valid for the per-block propensities of the inner tier.
+
+    ALGEBRAIC IDENTITY (review 06/09): at CONSTANT p — the outer tier's p=0.5
+    included — every treated block gets weight 1/p and every control block
+    1/(1-p), so each self-normalized arm mean reduces to the plain arm mean and
+    this function equals :func:`diff_in_means` exactly (bit-for-bit up to
+    float rounding). It is therefore NOT an independent second estimator there
+    and must never be published next to the difference in means as if it were
+    (PREREGISTRATION.md §5b). It earns its keep only where propensities vary
+    per block (inner tier).
     """
     y, z = np.asarray(y, float), np.asarray(z, int)
     p_arr = np.full_like(y, float(p)) if np.isscalar(p) else np.asarray(p, float)
@@ -112,6 +125,9 @@ def studentized_stat(y: np.ndarray, z: np.ndarray) -> float:
 @dataclass(frozen=True)
 class RandomizationResult:
     estimate: float  # difference in means (per-1000-viewer-second click rate)
+    # Hájek/IPW at the logged constant p=0.5 — algebraically EQUAL to
+    # ``estimate`` (see ht_effect). Kept for auditing the identity; never
+    # published as a second estimator (PREREGISTRATION.md §5b).
     estimate_ht: float
     p_value: float  # NaN when the design cannot be tested (see `estimable`)
     ci_low: float  # NaN if not estimable; -inf if the lower side is unbounded
@@ -141,6 +157,7 @@ def _redraw_matrix(
     n_draws: int,
     seed: int,
     analyzed_mask: np.ndarray | None = None,
+    design_params: dict[str, DesignParams] | None = None,
 ) -> np.ndarray:
     """(n_draws, n_analyzed) matrix of assignment redraws.
 
@@ -150,6 +167,12 @@ def _redraw_matrix(
     (never aired, too little exposure). Redrawing over only the surviving
     blocks would rerandomize a design nobody ran: different stratum sizes, a
     different rerandomization constraint, hence a wrong p-value.
+
+    ``design_params`` maps session_id → the session's persisted
+    :class:`DesignParams`; each redraw then uses that session's own p /
+    rerandomization constraint instead of the defaults. A session missing from
+    the map falls back to ``DesignParams()`` — only correct for sessions that
+    really ran the default design.
 
     ``analyzed_mask`` marks which of those scheduled blocks entered the
     analysis. Each redraw is generated over the full schedule and then
@@ -163,10 +186,19 @@ def _redraw_matrix(
     sessions: dict = {}
     for i, s in enumerate(session_ids):
         sessions.setdefault(s, []).append(i)
+    default_params = DesignParams()
+    params_of = design_params or {}
     out = np.empty((n_draws, n), dtype=np.int8)
     for d in range(n_draws):
-        for idx in sessions.values():
-            arms, _ = draw_assignments([phases[i] for i in idx], rng)
+        for sid, idx in sessions.items():
+            params = params_of.get(sid, default_params)
+            arms, _ = draw_assignments(
+                [phases[i] for i in idx],
+                rng,
+                p=params.p,
+                min_per_arm_per_phase=params.min_per_arm_per_phase,
+                max_redraws=params.max_redraws,
+            )
             for i, arm in zip(idx, arms, strict=True):
                 out[d, i] = 1 if arm == ON else 0
     if analyzed_mask is None:
@@ -234,17 +266,24 @@ def _build_zmat(
     all_phases: list[str] | None,
     all_session_ids=None,
     analyzed_mask: np.ndarray | None = None,
+    design_params: dict[str, DesignParams] | None = None,
 ) -> np.ndarray:
     """Redraw matrix over the design that was actually run.
 
     When the caller knows the FULL schedule (including blocks dropped from the
     analysis) it must pass it: the assignment mechanism operated over those
-    blocks, so the reference distribution has to as well.
+    blocks, so the reference distribution has to as well. ``design_params``
+    (session_id → persisted params) makes each redraw honor the session's own
+    design — see :func:`_redraw_matrix`.
     """
     if all_phases is not None and analyzed_mask is not None:
         sids = np.asarray(all_session_ids if all_session_ids is not None else session_ids)
-        return _redraw_matrix(sids, list(all_phases), n_draws, seed, analyzed_mask)
-    return _redraw_matrix(np.asarray(session_ids), list(phases), n_draws, seed)
+        return _redraw_matrix(
+            sids, list(all_phases), n_draws, seed, analyzed_mask, design_params
+        )
+    return _redraw_matrix(
+        np.asarray(session_ids), list(phases), n_draws, seed, design_params=design_params
+    )
 
 
 def randomization_test(
@@ -258,6 +297,7 @@ def randomization_test(
     all_phases: list[str] | None = None,
     all_session_ids: np.ndarray | None = None,
     analyzed_mask: np.ndarray | None = None,
+    design_params: dict[str, DesignParams] | None = None,
 ) -> tuple[float, np.ndarray]:
     """Two-sided randomization p-value for the sharp null of no effect.
 
@@ -268,7 +308,8 @@ def randomization_test(
     z = np.asarray(z, int)
     if zmat is None:
         zmat = _build_zmat(
-            session_ids, phases, n_draws, seed, all_phases, all_session_ids, analyzed_mask
+            session_ids, phases, n_draws, seed, all_phases, all_session_ids,
+            analyzed_mask, design_params,
         )
     p = _p_from_stats(studentized_stat(y, z), _batch_studentized(y, zmat))
     return p, zmat
@@ -286,6 +327,7 @@ def randomization_ci(
     all_phases: list[str] | None = None,
     all_session_ids: np.ndarray | None = None,
     analyzed_mask: np.ndarray | None = None,
+    design_params: dict[str, DesignParams] | None = None,
 ) -> tuple[float, float]:
     """Fisher CI: invert the randomization test over constant additive effects.
 
@@ -297,7 +339,8 @@ def randomization_ci(
     z = np.asarray(z, int)
     if zmat is None:
         zmat = _build_zmat(
-            session_ids, phases, n_draws, seed, all_phases, all_session_ids, analyzed_mask
+            session_ids, phases, n_draws, seed, all_phases, all_session_ids,
+            analyzed_mask, design_params,
         )
 
     # Undefined statistic -> no interval. Returning [tau_hat, tau_hat] here
@@ -360,6 +403,7 @@ def analyze_outer(
     all_phases: list[str] | None = None,
     all_session_ids: np.ndarray | None = None,
     analyzed_mask: np.ndarray | None = None,
+    design_params: dict[str, DesignParams] | None = None,
 ) -> RandomizationResult:
     """Full primary analysis: point estimates, p-value, Fisher CI.
 
@@ -368,6 +412,12 @@ def analyze_outer(
     little exposure). Pass them whenever blocks were excluded: the reference
     distribution must be redrawn over the design that actually ran, not over
     the surviving subset.
+
+    ``design_params`` maps session_id → the session's PERSISTED
+    :class:`DesignParams` (``livelift.api.service.rebuild_design_params``).
+    Pass it whenever any session ran a non-default design: the redraws then
+    honor that session's own p / ``min_per_arm_per_phase`` / ``max_redraws``
+    instead of silently rerandomizing the default design.
 
     When either arm holds fewer than ``MIN_BLOCKS_PER_ARM`` blocks the design
     cannot be tested at all; the result is returned with ``estimable=False``,
@@ -397,6 +447,7 @@ def analyze_outer(
     p, zmat = randomization_test(
         y, z, session_ids, phases, n_draws, seed,
         all_phases=all_phases, all_session_ids=all_session_ids, analyzed_mask=analyzed_mask,
+        design_params=design_params,
     )
     lo, hi = randomization_ci(y, z, session_ids, phases, alpha, n_draws, seed, zmat=zmat)
     return RandomizationResult(
@@ -536,9 +587,15 @@ def late_wald(y: np.ndarray, z: np.ndarray, d: np.ndarray) -> LATEResult:
 def cuped_adjust(y: np.ndarray, x: np.ndarray) -> tuple[np.ndarray, float]:
     """Classic CUPED: y_adj = y - theta*(x - mean(x)).
 
-    Returns (adjusted outcome, variance reduction share). ``x`` must be
-    pre-treatment (e.g. previous-block viewers) so the adjustment cannot leak
-    treatment effect.
+    Returns (adjusted outcome, variance reduction share). ``x`` must be fixed
+    at schedule-draw time (PREREGISTRATION.md §5c): valid covariates are
+    pre-SESSION history — viewers at room open, host / platform / weekday /
+    time-slot features — or deterministic schedule covariates (block index,
+    normalized position t/T, phase, block length). Previous-block metrics
+    (``pre_viewers``, ``pre_comment_rate``, ``pre_like_rate``) are NOT valid:
+    block k-1 was itself randomized and rerandomization correlates adjacent
+    assignments (measured −0.169), so they are post-treatment and would bias
+    the estimate.
     """
     y = np.asarray(y, float)
     x = np.asarray(x, float)

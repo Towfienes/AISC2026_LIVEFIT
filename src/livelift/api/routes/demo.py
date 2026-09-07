@@ -22,7 +22,7 @@ from livelift.api.service import StoreDep
 from livelift.core.assigner import DesignParams
 from livelift.core.features import build_ticks
 from livelift.ingest.pii import scrub
-from livelift.nlp.intent import classify
+from livelift.nlp.intent import classify_with_confidence
 from livelift.sim.simulator import SimParams, simulate_session
 
 router = APIRouter()
@@ -146,6 +146,7 @@ def _seed_one_session(
         text = rng.choice(DEMO_COMMENTS)
         result = scrub(text)
         block = service.block_at_offset(store.get_blocks(session_id), offset)
+        intent, intent_confidence = classify_with_confidence(result.text)
         store.add_comment(
             session_id,
             {
@@ -155,7 +156,8 @@ def _seed_one_session(
                 "ts": start_ts + timedelta(seconds=offset),
                 "text_scrubbed": result.text,
                 "pii_kinds": sorted({m.kind for m in result.matches}),
-                "intent_label": classify(result.text),
+                "intent_label": intent,
+                "intent_confidence": intent_confidence,
                 "sentiment": None,
             },
         )

@@ -1,0 +1,17 @@
+# DEV_PORTS — mở cổng api/web trực tiếp ra 127.0.0.1 khi phát triển
+# (mặc định docker-compose.yml KHÔNG publish cổng nào ngoài caddy 80/443).
+#
+# Cách dùng (một trong hai):
+#   docker compose -f docker-compose.yml -f docker-compose.dev-ports.yml up -d
+# hoặc thêm vào .env:
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.dev-ports.yml
+#   (Windows dùng dấu ';' thay cho ':', hoặc đặt COMPOSE_PATH_SEPARATOR)
+#
+# Chỉ bind 127.0.0.1 — không bao giờ đưa hai cổng này ra Internet.
+services:
+  api:
+    ports:
+      - "127.0.0.1:8000:8000"
+  web:
+    ports:
+      - "127.0.0.1:3000:3000"

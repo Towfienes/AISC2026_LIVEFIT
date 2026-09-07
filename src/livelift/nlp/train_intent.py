@@ -31,6 +31,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter
+from datetime import UTC, datetime
 from pathlib import Path
 
 from livelift.console import configure as _configure_console
@@ -38,6 +39,10 @@ from livelift.nlp.intent import classify_keywords
 
 DATA = Path(__file__).parent / "data" / "intent_dataset.jsonl"
 MODEL_PATH = Path(__file__).parent / "model" / "intent_clf.joblib"
+# Sidecar metadata: which sklearn produced the artifact. intent.py compares
+# it against the running sklearn and warns loudly on mismatch (joblib
+# pipelines are not guaranteed portable across sklearn versions).
+META_PATH = MODEL_PATH.with_suffix(".meta.json")
 LABELS = ["hoi_gia", "hoi_size", "che_dat", "chot_don", "van_chuyen", "khac"]
 SEED = 2026
 
@@ -66,17 +71,26 @@ def build_pipeline():
                 FeatureUnion(
                     [
                         # char n-grams survive teencode + dropped diacritics
-                        ("char", TfidfVectorizer(analyzer="char_wb", ngram_range=(2, 5),
-                                                 min_df=2, sublinear_tf=True)),
-                        ("word", TfidfVectorizer(analyzer="word", ngram_range=(1, 2),
-                                                 min_df=2, sublinear_tf=True)),
+                        (
+                            "char",
+                            TfidfVectorizer(
+                                analyzer="char_wb", ngram_range=(2, 5), min_df=2, sublinear_tf=True
+                            ),
+                        ),
+                        (
+                            "word",
+                            TfidfVectorizer(
+                                analyzer="word", ngram_range=(1, 2), min_df=2, sublinear_tf=True
+                            ),
+                        ),
                     ]
                 ),
             ),
             (
                 "clf",
-                LogisticRegression(max_iter=2000, C=4.0, class_weight="balanced",
-                                   random_state=SEED),
+                LogisticRegression(
+                    max_iter=2000, C=4.0, class_weight="balanced", random_state=SEED
+                ),
             ),
         ]
     )
@@ -87,12 +101,14 @@ def evaluate(y_true: list[str], y_pred: list[str], name: str) -> dict:
 
     macro = f1_score(y_true, y_pred, average="macro", labels=LABELS, zero_division=0)
     acc = sum(a == b for a, b in zip(y_true, y_pred, strict=True)) / len(y_true)
-    report = classification_report(
-        y_true, y_pred, labels=LABELS, zero_division=0, output_dict=True
-    )
+    report = classification_report(y_true, y_pred, labels=LABELS, zero_division=0, output_dict=True)
     per_class = {lb: round(report[lb]["f1-score"], 3) for lb in LABELS}
-    return {"name": name, "macro_f1": round(macro, 3), "accuracy": round(acc, 3),
-            "per_class_f1": per_class}
+    return {
+        "name": name,
+        "macro_f1": round(macro, 3),
+        "accuracy": round(acc, 3),
+        "per_class_f1": per_class,
+    }
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -133,10 +149,22 @@ def main(argv: list[str] | None = None) -> int:
         final.fit(texts, labels)
         MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
         import joblib
+        import sklearn
 
         joblib.dump(final, MODEL_PATH, compress=9)
+        meta = {
+            "sklearn_version": sklearn.__version__,
+            "trained_at_utc": datetime.now(UTC).isoformat(timespec="seconds"),
+            "n_samples": len(texts),
+            "labels": LABELS,
+            "seed": SEED,
+        }
+        META_PATH.write_text(
+            json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
         size_kb = MODEL_PATH.stat().st_size / 1024
         print(f"\nmodel saved: {MODEL_PATH.name} ({size_kb:.0f} KB)")
+        print(f"metadata saved: {META_PATH.name} (sklearn {meta['sklearn_version']})")
 
     print("\nGhi các con số này vào docs/benchmarks/intent-classifier.md kèm nguồn gốc dữ liệu.")
     return 0

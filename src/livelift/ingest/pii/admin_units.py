@@ -3,7 +3,9 @@
 Includes BOTH the pre-2025 63-province names and the post-merger names, because
 viewers keep using old names in comments ("ship về Bình Dương nha shop" long
 after Bình Dương merged into TP.HCM). District-level names cover the largest
-metro areas where most e-commerce buyers are; the address detector combines
+metro areas where most e-commerce buyers are, and CITIES adds well-known
+cities/towns whose names differ from their province ("ship về Nha Trang",
+"giao về Đà Lạt" — 09/2026 red-team leaks); the address detector combines
 this vocabulary with shipping-context words, so coverage does not need to be
 exhaustive — street-level patterns are caught by the keyword rules in
 ``patterns.py``.
@@ -152,6 +154,118 @@ DISTRICTS: tuple[str, ...] = (
 )
 
 
+CITIES: tuple[str, ...] = (
+    # well-known cities/towns whose names differ from their province — viewers
+    # say "ship về Nha Trang", not "ship về Khánh Hòa". Not exhaustive: every
+    # match still requires a shipping-context word right before it.
+    "nha trang",
+    "cam ranh",
+    "ninh hòa",
+    "đà lạt",
+    "bảo lộc",
+    "phan thiết",
+    "mũi né",
+    "phan rang",
+    "tháp chàm",
+    "buôn ma thuột",
+    "buôn hồ",
+    "pleiku",
+    "an khê",
+    "ayun pa",
+    "kon tum",
+    "gia nghĩa",
+    "quy nhơn",
+    "an nhơn",
+    "hoài nhơn",
+    "tuy hòa",
+    "sông cầu",
+    "tam kỳ",
+    "hội an",
+    "điện bàn",
+    "hạ long",
+    "cẩm phả",
+    "uông bí",
+    "móng cái",
+    "đông triều",
+    "quảng yên",
+    "sa pa",
+    "mộc châu",
+    "tam đảo",
+    "điện biên phủ",
+    "việt trì",
+    "vĩnh yên",
+    "phúc yên",
+    "sông công",
+    "phổ yên",
+    "chí linh",
+    "kinh môn",
+    "tam điệp",
+    "phủ lý",
+    "sầm sơn",
+    "bỉm sơn",
+    "nghi sơn",
+    "vinh",
+    "cửa lò",
+    "hồng lĩnh",
+    "kỳ anh",
+    "đồng hới",
+    "ba đồn",
+    "đông hà",
+    "đồ sơn",
+    "cát bà",
+    "thủy nguyên",
+    "đồng xoài",
+    "chơn thành",
+    "bình long",
+    "phước long",
+    "long khánh",
+    "nhơn trạch",
+    "long thành",
+    "trảng bom",
+    "bến cát",
+    "tân uyên",
+    "bà rịa",
+    "phú mỹ",
+    "tân an",
+    "kiến tường",
+    "đức hòa",
+    "cần giuộc",
+    "mỹ tho",
+    "gò công",
+    "cai lậy",
+    "cao lãnh",
+    "sa đéc",
+    "hồng ngự",
+    "long xuyên",
+    "châu đốc",
+    "tân châu",
+    "rạch giá",
+    "hà tiên",
+    "phú quốc",
+    "vị thanh",
+    "ngã bảy",
+    "thốt nốt",
+    "ô môn",
+    "bình minh",
+    "giá rai",
+    "năm căn",
+    # Hà Nội outer districts not yet in DISTRICTS
+    "mê linh",
+    "sóc sơn",
+    "thường tín",
+    "thanh oai",
+    "quốc oai",
+    "chương mỹ",
+    "đan phượng",
+    "phú xuyên",
+    "ứng hòa",
+    "mỹ đức",
+    "ba vì",
+    "phúc thọ",
+    "thạch thất",
+)
+
+
 def _strip_diacritics(s: str) -> str:
     s = s.replace("đ", "d").replace("Đ", "D")
     nfkd = unicodedata.normalize("NFD", s)
@@ -166,7 +280,9 @@ def _variants(names: tuple[str, ...]) -> set[str]:
     return out
 
 
-ALL_UNIT_VARIANTS: frozenset[str] = frozenset(_variants(PROVINCES) | _variants(DISTRICTS))
+ALL_UNIT_VARIANTS: frozenset[str] = frozenset(
+    _variants(PROVINCES) | _variants(DISTRICTS) | _variants(CITIES)
+)
 
 # One alternation regex over all unit names, longest first so "bà rịa vũng tàu"
 # wins over "vũng tàu". Word-ish boundaries: names are letters/digits/spaces.

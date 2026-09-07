@@ -7,7 +7,12 @@ Inner tier (``inner``): action-level randomization among candidate products
 whose estimate intervals overlap, with logged propensity.
 """
 
-from livelift.core.assigner.inner import Candidate, InnerDecision, choose_action
+from livelift.core.assigner.inner import (
+    Candidate,
+    InnerDecision,
+    choose_action,
+    intervals_overlap,
+)
 from livelift.core.assigner.outer import (
     Block,
     DesignParams,
@@ -25,4 +30,5 @@ __all__ = [
     "choose_action",
     "draw_assignments",
     "generate_schedule",
+    "intervals_overlap",
 ]

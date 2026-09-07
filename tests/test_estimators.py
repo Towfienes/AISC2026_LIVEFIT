@@ -19,7 +19,7 @@ from livelift.analysis.estimators import (
     randomization_test,
     studentized_stat,
 )
-from livelift.core.assigner.outer import draw_assignments
+from livelift.core.assigner.outer import DesignParams, draw_assignments
 
 
 def _make_data(n_sessions=8, blocks_per=12, tau=0.0, seed=0):
@@ -49,6 +49,17 @@ def test_diff_and_ht_agree_at_half_propensity():
     h = ht_effect(y, z, 0.5)
     assert d == pytest.approx(1.0, abs=0.5)
     assert h == pytest.approx(d, abs=0.6)
+
+
+def test_ht_is_algebraically_identical_to_diff_in_means_at_constant_p():
+    """Review 06/09: at CONSTANT p the Hájek weights collapse to the plain arm
+    means, so ht_effect ≡ diff_in_means (any constant p, not just 0.5). It is
+    therefore NOT a second independent estimator and the API report no longer
+    publishes it next to the primary number (PREREGISTRATION §5b)."""
+    y, z, _, _ = _make_data(tau=1.0, seed=9)
+    d = diff_in_means(y, z)
+    for p in (0.5, 0.3, 0.7):
+        assert ht_effect(y, z, p) == pytest.approx(d, rel=1e-12, abs=1e-12)
 
 
 def test_studentized_stat_sign_and_scale():
@@ -217,6 +228,61 @@ def test_degenerate_redraws_are_dropped_not_counted_as_zero():
     assert np.isfinite(t[0])
     assert np.isnan(t[1])
     assert np.isnan(t[2])
+
+
+# ---------------------------------------------------------------------------
+# Review 06/09 — redraws must run the SAVED design, not the default one
+# ---------------------------------------------------------------------------
+
+
+def _phase_counts(zmat, phases, phase):
+    idx = [i for i, ph in enumerate(phases) if ph == phase]
+    n_on = zmat[:, idx].sum(axis=1)
+    return n_on, len(idx) - n_on
+
+
+def test_redraws_respect_saved_min_per_arm_per_phase():
+    """A session persisted with min_per_arm_per_phase=3 must be re-drawn under
+    that constraint — redrawing the default (2) builds the reference
+    distribution of a design nobody ran."""
+    from livelift.analysis.estimators import _redraw_matrix
+
+    phases = ["early"] * 6 + ["mid"] * 6 + ["late"] * 6
+    sids = np.array(["s0"] * len(phases))
+    params = {"s0": DesignParams(min_per_arm_per_phase=3)}
+
+    zmat = _redraw_matrix(sids, phases, n_draws=200, seed=11, design_params=params)
+    for ph in ("early", "mid", "late"):
+        n_on, n_off = _phase_counts(zmat, phases, ph)
+        assert (n_on >= 3).all(), f"redraw vi phạm ràng buộc ≥3 BẬT ở {ph}"
+        assert (n_off >= 3).all(), f"redraw vi phạm ràng buộc ≥3 TẮT ở {ph}"
+
+    # Control: the DEFAULT design (min 2) does violate ≥3 in some redraws, so
+    # the assertion above genuinely distinguishes the two designs.
+    zmat_default = _redraw_matrix(sids, phases, n_draws=200, seed=11)
+    violates = False
+    for ph in ("early", "mid", "late"):
+        n_on, n_off = _phase_counts(zmat_default, phases, ph)
+        violates = violates or bool((n_on < 3).any() or (n_off < 3).any())
+    assert violates, "thiết kế mặc định lẽ ra phải vi phạm ≥3 — test mất khả năng phân biệt"
+
+
+def test_randomization_test_threads_design_params_over_full_schedule():
+    """The reports path (full schedule + analyzed mask) must also redraw under
+    the saved per-session design."""
+    y, z, sids, phases = _make_data(n_sessions=1, blocks_per=18, tau=0.0, seed=12)
+    params = {"s0": DesignParams(min_per_arm_per_phase=3)}
+    _, zmat = randomization_test(
+        y, z, sids, phases, n_draws=100, seed=12,
+        all_phases=phases, all_session_ids=sids,
+        analyzed_mask=np.ones(len(y), dtype=bool),
+        design_params=params,
+    )
+    for ph in set(phases):
+        n_on, n_off = _phase_counts(zmat, phases, ph)
+        required = min(3, phases.count(ph) // 2)
+        assert (n_on >= required).all()
+        assert (n_off >= required).all()
 
 
 @pytest.mark.slow

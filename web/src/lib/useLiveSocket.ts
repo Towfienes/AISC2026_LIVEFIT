@@ -43,11 +43,29 @@ export function useLiveSocket(
         setStatus("open");
       };
       ws.onmessage = (ev) => {
+        // A malformed frame or a handler bug must NOT be swallowed silently:
+        // that is exactly how the {type,data} envelope mismatch stayed
+        // invisible while the desk looked "connected". Log and move on.
+        let msg: WsMessage;
         try {
-          const msg = JSON.parse(ev.data as string) as WsMessage;
+          const parsed: unknown = JSON.parse(ev.data as string);
+          if (
+            typeof parsed !== "object" ||
+            parsed === null ||
+            typeof (parsed as { type?: unknown }).type !== "string"
+          ) {
+            console.warn("[livelift] Khung WebSocket sai hợp đồng {type, data} — bỏ qua:", parsed);
+            return;
+          }
+          msg = parsed as WsMessage;
+        } catch (e) {
+          console.warn("[livelift] Không đọc được khung WebSocket (JSON hỏng) — bỏ qua:", e);
+          return;
+        }
+        try {
           handlerRef.current(msg);
-        } catch {
-          // ignore malformed frames
+        } catch (e) {
+          console.warn(`[livelift] Lỗi khi xử lý thông điệp WebSocket loại "${msg.type}":`, e);
         }
       };
       ws.onclose = () => {

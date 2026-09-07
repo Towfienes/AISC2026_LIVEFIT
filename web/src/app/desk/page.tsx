@@ -28,7 +28,88 @@ import Card from "@/components/ui/Card";
 import EmptyState from "@/components/ui/EmptyState";
 import SectionTitle from "@/components/ui/SectionTitle";
 import Skeleton from "@/components/ui/Skeleton";
+import { fmtMinSec } from "@/lib/format";
+import type { BlockInfo, CurrentBlock } from "@/lib/types";
 import { useDesk } from "@/lib/useDesk";
+
+const PHASE_LABEL: Record<BlockInfo["phase"], string> = {
+  early: "đầu phiên",
+  mid: "giữa phiên",
+  late: "cuối phiên",
+};
+
+/**
+ * Current-block line — OPERATOR VIEW ONLY (the desk is the operator screen;
+ * the /host screen is blinded and must never render anything like this).
+ * The countdown ticks with the local 1 s clock; the server state (polled +
+ * pushed) stays the source of truth for index/assignment.
+ */
+function CurrentBlockLine({
+  blocks,
+  currentBlock,
+  elapsedS,
+}: {
+  blocks: BlockInfo[];
+  currentBlock: CurrentBlock | null;
+  elapsedS: number;
+}) {
+  // Derive from the schedule so the line also works in mock mode; fall back
+  // to the server's snapshot when the schedule has not loaded yet.
+  const local =
+    blocks.find((b) => elapsedS >= b.start_offset_s && elapsedS < b.end_offset_s) ?? null;
+
+  let index: number | null = null;
+  let assignment: "ON" | "OFF" | null = null;
+  let washout = false;
+  let phase: BlockInfo["phase"] | null = null;
+  let remainingS: number | null = null;
+
+  if (local) {
+    index = local.block_index;
+    assignment = local.assignment;
+    washout = local.is_washout;
+    phase = local.phase;
+    remainingS = Math.max(0, local.end_offset_s - elapsedS);
+  } else if (currentBlock) {
+    index = currentBlock.index;
+    assignment = currentBlock.assignment;
+    washout = currentBlock.is_washout;
+    phase = currentBlock.phase;
+    remainingS = Math.max(0, currentBlock.seconds_remaining);
+  }
+
+  if (index == null) {
+    return (
+      <p className="mb-1 text-[11px] text-mut">
+        Ngoài khung khối thí nghiệm — chưa tới khối đầu hoặc đã qua khối cuối.
+      </p>
+    );
+  }
+
+  return (
+    <p className="mb-1 flex flex-wrap items-baseline gap-x-2 text-[11px] text-sec">
+      {washout ? (
+        <span>
+          Đang trong khoảng <strong className="text-ink">trôi (washout)</strong>
+        </span>
+      ) : (
+        <span>
+          Khối hiện tại:{" "}
+          <strong className="text-ink">
+            #{index + 1} · {assignment === "ON" ? "BẬT" : "TẮT"}
+          </strong>
+          {phase ? <span className="text-mut"> · {PHASE_LABEL[phase]}</span> : null}
+        </span>
+      )}
+      {remainingS != null ? (
+        <span className="text-mut">
+          còn <strong className="tnum text-ink">{fmtMinSec(remainingS)}</strong> đến ranh giới
+          khối kế
+        </span>
+      ) : null}
+    </p>
+  );
+}
 
 /** Mirror of the three-zone layout while the first connection is racing. */
 function DeskSkeleton() {
@@ -105,7 +186,27 @@ function EmptyDesk({
 export default function DeskPage() {
   const [demoMode, setDemoMode] = useState(false);
   const [showAnyway, setShowAnyway] = useState(false);
+  const [endBusy, setEndBusy] = useState(false);
+  const [endErr, setEndErr] = useState<string | null>(null);
   const desk = useDesk({ forceMock: demoMode });
+
+  const endSession = () => {
+    if (
+      !window.confirm(
+        "Kết thúc phiên ngay bây giờ? Các khối chưa chạy sẽ không được tính vào kết quả.",
+      )
+    ) {
+      return;
+    }
+    setEndBusy(true);
+    setEndErr(null);
+    desk
+      .endSession()
+      .catch((e: unknown) => {
+        setEndErr(e instanceof Error ? e.message : "Không kết thúc được phiên — thử lại.");
+      })
+      .finally(() => setEndBusy(false));
+  };
 
   const hasLive = desk.sessions.some((s) => s.status === "live");
   const showEmpty =
@@ -139,6 +240,9 @@ export default function DeskPage() {
             mode={desk.mode}
             onSetMode={desk.setMode}
             canToggleMode={desk.canToggleMode}
+            onEndSession={endSession}
+            canEndSession={desk.canEndSession}
+            endBusy={endBusy}
           />
 
           {/* degraded-data banner: slim, amber, right under the toolbar */}
@@ -146,6 +250,12 @@ export default function DeskPage() {
             <Callout tone="warn" slim className="shrink-0">
               <strong>Dữ liệu suy giảm</strong> — {desk.degraded}. Bàn vẫn chạy với các nguồn còn
               lại.
+            </Callout>
+          )}
+
+          {endErr && (
+            <Callout tone="critical" slim className="shrink-0">
+              {endErr}
             </Callout>
           )}
 
@@ -166,6 +276,11 @@ export default function DeskPage() {
               <RhythmChart ticks={desk.ticks} />
             </div>
             <div className="mt-2 shrink-0">
+              <CurrentBlockLine
+                blocks={desk.blocks}
+                currentBlock={desk.currentBlock}
+                elapsedS={desk.elapsedS}
+              />
               <BlockStrip
                 blocks={desk.blocks}
                 durationS={desk.durationS}

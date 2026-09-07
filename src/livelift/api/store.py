@@ -176,6 +176,9 @@ class InMemoryStore:
         self._blocks: dict[str, list[dict[str, Any]]] = {}
         self._ticks: dict[str, list[dict[str, Any]]] = {}
         self._comments: dict[str, list[dict[str, Any]]] = {}
+        # (platform, ext_id) -> stored row, per session: comment idempotency
+        # (mirrors the partial unique index in migration 0002).
+        self._comment_keys: dict[str, dict[tuple[str, str], dict[str, Any]]] = {}
         self._clicks: dict[str, list[dict[str, Any]]] = {}
         self._interventions: dict[str, list[dict[str, Any]]] = {}
         self._orders: dict[str, list[dict[str, Any]]] = {}
@@ -261,7 +264,15 @@ class InMemoryStore:
 
     # -- ticks -------------------------------------------------------------
     def add_tick(self, session_id: str, row: dict[str, Any]) -> dict[str, Any]:
-        self._ticks.setdefault(session_id, []).append(dict(row))
+        # Upsert on ts_bucket — the same contract as Postgres' ON CONFLICT
+        # (session_id, ts_bucket) DO UPDATE, so re-sending a tick (runner
+        # restart, spool replay) never duplicates a bucket in either backend.
+        rows = self._ticks.setdefault(session_id, [])
+        for existing in rows:
+            if existing["ts_bucket"] == row["ts_bucket"]:
+                existing.update(row)
+                return dict(existing)
+        rows.append(dict(row))
         return dict(row)
 
     def list_ticks(self, session_id: str) -> list[dict[str, Any]]:
@@ -269,8 +280,19 @@ class InMemoryStore:
 
     # -- comments ----------------------------------------------------------
     def add_comment(self, session_id: str, row: dict[str, Any]) -> dict[str, Any]:
-        self._comments.setdefault(session_id, []).append(dict(row))
-        return dict(row)
+        # Idempotency on (platform, ext_id) when both are present: a duplicate
+        # delivery returns the EXISTING row (same contract as the Postgres
+        # partial unique index + ON CONFLICT DO NOTHING in migration 0002).
+        platform, ext_id = row.get("platform"), row.get("ext_id")
+        stored = dict(row)
+        if platform and ext_id:
+            keys = self._comment_keys.setdefault(session_id, {})
+            existing = keys.get((platform, ext_id))
+            if existing is not None:
+                return dict(existing)
+            keys[(platform, ext_id)] = stored
+        self._comments.setdefault(session_id, []).append(stored)
+        return dict(stored)
 
     def list_comments(self, session_id: str) -> list[dict[str, Any]]:
         return sorted((dict(c) for c in self._comments.get(session_id, [])), key=_by_ts("ts"))
@@ -559,24 +581,42 @@ class PostgresStore:
 
     # -- comments ----------------------------------------------------------
     def add_comment(self, session_id: str, row: dict[str, Any]) -> dict[str, Any]:
+        # Idempotency (migration 0002): the partial unique index on
+        # (session_id, platform, ext_id) WHERE ext_id IS NOT NULL turns a
+        # duplicate delivery into DO NOTHING; we then return the existing row
+        # so the API answer is identical either way.
         out = self._one(
             """
             INSERT INTO comment_event
-                (comment_id, session_id, block_id, ts, text_scrubbed, pii_kinds,
-                 intent_label, sentiment)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING *
+                (comment_id, session_id, block_id, ts, platform, ext_id,
+                 text_scrubbed, pii_kinds, intent_label, intent_confidence, sentiment)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (session_id, platform, ext_id) WHERE ext_id IS NOT NULL
+                DO NOTHING
+            RETURNING *
             """,
             (
                 row["comment_id"],
                 session_id,
                 row.get("block_id"),
                 row["ts"],
+                row.get("platform"),
+                row.get("ext_id"),
                 row["text_scrubbed"],
                 list(row.get("pii_kinds", [])),
                 row.get("intent_label"),
+                row.get("intent_confidence"),
                 row.get("sentiment"),
             ),
         )
+        if out is None:  # duplicate — fetch the row that won
+            out = self._one(
+                """
+                SELECT * FROM comment_event
+                WHERE session_id = %s AND platform = %s AND ext_id = %s
+                """,
+                (session_id, row.get("platform"), row.get("ext_id")),
+            )
         assert out is not None
         return out
 

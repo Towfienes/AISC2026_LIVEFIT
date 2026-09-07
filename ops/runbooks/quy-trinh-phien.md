@@ -29,7 +29,7 @@ Phải chuẩn hóa đến mức người chưa từng làm cũng chạy đượ
 | T−24h | Chốt danh mục sản phẩm, kiểm tra tồn kho, nạp vào bảng `product` | SP |
 | T−24h | **Tạo shortlink UTM cho từng sản phẩm của phiên** (xem 1.1) | KS |
 | T−24h | Đặt quảng cáo phiên live, ngân sách theo kế hoạch | SP |
-| T−2h | Kiểm tra pipeline: ingest chạy, CSDL ghi được, bộ lọc PII hoạt động (bơm 3 bình luận thử có SĐT giả → phải ra `[SĐT]`) | KS |
+| T−2h | Kiểm tra pipeline: **khởi động runner ingest và xác nhận heartbeat** (xem 1.4), CSDL ghi được, bộ lọc PII hoạt động (bơm 3 bình luận thử có SĐT giả → phải ra `[SĐT]`) | KS |
 | T−1h | **Sinh lịch gán khối và lưu vào `experiment_block`** (xem 1.2) | TN |
 | T−30' | Kiểm tra thiết bị: camera, âm thanh, ánh sáng, mạng dự phòng | SP |
 | T−15' | Mở bàn trung control, xác nhận chế độ đúng (tự động cho Live Lab); **mở màn hình host ở route `/host`** và kiểm tra giao thức làm mù (xem 1.3) | SP |
@@ -44,7 +44,8 @@ timestamp server và gán về khối đang chạy.
 Với **mỗi sản phẩm** trong danh mục phiên, gọi API tạo shortlink:
 
 ```bash
-curl -X POST http://localhost:8000/shortlinks \
+# API đi qua Caddy với tiền tố /api; dev trên cùng máy: http://localhost/api/shortlinks
+curl -X POST https://<DOMAIN>/api/shortlinks \
   -H "Content-Type: application/json" \
   -d '{
     "product_id": "SKU-001",
@@ -53,9 +54,10 @@ curl -X POST http://localhost:8000/shortlinks \
   }'
 ```
 
-Kiểm tra từng link: mở `http://<host>/r/{code}` → phải chuyển hướng đúng trang sản phẩm
-và sinh một dòng `click_event`. Link này là link **duy nhất** được ghim trong bình luận /
-overlay trong phiên — tuyệt đối không dán link gốc (link gốc không đo được).
+Kiểm tra từng link: mở `https://<DOMAIN>/r/{code}` **từ mạng ngoài (4G trên điện thoại)**
+→ phải chuyển hướng đúng trang sản phẩm và sinh một dòng `click_event`. Link này là link
+**duy nhất** được ghim trong bình luận / overlay trong phiên — tuyệt đối không dán link
+gốc (link gốc không đo được).
 
 ### 1.2 Sinh lịch gán khối (T−1h) — BẮT BUỘC trước phát sóng
 
@@ -89,6 +91,57 @@ Host hào hứng hơn trong khối BẬT là kênh nhiễu trực tiếp lên t�
 - Mọi vi phạm làm mù (host nhìn thấy màn hình operator, ai đó nói "sắp đổi khối"...) phải
   ghi vào nhật ký phiên, mục **"Sự cố làm mù"** — trung thực, không giấu; khối liên quan
   sẽ được cân nhắc `excluded_reason` khi phân tích.
+
+### 1.4 Khởi động ingest (T−2h) — heartbeat và xử lý khi runner chết
+
+Runner ingest chạy **một tiến trình cho mỗi phiên live** (trên máy vận hành hoặc VPS),
+đọc bình luận + số người xem từ nền tảng, lọc PII ngay trong tiến trình rồi mới gửi về API:
+
+```bash
+# Env cần thiết (đọc từ .env tại thư mục chạy lệnh):
+#   - YouTube:  YOUTUBE_API_KEY
+#   - Facebook: FACEBOOK_PAGE_ACCESS_TOKEN (+ FACEBOOK_GRAPH_VERSION)
+#   - INGEST_TOKEN nếu API bật bảo vệ endpoint ghi (khuyến nghị môi trường thật)
+python -m livelift.ingest.runner \
+  --platform youtube \
+  --source-id <VIDEO_ID> \
+  --session-id <session_id> \
+  --api-url https://<DOMAIN>/api
+```
+
+- `--platform`: `youtube` hoặc `facebook`; `--source-id` là YouTube video id /
+  Facebook live-video id.
+- `--api-url`: qua Caddy dùng `https://<DOMAIN>/api`; dev trên cùng máy dùng
+  `http://localhost/api` (hoặc `http://localhost:8000` khi bật cổng dev DEV_PORTS).
+
+**Kiểm tra heartbeat:** mỗi 60 giây runner in đúng một dòng dạng:
+
+```
+heartbeat: comments seen=12 posted=12 | ticks seen=4 posted=4 | failures=0 | lỗi gần nhất: không có
+```
+
+Điều kiện đạt ở T−2h (sau khi bơm 3 bình luận thử): có dòng heartbeat, `posted` bám sát
+`seen`, `failures=0`, `lỗi gần nhất: không có`. Nếu `lỗi gần nhất` khác "không có"
+(token hết hạn, cạn quota...) → xử lý xong mới được phát.
+
+**Khi runner chết giữa phiên:**
+
+1. **Khởi động lại ngay** bằng đúng lệnh trên. Server có khóa idempotency
+   (comment theo `(platform, ext_id)`, tick theo `(session, ts_bucket)`) nên gửi trùng
+   an toàn — không sinh bản ghi đôi.
+2. **Backfill phần API không nhận được:** những bản ghi gửi hỏng đã nằm trong spool
+   `data/spool/<session_id>.jsonl` (chỉ chứa dữ liệu đã lọc PII). Gửi lại bằng:
+
+   ```bash
+   python -m livelift.ingest.spool_replay data/spool/<session_id>.jsonl \
+     --api-base https://<DOMAIN>/api
+   ```
+
+   Exit code 0 = mọi bản ghi đã vào API; exit code 1 = còn bản ghi lỗi — chạy lại
+   lệnh sau khi API ổn định (gửi trùng vẫn an toàn nhờ idempotency).
+3. **Ghi sự cố vào nhật ký phiên** (thời điểm chết / khởi động lại). QC T+30' sẽ soi
+   khoảng trống dữ liệu; khối bị ảnh hưởng cân nhắc `excluded_reason` theo HARNESS §3
+   — không bao giờ sửa tay số liệu.
 
 ## 2. Trong phiên
 

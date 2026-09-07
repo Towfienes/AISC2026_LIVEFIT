@@ -32,6 +32,7 @@ import {
   endSession,
   listProducts,
   listSessions,
+  PUBLIC_API_BASE,
   startSession,
 } from "@/lib/api";
 import { fmtVnd } from "@/lib/format";
@@ -127,6 +128,21 @@ function StepItem({
 
 const inputCls = `${fieldCls} w-full px-2.5 py-1.5 text-sm`;
 
+/**
+ * Only an absolute http(s) URL is a usable product link: the /r/{code}
+ * shortlink 302s a VIEWER's browser there, so a relative path, a bare domain
+ * without scheme, or a typo would break the measured click at the worst
+ * possible moment (mid-broadcast).
+ */
+function isValidProductUrl(value: string): boolean {
+  try {
+    const u = new URL(value);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 export default function ChayPhienPage() {
   const [step, setStep] = useState<Step>(1);
   const [busy, setBusy] = useState(false);
@@ -164,6 +180,21 @@ export default function ChayPhienPage() {
   const [schedWarning, setSchedWarning] = useState<string | null>(null);
 
   const [links, setLinks] = useState<{ code: string; product_id: string }[]>([]);
+  /** URL trang sản phẩm thật, nhập ở bước 1 — đích của link đo /r/{code}. */
+  const [productUrls, setProductUrls] = useState<Record<string, string>>({});
+  /** Ghi chú sau khi lên sóng: bao nhiêu link đo được tạo / bị bỏ qua. */
+  const [linkNote, setLinkNote] = useState<string | null>(null);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  const copyLink = async (code: string) => {
+    try {
+      await navigator.clipboard.writeText(`${PUBLIC_API_BASE}/r/${code}`);
+      setCopiedCode(code);
+      setTimeout(() => setCopiedCode((c) => (c === code ? null : c)), 2000);
+    } catch {
+      setErr("Không chép được link — trình duyệt chặn quyền bộ nhớ tạm, hãy chọn và chép thủ công.");
+    }
+  };
 
   const refreshProducts = useCallback(async () => {
     try {
@@ -237,20 +268,35 @@ export default function ChayPhienPage() {
       if (!session) return;
       const s = await startSession(session.session_id);
       setSession(s);
+      // Chỉ tạo link đo cho sản phẩm đã có URL thật hợp lệ (nhập ở bước 1):
+      // một link trỏ về đích giả sẽ làm hỏng đúng khoảnh khắc người xem bấm.
+      const withUrl = products
+        .map((p) => ({ product_id: p.product_id, url: (productUrls[p.product_id] ?? "").trim() }))
+        .filter((x) => isValidProductUrl(x.url))
+        .slice(0, 5);
       const created: { code: string; product_id: string }[] = [];
-      for (const p of products.slice(0, 5)) {
+      for (const { product_id, url } of withUrl) {
         try {
           const l = await createShortlink({
-            product_id: p.product_id,
+            product_id,
             session_id: session.session_id,
-            target_url: `https://shop.example/${encodeURIComponent(p.product_id)}`,
+            target_url: url,
           });
-          created.push({ code: l.code, product_id: p.product_id });
+          created.push({ code: l.code, product_id });
         } catch {
           // one bad link must not block going live
         }
       }
       setLinks(created);
+      const skipped = products.length - created.length;
+      setLinkNote(
+        created.length === 0
+          ? "Chưa tạo được link đo nào — bạn chưa nhập link trang sản phẩm hợp lệ ở bước 1. " +
+              "Phiên vẫn chạy nhưng sẽ không đo được lượt nhấp (biến kết quả chính)."
+          : skipped > 0
+            ? `Đã tạo ${created.length} link đo; ${skipped} sản phẩm bị bỏ qua vì thiếu link trang sản phẩm hợp lệ.`
+            : null,
+      );
       setStep(4);
     });
 
@@ -298,7 +344,7 @@ export default function ChayPhienPage() {
             n={1}
             state={stateOf(1, products.length > 0)}
             title="Danh mục sản phẩm"
-            hint="Hệ thống cần biết bán gì để đề xuất ghim sản phẩm và đo lượt nhấp."
+            hint="Hệ thống cần biết bán gì để đề xuất ghim sản phẩm và đo lượt nhấp. Nhập thêm link trang sản phẩm thật — link đo dán vào bình luận ghim sẽ chuyển hướng người xem tới đó."
           >
             <div className="mt-3">
               {productsLoading ? (
@@ -308,16 +354,43 @@ export default function ChayPhienPage() {
                   <Skeleton className="h-5 w-2/3" />
                 </div>
               ) : products.length > 0 ? (
-                <ul className="mb-3 space-y-1 text-[13px]">
-                  {products.map((p) => (
-                    <li
-                      key={p.product_id}
-                      className="flex justify-between gap-3 rounded px-1 py-0.5 text-sec transition-colors duration-150 hover:bg-raised"
-                    >
-                      <span className="truncate text-ink">{p.name}</span>
-                      <span className="tnum shrink-0">{fmtVnd(p.price)}</span>
-                    </li>
-                  ))}
+                <ul className="mb-3 space-y-2 text-[13px]">
+                  {products.map((p) => {
+                    const url = productUrls[p.product_id] ?? "";
+                    const invalid = url.trim() !== "" && !isValidProductUrl(url.trim());
+                    return (
+                      <li
+                        key={p.product_id}
+                        className="rounded px-1 py-1 text-sec transition-colors duration-150 hover:bg-raised"
+                      >
+                        <div className="flex justify-between gap-3">
+                          <span className="truncate text-ink">{p.name}</span>
+                          <span className="tnum shrink-0">{fmtVnd(p.price)}</span>
+                        </div>
+                        <input
+                          className={`${inputCls} mt-1 text-xs ${invalid ? "border-critical/60" : ""}`}
+                          type="url"
+                          inputMode="url"
+                          placeholder="Link trang sản phẩm thật (vd https://shop.cua-ban.vn/ao-thun)"
+                          value={url}
+                          aria-invalid={invalid}
+                          aria-label={`Link trang sản phẩm cho ${p.name}`}
+                          onChange={(e) =>
+                            setProductUrls((prev) => ({
+                              ...prev,
+                              [p.product_id]: e.target.value,
+                            }))
+                          }
+                        />
+                        {invalid ? (
+                          <p className="mt-0.5 text-[11px] text-critical">
+                            Link không hợp lệ — cần URL đầy đủ bắt đầu bằng http:// hoặc
+                            https://.
+                          </p>
+                        ) : null}
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : (
                 <p className="mb-3 text-[13px] text-mut">Chưa có sản phẩm nào.</p>
@@ -539,22 +612,38 @@ export default function ChayPhienPage() {
                   ) : null}
                 </div>
 
+                {linkNote ? <Callout tone="warn">{linkNote}</Callout> : null}
+
                 {links.length > 0 ? (
                   <div>
                     <p className="text-xs font-semibold text-ink">
                       Link đo lượt nhấp — dán vào bình luận ghim khi giới thiệu sản phẩm
                     </p>
-                    <ul className="mt-1 space-y-0.5 text-xs text-sec">
+                    <ul className="mt-1 space-y-1 text-xs text-sec">
                       {links.map((l) => (
-                        <li key={l.code} className="tnum">
-                          {l.product_id}:{" "}
-                          <code className="text-ink">http://localhost:8000/r/{l.code}</code>
+                        <li key={l.code} className="flex flex-wrap items-center gap-2">
+                          <span className="tnum">
+                            {l.product_id}:{" "}
+                            <code className="break-all text-ink">
+                              {PUBLIC_API_BASE}/r/{l.code}
+                            </code>
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => void copyLink(l.code)}
+                            title="Chép link vào bộ nhớ tạm"
+                          >
+                            {copiedCode === l.code ? "Đã chép ✓" : "Chép link"}
+                          </Button>
                         </li>
                       ))}
                     </ul>
                     <p className="mt-1 text-[11px] leading-snug text-mut">
                       Mỗi lượt bấm được ghi lại và quy về khối đang chạy — đây chính là biến kết
-                      quả chính của thí nghiệm.
+                      quả chính của thí nghiệm. Người xem phải mở được địa chỉ này từ ngoài: đặt
+                      biến <code>NEXT_PUBLIC_PUBLIC_API_BASE</code> thành domain công khai (xem{" "}
+                      <code>web/.env.example</code>) nếu link đang trỏ về localhost.
                     </p>
                   </div>
                 ) : null}

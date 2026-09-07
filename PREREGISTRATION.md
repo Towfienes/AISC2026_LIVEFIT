@@ -114,8 +114,14 @@ quả cuối). p-value hai phía; **KTC 95% bằng nghịch đảo kiểm địn
 hằng τ₀. (Bojinov & Shephard 2019; Bojinov et al. 2023. Cài đặt:
 `analyze_outer(y, z, session_ids, phases, ...)`.)
 
-**(b) Horvitz–Thompson** với propensity đã ghi trong log — ước lượng design-based ít giả
-định nhất, báo cáo cạnh (a) (`RandomizationResult.estimate_ht`).
+**(b) Horvitz–Thompson/Hájek — ghi chú trung thực (sửa 06/09).** Với propensity hằng
+p = 0,5 của tầng ngoài, ước lượng Hájek (IPW tự chuẩn hóa, `ht_effect`) **trùng đại số
+với hiệu hai trung bình** ở (a) — trọng số hai nhánh bằng nhau nên mỗi trung bình có
+trọng số thu gọn về trung bình nhánh. Nó KHÔNG phải một ước lượng viên độc lập thứ hai,
+vì vậy báo cáo chỉ công bố **một** con số chính từ (a); `estimate_ht` đã bị gỡ khỏi
+báo cáo API (`/experiment/summary`). Hàm `ht_effect` được giữ trong mã (kèm test) cho
+tầng trong — nơi propensity thay đổi theo khối và IPW mới thực sự khác — và để kiểm
+toán chính đẳng thức này.
 
 **(c) Secondary giảm phương sai — OLS FE-phiên + hiệp biến kiểu Lin (2013).**
 `y_b` hồi quy trên gán + FE phiên + hiệp biến demeaned và tương tác với gán
@@ -176,6 +182,10 @@ tùy điều kiện đến trước — **không phụ thuộc kết quả trung
 hiệu ứng trước ngày đóng băng dữ liệu `<YYYY-MM-DD>`; bảng theo dõi tuần chỉ hiển thị
 chỉ số vận hành (số phiên, số khối hợp lệ, CV, MDE dự kiến) — không hiển thị τ̂.
 Ngoại lệ duy nhất: dừng sớm vì an toàn/pháp lý, ghi log công khai.
+
+Cơ chế cưỡng chế ở tầng API (thêm 06/09): đặt `RESULTS_FREEZE_UNTIL=<ngày đóng băng>`
+trong cấu hình — trước ngày đó `/experiment/summary` gạt mọi trường suy diễn
+(τ̂, p, KTC) và chỉ trả số liệu vận hành; giá trị sai định dạng khóa luôn (fail-closed).
 
 ## 8. Quy tắc loại trừ khối (tiền đăng ký, áp dụng mù với nhánh gán)
 

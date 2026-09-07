@@ -30,7 +30,7 @@ from typing import Any
 import httpx
 
 from livelift.config import get_settings
-from livelift.ingest.base import RawComment, RawTick
+from livelift.ingest.base import AUTH_STATUSES, Backoff, RawComment, RawTick, http_status
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +39,21 @@ API_BASE = "https://www.googleapis.com/youtube/v3"
 # publishes it); used for quota-awareness logging only.
 EST_UNITS_PER_LIST_CALL = 5
 DEFAULT_POLL_FLOOR_MS = 2000  # safety floor if the API omits pollingIntervalMillis
+# Error handling: 401/403 mean bad key or exhausted quota — retrying fast only
+# burns more quota, so wait long between attempts; 429/5xx/transport errors
+# get exponential backoff with a ceiling instead of a flat 2s forever.
+AUTH_BACKOFF_S = 60.0
+RETRY_CAP_S = 60.0
+CHAT_ID_MAX_TRIES = 4  # startup lookup: a blip must not kill the process
+
+
+def _auth_error_message(status: int) -> str:
+    """Operator-facing (Vietnamese): what broke and what to do about it."""
+    return (
+        f"LỖI YouTube API (HTTP {status}): API key không hợp lệ hoặc quota trong ngày đã cạn. "
+        "Kiểm tra YOUTUBE_API_KEY trong .env và hạn mức quota trong Google Cloud Console "
+        "(APIs & Services → YouTube Data API v3)."
+    )
 
 
 def parse_live_chat_message(item: dict[str, Any]) -> RawComment | None:
@@ -82,10 +97,45 @@ class YouTubeLiveChatClient:
         self._client = client or httpx.AsyncClient(timeout=30.0)
         self._owns_client = client is None
         self._list_calls = 0
+        #: Most recent error description (None = healthy); shown by the
+        #: runner heartbeat so an operator sees a stuck loop without grepping.
+        self.last_error: str | None = None
 
     async def get_active_live_chat_id(self, video_id: str) -> str:
-        """Resolve ``activeLiveChatId`` via ``videos.list`` (NOT search.list)."""
-        data = await self._get("/videos", {"part": "liveStreamingDetails", "id": video_id})
+        """Resolve ``activeLiveChatId`` via ``videos.list`` (NOT search.list).
+
+        Retries transient failures with backoff — this call happens at the
+        moment the operator presses start, and a single network blip must not
+        kill the ingest process. Auth/quota errors (401/403) fail fast with an
+        actionable Vietnamese message: retrying cannot fix a bad key.
+        """
+        data: dict[str, Any] | None = None
+        last_exc: Exception | None = None
+        for attempt in range(1, CHAT_ID_MAX_TRIES + 1):
+            try:
+                data = await self._get("/videos", {"part": "liveStreamingDetails", "id": video_id})
+                break
+            except httpx.HTTPError as exc:
+                status = http_status(exc)
+                if status in AUTH_STATUSES:
+                    assert status is not None
+                    raise RuntimeError(_auth_error_message(status)) from exc
+                last_exc = exc
+                if attempt < CHAT_ID_MAX_TRIES:
+                    delay = 2.0 ** (attempt - 1)
+                    logger.warning(
+                        "videos.list failed: %s (attempt %d/%d); retrying in %.1fs",
+                        type(exc).__name__,
+                        attempt,
+                        CHAT_ID_MAX_TRIES,
+                        delay,
+                    )
+                    await asyncio.sleep(delay)
+        if data is None:
+            raise RuntimeError(
+                f"Không lấy được activeLiveChatId cho video {video_id} sau "
+                f"{CHAT_ID_MAX_TRIES} lần thử (lỗi mạng/API tạm thời) — thử chạy lại lệnh."
+            ) from last_exc
         items = data.get("items") or []
         if not items:
             raise RuntimeError(f"video {video_id} not found or not accessible")
@@ -105,6 +155,7 @@ class YouTubeLiveChatClient:
         """
         chat_id = await self.get_active_live_chat_id(video_id)
         page_token: str | None = None
+        backoff = Backoff(base_s=DEFAULT_POLL_FLOOR_MS / 1000, cap_s=RETRY_CAP_S)
         while True:
             params: dict[str, str] = {
                 "liveChatId": chat_id,
@@ -116,9 +167,10 @@ class YouTubeLiveChatClient:
             try:
                 data = await self._get("/liveChat/messages", params)
             except httpx.HTTPError as exc:
-                logger.warning("liveChatMessages.list failed: %s; retrying", type(exc).__name__)
-                await asyncio.sleep(DEFAULT_POLL_FLOOR_MS / 1000)
+                await self._handle_poll_error("liveChatMessages.list", exc, backoff)
                 continue
+            self.last_error = None
+            backoff.reset()
 
             self._list_calls += 1
             if self._list_calls % 50 == 0:
@@ -160,6 +212,7 @@ class YouTubeLiveChatClient:
     async def iter_viewers(self, video_id: str, every_s: float = 30.0) -> AsyncIterator[RawTick]:
         """Yield ``concurrentViewers`` snapshots every ``every_s`` seconds
         via ``videos.list part=liveStreamingDetails`` (1 unit per call)."""
+        backoff = Backoff(base_s=every_s, cap_s=max(every_s, RETRY_CAP_S))
         while True:
             try:
                 data = await self._get("/videos", {"part": "liveStreamingDetails", "id": video_id})
@@ -175,9 +228,32 @@ class YouTubeLiveChatClient:
                 elif details.get("actualEndTime"):
                     logger.info("broadcast ended (actualEndTime set); stopping viewer loop")
                     return
+                self.last_error = None
+                backoff.reset()
             except httpx.HTTPError as exc:
-                logger.warning("viewer poll failed: %s; retrying", type(exc).__name__)
+                await self._handle_poll_error("viewer poll", exc, backoff)
+                continue
             await asyncio.sleep(every_s)
+
+    async def _handle_poll_error(self, what: str, exc: httpx.HTTPError, backoff: Backoff) -> None:
+        """Classify a polling failure, record it for the heartbeat, and sleep.
+
+        401/403: red Vietnamese error + long fixed pause (retrying fast burns
+        quota and cannot fix a bad key). 429/5xx/transport: exponential
+        backoff with a ceiling.
+        """
+        status = http_status(exc)
+        if status in AUTH_STATUSES:
+            assert status is not None
+            self.last_error = _auth_error_message(status)
+            logger.error("%s — tạm dừng %.0fs rồi thử lại.", self.last_error, AUTH_BACKOFF_S)
+            await asyncio.sleep(AUTH_BACKOFF_S)
+            return
+        delay = backoff.next_delay()
+        detail = f"HTTP {status}" if status is not None else type(exc).__name__
+        self.last_error = f"{what}: {detail}"
+        logger.warning("%s failed: %s; retrying in %.1fs", what, detail, delay)
+        await asyncio.sleep(delay)
 
     async def _get(self, path: str, params: dict[str, str]) -> dict[str, Any]:
         resp = await self._client.get(API_BASE + path, params={**params, "key": self._api_key})

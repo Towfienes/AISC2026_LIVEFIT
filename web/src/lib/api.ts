@@ -28,6 +28,19 @@ export const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:80
   "",
 );
 
+/**
+ * Base URL for links VIEWERS must reach (the /r/{code} measurement links
+ * pasted into the pinned comment). On a laptop demo API_BASE is localhost —
+ * correct for the operator's browser, useless for a viewer's phone — so the
+ * public base is its own variable (real domain or tunnel), falling back to
+ * NEXT_PUBLIC_API_BASE, then to API_BASE (NEXT_PUBLIC_API_URL / localhost).
+ */
+export const PUBLIC_API_BASE = (
+  process.env.NEXT_PUBLIC_PUBLIC_API_BASE ??
+  process.env.NEXT_PUBLIC_API_BASE ??
+  API_BASE
+).replace(/\/$/, "");
+
 /** http(s) base -> ws(s) URL for /ws/{sessionId}. */
 export function wsUrl(sessionId: string): string {
   return `${API_BASE.replace(/^http/, "ws")}/ws/${sessionId}`;
@@ -161,13 +174,20 @@ export async function getCards(
   return sanitizeCards(cards);
 }
 
+/**
+ * Execute one action card. `productId` is REQUIRED: the server scopes the
+ * inner-tier randomization to the clicked card's overlap set. Sending only
+ * card_id left the server's product filter empty, so it randomized over the
+ * whole candidate set — clicking card A could pin product B.
+ */
 export function executeCard(
   sessionId: string,
   cardId: string,
+  productId: string,
 ): Promise<{ ok: boolean; action_id?: string }> {
   return request(`/sessions/${sessionId}/actions/execute`, {
     method: "POST",
-    body: JSON.stringify({ card_id: cardId }),
+    body: JSON.stringify({ card_id: cardId, product_id: productId }),
   });
 }
 

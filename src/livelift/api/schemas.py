@@ -189,9 +189,38 @@ class HostState(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+def _require_aware(v: datetime | None) -> datetime | None:
+    """Hard rule 7: no naive datetimes — an offset-less timestamp would be
+    silently interpreted in some machine-local timezone."""
+    if v is not None and v.tzinfo is None:
+        raise ValueError(
+            "ts_utc phải kèm múi giờ (ISO-8601 có offset, ví dụ 2026-09-06T13:05:42+00:00)"
+        )
+    return v
+
+
 class CommentIn(BaseModel):
+    """One comment from the ingest runner or the dashboard.
+
+    ``platform`` + ``ext_id`` (both set by :class:`livelift.ingest.base.ApiSink`)
+    form the idempotency key: re-sending the same comment — runner restart,
+    spool replay — must not create a duplicate row. ``ts_utc`` is the platform
+    timestamp; when present it is the stored event time (block attribution
+    included), so a comment near a block boundary lands in the right block
+    even if it reaches the server late. All three are optional so manual
+    dashboard posts keep working unchanged.
+    """
+
     text: str = Field(min_length=1, max_length=2000)
+    platform: Platform | None = None
+    ext_id: str | None = Field(default=None, min_length=1, max_length=128)
+    ts_utc: datetime | None = None
     client_ts: datetime | None = None
+
+    @field_validator("ts_utc")
+    @classmethod
+    def _ts_utc_aware(cls, v: datetime | None) -> datetime | None:
+        return _require_aware(v)
 
 
 class CommentOut(BaseModel):
@@ -205,12 +234,28 @@ class CommentOut(BaseModel):
     text: str  # scrubbed
     pii_kinds: list[str] = Field(default_factory=list)
     intent: str | None = None
+    intent_confidence: float | None = None
+    """Top-class probability of the trained intent model (None = keyword
+    baseline / old rows). Feeds the active-learning export ordering
+    (livelift.nlp.label_llm) — NOT a number for end-user display."""
 
 
 class TickIn(BaseModel):
+    """One viewer snapshot. ``ts_utc`` (optional, sent by ApiSink) is the
+    source timestamp: when present the 30s bucket is computed from it instead
+    of the arrival time, so a spool-replayed tick lands in its original
+    bucket (where the (session, bucket) upsert makes re-sending idempotent).
+    """
+
     viewers: float = Field(ge=0)
     comment_rate: float = Field(default=0.0, ge=0)
     like_rate: float = Field(default=0.0, ge=0)
+    ts_utc: datetime | None = None
+
+    @field_validator("ts_utc")
+    @classmethod
+    def _ts_utc_aware(cls, v: datetime | None) -> datetime | None:
+        return _require_aware(v)
 
 
 class TickOut(BaseModel):
@@ -332,7 +377,9 @@ class ExperimentSummary(BaseModel):
     n_on: int
     n_off: int
     estimate: float | None = None
-    estimate_ht: float | None = None
+    # No estimate_ht field: at the outer tier's constant p=0.5 the Hájek/IPW
+    # estimate is algebraically identical to `estimate` — publishing both as
+    # two "independent" estimators was dishonest (PREREGISTRATION §5b, 06/09).
     ci_low: float | None = None
     ci_high: float | None = None
     p_value: float | None = None
@@ -350,9 +397,10 @@ class ExperimentSummary(BaseModel):
     message: str | None = None  # Vietnamese, set when data is insufficient
     estimable: bool = True
     """False when the design cannot be tested at all (an arm below the minimum
-    block count). Clients MUST NOT render an effect, interval or p-value in
-    that case — the fields are null and any 'significant' styling is wrong
-    (audit 30/08)."""
+    block count) OR when the effect estimate is locked by the pre-registered
+    freeze date (§7, RESULTS_FREEZE_UNTIL — `message` says which). Clients
+    MUST NOT render an effect, interval or p-value in that case — the fields
+    are null and any 'significant' styling is wrong (audit 30/08)."""
 
 
 class SignalStateOut(BaseModel):

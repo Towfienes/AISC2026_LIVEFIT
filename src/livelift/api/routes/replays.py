@@ -43,7 +43,7 @@ from livelift.ingest.youtube_replay import (
     parse_live_chat_file,
     synth_ticks_from_comments,
 )
-from livelift.nlp.intent import classify
+from livelift.nlp.intent import classify_with_confidence
 
 logger = logging.getLogger(__name__)
 
@@ -164,6 +164,7 @@ def _run_job(job_id: str, url: str, store: Store) -> None:
 
         for offset_s, text in comments:
             scrubbed = scrub(text)  # BEFORE any store — hard rule 1
+            intent, intent_confidence = classify_with_confidence(scrubbed.text)
             store.add_comment(
                 session_id,
                 {
@@ -173,7 +174,8 @@ def _run_job(job_id: str, url: str, store: Store) -> None:
                     "ts": start_ts + timedelta(seconds=offset_s),
                     "text_scrubbed": scrubbed.text,
                     "pii_kinds": sorted({m.kind for m in scrubbed.matches}),
-                    "intent_label": classify(scrubbed.text),
+                    "intent_label": intent,
+                    "intent_confidence": intent_confidence,
                     "sentiment": None,
                 },
             )

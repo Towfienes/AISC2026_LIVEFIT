@@ -68,16 +68,27 @@ async def _pump_ticks(
             c.post_failures += 1
 
 
-async def _heartbeat(c: Counters, every_s: float = HEARTBEAT_EVERY_S) -> None:
+async def _heartbeat(
+    c: Counters,
+    client: PlatformClient | None = None,
+    every_s: float = HEARTBEAT_EVERY_S,
+) -> None:
     while True:
         await asyncio.sleep(every_s)
+        # The platform client records its most recent poll error (None when
+        # healthy) — surfacing it here means a stuck loop (expired token,
+        # exhausted quota) is visible in every heartbeat, not only in the
+        # one log line at the moment it broke.
+        last_error = getattr(client, "last_error", None)
         logger.info(
-            "heartbeat: comments seen=%d posted=%d | ticks seen=%d posted=%d | failures=%d",
+            "heartbeat: comments seen=%d posted=%d | ticks seen=%d posted=%d | failures=%d"
+            " | lỗi gần nhất: %s",
             c.comments_seen,
             c.comments_posted,
             c.ticks_seen,
             c.ticks_posted,
             c.post_failures,
+            last_error or "không có",
         )
 
 
@@ -96,7 +107,7 @@ async def _run(platform: str, source_id: str, session_id: str, api_url: str) -> 
     tasks = [
         asyncio.create_task(_pump_comments(client, source_id, sink, counters), name="comments"),
         asyncio.create_task(_pump_ticks(client, source_id, sink, counters), name="ticks"),
-        asyncio.create_task(_heartbeat(counters), name="heartbeat"),
+        asyncio.create_task(_heartbeat(counters, client), name="heartbeat"),
     ]
     try:
         # First finished pump task ends the run (heartbeat never finishes on

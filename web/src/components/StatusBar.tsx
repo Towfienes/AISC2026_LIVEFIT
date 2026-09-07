@@ -11,6 +11,7 @@ import type { ConnectionKind, SessionMode, SessionSummary } from "@/lib/types";
 import type { SocketStatus } from "@/lib/useLiveSocket";
 
 import Badge from "./ui/Badge";
+import Button from "./ui/Button";
 import { fieldCls } from "./ui/field";
 
 export function DemoBadge() {
@@ -56,6 +57,10 @@ interface Props {
   mode: SessionMode;
   onSetMode?: (m: SessionMode) => void;
   canToggleMode?: boolean;
+  /** Shown only when the selected session is live on a real API. */
+  onEndSession?: () => void;
+  canEndSession?: boolean;
+  endBusy?: boolean;
 }
 
 export default function StatusBar({
@@ -70,6 +75,9 @@ export default function StatusBar({
   mode,
   onSetMode,
   canToggleMode,
+  onEndSession,
+  canEndSession,
+  endBusy,
 }: Props) {
   return (
     <header className="flex h-11 shrink-0 items-center gap-3 rounded-lg border border-hairline bg-surface px-3">
@@ -130,6 +138,18 @@ export default function StatusBar({
             </button>
           ))}
         </div>
+
+        {canEndSession && onEndSession ? (
+          <Button
+            variant="danger"
+            size="sm"
+            onClick={onEndSession}
+            disabled={endBusy}
+            title="Kết thúc phiên đang phát — dữ liệu đã ghi được giữ nguyên"
+          >
+            {endBusy ? "Đang kết thúc…" : "Kết thúc phiên"}
+          </Button>
+        ) : null}
       </div>
     </header>
   );

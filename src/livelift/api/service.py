@@ -145,13 +145,24 @@ def start_session(store: Store, session: dict[str, Any], start_ts: datetime) -> 
     return updated
 
 
+def rebuild_design_params(session: dict[str, Any]) -> DesignParams:
+    """The :class:`DesignParams` persisted in the session's design json.
+
+    Unknown keys are dropped (schema evolution), missing ones fall back to the
+    dataclass defaults. Randomization inference MUST redraw with these — the
+    session's own p / rerandomization constraint — not with the defaults, or
+    the reference distribution belongs to a design nobody ran."""
+    design = session.get("design") or {}
+    raw_params = design.get("params") or {}
+    allowed = {f.name for f in fields(DesignParams)}
+    return DesignParams(**{k: v for k, v in raw_params.items() if k in allowed})
+
+
 def rebuild_schedule(session: dict[str, Any], blocks: list[dict[str, Any]]) -> Schedule:
     """Reconstruct the core :class:`Schedule` from persisted design + blocks,
     for analysis (``block_frame``) over stored data."""
     design = session.get("design") or {}
-    raw_params = design.get("params") or {}
-    allowed = {f.name for f in fields(DesignParams)}
-    params = DesignParams(**{k: v for k, v in raw_params.items() if k in allowed})
+    params = rebuild_design_params(session)
     block_objs = tuple(
         Block(
             index=b["block_index"],

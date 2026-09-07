@@ -1,0 +1,42 @@
+# Caddyfile — cổng vào công khai DUY NHẤT của LiveLift (service `caddy`
+# trong docker-compose.yml). Người xem bấm shortlink /r/{code} qua đây —
+# không có cổng này thì không đo được click thật (runbook §1.1, nguyên tắc 4).
+#
+# Biến DOMAIN (đặt trong .env) quyết định chế độ:
+#   DOMAIN=shop.example.com  → Caddy tự xin chứng chỉ HTTPS (Let's Encrypt);
+#                              cần DNS trỏ về máy chủ và mở cổng 80/443.
+#   DOMAIN để trống (dev)    → phục vụ http://localhost, không TLS.
+#
+# Trình duyệt gọi API qua tiền tố /api (NEXT_PUBLIC_API_URL=http://<DOMAIN>/api);
+# FastAPI phục vụ ở gốc nên tiền tố /api bị cắt trước khi chuyển tiếp.
+
+{$DOMAIN:http://localhost} {
+	# Shortlink đo click /r/{code} — biến kết quả chính của thí nghiệm.
+	handle /r/* {
+		reverse_proxy api:8000
+	}
+
+	# REST API cho trình duyệt: /api/... → (cắt /api) → api:8000/...
+	handle_path /api/* {
+		reverse_proxy api:8000
+	}
+
+	# WebSocket cập nhật trực tiếp — web nối tới {API}/ws/{session_id};
+	# reverse_proxy tự nâng cấp kết nối WebSocket.
+	handle /ws/* {
+		reverse_proxy api:8000
+	}
+
+	# Tài liệu OpenAPI — tiện kiểm tra nhanh trên môi trường thật.
+	handle /docs {
+		reverse_proxy api:8000
+	}
+	handle /openapi.json {
+		reverse_proxy api:8000
+	}
+
+	# Mọi đường dẫn còn lại: giao diện Next.js.
+	handle {
+		reverse_proxy web:3000
+	}
+}

@@ -53,8 +53,10 @@ services:
     restart: unless-stopped
     command: ["uvicorn", "livelift.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
     environment: *app_env
-    ports:
-      - "127.0.0.1:8000:8000"
+    # Không publish cổng ra ngoài — mọi truy cập đi qua caddy. Cần cổng dev
+    # trực tiếp (127.0.0.1:8000)? Dùng thêm docker-compose.dev-ports.yml.
+    expose:
+      - "8000"
     depends_on:
       db:
         condition: service_healthy
@@ -67,13 +69,39 @@ services:
     build:
       context: ./web
       dockerfile: ../docker/web.Dockerfile
+      args:
+        # Next.js nhúng NEXT_PUBLIC_* vào bundle LÚC BUILD — đổi giá trị trong
+        # .env thì phải `docker compose build web` lại. Mặc định trỏ qua caddy.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost/api}
+        NEXT_PUBLIC_PUBLIC_API_BASE: ${NEXT_PUBLIC_PUBLIC_API_BASE:-}
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
-    ports:
-      - "127.0.0.1:3000:3000"
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost/api}
+    # Không publish cổng ra ngoài — mọi truy cập đi qua caddy (xem ghi chú ở api).
+    expose:
+      - "3000"
     depends_on:
       - api
+
+  # Cổng vào công khai duy nhất: HTTPS tự động khi DOMAIN là tên miền thật,
+  # http://localhost khi để trống (dev). Route: /r/* + /api/* + /ws/* + /docs
+  # + /openapi.json → api; còn lại → web. Xem docker/Caddyfile.
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:-http://localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    depends_on:
+      - api
+      - web
 
   # Daily DB backup to ./backups (mount a synced-to-Drive folder in production VPS)
   backup:
@@ -95,3 +123,5 @@ services:
 volumes:
   pgdata:
   redisdata:
+  caddydata:
+  caddyconfig:

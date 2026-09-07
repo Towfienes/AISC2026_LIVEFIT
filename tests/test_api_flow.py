@@ -114,9 +114,14 @@ def test_full_flow(client):
     assert "[ĐỊA CHỈ]" in body["text"]
     assert "0901234567" not in body["text"]
     assert "phone" in body["pii_kinds"]
+    # intent_confidence (gói F) is stored and served: a float in [0, 1] from
+    # the trained model, or None on the keyword-baseline fallback
+    assert "intent_confidence" in body
+    assert body["intent_confidence"] is None or 0.0 <= body["intent_confidence"] <= 1.0
     listed = client.get(f"/sessions/{sid}/comments").json()
     assert all("0901234567" not in c["text"] for c in listed)
     assert listed[0]["block_id"] is not None  # attributed to the current block
+    assert listed[0]["intent_confidence"] == body["intent_confidence"]
 
     # --- ticks ---
     r = client.post(f"/sessions/{sid}/ticks", json={"viewers": 85, "comment_rate": 12})
@@ -222,6 +227,54 @@ def test_execute_only_in_on_blocks(client):
     assert host["pinned_product"] is not None
 
 
+def test_execute_scopes_to_the_clicked_card(client):
+    """Defect 09/2026: chỉ gửi card_id khiến server ngẫu nhiên hoá TOÀN BỘ tập
+    ứng viên — bấm thẻ A có thể ghim sản phẩm B. Nay request chỉ định thẻ phải
+    được scope vào overlap set của đúng thẻ đó."""
+    make_product(client, "P1")
+    make_product(client, "P2")
+    make_product(client, "P3", stock=0)  # hết hàng — không bao giờ là ứng viên
+
+    session = make_session(client)
+    sid = session["session_id"]
+    seed_on = next(
+        seed
+        for seed in range(60)
+        if next(
+            b
+            for b in client.post(f"/sessions/{sid}/schedule", json={"seed": seed}).json()["blocks"]
+            if not b["is_washout"]
+        )["assignment"]
+        == "ON"
+    )
+    client.post(f"/sessions/{sid}/schedule", json={"seed": seed_on})
+    assert client.post(f"/sessions/{sid}/start").status_code == 200
+
+    # product_id chỉ định: sản phẩm ghim phải nằm trong overlap set chứa thẻ đó
+    r = client.post(
+        f"/sessions/{sid}/actions/execute",
+        json={"card_id": "card-0-P2", "product_id": "P2"},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert "P2" in body["overlap_set"]
+    assert body["product_id"] in body["overlap_set"]
+
+    # client cũ chỉ gửi card_id: vẫn scope qua product_id tách từ card_id
+    r = client.post(f"/sessions/{sid}/actions/execute", json={"card_id": "card-1-P1"})
+    assert r.status_code == 200, r.text
+    assert "P1" in r.json()["overlap_set"]
+
+    # thẻ trỏ sản phẩm không còn là ứng viên -> 409, tuyệt đối không ghim bừa
+    r = client.post(f"/sessions/{sid}/actions/execute", json={"product_id": "P3"})
+    assert r.status_code == 409
+    assert "không còn hợp lệ" in r.json()["detail"]
+
+    # không chỉ định thẻ: giữ hành vi cũ (chọn trên toàn bộ tập ứng viên)
+    r = client.post(f"/sessions/{sid}/actions/execute", json={})
+    assert r.status_code == 200, r.text
+
+
 def test_demo_seed_and_experiment_summary(client):
     """Demo seeding produces analyzable sessions; the pooled summary runs the
     pre-registered estimator and returns experiment-source numbers with CI."""
@@ -239,6 +292,9 @@ def test_demo_seed_and_experiment_summary(client):
     assert summary["ci_low"] < summary["estimate"] < summary["ci_high"]
     assert summary["measured_cv"] is not None
     assert summary["power_table"], "power table must be filled from measured CV"
+    # Review 06/09: at constant p=0.5 the Hájek/IPW number is identical to
+    # `estimate` — it must not be published as a second estimator.
+    assert "estimate_ht" not in summary
 
     # replay session is live and serves state for the web replay page
     replay = seeded["replay_session_id"]
@@ -258,6 +314,90 @@ def test_summary_insufficient_data_message(client):
     summary = client.get("/experiment/summary").json()
     assert summary["estimate"] is None
     assert "Chưa đủ dữ liệu" in summary["message"]
+
+
+# ---------------------------------------------------------------------------
+# PREREGISTRATION §7 — freeze on effect estimates (RESULTS_FREEZE_UNTIL)
+# ---------------------------------------------------------------------------
+
+
+def _with_freeze(client, monkeypatch, value: str):
+    """GET /experiment/summary with RESULTS_FREEZE_UNTIL set to ``value``."""
+    from livelift.config import get_settings
+
+    monkeypatch.setenv("RESULTS_FREEZE_UNTIL", value)
+    get_settings.cache_clear()
+    try:
+        return client.get("/experiment/summary").json()
+    finally:
+        monkeypatch.delenv("RESULTS_FREEZE_UNTIL", raising=False)
+        get_settings.cache_clear()
+
+
+def test_summary_locked_before_freeze_date(client, monkeypatch):
+    """§7: before the freeze date no inferential field may be served — the
+    operational numbers §7 explicitly allows (sessions, blocks, CV, MDE,
+    compliance) still are."""
+    client.post("/demo/seed", json={"n_sessions": 3, "effect": 0.5, "duration_min": 40})
+    summary = _with_freeze(client, monkeypatch, "2999-01-01")
+
+    assert summary["estimable"] is False
+    for field in ("estimate", "ci_low", "ci_high", "p_value", "n_draws"):
+        assert summary[field] is None, f"{field} lọt qua khóa §7"
+    assert "khóa đến 2999-01-01" in summary["message"]
+    assert "§7" in summary["message"]
+    # operational numbers still served
+    assert summary["n_sessions"] >= 3
+    assert summary["n_blocks"] >= 8
+    assert summary["n_on"] + summary["n_off"] == summary["n_blocks"]
+    assert summary["measured_cv"] is not None
+    assert summary["power_table"], "bảng MDE là chỉ số vận hành — §7 cho phép"
+
+
+def test_summary_unlocked_on_or_after_freeze_date(client, monkeypatch):
+    client.post("/demo/seed", json={"n_sessions": 3, "effect": 0.5, "duration_min": 40})
+    summary = _with_freeze(client, monkeypatch, "2000-01-01")
+    assert summary["estimable"] is True
+    assert summary["estimate"] is not None
+    assert summary["p_value"] is not None
+    assert summary["ci_low"] is not None
+
+
+def test_summary_malformed_freeze_date_fails_closed(client, monkeypatch):
+    """A typo in the freeze config must lock, never silently unlock."""
+    client.post("/demo/seed", json={"n_sessions": 3, "effect": 0.5, "duration_min": 40})
+    summary = _with_freeze(client, monkeypatch, "14/09/2026")
+    assert summary["estimable"] is False
+    assert summary["estimate"] is None
+    assert "không hợp lệ" in summary["message"]
+
+
+def test_summary_redraws_use_each_sessions_saved_design(client, monkeypatch):
+    """Review 06/09: analyze_outer must receive the PERSISTED DesignParams of
+    every pooled session (demo sessions store jitter_s=0, not the default 30)
+    so redraws run the design that actually ran."""
+    from livelift.analysis import estimators
+    from livelift.api.routes import reports
+
+    captured = {}
+
+    def spy(*args, **kwargs):
+        captured["design_params"] = kwargs.get("design_params")
+        return estimators.analyze_outer(*args, **kwargs)
+
+    monkeypatch.setattr(reports, "analyze_outer", spy)
+    client.post("/demo/seed", json={"n_sessions": 2, "effect": 0.5, "duration_min": 40})
+    summary = client.get("/experiment/summary").json()
+    assert summary["estimate"] is not None
+
+    params = captured.get("design_params")
+    assert params, "design_params không được nối từ rebuild_design_params xuống analyze_outer"
+    ended = [s for s in client.get("/sessions").json() if s["status"] == "ended"]
+    assert {s["session_id"] for s in ended} <= set(params)
+    assert all(p.jitter_s == 0 for p in params.values()), (
+        "phải là DesignParams đã lưu của phiên (demo seed dùng jitter_s=0), "
+        "không phải tham số mặc định"
+    )
 
 
 def test_demo_seed_is_repeatable(client):

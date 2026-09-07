@@ -1,0 +1,14 @@
+{
+  "sklearn_version": "1.9.0",
+  "trained_at_utc": "2026-09-06T16:04:26+00:00",
+  "n_samples": 320,
+  "labels": [
+    "hoi_gia",
+    "hoi_size",
+    "che_dat",
+    "chot_don",
+    "van_chuyen",
+    "khac"
+  ],
+  "seed": 2026
+}

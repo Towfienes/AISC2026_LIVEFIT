@@ -11,10 +11,20 @@ RUN npm ci
 FROM node:20-alpine AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
+# NEXT_PUBLIC_* is inlined into the client bundle AT BUILD TIME, so the API
+# base must arrive here as build args (docker-compose.yml passes them from
+# .env). Default: through the caddy gateway at /api.
+ARG NEXT_PUBLIC_API_URL=http://localhost/api
+ARG NEXT_PUBLIC_PUBLIC_API_BASE=
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# Ensure public/ exists so the runner COPY below never fails.
-RUN mkdir -p public && npm run build
+# Ensure public/ exists so the runner COPY below never fails. An EMPTY
+# NEXT_PUBLIC_PUBLIC_API_BASE must stay undefined (api.ts falls back with ??),
+# so unset it instead of inlining "".
+RUN mkdir -p public \
+    && if [ -z "${NEXT_PUBLIC_PUBLIC_API_BASE:-}" ]; then unset NEXT_PUBLIC_PUBLIC_API_BASE; fi \
+    && npm run build
 
 # --- runner: minimal production server ---
 FROM node:20-alpine AS runner

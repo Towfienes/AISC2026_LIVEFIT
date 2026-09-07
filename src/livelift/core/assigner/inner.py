@@ -62,8 +62,14 @@ class InnerDecision:
         ]
 
 
-def _intervals_overlap(a: Candidate, b: Candidate) -> bool:
+def intervals_overlap(a: Candidate, b: Candidate) -> bool:
+    """True when the two candidates' estimate intervals overlap — i.e. the
+    model cannot distinguish them and exploration between them is free."""
     return a.ci_low <= b.ci_high and b.ci_low <= a.ci_high
+
+
+# Backward-compatible private alias (pre-09/2026 name).
+_intervals_overlap = intervals_overlap
 
 
 def choose_action(candidates: list[Candidate], rng: random.Random) -> InnerDecision:

@@ -58,3 +58,38 @@
 {"text": "mình lấy 1 cái màu xanh", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 0}}
 {"text": "livestream vui quá trời", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 0}}
 {"text": "có bảo hành không ạ", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 0}}
+{"text": "gọi em số 0901,234,567 nha shop", "labels": {"phone": 1, "email": 0, "order": 0, "address": 0, "name": 0, "social": 0, "bank": 0}}
+{"text": "sdt 0901/234/567 chốt đơn giúp em", "labels": {"phone": 1, "email": 0, "order": 0, "address": 0, "name": 0, "social": 0, "bank": 0}}
+{"text": "alo em qua số 0901 - 234 - 567 nhé", "labels": {"phone": 1, "email": 0, "order": 0, "address": 0, "name": 0, "social": 0, "bank": 0}}
+{"text": "０９０１２３４５６７ gọi giúp em nha", "labels": {"phone": 1, "email": 0, "order": 0, "address": 0, "name": 0, "social": 0, "bank": 0}}
+{"text": "0️⃣9️⃣0️⃣1️⃣2️⃣3️⃣4️⃣5️⃣6️⃣7️⃣ chốt đơn nha shop", "labels": {"phone": 1, "email": 0, "order": 0, "address": 0, "name": 0, "social": 0, "bank": 0}}
+{"text": "sdt0901234567 giao trước 6h nha", "labels": {"phone": 1, "email": 0, "order": 0, "address": 0, "name": 0, "social": 0, "bank": 0}}
+{"text": "zalo0901234567 ib em nhé", "labels": {"phone": 1, "email": 0, "order": 0, "address": 0, "name": 0, "social": 0, "bank": 0}}
+{"text": "số em 09012345 sáu bảy gọi tối nha", "labels": {"phone": 1, "email": 0, "order": 0, "address": 0, "name": 0, "social": 0, "bank": 0}}
+{"text": "ship về Nha Trang bao lâu vậy shop", "labels": {"phone": 0, "email": 0, "order": 0, "address": 1, "name": 0, "social": 0, "bank": 0}}
+{"text": "giao về Đà Lạt được không ạ", "labels": {"phone": 0, "email": 0, "order": 0, "address": 1, "name": 0, "social": 0, "bank": 0}}
+{"text": "q7 có ship hỏa tốc không shop", "labels": {"phone": 0, "email": 0, "order": 0, "address": 1, "name": 0, "social": 0, "bank": 0}}
+{"text": "giao về q.7 nha shop", "labels": {"phone": 0, "email": 0, "order": 0, "address": 1, "name": 0, "social": 0, "bank": 0}}
+{"text": "ship về p5 giúp em nhé", "labels": {"phone": 0, "email": 0, "order": 0, "address": 1, "name": 0, "social": 0, "bank": 0}}
+{"text": "mình ở bên Gò Vấp lấy 1 cái", "labels": {"phone": 0, "email": 0, "order": 0, "address": 1, "name": 0, "social": 0, "bank": 0}}
+{"text": "gửi về tận Gò Vấp luôn hả shop", "labels": {"phone": 0, "email": 0, "order": 0, "address": 1, "name": 0, "social": 0, "bank": 0}}
+{"text": "ship về Buôn Ma Thuột mất mấy ngày", "labels": {"phone": 0, "email": 0, "order": 0, "address": 1, "name": 0, "social": 0, "bank": 0}}
+{"text": "giao về Hạ Long trước tết được không", "labels": {"phone": 0, "email": 0, "order": 0, "address": 1, "name": 0, "social": 0, "bank": 0}}
+{"text": "quê mình ở Quy Nhơn gửi xe khách nha", "labels": {"phone": 0, "email": 0, "order": 0, "address": 1, "name": 0, "social": 0, "bank": 0}}
+{"text": "chị hương ơi chốt cho em màu đen nha", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 1, "social": 0, "bank": 0}}
+{"text": "tên em là hoa đặt 2 hộp nha", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 1, "social": 0, "bank": 0}}
+{"text": "ghi giúp em nguyễn thị hoa nhé shop", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 1, "social": 0, "bank": 0}}
+{"text": "anh tuấn ơi lấy giúp em size L", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 1, "social": 0, "bank": 0}}
+{"text": "tên chị là mai lan nha shop", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 1, "social": 0, "bank": 0}}
+{"text": "ib em qua fb.com/nguyenvana nhé", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 0, "social": 1, "bank": 0}}
+{"text": "kết bạn facebook.com/hoa.nguyen.123 giúp em", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 0, "social": 1, "bank": 0}}
+{"text": "zalo.me/0901234567 liên hệ em nha", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 0, "social": 1, "bank": 0}}
+{"text": "tiktok.com/@shopcuahoa có sale không", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 0, "social": 1, "bank": 0}}
+{"text": "ib em @hoa_nguyen nha shop", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 0, "social": 1, "bank": 0}}
+{"text": "follow em tại instagram.com/shop.hoa nha", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 0, "social": 1, "bank": 0}}
+{"text": "stk 19036512345678 vietcombank nha shop", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 0, "social": 0, "bank": 1}}
+{"text": "chuyển vào số tk: 0071000123456 giúp em", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 0, "social": 0, "bank": 1}}
+{"text": "số tài khoản 9704229912345678 đứng tên em", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 0, "social": 0, "bank": 1}}
+{"text": "tk: 106868686868 vietinbank ck giúp em", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 0, "social": 0, "bank": 1}}
+{"text": "mua 2 cái tặng 1 cái nha shop", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 0, "social": 0, "bank": 0}}
+{"text": "ck xong nhớ nhắn shop nha", "labels": {"phone": 0, "email": 0, "order": 0, "address": 0, "name": 0, "social": 0, "bank": 0}}

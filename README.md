@@ -12,7 +12,7 @@ hành động *tạo ra giá trị* với *sự trùng hợp thời điểm*.
 [![CI](https://github.com/bminhnemhoi/AISC2026_LIVEFIT/actions/workflows/ci.yml/badge.svg)](https://github.com/bminhnemhoi/AISC2026_LIVEFIT/actions/workflows/ci.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
-[![Tests](https://img.shields.io/badge/tests-157%20passed-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-249%20passed-brightgreen)](tests/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Next.js 14](https://img.shields.io/badge/Next.js-14-black?logo=next.js)](web/)
 
@@ -57,15 +57,23 @@ LiveLift nhắm vào: không phải một dashboard đẹp hơn — một **moat
 ```bash
 git clone https://github.com/bminhnemhoi/AISC2026_LIVEFIT.git && cd AISC2026_LIVEFIT
 cp .env.example .env        # sửa POSTGRES_PASSWORD
-docker compose up -d        # db + redis + migrate + api + web + backup
+docker compose up -d        # caddy + db + redis + migrate + api + web + backup
 ```
+
+Mọi truy cập đi qua **Caddy** (cổng 80/443) — cổng vào công khai duy nhất:
 
 | Mở | Để làm gì |
 |---|---|
-| <http://localhost:3000> | Trang chính — bấm **"🔬 Xem thử ngay (30 giây)"** |
-| <http://localhost:3000/chay-phien> | Chạy một phiên thí nghiệm thật — 4 bước, không cần gõ lệnh |
-| <http://localhost:3000/ket-qua> | Kết quả gộp: tác động, KTC 95%, p-value, bảng MDE |
-| <http://localhost:8000/docs> | Toàn bộ API (OpenAPI, thử trực tiếp) |
+| <http://localhost> | Trang chính — bấm **"🔬 Xem thử ngay (30 giây)"** |
+| <http://localhost/chay-phien> | Chạy một phiên thí nghiệm thật — 4 bước, không cần gõ lệnh |
+| <http://localhost/ket-qua> | Kết quả gộp: tác động, KTC 95%, p-value, bảng MDE |
+| <http://localhost/docs> | Toàn bộ API (OpenAPI, thử trực tiếp; REST đi qua tiền tố `/api`) |
+
+> **Lên môi trường thật:** đặt `DOMAIN=<tên-miền>` trong `.env` (kèm
+> `NEXT_PUBLIC_API_URL=https://<tên-miền>/api`, rồi `docker compose build web`)
+> — Caddy tự xin chứng chỉ HTTPS, người xem bấm được shortlink đo click
+> `https://<tên-miền>/r/{code}`. **Cần cổng dev trực tiếp** (`:8000`/`:3000`)?
+> Chạy thêm `-f docker-compose.dev-ports.yml`.
 
 <details>
 <summary><b>Phát triển ngoài Docker & chạy kiểm thử</b></summary>
@@ -74,7 +82,7 @@ docker compose up -d        # db + redis + migrate + api + web + backup
 python -m venv .venv && .venv\Scripts\activate      # Windows; Linux: source .venv/bin/activate
 pip install -e ".[dev,server,ml]"
 
-pytest -m "not slow"     # 157 test, < 10 giây
+pytest -m "not slow"     # 249 test, < 10 giây
 pytest -m slow           # gate thống kê Monte-Carlo (vài phút)
 ruff check src tests     # lint
 
@@ -174,7 +182,7 @@ flowchart LR
 | **Lọc PII** | recall ≥ 95%/loại | gate `test_pii_filter.py` |
 | **Hiệu chỉnh KuaiLive** | 1,16M phòng shop; đơn vị ms **chứng minh bằng ràng buộc vật lý** | `analysis/calibration/` |
 | **Live-fire VOD thật** | 262 phút, **14.903 bình luận** chạy trọn qua API | phiên "quan sát" trong DB |
-| **Kiểm toán đối kháng** | 16/16 phát hiện xử lý (2 FATAL) | 13 sự cố đủ root cause + gate |
+| **Kiểm toán đối kháng** | 16/16 phát hiện xử lý (2 FATAL) · đợt 2 (06/09): 5 nhóm lỗi chặn phiên-thật đã sửa | 18 sự cố đủ root cause + gate |
 
 ## 📁 Cấu trúc kho mã
 
@@ -205,7 +213,7 @@ flowchart LR
 │   ├── HUONG-DAN-TEST.md    # kiểm thử từng khả năng
 │   ├── benchmarks/          # số sinh lại được (intent, KuaiLive)
 │   ├── research/            # 7 báo cáo nghiên cứu đa nguồn
-│   └── incident-log.md      # 13 sự cố: root cause + gate chặn tái diễn
+│   └── incident-log.md      # 18 sự cố: root cause + gate chặn tái diễn
 ├── PREREGISTRATION.md       # tiền đăng ký — KHÓA trước chuỗi khẳng định
 ├── HARNESS.md               # quy trình phát triển & quality gates   ← đọc thứ ba
 ├── CONTRIBUTING.md · CITATION.cff · LICENSE (AGPL-3.0)
@@ -231,7 +239,7 @@ Chi tiết thành tựu, việc còn lại (P0/P1/P2), nợ kỹ thuật không 
 ## 🧑‍💻 Quy trình & đóng góp
 
 Vòng lặp: *hiểu → nghiên cứu (có trích dẫn) → thiết kế test trước → code thuần ở lõi
-→ gate tự động → root cause mọi lỗi → sổ sự cố*. Quality gates: 157 test nhanh · gate
+→ gate tự động → root cause mọi lỗi → sổ sự cố*. Quality gates: 249 test nhanh · gate
 thống kê Monte-Carlo · recall PII · cân bằng gán 1000 lịch · **contract test web↔API**
 · cách ly collectors · ruff.
 

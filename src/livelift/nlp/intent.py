@@ -151,8 +151,41 @@ MIN_CONFIDENCE = 0.45
 """Below this the model abstains to "khac" — out-of-domain guard (see classify)."""
 
 _MODEL_PATH = __import__("pathlib").Path(__file__).parent / "model" / "intent_clf.joblib"
+_META_PATH = _MODEL_PATH.with_suffix(".meta.json")
 _model = None
 _model_tried = False
+
+
+def _check_artifact_sklearn_version() -> None:
+    """Warn LOUDLY when the artifact was trained with a different sklearn.
+
+    joblib pipelines are not guaranteed portable across sklearn versions —
+    a silently mis-deserialized model is worse than the keyword baseline.
+    The check itself never raises (missing meta file = older artifact, skip);
+    the soft fallback in :func:`classify` stays in place either way.
+    """
+    try:
+        import json
+
+        import sklearn
+
+        meta = json.loads(_META_PATH.read_text(encoding="utf-8"))
+        trained = meta.get("sklearn_version")
+        if trained and trained != sklearn.__version__:
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "CẢNH BÁO PHIÊN BẢN: artifact %s được huấn luyện với scikit-learn %s "
+                "nhưng môi trường đang chạy scikit-learn %s — kết quả dự đoán có thể "
+                "sai lệch âm thầm. Hãy huấn luyện lại artifact bằng: "
+                "python -m livelift.nlp.train_intent (fallback mềm về keyword baseline "
+                "vẫn được giữ nếu model lỗi khi dự đoán).",
+                _MODEL_PATH.name,
+                trained,
+                sklearn.__version__,
+            )
+    except Exception:  # noqa: BLE001, S110 — the check must never take ingest down
+        pass
 
 
 def _load_model():
@@ -171,6 +204,7 @@ def _load_model():
 
         if _MODEL_PATH.exists():
             _model = joblib.load(_MODEL_PATH)
+            _check_artifact_sklearn_version()
     except Exception:  # noqa: BLE001 — any failure means "use the baseline"
         _model = None
     return _model
@@ -209,21 +243,35 @@ def classify(text: str) -> str:
     docs/benchmarks/intent-classifier.md for the honest caveats), otherwise
     the keyword baseline. Both are diacritics/teencode tolerant.
     """
+    return classify_with_confidence(text)[0]
+
+
+def classify_with_confidence(text: str) -> tuple[str, float | None]:
+    """Classify one comment and return ``(label, confidence)``.
+
+    ``confidence`` is the trained model's top-class probability BEFORE the
+    abstain floor is applied — an abstained ``khac`` still carries the low
+    score that caused the abstention, which is exactly the ordering the
+    active-learning export wants (label the least-sure comments first, see
+    ``python -m livelift.nlp.label_llm export --uncertain-first``). The
+    keyword baseline has no probability model, so its confidence is ``None``.
+    """
     model = _load_model()
     if model is not None:
         try:
             proba = model.predict_proba([text])[0]
             i = int(proba.argmax())
             label = str(model.classes_[i])
+            confidence = float(proba[i])
             # Confidence floor, calibrated on the 02/09 real-VOD live-fire: an
             # English chess-stream chat pushed 12% of messages into che_dat —
             # the model is Vietnamese-specific and must say "khac" instead of
             # guessing on out-of-domain text. At 0.45 the Vietnamese dataset
             # loses nothing (in-sample acc 1.000) while English text routed to
             # khac rises 62% -> 81%.
-            if proba[i] >= MIN_CONFIDENCE and label in INTENT_LABELS:
-                return label
-            return "khac"
+            if confidence >= MIN_CONFIDENCE and label in INTENT_LABELS:
+                return label, confidence
+            return "khac", confidence
         except Exception:  # noqa: BLE001, S110 — any failure -> keyword baseline
             _log_once_model_failure()
-    return classify_keywords(text)
+    return classify_keywords(text), None

@@ -28,9 +28,12 @@ server = [
     "httpx>=0.27",
     "yt-dlp>=2025.1.1",
 ]
-# Modeling extras — heavy, install only where needed
+# Modeling extras — heavy, install only where needed.
+# scikit-learn is pinned to a range because the intent artifact (joblib) is
+# NOT portable across sklearn majors; intent.py warns when the running
+# version differs from the one recorded at training time.
 ml = [
-    "scikit-learn>=1.5",
+    "scikit-learn>=1.5,<1.8",
     "lightgbm>=4.3",
     "statsmodels>=0.14",
 ]

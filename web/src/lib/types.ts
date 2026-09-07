@@ -75,7 +75,8 @@ export interface ExperimentSummary {
   n_on: number;
   n_off: number;
   estimate: number | null;
-  estimate_ht: number | null;
+  // no estimate_ht: at constant p=0.5 the Hájek/IPW number is identical to
+  // `estimate` — the API stopped serving a duplicate "second estimator".
   ci_low: number | null;
   ci_high: number | null;
   p_value: number | null;
@@ -187,12 +188,60 @@ export type OverrideReason = (typeof OVERRIDE_REASONS)[number];
 
 export type ConnectionKind = "connecting" | "live" | "mock";
 
-/** WebSocket push message shapes from /ws/{session_id}. */
+// ---------------------------------------------------------------------------
+// WebSocket contract — SERVER ENVELOPE {type, data}
+//
+// The API always publishes `{"type": <string>, "data": <payload>}` (see
+// src/livelift/api/routes/{events,sessions,actions,redirect,ws}.py). The old
+// client types read `msg.tick` / `msg.state` — fields the server never sends —
+// so every push was silently dropped (the desk "worked" only because of the
+// 5 s REST poll). Locked both ways by tests/test_web_api_contract.py.
+// ---------------------------------------------------------------------------
+
+/** "tick" payload: TickOut as JSON (wall-clock bucket, no offset_s). */
+export interface WsTickData {
+  session_id: string;
+  ts_bucket: string; // ISO UTC
+  viewers: number;
+  comment_rate: number;
+  like_rate: number;
+  click_count: number;
+  pinned_product_id: string | null;
+}
+
+/** "comment" payload: CommentOut as JSON — `text` is ALREADY scrubbed. */
+export interface WsCommentData {
+  comment_id: string;
+  session_id: string;
+  block_id: string | null;
+  ts: string; // ISO UTC
+  text: string; // scrubbed server-side
+  pii_kinds: string[];
+  intent: string | null;
+}
+
+/**
+ * "state" payload is a PARTIAL patch — the server pushes only the field that
+ * changed ({status} on start/end, {pinned_product_id} on execute/override).
+ * It must be MERGED into local state, never treated as a full SessionState.
+ */
+export interface WsStateData {
+  status?: SessionStatus;
+  pinned_product_id?: string | null;
+}
+
+/** "click" payload: one shortlink click just landed (redirect.py). */
+export interface WsClickData {
+  product_id: string;
+}
+
+/** WebSocket push messages from /ws/{session_id} — always {type, data}. */
 export type WsMessage =
-  | { type: "tick"; tick: Tick }
-  | { type: "state"; state: SessionState }
-  | { type: "comment"; comment: CommentItem }
-  | { type: "cards"; cards: ActionCardData[] };
+  | { type: "hello"; data: { session_id: string } }
+  | { type: "tick"; data: WsTickData }
+  | { type: "comment"; data: WsCommentData }
+  | { type: "state"; data: WsStateData }
+  | { type: "click"; data: WsClickData };
 
 /** Full recorded dataset of one session, used by the replay engine. */
 export interface SessionRecording {

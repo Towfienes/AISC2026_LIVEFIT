@@ -22,6 +22,18 @@ class Settings(BaseSettings):
     database_url: str = "postgresql://livelift:livelift@127.0.0.1:5432/livelift"
     redis_url: str = "redis://127.0.0.1:6379/0"
 
+    # Shared secret for the write endpoints POST /sessions/{id}/comments and
+    # /ticks. Empty (default) = auth disabled (dev/demo). When set, ApiSink
+    # attaches "Authorization: Bearer <token>" automatically.
+    ingest_token: str = ""
+
+    # PREREGISTRATION.md §7 (no peeking): ISO date (YYYY-MM-DD, UTC). While the
+    # current UTC date is BEFORE this date, /experiment/summary withholds every
+    # inferential field (estimate, p, CI) and serves operational numbers only.
+    # Empty (default) = no freeze (dev/demo). A malformed value fails CLOSED:
+    # the lock stays on until the configuration is fixed.
+    results_freeze_until: str = ""
+
     youtube_api_key: str = ""
     facebook_page_id: str = ""
     facebook_page_access_token: str = ""

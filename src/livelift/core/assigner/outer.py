@@ -14,8 +14,14 @@ Design decisions (docs/research/2026-08-24-switchback-design.md, synthesis §3.1
 - **Assignment**: i.i.d. Bernoulli(p=0.5) per block, with **rerandomization**:
   redraw the whole sequence until every session phase (early/mid/late) has at
   least ``min_per_arm_per_phase`` blocks of each arm (Ni, Kalfountzou & Bojinov,
-  HBS WP 26-012). The acceptance rule is symmetric in the arms, so the marginal
-  propensity remains exactly p for every block — recorded as such.
+  HBS WP 26-012). At p=0.5 the acceptance rule is exchangeable between the two
+  arms, so the marginal propensity stays exactly 0.5 for every block — recorded
+  as such. At p≠0.5 that symmetry argument FAILS: conditioning on the balance
+  constraint shifts the per-block marginal propensity away from p, so the
+  logged p would be wrong as an IPW propensity. :func:`draw_assignments`
+  therefore warns when p≠0.5 is combined with rerandomization; inference must
+  then rely on redraws from this very mechanism (which stay valid), never on
+  the logged p.
 - **Boundary jitter**: interior block boundaries are shifted by ±``jitter_s``
   seconds so switches never sync with the show's script rhythm (Xiong, Chin &
   Taylor, arXiv:2406.06768).
@@ -30,6 +36,7 @@ function (:func:`draw_assignments`), not an ad-hoc shuffle — see
 from __future__ import annotations
 
 import random
+import warnings
 from dataclasses import dataclass, field
 
 PHASES = ("early", "mid", "late")
@@ -164,13 +171,18 @@ def draw_assignments(
     min_per_arm_per_phase: int = 2,
     max_redraws: int = 10_000,
 ) -> tuple[list[str], int]:
-    """The production assignment mechanism: i.i.d. Bernoulli(p) with symmetric
-    rerandomization.
+    """The production assignment mechanism: i.i.d. Bernoulli(p) with
+    rerandomization (arm-balance acceptance rule).
 
     Redraws until each phase stratum contains at least ``min_per_arm_per_phase``
     blocks of each arm — capped at what the stratum size can possibly hold, so
     small strata degrade gracefully instead of looping forever. Returns the
     accepted assignment vector and the number of redraws used.
+
+    The acceptance rule preserves the per-block marginal propensity ONLY at
+    p=0.5 (arm exchangeability); at p≠0.5 conditioning on balance shifts it
+    away from p, so a warning is emitted — the logged p must not be used as an
+    IPW propensity then (see module docstring).
 
     This function is the single source of truth for the assignment
     distribution: `generate_schedule` uses it to assign, and the randomization
@@ -185,6 +197,15 @@ def draw_assignments(
     # guarantee than the docs advertise. The realized value is returned so the
     # caller can record it and warn (audit 30/08).
     required = {ph: min(min_per_arm_per_phase, len(idx) // 2) for ph, idx in strata.items()}
+
+    if p != 0.5 and any(req > 0 for req in required.values()):
+        warnings.warn(
+            "p != 0.5 kết hợp rerandomization: xác suất biên mỗi khối không còn "
+            "đúng bằng p — propensity ghi trong log KHÔNG dùng được cho suy diễn "
+            "IPW; kiểm định ngẫu nhiên hóa vẫn hợp lệ vì vẽ lại bằng đúng cơ chế "
+            "này (xem docstring module outer.py).",
+            stacklevel=2,
+        )
 
     for redraw in range(max_redraws):
         arms = [ON if rng.random() < p else OFF for _ in phases]

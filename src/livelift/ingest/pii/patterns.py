@@ -20,12 +20,16 @@ import re
 
 # --- Phone -----------------------------------------------------------------
 # Candidate: 0 / O / +84 / 84 head, then 9-11 more digit-ish chars, each
-# optionally preceded by one separator. Validated later by digit count.
+# optionally preceded by up to 3 separators (",", "/", " - "…). Validated
+# later by digit count. The lookbehind blocks only digits, NOT letters, so
+# numbers glued to a word prefix ("sdt0901234567", "zalo0901234567") are
+# caught; an o/O head still requires a non-letter before it so the trailing
+# "o" of words like "alo" is not swallowed.
 PHONE_RE = re.compile(
     r"""
-    (?<![\dA-Za-z])                 # not inside a longer number/word
-    (?:\+\s?84|84|[0oO])            # head
-    (?:[\s.\-·]?[0-9oO]){8,11}      # body, separators allowed between digits
+    (?<!\d)                          # not inside a longer digit run
+    (?:\+\s?84|84|0|(?<![A-Za-z])[oO])   # head
+    (?:[\s.,;/_*\-·]{0,3}[0-9oO]){8,11}  # body, separators allowed between digits
     (?![0-9oO])
     """,
     re.VERBOSE,
@@ -92,10 +96,17 @@ ADDR_KEYWORD_RE = re.compile(
     re.VERBOSE | re.IGNORECASE,
 )
 # shipping context immediately before an admin-unit name is built in filter.py
+# ("ship về X", "giao về X", "gửi về X", "mình ở bên X", "về tận X"…)
 ADDR_CONTEXT_WORDS_RE = re.compile(
-    r"(?:ship|giao|gửi|gui|chuyển|chuyen|về|ve\b|ở|tại|tai\b|đến|den\b|quê|que\b|từ|tu\b)\s*$",
+    r"(?:ship|giao|gửi|gui|chuyển|chuyen|về|ve\b|ở|tại|tai\b|đến|den\b|quê|que\b|từ|tu\b"
+    r"|bên|ben\b|tận|tan\b)\s*$",
     re.IGNORECASE,
 )
+# district/ward abbreviations. "q7" / "q.7" is unambiguous enough to stand
+# alone in shopping-live chat; "p5" collides with product-model names, so the
+# q+p variant is only used with a shipping-context prefix (see filter.py).
+ADDR_Q_ABBREV_RE = re.compile(r"(?<![A-Za-zÀ-ỹ0-9])[qQ]\.?\s?\d{1,2}(?!\d)")
+ADDR_QP_ABBREV_RE = re.compile(r"(?<![A-Za-zÀ-ỹ0-9])[qpQP]\.?\s?\d{1,2}(?!\d)")
 # explicit address announcement: "địa chỉ: 45 Nguyễn Trãi Thanh Xuân".
 # Guards: (a) negative lookbehind for "[" so the [ĐỊA CHỈ] replacement token
 # never re-triggers (idempotency); (b) the captured tail excludes brackets;
@@ -124,4 +135,77 @@ NAME_CONTEXT_RE = re.compile(
 # NER hook can raise it later)
 HONORIFIC_NAME_RE = re.compile(
     rf"\b(?:chị|chi|anh|cô|co|chú|chu|bác|bac|bạn|ban|em)\s+(?P<name>{_CAP_WORD}(?:\s+{_CAP_WORD}){{0,2}})"
+)
+
+# --- Lowercase names --------------------------------------------------------
+# Chat comments are often typed all-lowercase ("chị hương ơi", "tên em là
+# hoa"), which every capitalized pattern above misses. Lowercase words are
+# only accepted as names under a strong trigger (vocative "ơi", explicit
+# "tên ... là"/"mình là", or surname + thị/văn middle marker) AND with a
+# stopword guard, so ordinary chat ("chị ơi", "em lấy 1 cái") is untouched.
+_LOWER_WORD = r"[a-zà-ỹ]+"
+_NAME_STOPWORDS = (
+    "ơi|oi|ui|ạ|nha|nhé|nhe|nè|ne|gì|gi|nào|nao|với|voi|và|va|là|la|ai|"
+    "có|co|không|khong|ko|hông|hong|chưa|chua|rồi|roi|đi|di|"
+    "giúp|giup|cho|xem|mua|bán|ban|lấy|lay|chốt|chot|đặt|dat|đắt|"
+    "gửi|gui|hỏi|hoi|trả|tra|xin|cần|can|"
+    "shop|size|ship|hàng|hang|đơn|don|em|anh|chị|chi|bạn|"
+    "mình|minh|cô|chú|chu|bác|bac|bé|be|gái|gai|trai|yêu|iu|hai|út|ut|"
+    "khách|khach|quen|mới|moi|cũ|cu"
+)
+_LOWER_NAME_WORD = rf"(?!(?:{_NAME_STOPWORDS})\b){_LOWER_WORD}"
+# vocative: honorific + 1-2 lowercase words + "ơi"  ->  "chị hương ơi"
+VOCATIVE_NAME_RE = re.compile(
+    rf"""
+    \b(?:chị|chi|anh|cô|co|chú|chu|bác|bac|bạn|ban|em)\s+
+    (?P<name>{_LOWER_NAME_WORD}(?:\s+{_LOWER_NAME_WORD})?)
+    \s+(?:ơi|oi)\b
+    """,
+    re.VERBOSE,
+)
+# explicit self-introduction with a mandatory "là": "tên em là hoa", "mình là hoa"
+NAME_CONTEXT_LOWER_RE = re.compile(
+    rf"""
+    \b(?:
+        (?:tên|ten)\s*(?:em|chị|chi|anh|mình|minh|tôi|toi|khách|khach)?
+      | mình | minh | tôi | toi
+    )\s*(?:là|la)\s+
+    (?P<name>{_LOWER_NAME_WORD}(?:\s+{_LOWER_NAME_WORD}){{0,2}})
+    """,
+    re.VERBOSE,
+)
+# lowercase full name with a thị/văn middle marker: "nguyễn thị hoa". The
+# marker is required because many lowercase surnames double as common words
+# ("mai", "hà", "cao"); diacritics-bearing surnames only, same reason.
+_VN_SURNAMES_LOWER = _VN_SURNAMES.lower()
+NAME_SURNAME_LOWER_RE = re.compile(
+    rf"\b(?:{_VN_SURNAMES_LOWER})\s+(?:thị|văn)\s+"
+    rf"{_LOWER_NAME_WORD}(?:\s+{_LOWER_NAME_WORD})?"
+)
+
+# --- Social links / handles --------------------------------------------------
+# A profile link or handle identifies the buyer as surely as a phone number.
+SOCIAL_URL_RE = re.compile(
+    r"""
+    (?<![A-Za-z0-9.])
+    (?:https?://)?(?:www\.)?
+    (?:fb\.com|fb\.me|facebook\.com|m\.me|zalo\.me|tiktok\.com|instagram\.com|threads\.net)
+    /[A-Za-z0-9._@~/\-]{2,60}
+    """,
+    re.VERBOSE | re.IGNORECASE,
+)
+# "@handle" — the lookbehind keeps email local-parts ("a@b.vn") for EMAIL_RE.
+SOCIAL_HANDLE_RE = re.compile(r"(?<![\w.@])@[A-Za-z0-9_.]{3,32}\b")
+
+# --- Bank account -----------------------------------------------------------
+# Context-triggered only ("stk", "số tk", "tk:", "số tài khoản" + 6-19 digits).
+# Bare "tài khoản" is NOT a trigger: it precedes money amounts too often.
+BANK_CONTEXT_RE = re.compile(
+    r"""
+    \b(?:stk|số\s*tk|so\s*tk|số\s*tài\s*khoản|so\s*tai\s*khoan|tk\s*:)
+    \s*(?:là|la|:|số|so)?\s*
+    (?P<acct>\d(?:[\s.\-]?\d){5,18})
+    (?![\d])
+    """,
+    re.VERBOSE | re.IGNORECASE,
 )

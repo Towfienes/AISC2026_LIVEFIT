@@ -20,7 +20,7 @@ from livelift.api.schemas import (
     OverrideRequest,
 )
 from livelift.api.service import StoreDep
-from livelift.core.assigner import choose_action
+from livelift.core.assigner import Candidate, choose_action, intervals_overlap
 
 router = APIRouter()
 
@@ -36,6 +36,41 @@ def _seconds_since_last_switch(blocks: list[dict], elapsed: float) -> float | No
     boundaries = sorted(b["start_offset_s"] for b in blocks)
     past = [b for b in boundaries if b <= elapsed]
     return elapsed - past[-1] if past else None
+
+
+def product_id_from_card(card_id: str | None) -> str | None:
+    """Extract the product from a desk card id (``card-{rank}-{product_id}``,
+    see :func:`livelift.api.cards.build_cards`).
+
+    Fallback for clients that send only ``card_id``: before this, the request
+    carried no usable product and the server randomized over the WHOLE
+    candidate set — the operator clicked card A and product B got pinned.
+    """
+    if not card_id:
+        return None
+    parts = card_id.split("-", 2)
+    if len(parts) == 3 and parts[0] == "card" and parts[2]:
+        return parts[2]
+    return None
+
+
+def scope_candidates_to_product(
+    candidates: list[Candidate], product_id: str
+) -> list[Candidate] | None:
+    """Scope the inner-tier candidate set to the card the desk clicked.
+
+    Keeps the §6.2 exploration contract with the clicked card as the anchor:
+    every candidate whose Gamma-Poisson interval overlaps the clicked card's
+    interval stays in (randomized with a logged propensity — exploration
+    among statistically indistinguishable products is free); once intervals
+    separate, the set collapses to exactly the clicked product. Returns
+    ``None`` when the product is no longer a candidate (out of stock, or the
+    suggestion set changed since the desk rendered the card).
+    """
+    target = next((c for c in candidates if c.product_id == product_id), None)
+    if target is None:
+        return None
+    return [c for c in candidates if intervals_overlap(target, c)]
 
 
 @router.post("/sessions/{session_id}/actions/execute", response_model=ExecuteOut)
@@ -77,9 +112,21 @@ def execute_action(session_id: str, body: ExecuteRequest, store: StoreDep) -> Ex
     if not candidates:
         raise HTTPException(status_code=409, detail="Không có sản phẩm còn hàng để ghim")
 
-    if body.product_id is not None:
-        # Desk clicked a specific card: restrict the candidate set to it.
-        candidates = [c for c in candidates if c.product_id == body.product_id] or candidates
+    requested = body.product_id or product_id_from_card(body.card_id)
+    if requested is not None:
+        # Desk clicked a specific card: scope to that card's overlap set.
+        # NEVER fall back silently to the full candidate set — that is exactly
+        # the "clicked card A, pinned product B" bug.
+        scoped = scope_candidates_to_product(candidates, requested)
+        if scoped is None:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Thẻ không còn hợp lệ — sản phẩm đã hết hàng hoặc danh sách "
+                    "gợi ý vừa thay đổi. Chờ thẻ mới rồi thử lại."
+                ),
+            )
+        candidates = scoped
 
     decision = choose_action(candidates, _rng)
     row = {

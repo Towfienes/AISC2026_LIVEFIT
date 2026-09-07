@@ -114,3 +114,24 @@ def test_schedule_shorter_than_block_rejected():
 def test_propensity_recorded_as_p():
     s = generate_schedule(90, DESIGN, seed=11)
     assert all(b.propensity == DESIGN.p for b in s.measurement_blocks)
+
+
+# ---------------------------------------------------------------------------
+# Review 06/09 — rerandomization preserves the marginal propensity ONLY at
+# p=0.5; combining p≠0.5 with the balance constraint must warn.
+# ---------------------------------------------------------------------------
+
+
+def test_draw_assignments_warns_on_p_not_half_with_rerandomization():
+    rng = random.Random(0)
+    phases = ["early"] * 8 + ["mid"] * 8 + ["late"] * 8
+    with pytest.warns(UserWarning, match="rerandomization"):
+        draw_assignments(phases, rng, p=0.3)
+
+
+def test_draw_assignments_silent_at_half_or_without_constraint(recwarn):
+    rng = random.Random(0)
+    phases = ["early"] * 8 + ["mid"] * 8 + ["late"] * 8
+    draw_assignments(phases, rng, p=0.5)  # symmetric case: marginal stays p
+    draw_assignments(phases, rng, p=0.3, min_per_arm_per_phase=0)  # no constraint
+    assert not [w for w in recwarn.list if issubclass(w.category, UserWarning)]

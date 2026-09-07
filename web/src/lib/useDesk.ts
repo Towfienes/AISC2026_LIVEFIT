@@ -10,11 +10,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  endSession as apiEndSession,
   executeCard as apiExecute,
   getCards,
   getComments,
+  getSchedule,
   getState,
   getTicks,
+  listProducts,
   listSessions,
   postOverride,
   sanitizeCards,
@@ -65,6 +68,10 @@ export interface DeskState {
   execute: (card: ActionCardData) => Promise<void>;
   skip: (cardId: string) => void;
   override: (productId: string, reason: OverrideReason) => Promise<void>;
+  /** True when the selected session is live on a real API (not mock). */
+  canEndSession: boolean;
+  /** Gọi endpoint kết thúc phiên (POST /sessions/{id}/end) — live mode only. */
+  endSession: () => Promise<void>;
 }
 
 export interface UseDeskOptions {
@@ -146,6 +153,10 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
     setTicks([]);
     setComments([]);
     setCards([]);
+    // Lịch khối là dữ liệu theo phiên: không được hiển thị lịch của phiên cũ
+    // trên trục thời gian của phiên mới trong lúc chờ poll đầu tiên.
+    setBlocks([]);
+    setCurrentBlock(null);
   }, [sessionId]);
 
   // -------------------------------------------------------------------------
@@ -198,11 +209,16 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
       // freeze the whole desk. Promise.all rejected the entire poll when a
       // single call failed and the catch silently kept the empty first render,
       // so the desk looked "connected" but never updated (incident 27/08).
-      const [stR, tksR, cdsR, cmsR] = await Promise.allSettled([
+      const [stR, tksR, cdsR, cmsR, schR] = await Promise.allSettled([
         getState(sessionId),
         getTicks(sessionId, sessionStartIso.current),
         getCards(sessionId),
         getComments(sessionId, sessionStartIso.current),
+        // The switchback schedule is static once drawn, but fetching it in the
+        // same allSettled poll keeps one failure model (degrade one panel).
+        // Without it, live mode never set `blocks` and the desk showed an
+        // empty BlockStrip while the mock demo looked perfect.
+        getSchedule(sessionId),
       ]);
       if (cancelled) return;
 
@@ -219,11 +235,17 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
         if (last) setViewers(last.viewers);
       }
       if (cdsR.status === "fulfilled") setCards(cdsR.value);
+      if (schR.status === "fulfilled") setBlocks(schR.value);
       if (cmsR.status === "fulfilled" && cmsR.value.length) {
         const fresh = cmsR.value.filter((c) => c.offset_s > lastCommentOffset.current);
         if (fresh.length) {
           lastCommentOffset.current = fresh[fresh.length - 1].offset_s;
-          setComments((prev) => [...prev, ...fresh].slice(-200));
+          // Dedupe theo comment_id: bình luận có thể đã tới trước qua WebSocket.
+          setComments((prev) => {
+            const seen = new Set(prev.map((c) => c.comment_id));
+            const add = fresh.filter((c) => !seen.has(c.comment_id));
+            return add.length ? [...prev, ...add].slice(-200) : prev;
+          });
         }
       }
 
@@ -232,6 +254,7 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
         tksR.status === "rejected" ? "người xem" : null,
         cdsR.status === "rejected" ? "thẻ hành động" : null,
         cmsR.status === "rejected" ? "bình luận" : null,
+        schR.status === "rejected" ? "lịch khối" : null,
       ].filter(Boolean) as string[];
       setDegraded(failed.length ? `Không tải được: ${failed.join(", ")}` : null);
     };
@@ -250,25 +273,110 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
     return () => clearInterval(timer);
   }, [connection]);
 
-  // WebSocket push (live mode only).
-  const onWs = useCallback((msg: WsMessage) => {
-    if (msg.type === "tick") {
-      setTicks((prev) => [...prev.filter((t) => t.offset_s !== msg.tick.offset_s), msg.tick]);
-      setViewers(msg.tick.viewers);
-    } else if (msg.type === "comment") {
-      setComments((prev) => [...prev, msg.comment].slice(-200));
-    } else if (msg.type === "cards") {
-      setCards(sanitizeCards(msg.cards));
-    } else if (msg.type === "state") {
-      // The API pushes the same flat operator-state shape the REST route
-      // returns; viewers/blocks are NOT part of it (they come from the ticks
-      // and schedule endpoints) — reading them here used to yield undefined.
-      setElapsedS(msg.state.elapsed_s);
-      setPinned(msg.state.pinned_product ?? null);
-      setModeState(msg.state.mode);
-      setCurrentBlock(msg.state.current_block ?? null);
-    }
-  }, []);
+  // Live mode: load the product catalog once so a WebSocket "state" patch
+  // ({pinned_product_id}) can be resolved to a displayable product.
+  useEffect(() => {
+    if (connection !== "live") return;
+    let cancelled = false;
+    listProducts()
+      .then((ps) => {
+        if (!cancelled) setProducts(ps);
+      })
+      .catch(() => {
+        // non-fatal: the 5 s state poll carries the full pinned product
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [connection]);
+
+  // WebSocket push (live mode only). The server envelope is ALWAYS
+  // {type, data} — see routes/{events,sessions,actions,redirect}.py, locked by
+  // tests/test_web_api_contract.py. "state" is a PARTIAL patch to merge, and
+  // "click" bumps the current 30 s bucket so clicks show without waiting for
+  // the next poll.
+  const onWs = useCallback(
+    (msg: WsMessage) => {
+      switch (msg.type) {
+        case "tick": {
+          const start = sessionStartIso.current ? Date.parse(sessionStartIso.current) : NaN;
+          const at = Date.parse(msg.data.ts_bucket);
+          // Without a session start there is no offset axis — let the poll
+          // (which shares toOffsets' fallback origin) pick it up instead.
+          if (!Number.isFinite(start) || !Number.isFinite(at)) return;
+          const tick: Tick = {
+            offset_s: Math.max(0, (at - start) / 1000),
+            ts_bucket: msg.data.ts_bucket,
+            viewers: msg.data.viewers,
+            comment_rate: msg.data.comment_rate,
+            like_rate: msg.data.like_rate,
+            click_count: msg.data.click_count ?? 0,
+            pinned_product_id: msg.data.pinned_product_id ?? null,
+            // Đường tham chiếu (trung bình trượt) được tính lại ở lần poll kế.
+            baseline_viewers: null,
+            baseline_clicks_per_min: null,
+          };
+          setTicks((prev) => [...prev.filter((t) => t.offset_s !== tick.offset_s), tick]);
+          setViewers(tick.viewers);
+          break;
+        }
+        case "comment": {
+          const start = sessionStartIso.current ? Date.parse(sessionStartIso.current) : NaN;
+          const at = Date.parse(msg.data.ts);
+          const offsetS =
+            Number.isFinite(start) && Number.isFinite(at) ? Math.max(0, (at - start) / 1000) : 0;
+          const item: CommentItem = {
+            comment_id: msg.data.comment_id,
+            offset_s: offsetS,
+            ts: msg.data.ts,
+            // API field `text` — already PII-scrubbed server-side (rule 1).
+            text_scrubbed: msg.data.text,
+            intent_label: (msg.data.intent as CommentItem["intent_label"]) ?? null,
+            pii_kinds: msg.data.pii_kinds ?? [],
+          };
+          setComments((prev) =>
+            prev.some((c) => c.comment_id === item.comment_id)
+              ? prev
+              : [...prev, item].slice(-200),
+          );
+          break;
+        }
+        case "state": {
+          // Partial merge: only touch what the patch carries.
+          const patch = msg.data;
+          if (patch.status !== undefined) {
+            const status = patch.status;
+            setSessions((prev) =>
+              prev.map((s) => (s.session_id === sessionId ? { ...s, status } : s)),
+            );
+          }
+          if ("pinned_product_id" in patch) {
+            if (patch.pinned_product_id == null) {
+              setPinned(null);
+            } else {
+              const p = products.find((x) => x.product_id === patch.pinned_product_id);
+              // Unknown id (catalog not loaded yet): keep the last pinned —
+              // the 5 s state poll carries the full product and corrects it.
+              if (p) setPinned(p);
+            }
+          }
+          break;
+        }
+        case "click": {
+          setTicks((prev) => {
+            if (prev.length === 0) return prev;
+            const last = prev[prev.length - 1];
+            return [...prev.slice(0, -1), { ...last, click_count: last.click_count + 1 }];
+          });
+          break;
+        }
+        default:
+          // "hello" và các loại tương lai: bỏ qua, không phải lỗi.
+          break;
+      }
+    },
+    [sessionId, products],
+  );
   const wsStatus = useLiveSocket(connection === "live" ? sessionId : null, onWs, connection === "live");
 
   // -------------------------------------------------------------------------
@@ -280,7 +388,10 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
       setExecutedIds((prev) => new Set(prev).add(card.card_id));
       if (connection === "live") {
         try {
-          await apiExecute(sessionId, card.card_id);
+          // Gửi kèm product_id: server phải scope đúng thẻ được bấm — chỉ gửi
+          // card_id từng khiến server ngẫu nhiên hoá trên TOÀN BỘ tập ứng viên
+          // (bấm thẻ A, ghim sản phẩm B).
+          await apiExecute(sessionId, card.card_id, card.product_id);
         } catch {
           setExecutedIds((prev) => {
             const next = new Set(prev);
@@ -300,6 +411,20 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
   const skip = useCallback((cardId: string) => {
     setSkippedIds((prev) => new Set(prev).add(cardId));
   }, []);
+
+  const canEndSession = connection === "live" && session?.status === "live";
+
+  const endSession = useCallback(async () => {
+    if (!sessionId || connection !== "live") return;
+    try {
+      const updated = await apiEndSession(sessionId);
+      setSessions((prev) =>
+        prev.map((s) => (s.session_id === updated.session_id ? updated : s)),
+      );
+    } catch {
+      throw new Error("Không kết thúc được phiên — kiểm tra kết nối API rồi thử lại.");
+    }
+  }, [sessionId, connection]);
 
   const override = useCallback(
     async (productId: string, reason: OverrideReason) => {
@@ -362,5 +487,7 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
     execute,
     skip,
     override,
+    canEndSession,
+    endSession,
   };
 }

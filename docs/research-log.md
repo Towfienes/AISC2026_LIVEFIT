@@ -179,3 +179,20 @@ trên mô phỏng có tác động biết trước trước khi chạm dữ li�
   và nên trình bày đúng như vậy trong hồ sơ.
 - **Đã áp dụng:** thêm `pre_like_rate` (nhịp thả tim/phút cửa sổ tiền-khối) vào
   BlockRecord làm hiệp biến — commit cùng ngày.
+
+## 2026-09-06 — LLM-as-annotator: đồng thuận 2 model + người duyệt bất đồng (gói F)
+
+- **Nguồn:** ACL 2024 Workshop NLP+CSS (LLM annotation cho dữ liệu xã hội — hai LLM
+  gán độc lập, giữ nhãn đồng thuận, người duyệt xử lý bất đồng); ViGoEmotions (2026,
+  áp dụng quy trình này cho văn bản mạng xã hội tiếng Việt).
+- **Dùng được:** quy trình 2-model-consensus giảm chi phí gán nhãn nhiều lần so với
+  gán tay toàn bộ mà chất lượng gần chuyên gia; bất đồng giữa 2 model khác họ là bộ
+  lọc tự nhiên cho "câu khó" cần người duyệt; kết hợp uncertain-first (active learning
+  theo `intent_confidence`) để mỗi nhãn mua được nhiều thông tin nhất.
+- **KHÔNG dùng được:** nhãn LLM không thay được người duyệt ở lớp mở `khac` và các
+  câu mỉa mai/đa ý định — vì vậy consensus không tự động thành ground truth: trường
+  `source` (`llm-consensus`/`human`) đi theo từng mẫu train để benchmark truy được
+  nguồn gốc.
+- **Quyết định (2026-09-06):** hiện thực `livelift.nlp.label_llm` (export/merge/finalize,
+  không gọi API từ code); đủ 2–3k nhãn duyệt → fine-tune 5CD-AI/visobert-14gb-corpus,
+  xuất ONNX INT8 (docs/benchmarks/llm-labeling.md).

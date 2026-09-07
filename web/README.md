@@ -27,7 +27,10 @@ npm run lint
 | Variable | Default | Meaning |
 |---|---|---|
 | `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | FastAPI backend base URL (REST + `/ws/{session_id}` WebSocket). |
+| `NEXT_PUBLIC_PUBLIC_API_BASE` | unset | PUBLIC base URL for the `/r/{code}` measurement links shown to paste into the pinned comment — viewers' phones must reach it (real domain or tunnel). Falls back to `NEXT_PUBLIC_API_BASE`, then `NEXT_PUBLIC_API_URL`. |
 | `NEXT_PUBLIC_MOCK` | unset | Set to `1` to force mock mode (see below). |
+
+See `.env.example` for a commented template (copy to `.env.local`).
 
 ## Mock mode ("DEMO DATA")
 

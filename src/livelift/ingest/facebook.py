@@ -30,13 +30,47 @@ from typing import Any
 import httpx
 
 from livelift.config import get_settings
-from livelift.ingest.base import RawComment, RawTick
+from livelift.ingest.base import AUTH_STATUSES, Backoff, RawComment, RawTick, http_status
 
 logger = logging.getLogger(__name__)
 
 GRAPH_BASE = "https://graph.facebook.com"
 DEFAULT_POLL_S = 5.0
 _SEEN_IDS_MAX = 2048
+# Error handling: an expired/invalid Page token cannot be fixed by retrying —
+# pause long and tell the operator what to do; 429/5xx/transport errors get
+# exponential backoff with a ceiling.
+AUTH_BACKOFF_S = 60.0
+RETRY_CAP_S = 60.0
+
+
+def _is_auth_error(exc: httpx.HTTPError) -> bool:
+    """True for credential/permission failures. The Graph API answers an
+    expired token with 401/403 OR with HTTP 400 + an OAuthException body
+    (error code 190), so the status code alone is not enough."""
+    status = http_status(exc)
+    if status in AUTH_STATUSES:
+        return True
+    if isinstance(exc, httpx.HTTPStatusError):
+        try:
+            body = exc.response.json()
+        except ValueError:
+            return False
+        err = body.get("error") if isinstance(body, dict) else None
+        if not isinstance(err, dict):
+            return False
+        return err.get("type") == "OAuthException" or err.get("code") == 190
+    return False
+
+
+def _auth_error_message(exc: httpx.HTTPError) -> str:
+    """Operator-facing (Vietnamese): what broke and what to do about it."""
+    status = http_status(exc)
+    return (
+        f"LỖI Facebook Graph API (HTTP {status}): Page access token hết hạn hoặc thiếu quyền. "
+        "Tạo token mới với quyền pages_read_user_content rồi cập nhật "
+        "FACEBOOK_PAGE_ACCESS_TOKEN trong .env."
+    )
 
 
 def _parse_graph_time(value: str) -> datetime:
@@ -97,6 +131,29 @@ class FacebookLiveClient:
         self._base = f"{GRAPH_BASE}/{version}"
         self._client = client or httpx.AsyncClient(timeout=30.0)
         self._owns_client = client is None
+        #: Most recent error description (None = healthy); shown by the
+        #: runner heartbeat so an operator sees a stuck loop without grepping.
+        self.last_error: str | None = None
+
+    async def _handle_poll_error(self, what: str, exc: httpx.HTTPError, backoff: Backoff) -> None:
+        """Classify a polling failure, record it for the heartbeat, and sleep.
+
+        Auth failures (expired token, missing permission): red Vietnamese
+        error + long fixed pause — an operator must rotate the token, no
+        amount of fast retrying helps. 429/5xx/transport: exponential backoff
+        with a ceiling.
+        """
+        if _is_auth_error(exc):
+            self.last_error = _auth_error_message(exc)
+            logger.error("%s — tạm dừng %.0fs rồi thử lại.", self.last_error, AUTH_BACKOFF_S)
+            await asyncio.sleep(AUTH_BACKOFF_S)
+            return
+        status = http_status(exc)
+        delay = backoff.next_delay()
+        detail = f"HTTP {status}" if status is not None else type(exc).__name__
+        self.last_error = f"{what}: {detail}"
+        logger.warning("%s failed: %s; retrying in %.1fs", what, detail, delay)
+        await asyncio.sleep(delay)
 
     async def iter_comments(
         self, live_video_id: str, poll_s: float = DEFAULT_POLL_S
@@ -110,6 +167,7 @@ class FacebookLiveClient:
         since: int | None = None
         seen: deque[str] = deque(maxlen=_SEEN_IDS_MAX)
         seen_set: set[str] = set()
+        backoff = Backoff(base_s=poll_s, cap_s=max(poll_s, RETRY_CAP_S))
         while True:
             params: dict[str, str] = {
                 "order": "reverse_chronological",
@@ -122,9 +180,10 @@ class FacebookLiveClient:
             try:
                 data = await self._get(f"/{live_video_id}/comments", params)
             except httpx.HTTPError as exc:
-                logger.warning("comment poll failed: %s; retrying", type(exc).__name__)
-                await asyncio.sleep(poll_s)
+                await self._handle_poll_error("comment poll", exc, backoff)
                 continue
+            self.last_error = None
+            backoff.reset()
 
             batch: list[RawComment] = []
             for item in data.get("data") or []:
@@ -151,6 +210,7 @@ class FacebookLiveClient:
         self, live_video_id: str, every_s: float = 30.0
     ) -> AsyncIterator[RawTick]:
         """Yield ``live_views`` snapshots every ``every_s`` seconds."""
+        backoff = Backoff(base_s=every_s, cap_s=max(every_s, RETRY_CAP_S))
         while True:
             try:
                 data = await self._get(f"/{live_video_id}", {"fields": "live_views,status"})
@@ -164,8 +224,11 @@ class FacebookLiveClient:
                 elif data.get("status") in {"VOD", "PROCESSING"}:
                     logger.info("live video ended (status=%s); stopping", data["status"])
                     return
+                self.last_error = None
+                backoff.reset()
             except httpx.HTTPError as exc:
-                logger.warning("viewer poll failed: %s; retrying", type(exc).__name__)
+                await self._handle_poll_error("viewer poll", exc, backoff)
+                continue
             await asyncio.sleep(every_s)
 
     async def _get(self, path: str, params: dict[str, str]) -> dict[str, Any]:

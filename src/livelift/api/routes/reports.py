@@ -8,6 +8,7 @@ never diverge."""
 
 from __future__ import annotations
 
+from datetime import date, datetime
 from typing import Any
 
 import numpy as np
@@ -28,12 +29,41 @@ from livelift.api.schemas import (
     SignalCoverageOut,
 )
 from livelift.api.service import StoreDep
+from livelift.config import get_settings
+from livelift.core.assigner import DesignParams
 from livelift.core.features import Event, block_frame, blocks_to_dicts
 from livelift.core.signals import assess as assess_signals
 
 router = APIRouter()
 
 BURN_IN_S = 60
+
+
+def _results_freeze_reason(now: datetime) -> str | None:
+    """PREREGISTRATION §7 (no peeking): Vietnamese lock reason, or None.
+
+    While the current UTC date is before ``RESULTS_FREEZE_UNTIL``, every
+    inferential field of /experiment/summary is withheld. A malformed date
+    fails CLOSED — a typo in the freeze config must never silently unlock the
+    effect estimate before the pre-registered date.
+    """
+    raw = get_settings().results_freeze_until.strip()
+    if not raw:
+        return None
+    try:
+        freeze = date.fromisoformat(raw)
+    except ValueError:
+        return (
+            "Tiền đăng ký §7: cấu hình RESULTS_FREEZE_UNTIL không hợp lệ "
+            f"('{raw}' — cần dạng YYYY-MM-DD) nên ước lượng hiệu ứng bị khóa "
+            "cho đến khi cấu hình được sửa — chỉ hiển thị số liệu vận hành"
+        )
+    if now.date() < freeze:
+        return (
+            f"Tiền đăng ký §7: ước lượng hiệu ứng bị khóa đến {freeze.isoformat()} "
+            "— chỉ hiển thị số liệu vận hành"
+        )
+    return None
 
 
 def _events_from_store(session: dict[str, Any], store) -> list[Event]:
@@ -146,8 +176,12 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
     """Pooled primary analysis over every ENDED session that has a schedule.
 
     Runs the pre-registered estimator (randomization inference, redraws via the
-    production assignment mechanism, Fisher CI) — the same functions the final
-    notebook calls."""
+    production assignment mechanism under each session's persisted design,
+    Fisher CI) — the same functions the final notebook calls.
+
+    While ``RESULTS_FREEZE_UNTIL`` is set and not yet reached (PREREGISTRATION
+    §7), the inferential fields are withheld and only operational numbers are
+    returned."""
     ys: list[float] = []
     zs: list[int] = []
     session_ids: list[str] = []
@@ -167,7 +201,12 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
     keep: list[bool] = []
     clicks: list[int] = []
     exposures: list[float] = []
+    # The redraws must run each session's PERSISTED design (its own p /
+    # rerandomization constraint), not the defaults — rebuilt the same way
+    # rebuild_schedule does it.
+    design_params: dict[str, DesignParams] = {}
     for session in ended:
+        design_params[session["session_id"]] = service.rebuild_design_params(session)
         for r in _session_frame(session, store):
             all_phases.append(r["phase"])
             all_session_ids.append(session["session_id"])
@@ -201,12 +240,19 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
     y = np.array(ys)
     z = np.array(zs)
     sids = np.array(session_ids)
-    res = analyze_outer(
-        y, z, sids, phases, n_draws=1000, seed=2026,
-        all_phases=all_phases,
-        all_session_ids=np.array(all_session_ids),
-        analyzed_mask=np.array(keep, dtype=bool),
-    )
+
+    # PREREGISTRATION §7: before the freeze date the effect estimate is not
+    # even COMPUTED here — the weekly view is operational numbers only.
+    freeze_reason = _results_freeze_reason(service.now_utc())
+    res = None
+    if freeze_reason is None:
+        res = analyze_outer(
+            y, z, sids, phases, n_draws=1000, seed=2026,
+            all_phases=all_phases,
+            all_session_ids=np.array(all_session_ids),
+            analyzed_mask=np.array(keep, dtype=bool),
+            design_params=design_params,
+        )
 
     # WITHIN-session CV, not the pooled one: the primary analysis differences
     # out the session effect (redraws per session, session FE, cluster-robust
@@ -246,6 +292,24 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
             cv_grid=(cv,),
         )
 
+    if res is None:
+        # Frozen (§7): same shape, estimable=False, every inferential field
+        # withheld — the operational numbers (sessions, blocks, CV, MDE,
+        # compliance) that §7 explicitly allows are still served.
+        return ExperimentSummary(
+            n_sessions=n_sessions,
+            n_blocks=n_blocks,
+            n_on=int(sum(zs)),
+            n_off=int(n_blocks - sum(zs)),
+            estimable=False,
+            message=freeze_reason,
+            measured_cv=cv,
+            cv_poisson_floor=float(cv_floor) if np.isfinite(cv_floor) else None,
+            reducible_share=float(reducible) if np.isfinite(reducible) else None,
+            measured_compliance=(float(np.mean(compliance_rates)) if compliance_rates else None),
+            power_table=power_rows,
+        )
+
     return ExperimentSummary(
         n_sessions=n_sessions,
         n_blocks=res.n_blocks,
@@ -254,8 +318,11 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
         estimable=res.estimable,
         message=res.reason,
         # Never publish inference fields for a design that cannot be tested.
+        # NOTE: no estimate_ht here — at the outer tier's constant p=0.5 the
+        # Hájek/IPW estimate is algebraically identical to `estimate`, and two
+        # copies of one number must not pose as two independent estimators
+        # (PREREGISTRATION §5b, review 06/09).
         estimate=res.estimate if res.estimable else None,
-        estimate_ht=res.estimate_ht if res.estimable else None,
         ci_low=res.ci_low if res.estimable else None,
         ci_high=res.ci_high if res.estimable else None,
         p_value=res.p_value if res.estimable else None,

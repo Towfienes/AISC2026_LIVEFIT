@@ -46,10 +46,7 @@ export function wsUrl(sessionId: string): string {
   return `${API_BASE.replace(/^http/, "ws")}/ws/${sessionId}`;
 }
 
-async function request<T>(
-  path: string,
-  init?: RequestInit & { timeoutMs?: number },
-): Promise<T> {
+async function request<T>(path: string, init?: RequestInit & { timeoutMs?: number }): Promise<T> {
   const { timeoutMs = 3500, ...rest } = init ?? {};
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -85,8 +82,19 @@ export function sanitizeCard(raw: ActionCardData): ActionCardData {
   return raw;
 }
 
+/**
+ * Chuẩn hoá danh sách thẻ trước khi vào UI.
+ *
+ * Ngoài luật E2-04 ở trên, hàm này còn BÙ HẠNG. `/sessions/{id}/state` không
+ * trả trường `rank` (chỉ dữ liệu mô phỏng mới có), nên trên bàn thật huy hiệu
+ * hạng in ra đúng một chữ "#" trống và nhãn trợ năng đọc thành "Gợi ý hạng
+ * undefined". Thứ tự API trả về CHÍNH LÀ thứ hạng, nên lấy luôn vị trí làm
+ * hạng thay vì để giao diện hiển thị một ô rỗng.
+ */
 export function sanitizeCards(cards: ActionCardData[]): ActionCardData[] {
-  return cards.map(sanitizeCard).slice(0, 3);
+  return cards
+    .slice(0, 3)
+    .map((raw, i) => sanitizeCard(raw.rank == null ? { ...raw, rank: i + 1 } : raw));
 }
 
 // ---------------------------------------------------------------------------
@@ -125,30 +133,27 @@ const HOST_FORBIDDEN_KEYS = [
   "propensity",
   "schedule",
   "seed",
+  "design_hash",
   "cards",
 ] as const;
 
 export async function getHostState(sessionId: string): Promise<HostState> {
-  const raw = await request<Record<string, unknown>>(
-    `/sessions/${sessionId}/state?role=host`,
-  );
+  const raw = await request<Record<string, unknown>>(`/sessions/${sessionId}/state?role=host`);
   const leaked = HOST_FORBIDDEN_KEYS.filter((k) => k in raw);
   if (leaked.length > 0) {
-    console.warn(
-      `[livelift] payload host chứa trường bị cấm (${leaked.join(", ")}) — đã loại bỏ.`,
-    );
+    console.warn(`[livelift] payload host chứa trường bị cấm (${leaked.join(", ")}) — đã loại bỏ.`);
   }
   const product = raw.pinned_product as
-    | { name?: string; price?: number; stock?: number }
-    | string
-    | null
-    | undefined;
-  const productName =
-    typeof product === "string" ? product : (product?.name ?? null);
+    { name?: string; price?: number; stock?: number } | string | null | undefined;
+  const productName = typeof product === "string" ? product : (product?.name ?? null);
   return {
     product_name: productName,
-    price: (raw.price as number | null) ?? (typeof product === "object" ? (product?.price ?? null) : null),
-    stock: (raw.stock as number | null) ?? (typeof product === "object" ? (product?.stock ?? null) : null),
+    price:
+      (raw.price as number | null) ??
+      (typeof product === "object" ? (product?.price ?? null) : null),
+    stock:
+      (raw.stock as number | null) ??
+      (typeof product === "object" ? (product?.stock ?? null) : null),
     elapsed_s: (raw.elapsed_s as number) ?? 0,
   };
 }
@@ -250,9 +255,7 @@ function toOffsets<T extends { ts: string | null }>(
   rows: T[],
   startIso?: string | null,
 ): (T & { offset_s: number })[] {
-  const times = rows
-    .map((r) => (r.ts ? Date.parse(r.ts) : NaN))
-    .filter((t) => Number.isFinite(t));
+  const times = rows.map((r) => (r.ts ? Date.parse(r.ts) : NaN)).filter((t) => Number.isFinite(t));
   const base = startIso ? Date.parse(startIso) : Math.min(...times);
   const origin = Number.isFinite(base) ? base : 0;
   return rows.map((r) => {
@@ -390,6 +393,8 @@ export function createSchedule(
   n_on: number;
   n_off: number;
   blocks: BlockInfo[];
+  /** Cam kết thiết kế (SHA-256 của tham số + seed), công bố trước phát sóng. */
+  design_hash: string;
 }> {
   return request(`/sessions/${sessionId}/schedule`, {
     method: "POST",

@@ -6,6 +6,10 @@
  * In-context help beats a manual: jargon stays short on screen and the
  * explanation appears exactly where the confusion happens (NN/g in-context
  * learning cues). Pure CSS (group-hover / group-focus-within) — no portal.
+ *
+ * The span is focusable (tabIndex=0) because the tooltip must open by keyboard
+ * too; it therefore carries the shared `.focus-ring` — with plain `outline-none`
+ * the focus stop existed but was invisible (WCAG 2.4.7 Focus Visible).
  */
 
 import type { ReactNode } from "react";
@@ -25,7 +29,7 @@ export default function Term({ tip, children, side = "top", underline = true, cl
   return (
     <span
       tabIndex={0}
-      className={`group relative inline-flex cursor-help items-center outline-none ${className ?? ""}`}
+      className={`focus-ring group relative inline-flex cursor-help items-center rounded-sm ${className ?? ""}`}
     >
       <span
         className={
@@ -36,7 +40,7 @@ export default function Term({ tip, children, side = "top", underline = true, cl
       </span>
       <span
         role="tooltip"
-        className={`pointer-events-none absolute left-1/2 z-50 hidden w-60 -translate-x-1/2 rounded border border-hairline bg-raised px-2.5 py-1.5 text-left text-[11px] font-normal normal-case leading-snug tracking-normal text-sec shadow-lg group-focus-within:block group-hover:block ${
+        className={`pointer-events-none absolute left-1/2 z-50 hidden w-72 -translate-x-1/2 rounded border border-hairline bg-raised px-3 py-2 text-left text-meta font-normal normal-case leading-snug tracking-normal text-sec shadow-lg group-focus-within:block group-hover:block ${
           side === "top" ? "bottom-full mb-1.5" : "top-full mt-1.5"
         }`}
       >

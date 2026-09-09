@@ -86,10 +86,10 @@ function StepItem({
         <div
           aria-hidden
           className={cx(
-            "mt-3 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors duration-150",
+            "mt-3 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-meta font-bold transition-colors duration-short2 ease-emphasized",
             state === "done" && "bg-good text-page",
             state === "active" && "border border-s1 bg-s1/15 text-s1 ring-2 ring-s1/30",
-            state === "upcoming" && "border border-hairline bg-raised text-mut",
+            state === "upcoming" && "border border-hairline bg-raised text-dim",
           )}
         >
           {state === "done" ? <CheckIcon /> : n}
@@ -106,27 +106,27 @@ function StepItem({
       <Card
         as="section"
         className={cx(
-          "mb-4 min-w-0 flex-1 transition-colors duration-150",
+          "mb-4 min-w-0 flex-1 transition-colors duration-short2 ease-emphasized",
           state === "active" && "border-s1/40",
           state === "upcoming" && "opacity-70",
         )}
       >
         <h2
           className={cx(
-            "text-sm font-semibold",
-            state === "upcoming" ? "text-mut" : "text-ink",
+            "text-strong",
+            state === "upcoming" ? "text-dim" : "text-ink",
           )}
         >
           {title}
         </h2>
-        <p className="mt-0.5 text-xs leading-snug text-sec">{hint}</p>
+        <p className="mt-0.5 text-body leading-snug text-sec">{hint}</p>
         {children}
       </Card>
     </li>
   );
 }
 
-const inputCls = `${fieldCls} w-full px-2.5 py-1.5 text-sm`;
+const inputCls = `${fieldCls} w-full px-2.5 py-1.5 text-body`;
 
 /**
  * Only an absolute http(s) URL is a usable product link: the /r/{code}
@@ -320,10 +320,10 @@ export default function ChayPhienPage() {
       <TopNav />
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
         <header className="mb-6">
-          <h1 className="text-xl font-bold tracking-tight text-ink">
+          <h1 className="text-title font-bold tracking-tight text-ink">
             Chạy một phiên thí nghiệm
           </h1>
-          <p className="mt-1 text-sm leading-relaxed text-sec">
+          <p className="mt-1 text-body leading-relaxed text-sec">
             Bốn bước, làm theo đúng thứ tự. Thứ tự này là{" "}
             <strong className="text-ink">yêu cầu khoa học</strong>, không phải thói quen giao
             diện: lịch bốc thăm BẬT/TẮT phải được sinh và lưu{" "}
@@ -354,21 +354,21 @@ export default function ChayPhienPage() {
                   <Skeleton className="h-5 w-2/3" />
                 </div>
               ) : products.length > 0 ? (
-                <ul className="mb-3 space-y-2 text-[13px]">
+                <ul className="mb-3 space-y-2 text-body">
                   {products.map((p) => {
                     const url = productUrls[p.product_id] ?? "";
                     const invalid = url.trim() !== "" && !isValidProductUrl(url.trim());
                     return (
                       <li
                         key={p.product_id}
-                        className="rounded px-1 py-1 text-sec transition-colors duration-150 hover:bg-raised"
+                        className="rounded px-1 py-1 text-sec transition-colors duration-short2 ease-emphasized hover:bg-raised"
                       >
                         <div className="flex justify-between gap-3">
                           <span className="truncate text-ink">{p.name}</span>
                           <span className="tnum shrink-0">{fmtVnd(p.price)}</span>
                         </div>
                         <input
-                          className={`${inputCls} mt-1 text-xs ${invalid ? "border-critical/60" : ""}`}
+                          className={`${inputCls} mt-1 text-meta ${invalid ? "border-critical/60" : ""}`}
                           type="url"
                           inputMode="url"
                           placeholder="Link trang sản phẩm thật (vd https://shop.cua-ban.vn/ao-thun)"
@@ -383,7 +383,7 @@ export default function ChayPhienPage() {
                           }
                         />
                         {invalid ? (
-                          <p className="mt-0.5 text-[11px] text-critical">
+                          <p className="mt-0.5 text-meta text-crit-ink">
                             Link không hợp lệ — cần URL đầy đủ bắt đầu bằng http:// hoặc
                             https://.
                           </p>
@@ -393,7 +393,7 @@ export default function ChayPhienPage() {
                   })}
                 </ul>
               ) : (
-                <p className="mb-3 text-[13px] text-mut">Chưa có sản phẩm nào.</p>
+                <p className="mb-3 text-body text-dim">Chưa có sản phẩm nào.</p>
               )}
               <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
                 <input
@@ -494,7 +494,7 @@ export default function ChayPhienPage() {
               </div>
             ) : null}
             {session ? (
-              <p className="mt-2 text-[13px] text-sec">
+              <p className="mt-2 text-body text-sec">
                 {session.title || "Phiên chưa đặt tên"} · {session.planned_duration_min} phút ·{" "}
                 <span className="text-ink">{session.status}</span>
               </p>
@@ -513,7 +513,7 @@ export default function ChayPhienPage() {
                 {!schedule ? (
                   <>
                     <div className="grid grid-cols-2 gap-2 md:w-2/3">
-                      <label className="text-xs text-sec">
+                      <label className="text-meta text-sec">
                         Độ dài khối (phút)
                         <input
                           className={`${inputCls} mt-1`}
@@ -522,7 +522,7 @@ export default function ChayPhienPage() {
                           onChange={(e) => setBlockMin(e.target.value)}
                         />
                       </label>
-                      <label className="text-xs text-sec">
+                      <label className="text-meta text-sec">
                         Seed (để trống = ngẫu nhiên)
                         <input
                           className={`${inputCls} mt-1`}
@@ -539,7 +539,7 @@ export default function ChayPhienPage() {
                   </>
                 ) : (
                   <>
-                    <div className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-sec">
+                    <div className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-body text-sec">
                       <span>
                         <span className="tnum text-ink">{schedule.blocks.length}</span> khối
                       </span>
@@ -562,7 +562,7 @@ export default function ChayPhienPage() {
                           />
                         ))}
                     </div>
-                    <p className="mt-1 text-[11px] text-mut">
+                    <p className="mt-1 text-meta text-dim">
                       Tím = BẬT (hệ thống điều khiển) · Xám = TẮT (làm như thường lệ). Ghi lại
                       seed <strong className="text-sec">{schedule.seed}</strong> — sinh lại cùng
                       seed cho ra đúng lịch này.
@@ -616,10 +616,10 @@ export default function ChayPhienPage() {
 
                 {links.length > 0 ? (
                   <div>
-                    <p className="text-xs font-semibold text-ink">
+                    <p className="text-body font-semibold text-ink">
                       Link đo lượt nhấp — dán vào bình luận ghim khi giới thiệu sản phẩm
                     </p>
-                    <ul className="mt-1 space-y-1 text-xs text-sec">
+                    <ul className="mt-1 space-y-1 text-meta text-sec">
                       {links.map((l) => (
                         <li key={l.code} className="flex flex-wrap items-center gap-2">
                           <span className="tnum">
@@ -639,7 +639,7 @@ export default function ChayPhienPage() {
                         </li>
                       ))}
                     </ul>
-                    <p className="mt-1 text-[11px] leading-snug text-mut">
+                    <p className="mt-1 text-meta leading-snug text-dim">
                       Mỗi lượt bấm được ghi lại và quy về khối đang chạy — đây chính là biến kết
                       quả chính của thí nghiệm. Người xem phải mở được địa chỉ này từ ngoài: đặt
                       biến <code>NEXT_PUBLIC_PUBLIC_API_BASE</code> thành domain công khai (xem{" "}
@@ -650,8 +650,8 @@ export default function ChayPhienPage() {
 
                 {ended ? (
                   <div className="rounded-md border border-hairline bg-page p-3">
-                    <p className="text-[13px] text-ink">Phiên đã kết thúc.</p>
-                    <p className="mt-1 text-xs leading-snug text-sec">
+                    <p className="text-body text-ink">Phiên đã kết thúc.</p>
+                    <p className="mt-1 text-meta leading-snug text-sec">
                       Bước tiếp theo: chấm chất lượng dữ liệu bằng lệnh{" "}
                       <code className="text-ink">
                         livelift-qc --session-id {session?.session_id}
@@ -669,7 +669,7 @@ export default function ChayPhienPage() {
                 ) : null}
               </div>
             ) : (
-              <p className="mt-2 text-[13px] text-mut">
+              <p className="mt-2 text-body text-dim">
                 Hoàn tất bước 3 rồi bấm &ldquo;Bắt đầu phát sóng&rdquo;.
               </p>
             )}

@@ -55,6 +55,11 @@ export interface DeskState {
   blocks: BlockInfo[];
   /** Operator-only: the block the session is in right now (null on the host view). */
   currentBlock: CurrentBlock | null;
+  /**
+   * Cam kết thiết kế (SHA-256 tham số + seed) của phiên đang xem — hiển thị
+   * rút gọn trên thanh trạng thái. Operator-only; null khi chưa có lịch.
+   */
+  designHash: string | null;
   /** Vietnamese warning when a data source is failing; null when all is well. */
   degraded: string | null;
   ticks: Tick[];
@@ -102,6 +107,8 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
   const [manualPin, setManualPin] = useState<{ product: Product; atS: number } | null>(null);
   /** Current block, operator view only — never handed to the host screen. */
   const [currentBlock, setCurrentBlock] = useState<CurrentBlock | null>(null);
+  /** Design commitment hash of the selected session (operator view only). */
+  const [designHash, setDesignHash] = useState<string | null>(null);
   /** Vietnamese warning when one data source is failing (see the poll loop). */
   const [degraded, setDegraded] = useState<string | null>(null);
   /** Session start, used to turn API timestamps into seconds-since-start. */
@@ -157,6 +164,9 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
     // trên trục thời gian của phiên mới trong lúc chờ poll đầu tiên.
     setBlocks([]);
     setCurrentBlock(null);
+    // Cam kết thiết kế thuộc về đúng một phiên: giữ lại hash phiên cũ trong
+    // lúc chờ poll đầu tiên sẽ là một cam kết SAI trên màn hình.
+    setDesignHash(null);
   }, [sessionId]);
 
   // -------------------------------------------------------------------------
@@ -228,6 +238,7 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
         setPinned(st.pinned_product ?? null);
         setModeState(st.mode);
         setCurrentBlock(st.current_block ?? null);
+        setDesignHash(st.design_hash ?? null);
       }
       if (tksR.status === "fulfilled") {
         setTicks(tksR.value);
@@ -475,6 +486,7 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
     pinned,
     blocks,
     currentBlock,
+    designHash,
     degraded,
     ticks,
     comments,

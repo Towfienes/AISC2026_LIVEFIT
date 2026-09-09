@@ -112,8 +112,8 @@ export default function KetQuaPage() {
       <TopNav />
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
         <header className="mb-6">
-          <h1 className="text-xl font-bold tracking-tight text-ink">Kết quả thí nghiệm</h1>
-          <p className="mt-1 max-w-3xl text-sm leading-relaxed text-sec">
+          <h1 className="text-title font-bold tracking-tight text-ink">Kết quả thí nghiệm</h1>
+          <p className="mt-1 max-w-3xl text-body leading-relaxed text-sec">
             So sánh các khối <strong className="text-ink">BẬT</strong> (hệ thống điều khiển việc
             ghim sản phẩm) với các khối <strong className="text-ink">TẮT</strong> (đội vận hành
             làm như thường lệ). Vì mỗi khối được bốc thăm ngẫu nhiên từ trước, chênh lệch giữa
@@ -129,7 +129,7 @@ export default function KetQuaPage() {
             {err}{" "}
             <button
               onClick={() => void load()}
-              className="focus-ring rounded underline underline-offset-2 transition-colors duration-150 hover:text-ink"
+              className="focus-ring rounded underline underline-offset-2 transition-colors duration-short2 ease-emphasized hover:text-ink"
             >
               Thử lại
             </button>
@@ -138,8 +138,8 @@ export default function KetQuaPage() {
 
         {data && !enough ? (
           <Card padding="lg">
-            <h2 className="text-base font-semibold text-ink">Chưa đủ dữ liệu để kết luận</h2>
-            <p className="mt-2 text-sm leading-relaxed text-sec">
+            <h2 className="text-strong text-ink">Chưa đủ dữ liệu để kết luận</h2>
+            <p className="mt-2 text-body leading-relaxed text-sec">
               {data.message
                 ? data.message
                 : `Hiện có ${data.n_sessions} phiên và ${data.n_blocks} khối. Cần chạy thêm phiên có lịch gán ngẫu nhiên thì mới ước lượng được tác động.`}{" "}
@@ -157,7 +157,7 @@ export default function KetQuaPage() {
               <Badge tone="good" dot>
                 Tác động đo được · KTC 95%
               </Badge>
-              <span className="text-[11px] text-mut">
+              <span className="text-meta text-dim">
                 kiểm định dựa trên ngẫu nhiên hóa
                 {data.n_draws ? ` · ${data.n_draws.toLocaleString("vi-VN")} lần vẽ lại` : ""}
               </span>
@@ -166,23 +166,17 @@ export default function KetQuaPage() {
             {/* hero: estimate + CI is THE result — everything else supports it */}
             <section className="grid gap-3 md:grid-cols-3">
               <Card padding="lg" className="flex flex-col md:col-span-2">
-                <div className="text-[11px] font-medium uppercase tracking-wide text-mut">
-                  Tác động ước lượng
-                </div>
+                <div className="text-label uppercase text-dim">Tác động ước lượng</div>
                 <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                  <span
-                    className={`text-6xl font-semibold tabular-nums tracking-tight ${
-                      significant ? "text-good" : "text-ink"
-                    }`}
-                  >
+                  <span className={`text-num-l ${significant ? "text-good-ink" : "text-ink"}`}>
                     {data.estimate!.toFixed(3)}
                   </span>
-                  <span className="tnum text-lg text-sec">
+                  <span className="tnum text-strong text-sec">
                     KTC 95% [{data.ci_low?.toFixed(3) ?? "—"} …{" "}
                     {data.ci_high?.toFixed(3) ?? "—"}]
                   </span>
                 </div>
-                <p className="mt-auto pt-3 text-[11px] leading-snug text-sec">
+                <p className="mt-auto pt-3 text-meta leading-snug text-sec">
                   nhấp thêm trên mỗi 1000 giây·người xem · giá trị thật nằm trong khoảng này với
                   độ tin cậy 95%
                 </p>
@@ -206,7 +200,7 @@ export default function KetQuaPage() {
               </div>
             </section>
 
-            <Card className="mt-3 text-sm leading-relaxed text-sec">
+            <Card className="mt-3 text-body leading-relaxed text-sec">
               <strong className="text-ink">Đọc thế nào:</strong>{" "}
               {significant ? (
                 <>
@@ -226,7 +220,7 @@ export default function KetQuaPage() {
 
             <section className="mt-6">
               <SectionTitle>Cần bao nhiêu dữ liệu để phát hiện được tác động?</SectionTitle>
-              <p className="max-w-3xl text-[13px] leading-relaxed text-sec">
+              <p className="max-w-3xl text-body leading-relaxed text-sec">
                 <strong className="text-ink">MDE</strong> (hiệu ứng nhỏ nhất phát hiện được) là
                 ngưỡng độ lớn tối thiểu mà thí nghiệm còn nhìn thấy được. MDE 30% nghĩa là: nếu
                 hệ thống chỉ cải thiện 10%, cỡ mẫu hiện tại{" "}
@@ -234,8 +228,8 @@ export default function KetQuaPage() {
                 thống vô dụng, mà là chưa đo nổi. Càng nhiều phiên, MDE càng nhỏ.
               </p>
               <div className="mt-2 overflow-x-auto rounded-lg border border-hairline">
-                <table className="w-full min-w-[520px] text-sm">
-                  <thead className="bg-raised text-[11px] uppercase tracking-wide text-mut">
+                <table className="w-full min-w-[560px] text-body">
+                  <thead className="bg-raised text-label uppercase text-dim">
                     <tr>
                       <th className="px-3 py-2 text-left font-medium">Kịch bản</th>
                       <th className="px-3 py-2 text-right font-medium">Phiên</th>
@@ -248,7 +242,7 @@ export default function KetQuaPage() {
                     {data.power_table.map((r) => (
                       <tr
                         key={r.scenario}
-                        className="border-t border-hairline transition-colors duration-150 hover:bg-raised/60"
+                        className="border-t border-hairline transition-colors duration-short2 ease-emphasized hover:bg-raised/60"
                       >
                         <td className="px-3 py-2 text-ink">{r.scenario}</td>
                         <td className="tnum px-3 py-2 text-right text-sec">{r.n_sessions}</td>
@@ -279,7 +273,7 @@ export default function KetQuaPage() {
               />
             </section>
 
-            <p className="mt-6 text-[11px] leading-relaxed text-mut">
+            <p className="mt-6 text-meta leading-relaxed text-dim">
               Biến kết quả chính là tỷ lệ nhấp sản phẩm — chỉ báo sớm có tần suất đủ cao để học
               nhanh. Các chỉ số kinh doanh (đơn, GMV, biên lợi nhuận) được theo dõi song song và
               báo cáo riêng như kết quả khám phá; không đánh đồng hai loại.

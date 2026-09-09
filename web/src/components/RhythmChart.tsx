@@ -7,6 +7,19 @@
  * dual-axis chart): viewers on top, click rate per minute below. Each panel
  * carries its dashed forecast baseline ("đường dự báo baseline") — dashing is
  * reserved for projections. Tooltips are synced via Recharts `syncId`.
+ *
+ * ---------------------------------------------------------------------------
+ * KHÔNG VẼ LẠI CÓ HIỆU ỨNG (gói UI-3)
+ * ---------------------------------------------------------------------------
+ * Bàn poll số liệu 5 giây một lần. Recharts mặc định chạy hiệu ứng vẽ đường
+ * (và hiệu ứng trượt của tooltip) sau MỖI lần dữ liệu đổi — nghĩa là cả biểu
+ * đồ sẽ tự vẽ lại 12 lần mỗi phút, suốt 90 phút. Ngoài việc tốn CPU ngay cạnh
+ * một luồng phát trực tiếp, nó còn phá đúng thứ biểu đồ này tồn tại để làm:
+ * đọc HÌNH DẠNG của đường. Vì vậy `isAnimationActive={false}` là bắt buộc trên
+ * MỌI thành phần vẽ ở đây — kể cả `<Tooltip>`, thứ hay bị bỏ sót.
+ *
+ * Chuyển động duy nhất được phép trong khung này là con trỏ tooltip, và nó do
+ * chính chuột của người dùng điều khiển.
  */
 
 import { useMemo } from "react";
@@ -68,7 +81,7 @@ function fmtMinuteTick(s: number): string {
 function RhythmTooltip({ active, payload, label }: TooltipProps<number, string>) {
   if (!active || !payload || payload.length === 0) return null;
   return (
-    <div className="rounded border border-hairline bg-raised px-3 py-2 text-xs shadow-lg">
+    <div className="rounded border border-hairline bg-raised px-3 py-2 text-meta shadow-lg">
       <div className="mb-1 font-semibold text-sec">Phút {Math.round(Number(label) / 60)}</div>
       {payload.map((p) => (
         <div key={String(p.dataKey)} className="flex items-center gap-2 text-sec">
@@ -86,16 +99,33 @@ function RhythmTooltip({ active, payload, label }: TooltipProps<number, string>)
   );
 }
 
-const AXIS_TICK = { fill: CHART.mut, fontSize: 10 } as const;
+const AXIS_TICK = { fill: CHART.dim, fontSize: 13 } as const;
 const MARGIN = { top: 4, right: 12, left: 0, bottom: 0 } as const;
 
 export default function RhythmChart({ ticks }: { ticks: Tick[] }) {
   const data = useMemo(() => toMinutePoints(ticks), [ticks]);
 
+  // Một điểm không vẽ thành đường: Recharts sẽ trả về khung trống có trục,
+  // trông y hệt "biểu đồ hỏng". Nói thẳng còn đang chờ gì thì hơn.
+  if (data.length < 2) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-1.5 px-4 text-center">
+        <p className="text-body text-sec">
+          {data.length === 0
+            ? "Chưa có phút số liệu nào."
+            : "Mới có một phút số liệu — cần hai phút mới vẽ được đường."}
+        </p>
+        <p className="text-meta text-dim">
+          Biểu đồ tự vẽ khi số liệu về, khoảng 5 giây một lần. Bạn không cần bấm gì.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* legend — identity never by color alone */}
-      <div className="flex items-center gap-4 px-1 pb-1 text-[11px] text-sec">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 px-1 pb-1 text-meta text-sec">
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-0.5 w-4 rounded" style={{ background: CHART.s1 }} />
           <Term tip="Số người đang xem phiên live tại mỗi phút.">Người xem</Term>
@@ -130,8 +160,18 @@ export default function RhythmChart({ ticks }: { ticks: Tick[] }) {
           <LineChart data={data} syncId="rhythm" margin={MARGIN}>
             <CartesianGrid stroke={CHART.grid} strokeWidth={1} vertical={false} />
             <XAxis dataKey="offset_s" hide />
-            <YAxis width={36} tick={AXIS_TICK} axisLine={false} tickLine={false} domain={[0, "auto"]} />
-            <Tooltip content={<RhythmTooltip />} cursor={{ stroke: CHART.axis, strokeWidth: 1 }} />
+            <YAxis
+              width={44}
+              tick={AXIS_TICK}
+              axisLine={false}
+              tickLine={false}
+              domain={[0, "auto"]}
+            />
+            <Tooltip
+              content={<RhythmTooltip />}
+              cursor={{ stroke: CHART.axis, strokeWidth: 1 }}
+              isAnimationActive={false}
+            />
             <Line
               name="Dự báo baseline"
               type="monotone"
@@ -174,14 +214,18 @@ export default function RhythmChart({ ticks }: { ticks: Tick[] }) {
               minTickGap={40}
             />
             <YAxis
-              width={36}
+              width={44}
               tick={AXIS_TICK}
               axisLine={false}
               tickLine={false}
               domain={[0, "auto"]}
               allowDecimals={false}
             />
-            <Tooltip content={<RhythmTooltip />} cursor={{ stroke: CHART.axis, strokeWidth: 1 }} />
+            <Tooltip
+              content={<RhythmTooltip />}
+              cursor={{ stroke: CHART.axis, strokeWidth: 1 }}
+              isAnimationActive={false}
+            />
             <Line
               name="Baseline bấm link"
               type="monotone"

@@ -55,6 +55,13 @@ export interface SessionState {
   current_block: CurrentBlock | null;
   pinned_product: Product | null;
   cards: ActionCardData[];
+  /**
+   * SHA-256 commitment over (tham số thiết kế, seed) — công bố TRƯỚC phát sóng
+   * (gói Q3). OPERATOR ONLY: it fingerprints the assignment mechanism, so it
+   * must never reach the blinded host payload. `null` cho phiên chưa có lịch
+   * hoặc lịch sinh trước gói Q3.
+   */
+  design_hash: string | null;
 }
 
 /** The block the session is in right now (operator view only — never host). */
@@ -284,7 +291,8 @@ export const CHART = {
   surface: "#1a1a19",
   grid: "#2c2c2a",
   axis: "#383835",
-  mut: "#898781",
+  mut: "#898781", // gridline/axis chrome only — 4.38:1 on the raised plane
+  dim: "#a3a19a", // axis TEXT: 7.52:1 on page … 4.55:1 on axis, clears AA everywhere
   sec: "#c3c2b7",
   ink: "#ffffff",
   s1: "#3987e5",

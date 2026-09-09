@@ -1,22 +1,41 @@
 "use client";
 
 /**
- * "/desk" — Bàn điều khiển (control desk).
+ * "/desk" — Bàn điều khiển (control desk). OPERATOR screen: it is the one view
+ * that is allowed to see the assignment. Nothing here may import HostView,
+ * useHost or HostState — the blinding boundary (rule L6) runs along this file.
  *
- * Three zones, no scroll at 1920x1080:
- * - Zone 1 (top ~40%): session rhythm chart + switchback block strip.
- * - Zone 2 (bottom-left): up to 3 action cards.
- * - Zone 3 (bottom-right): comment radar (last 5 min) + scrolling feed.
+ * ---------------------------------------------------------------------------
+ * LAYOUT (rebuilt in gói UI-2)
+ * ---------------------------------------------------------------------------
+ * The previous layout was a fixed three-zone fit for 1920x1080 with two nested
+ * `overflow-hidden` planes and NOT ONE breakpoint. On the 1366x768 laptop most
+ * operators actually use, the "lượt bấm/phút" panel — the primary outcome of
+ * the experiment — collapsed to about 4 px and the action-card column was
+ * clipped to a third of a card, with no scrollbar to say so. At 1920x1080 the
+ * same rigid split left ~141 px of dead space under the cards.
+ *
+ * The desk is now a flowing document with a priority order, not a fitted
+ * dashboard:
+ *
+ *   1. đồng hồ khối  — sticky at the top, never scrolls away;
+ *   2. thẻ hành động — own column from `xl` up, first panel below `xl`;
+ *   3. biểu đồ nhịp  — `min-h` floors so it can never collapse again;
+ *   4. radar + feed  — the panel that gives way first.
+ *
+ * When the content no longer fits, the page SCROLLS (the browser scrollbar is
+ * the indicator, and the card list adds its own "cuộn để xem hết" line) instead
+ * of silently cutting content off.
  *
  * First-time-user rules: an empty state instead of a blank screen when no
  * session is running, skeletons instead of a blank screen while connecting,
  * plain-Vietnamese labels, jargon explained in-context via <Term> tooltips.
  */
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import ActionCard from "@/components/ActionCard";
-import BlockStrip from "@/components/BlockStrip";
+import BlockClock from "@/components/BlockClock";
 import CommentFeed from "@/components/CommentFeed";
 import CommentRadar from "@/components/CommentRadar";
 import RhythmChart from "@/components/RhythmChart";
@@ -28,116 +47,94 @@ import Card from "@/components/ui/Card";
 import EmptyState from "@/components/ui/EmptyState";
 import SectionTitle from "@/components/ui/SectionTitle";
 import Skeleton from "@/components/ui/Skeleton";
-import { fmtMinSec } from "@/lib/format";
-import type { BlockInfo, CurrentBlock } from "@/lib/types";
+import type { ActionCardData } from "@/lib/types";
 import { useDesk } from "@/lib/useDesk";
 
-const PHASE_LABEL: Record<BlockInfo["phase"], string> = {
-  early: "đầu phiên",
-  mid: "giữa phiên",
-  late: "cuối phiên",
-};
-
-/**
- * Current-block line — OPERATOR VIEW ONLY (the desk is the operator screen;
- * the /host screen is blinded and must never render anything like this).
- * The countdown ticks with the local 1 s clock; the server state (polled +
- * pushed) stays the source of truth for index/assignment.
- */
-function CurrentBlockLine({
-  blocks,
-  currentBlock,
-  elapsedS,
-}: {
-  blocks: BlockInfo[];
-  currentBlock: CurrentBlock | null;
-  elapsedS: number;
-}) {
-  // Derive from the schedule so the line also works in mock mode; fall back
-  // to the server's snapshot when the schedule has not loaded yet.
-  const local =
-    blocks.find((b) => elapsedS >= b.start_offset_s && elapsedS < b.end_offset_s) ?? null;
-
-  let index: number | null = null;
-  let assignment: "ON" | "OFF" | null = null;
-  let washout = false;
-  let phase: BlockInfo["phase"] | null = null;
-  let remainingS: number | null = null;
-
-  if (local) {
-    index = local.block_index;
-    assignment = local.assignment;
-    washout = local.is_washout;
-    phase = local.phase;
-    remainingS = Math.max(0, local.end_offset_s - elapsedS);
-  } else if (currentBlock) {
-    index = currentBlock.index;
-    assignment = currentBlock.assignment;
-    washout = currentBlock.is_washout;
-    phase = currentBlock.phase;
-    remainingS = Math.max(0, currentBlock.seconds_remaining);
-  }
-
-  if (index == null) {
-    return (
-      <p className="mb-1 text-[11px] text-mut">
-        Ngoài khung khối thí nghiệm — chưa tới khối đầu hoặc đã qua khối cuối.
-      </p>
-    );
-  }
-
-  return (
-    <p className="mb-1 flex flex-wrap items-baseline gap-x-2 text-[11px] text-sec">
-      {washout ? (
-        <span>
-          Đang trong khoảng <strong className="text-ink">trôi (washout)</strong>
-        </span>
-      ) : (
-        <span>
-          Khối hiện tại:{" "}
-          <strong className="text-ink">
-            #{index + 1} · {assignment === "ON" ? "BẬT" : "TẮT"}
-          </strong>
-          {phase ? <span className="text-mut"> · {PHASE_LABEL[phase]}</span> : null}
-        </span>
-      )}
-      {remainingS != null ? (
-        <span className="text-mut">
-          còn <strong className="tnum text-ink">{fmtMinSec(remainingS)}</strong> đến ranh giới
-          khối kế
-        </span>
-      ) : null}
-    </p>
-  );
+/** Clicks landed in the last 60 s — ticks are 30 s buckets, so this is the tail. */
+function clicksInLastMinute(
+  ticks: { offset_s: number; click_count: number }[],
+  nowS: number,
+): number | null {
+  const recent = ticks.filter((t) => t.offset_s > nowS - 60 && t.offset_s <= nowS);
+  if (recent.length === 0) return null;
+  return recent.reduce((sum, t) => sum + t.click_count, 0);
 }
 
-/** Mirror of the three-zone layout while the first connection is racing. */
+/**
+ * True while a scroll container has more content than it shows. Drives the
+ * explicit "cuộn để xem hết" line: a 8 px recessive scrollbar is not a strong
+ * enough signal on a desk the operator only glances at.
+ */
+function useIsOverflowing(key: unknown) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [overflowing, setOverflowing] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const check = () => setOverflowing(el.scrollHeight - el.clientHeight > 4);
+    check();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [key]);
+  return { ref, overflowing };
+}
+
+/**
+ * Mirror of the layout while the first connection is racing.
+ *
+ * Khung xám không nói được là đang TẢI hay đã HỎNG, nên có thêm một dòng
+ * `role="status"`: nó cũng là chỗ trình đọc màn hình biết bàn đang bận.
+ */
 function DeskSkeleton() {
   return (
-    <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3" aria-busy>
-      <Skeleton className="h-11 shrink-0 rounded-lg" />
-      <Card padding="sm" className="flex min-h-0 basis-[40%] flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-3 w-24" />
-          <Skeleton className="h-3 w-40" />
-        </div>
-        <Skeleton className="min-h-0 flex-1" />
-        <Skeleton className="h-7 shrink-0" />
-      </Card>
-      <div className="grid min-h-0 flex-1 grid-cols-2 gap-3">
-        <Card padding="sm" className="flex min-h-0 flex-col gap-2">
-          <Skeleton className="h-3 w-32" />
-          <Skeleton className="h-20" />
-          <Skeleton className="h-20" />
-          <Skeleton className="h-20" />
+    <main className="flex flex-1 flex-col p-3" aria-busy>
+      <p role="status" className="mb-2 shrink-0 text-body text-sec">
+        Đang kết nối tới máy chủ và tải phiên đang phát… Bàn sẽ hiện ngay khi có dữ liệu, bạn không
+        cần tải lại trang.
+      </p>
+      <div className="mb-3 flex flex-col gap-3">
+        <Skeleton className="h-bar shrink-0 rounded-lg" />
+        <Card padding="sm" className="flex flex-col gap-3">
+          <Skeleton className="h-4 w-32" />
+          <div className="flex flex-wrap items-end gap-6">
+            <Skeleton className="h-20 w-56" />
+            <Skeleton className="h-16 w-40" />
+            <Skeleton className="ml-auto h-14 w-32" />
+            <Skeleton className="h-14 w-32" />
+          </div>
+          <Skeleton className="h-2 w-full rounded-full" />
+          <Skeleton className="h-9 w-full" />
         </Card>
-        <Card padding="sm" className="flex min-h-0 flex-col gap-2">
-          <Skeleton className="h-3 w-40" />
-          <Skeleton className="min-h-0 flex-[2]" />
-          <div className="flex min-h-0 flex-[3] flex-col gap-1.5 border-t border-hairline pt-2">
-            <Skeleton className="h-4 w-3/4" />
-            <Skeleton className="h-4 w-2/3" />
-            <Skeleton className="h-4 w-4/5" />
+      </div>
+      <div className="grid flex-1 grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,30rem)] xl:grid-rows-[minmax(20rem,3fr)_minmax(16rem,2fr)]">
+        <Card
+          padding="sm"
+          className="flex min-h-[16rem] flex-col gap-2 xl:col-start-2 xl:row-span-2 xl:row-start-1"
+        >
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+        </Card>
+        <Card
+          padding="sm"
+          className="flex min-h-[20rem] flex-col gap-2 xl:col-start-1 xl:row-start-1"
+        >
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="min-h-[14rem] flex-1" />
+        </Card>
+        <Card
+          padding="sm"
+          className="flex min-h-[16rem] flex-col gap-2 xl:col-start-1 xl:row-start-2"
+        >
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="min-h-[6rem] flex-[2]" />
+          <div className="flex min-h-[6rem] flex-[3] flex-col gap-1.5 border-t border-hairline pt-2">
+            <Skeleton className="h-5 w-3/4" />
+            <Skeleton className="h-5 w-2/3" />
+            <Skeleton className="h-5 w-4/5" />
           </div>
         </Card>
       </div>
@@ -174,7 +171,7 @@ function EmptyDesk({
         <button
           type="button"
           onClick={onShowAnyway}
-          className="focus-ring rounded text-xs text-mut underline decoration-dotted underline-offset-2 transition-colors duration-150 hover:text-sec"
+          className="focus-ring flex min-h-ctl items-center rounded px-3 text-body text-dim underline decoration-dotted underline-offset-2 transition-colors duration-short2 ease-emphasized hover:text-sec"
         >
           Vẫn mở bàn điều khiển với phiên đã kết thúc
         </button>
@@ -187,8 +184,37 @@ export default function DeskPage() {
   const [demoMode, setDemoMode] = useState(false);
   const [showAnyway, setShowAnyway] = useState(false);
   const [endBusy, setEndBusy] = useState(false);
-  const [endErr, setEndErr] = useState<string | null>(null);
+  /**
+   * Lỗi vận hành đang chờ người xử lý. Một ô duy nhất trên StatusBar cho cả
+   * lệnh Thực hiện lẫn Kết thúc phiên: hai chỗ báo lỗi khác nhau là hai chỗ có
+   * thể bỏ sót.
+   */
+  const [alert, setAlert] = useState<string | null>(null);
   const desk = useDesk({ forceMock: demoMode });
+
+  const clicksPerMin = useMemo(
+    () => clicksInLastMinute(desk.ticks, desk.elapsedS),
+    [desk.ticks, desk.elapsedS],
+  );
+  const cardList = useIsOverflowing(desk.cards.length);
+
+  /**
+   * `useDesk.execute` THROWS when the API refuses the command (and rolls the
+   * card back out of the executed set). The old call site was
+   * `onExecute={() => void desk.execute(c)}`: the rejection went to an unhandled
+   * promise, the card quietly un-executed itself, and the operator was never
+   * told the pin had not happened.
+   */
+  const runCard = (card: ActionCardData) => {
+    setAlert(null);
+    desk.execute(card).catch((e: unknown) => {
+      const detail = e instanceof Error ? e.message : "Máy chủ không nhận lệnh.";
+      setAlert(
+        `Không thực hiện được thẻ “${card.headline}”: ${detail} ` +
+          "Thẻ đã được trả lại danh sách — kiểm tra kết nối rồi bấm Thực hiện lại.",
+      );
+    });
+  };
 
   const endSession = () => {
     if (
@@ -199,11 +225,11 @@ export default function DeskPage() {
       return;
     }
     setEndBusy(true);
-    setEndErr(null);
+    setAlert(null);
     desk
       .endSession()
       .catch((e: unknown) => {
-        setEndErr(e instanceof Error ? e.message : "Không kết thúc được phiên — thử lại.");
+        setAlert(e instanceof Error ? e.message : "Không kết thúc được phiên — thử lại.");
       })
       .finally(() => setEndBusy(false));
   };
@@ -215,7 +241,7 @@ export default function DeskPage() {
     (desk.sessionId == null || (desk.connection === "live" && !hasLive));
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-page">
+    <div className="flex min-h-screen flex-col bg-page">
       <TopNav />
       {desk.connection === "connecting" ? (
         <DeskSkeleton />
@@ -226,107 +252,138 @@ export default function DeskPage() {
           onShowAnyway={() => setShowAnyway(true)}
         />
       ) : (
-        <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3">
-          {/* compact toolbar: picker · status · vitals · mode */}
-          <StatusBar
-            connection={desk.connection}
-            wsStatus={desk.wsStatus}
-            sessions={desk.sessions}
-            sessionId={desk.sessionId}
-            onSelectSession={desk.setSessionId}
-            elapsedS={desk.elapsedS}
-            durationS={desk.durationS}
-            viewers={desk.viewers}
-            mode={desk.mode}
-            onSetMode={desk.setMode}
-            canToggleMode={desk.canToggleMode}
-            onEndSession={endSession}
-            canEndSession={desk.canEndSession}
-            endBusy={endBusy}
-          />
+        <main className="flex flex-1 flex-col p-3">
+          {/* Ưu tiên 1 — thanh trạng thái, cảnh báo và ĐỒNG HỒ KHỐI dính đầu
+              màn hình: khi trang phải cuộn (1366x768) đây là những thứ người
+              vận hành không được phép mất khỏi tầm mắt. */}
+          <div className="sticky top-0 z-20 -mx-3 -mt-3 mb-3 flex flex-col gap-3 bg-page px-3 pb-3 pt-3">
+            <StatusBar
+              connection={desk.connection}
+              wsStatus={desk.wsStatus}
+              sessions={desk.sessions}
+              sessionId={desk.sessionId}
+              onSelectSession={desk.setSessionId}
+              elapsedS={desk.elapsedS}
+              durationS={desk.durationS}
+              mode={desk.mode}
+              onSetMode={desk.setMode}
+              canToggleMode={desk.canToggleMode}
+              onEndSession={endSession}
+              canEndSession={desk.canEndSession}
+              endBusy={endBusy}
+              designHash={desk.designHash}
+              alert={alert}
+              onDismissAlert={() => setAlert(null)}
+            />
 
-          {/* degraded-data banner: slim, amber, right under the toolbar */}
-          {desk.degraded && (
-            <Callout tone="warn" slim className="shrink-0">
-              <strong>Dữ liệu suy giảm</strong> — {desk.degraded}. Bàn vẫn chạy với các nguồn còn
-              lại.
-            </Callout>
-          )}
+            {/* degraded-data banner: amber, right under the toolbar */}
+            {desk.degraded && (
+              <Callout tone="warn" className="shrink-0">
+                <strong>Dữ liệu suy giảm</strong> — {desk.degraded}. Bàn vẫn chạy với các nguồn còn
+                lại.
+              </Callout>
+            )}
 
-          {endErr && (
-            <Callout tone="critical" slim className="shrink-0">
-              {endErr}
-            </Callout>
-          )}
+            <BlockClock
+              blocks={desk.blocks}
+              currentBlock={desk.currentBlock}
+              elapsedS={desk.elapsedS}
+              durationS={desk.durationS}
+              viewers={desk.viewers}
+              clicksPerMin={clicksPerMin}
+              pinnedName={desk.pinned?.name ?? null}
+            />
+          </div>
 
-          {/* Zone 1 — nhịp phiên + dải khối switchback */}
-          <Card as="section" padding="sm" className="flex min-h-0 basis-[40%] flex-col">
-            <SectionTitle
-              className="mb-1.5"
-              meta={
-                <>
-                  Đang ghim:{" "}
-                  <span className="font-semibold text-ink">{desk.pinned?.name ?? "—"}</span>
-                </>
-              }
+          {/* Cột phải giữ nguyên bề rộng thẻ hành động ở mọi màn ≥ xl; cột trái
+              co giãn. Các `minmax(...)` là sàn chiều cao — lý do biểu đồ không
+              còn sập được về 4px. */}
+          <div className="grid flex-1 grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,30rem)] xl:grid-rows-[minmax(20rem,3fr)_minmax(16rem,2fr)]">
+            {/* Ưu tiên 2 — thẻ hành động */}
+            <Card
+              as="section"
+              padding="sm"
+              className="flex min-h-[16rem] min-w-0 flex-col xl:col-start-2 xl:row-span-2 xl:row-start-1"
             >
-              Nhịp phiên
-            </SectionTitle>
-            <div className="min-h-0 flex-1">
-              <RhythmChart ticks={desk.ticks} />
-            </div>
-            <div className="mt-2 shrink-0">
-              <CurrentBlockLine
-                blocks={desk.blocks}
-                currentBlock={desk.currentBlock}
-                elapsedS={desk.elapsedS}
-              />
-              <BlockStrip
-                blocks={desk.blocks}
-                durationS={desk.durationS}
-                positionS={desk.elapsedS}
-              />
-            </div>
-          </Card>
-
-          <div className="grid min-h-0 flex-1 grid-cols-2 gap-3">
-            {/* Zone 2 — action cards */}
-            <Card as="section" padding="sm" className="flex min-h-0 flex-col">
               <SectionTitle
                 className="mb-1.5"
                 meta={<>chế độ {desk.mode === "auto" ? "tự động" : "gợi ý"}</>}
               >
                 Hành động gợi ý
               </SectionTitle>
-              <div className="flex min-h-0 flex-1 flex-col justify-start gap-2 overflow-y-auto">
-                {desk.cards.length === 0 ? (
-                  <div className="px-2 py-4 text-xs text-mut">
-                    Chưa có gợi ý cho thời điểm này — hệ thống sẽ tự thêm thẻ khi đủ dữ liệu.
-                  </div>
-                ) : (
-                  desk.cards.map((c) => (
-                    <ActionCard
-                      key={c.card_id}
-                      card={c}
-                      mode={desk.mode}
-                      executed={desk.executedCardIds.has(c.card_id)}
-                      onExecute={() => void desk.execute(c)}
-                      onSkip={() => desk.skip(c.card_id)}
-                    />
-                  ))
-                )}
+              {/* Khung cuộn `absolute` trong hộp `relative` — cùng lý do với
+                  feed bình luận: nội dung của một lớp absolute không đóng góp
+                  chiều cao cho lưới `3fr`/`2fr` cao không xác định, nên 10 thẻ
+                  không thể tự kéo dài hàng lưới và đẩy cả trang phải cuộn. */}
+              <div className="relative min-h-0 flex-1">
+                <div
+                  ref={cardList.ref}
+                  className="absolute inset-0 flex flex-col justify-start gap-2 overflow-y-auto pr-1"
+                >
+                  {desk.cards.length === 0 ? (
+                    <div className="px-2 py-4">
+                      <p className="text-body text-sec">Chưa có gợi ý cho thời điểm này.</p>
+                      <p className="mt-1 text-body leading-snug text-dim">
+                        Thẻ mới sẽ tự hiện khi hệ thống đủ số liệu — thường trong vài phút đầu
+                        phiên. Trong lúc đó cứ vận hành như thường lệ; bạn không cần chờ thẻ để ghim
+                        sản phẩm.
+                      </p>
+                    </div>
+                  ) : (
+                    desk.cards.map((c) => (
+                      <ActionCard
+                        key={c.card_id}
+                        card={c}
+                        mode={desk.mode}
+                        executed={desk.executedCardIds.has(c.card_id)}
+                        onExecute={() => runCard(c)}
+                        onSkip={() => desk.skip(c.card_id)}
+                      />
+                    ))
+                  )}
+                </div>
+              </div>
+              {cardList.overflowing && (
+                <p className="mt-2 shrink-0 text-body text-warn-ink">
+                  ↓ Danh sách dài hơn khung — cuộn để xem hết {desk.cards.length} thẻ.
+                </p>
+              )}
+              <p className="mt-2 shrink-0 border-t border-hairline pt-2 text-body leading-snug text-dim">
+                {desk.mode === "auto"
+                  ? "Chế độ tự động: hệ thống tự ghim thẻ hạng 1 khi đếm ngược về 0."
+                  : "Chế độ gợi ý: hệ thống chỉ đề xuất — sản phẩm chỉ được ghim khi bạn bấm Thực hiện."}
+              </p>
+            </Card>
+
+            {/* Ưu tiên 3 — nhịp phiên (chỉ số đầu ra chính của thí nghiệm) */}
+            <Card
+              as="section"
+              padding="sm"
+              className="flex min-h-[20rem] min-w-0 flex-col xl:col-start-1 xl:row-start-1"
+            >
+              <SectionTitle className="mb-1.5" meta="gộp theo phút">
+                Nhịp phiên
+              </SectionTitle>
+              {/* Trạng thái rỗng nằm TRONG RhythmChart: nó biết cần mấy phút
+                  số liệu mới vẽ được đường, trang thì không. */}
+              <div className="min-h-[14rem] flex-1">
+                <RhythmChart ticks={desk.ticks} />
               </div>
             </Card>
 
-            {/* Zone 3 — comment radar + feed */}
-            <Card as="section" padding="sm" className="flex min-h-0 flex-col">
+            {/* Ưu tiên 4 — radar bình luận + feed */}
+            <Card
+              as="section"
+              padding="sm"
+              className="flex min-h-[16rem] min-w-0 flex-col xl:col-start-1 xl:row-start-2"
+            >
               <SectionTitle className="mb-1.5" meta="5 phút gần nhất">
                 Radar bình luận
               </SectionTitle>
-              <div className="min-h-0 flex-[2]">
+              <div className="min-h-[6rem] flex-[2]">
                 <CommentRadar comments={desk.comments} nowS={desk.elapsedS} />
               </div>
-              <div className="mt-2 flex min-h-0 flex-[3] flex-col border-t border-hairline pt-2">
+              <div className="mt-2 flex min-h-[6rem] flex-[3] flex-col border-t border-hairline pt-2">
                 <CommentFeed comments={desk.comments} />
               </div>
             </Card>

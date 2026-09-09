@@ -6,7 +6,12 @@
  * Renders ONLY what HostState carries: pinned product name, price, stock, and
  * total elapsed time. No blocks, no ON/OFF assignment, no per-block countdown,
  * no rhythm chart — nothing that could reveal the switchback schedule to the
- * host. Fonts are sized to be readable from ~2 m.
+ * host.
+ *
+ * Type: this is the one screen read from ~2 m, so it lives entirely on the
+ * display steps of the scale (num-l 56px, num-xl 72px). At 2 m a 72px cap
+ * height subtends ≈ 24 arcmin — the ISO 9241-303 comfort band, the same band
+ * the desk's 16px body step hits at 70 cm.
  */
 
 import { fmtClock, fmtNumber, fmtVnd } from "@/lib/format";
@@ -25,14 +30,12 @@ export default function HostView({ host, connection }: Props) {
       {/* slim chrome: brand + total elapsed only */}
       <div className="flex items-center justify-between border-b border-hairline px-8 pb-4 pt-6">
         <div className="flex items-center gap-3">
-          <span className="text-lg font-bold tracking-tight text-sec">LiveLift</span>
+          <span className="text-title font-bold tracking-tight text-sec">LiveLift</span>
           {connection === "mock" && <DemoBadge />}
         </div>
         <div className="text-right">
-          <div className="text-sm font-medium uppercase tracking-[0.2em] text-mut">
-            Thời gian phát
-          </div>
-          <div className="tnum text-6xl font-bold tracking-tight" aria-live="off">
+          <div className="text-label uppercase tracking-[0.2em] text-dim">Thời gian phát</div>
+          <div className="text-num-l" aria-live="off">
             {host ? fmtClock(host.elapsed_s) : "--:--:--"}
           </div>
         </div>
@@ -43,34 +46,28 @@ export default function HostView({ host, connection }: Props) {
         {host?.product_name ? (
           <>
             <div>
-              <div className="mb-4 text-2xl font-medium uppercase tracking-[0.3em] text-mut">
+              <div className="mb-4 text-2xl font-medium uppercase tracking-[0.3em] text-dim">
                 Sản phẩm đang ghim
               </div>
-              <h1 className="text-7xl font-extrabold leading-tight tracking-tight 2xl:text-8xl">
-                {host.product_name}
-              </h1>
+              <h1 className="text-num-xl leading-tight 2xl:text-8xl">{host.product_name}</h1>
             </div>
             <div className="flex items-baseline gap-16">
               <div>
-                <div className="mb-1 text-xl font-medium uppercase tracking-widest text-mut">
-                  Giá
-                </div>
-                <div className="tnum text-6xl font-bold tracking-tight text-warn 2xl:text-7xl">
+                <div className="mb-1 text-title uppercase tracking-widest text-dim">Giá</div>
+                <div className="text-num-l text-warn-ink 2xl:text-num-xl">
                   {host.price != null ? fmtVnd(host.price) : "—"}
                 </div>
               </div>
               <div>
-                <div className="mb-1 text-xl font-medium uppercase tracking-widest text-mut">
-                  Tồn kho
-                </div>
-                <div className="tnum text-6xl font-bold tracking-tight 2xl:text-7xl">
+                <div className="mb-1 text-title uppercase tracking-widest text-dim">Tồn kho</div>
+                <div className="text-num-l 2xl:text-num-xl">
                   {host.stock != null ? fmtNumber(host.stock) : "—"}
                 </div>
               </div>
             </div>
           </>
         ) : (
-          <h1 className="text-5xl font-bold text-mut">
+          <h1 className="text-num-m text-dim">
             {connection === "connecting" ? "Đang kết nối…" : "Chưa ghim sản phẩm"}
           </h1>
         )}

@@ -3,7 +3,8 @@
  *
  * Pattern source: shadcn/ui Card (hairline ring, uniform padding var) and
  * Linear's surface layering — depth comes from bg-surface on bg-page plus a
- * hairline border, never a drop shadow.
+ * hairline border, never a drop shadow. The hover affordance runs on the M3
+ * short4 (200 ms) token with the emphasized easing.
  */
 
 import { cx } from "./cx";
@@ -37,7 +38,7 @@ export default function Card({
       className={cx(
         "rounded-lg border border-hairline bg-surface",
         PAD[padding],
-        interactive && "transition-colors duration-150 hover:border-white/20",
+        interactive && "transition-colors duration-short4 ease-emphasized hover:border-white/20",
         className,
       )}
       {...rest}

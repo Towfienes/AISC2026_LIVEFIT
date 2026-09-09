@@ -46,7 +46,7 @@ function CardShell({
       interactive={!dimmed}
       className={`relative ${dimmed ? "opacity-60" : ""}`}
     >
-      <span className="absolute -left-2.5 -top-2.5 flex h-6 w-6 items-center justify-center rounded-full border border-hairline bg-raised text-[11px] font-bold text-sec">
+      <span className="absolute -left-2.5 -top-2.5 flex h-6 w-6 items-center justify-center rounded-full border border-hairline bg-raised text-meta font-bold text-sec">
         {step}
       </span>
       {children}
@@ -167,8 +167,8 @@ export default function HomePage() {
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-6 py-10">
         {/* brand + one-line promise */}
         <header className="text-center">
-          <h1 className="text-4xl font-extrabold tracking-tight text-ink">LiveLift</h1>
-          <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-sec">
+          <h1 className="text-num-m font-extrabold tracking-tight text-ink">LiveLift</h1>
+          <p className="mx-auto mt-2 max-w-xl text-body leading-relaxed text-sec">
             Biến mỗi quyết định trong phiên live thành thí nghiệm đo được.
           </p>
           {api === "down" && (
@@ -183,8 +183,8 @@ export default function HomePage() {
           <CardShell step="1">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-base font-semibold text-ink">🔬 Xem thử ngay (30 giây)</h2>
-                <p className="mt-1 text-xs leading-relaxed text-sec">
+                <h2 className="text-strong text-ink">🔬 Xem thử ngay (30 giây)</h2>
+                <p className="mt-1 text-body leading-relaxed text-sec">
                   Tạo dữ liệu mô phỏng và mở bản phát lại — không cần cài gì thêm.
                 </p>
               </div>
@@ -202,15 +202,15 @@ export default function HomePage() {
                       : "Bắt đầu xem thử"}
               </Button>
             </div>
-            {demoErr && <p className="mt-2 text-xs text-critical">{demoErr}</p>}
+            {demoErr && <p className="mt-2 text-meta text-crit-ink">{demoErr}</p>}
           </CardShell>
 
           {/* Card 2 — analyze an existing YouTube live */}
           <CardShell step="2" dimmed={api === "down"}>
-            <h2 className="text-base font-semibold text-ink">
+            <h2 className="text-strong text-ink">
               🎬 Phân tích một video live có sẵn
             </h2>
-            <p className="mt-1 text-xs leading-relaxed text-sec">
+            <p className="mt-1 text-body leading-relaxed text-sec">
               Dán đường dẫn một buổi live YouTube <strong>đã kết thúc</strong> — hệ thống tải
               phần chat và dựng lại nhịp bình luận cùng radar ý định.
             </p>
@@ -228,7 +228,7 @@ export default function HomePage() {
                 placeholder="https://www.youtube.com/watch?v=…"
                 disabled={api !== "ok" || jobRunning}
                 aria-label="Đường dẫn video YouTube"
-                className={`${fieldCls} min-w-0 flex-1 px-3 py-2 text-sm`}
+                className={`${fieldCls} min-w-0 flex-1 px-3 py-2 text-body`}
               />
               <Button type="submit" disabled={api !== "ok" || jobRunning || url.trim() === ""}>
                 {jobRunning ? "Đang xử lý…" : "Phân tích"}
@@ -237,34 +237,34 @@ export default function HomePage() {
 
             {/* job progress */}
             {(job || jobRunning) && (
-              <div className="mt-3 flex items-center gap-2 rounded-md border border-hairline bg-raised px-3 py-2 text-xs text-sec">
+              <div className="mt-3 flex items-center gap-2 rounded-md border border-hairline bg-raised px-3 py-2 text-meta text-sec">
                 {job?.status !== "error" && (
                   <span
                     aria-hidden
                     className="inline-block h-2 w-2 animate-pulse rounded-full bg-s1"
                   />
                 )}
-                <span className={job?.status === "error" ? "text-critical" : undefined}>
+                <span className={job?.status === "error" ? "font-semibold text-crit-ink" : undefined}>
                   {job
                     ? job.status === "error"
                       ? (job.detail ?? JOB_STATUS_VI.error)
                       : JOB_STATUS_VI[job.status]
                     : "Đang gửi yêu cầu…"}
                   {job?.video_title && job.status !== "error" && (
-                    <span className="text-mut"> · {job.video_title}</span>
+                    <span className="text-dim"> · {job.video_title}</span>
                   )}
                 </span>
               </div>
             )}
-            {jobErr && <p className="mt-2 text-xs text-critical">{jobErr}</p>}
+            {jobErr && <p className="mt-2 text-meta text-crit-ink">{jobErr}</p>}
 
-            <p className="mt-3 border-t border-hairline pt-2 text-[11px] leading-relaxed text-mut">
+            <p className="mt-3 border-t border-hairline pt-2 text-meta leading-relaxed text-dim">
               Chỉ phân tích được video YouTube còn chat replay. Video của người khác chỉ cho kết
               quả <strong className="text-sec">QUAN SÁT</strong> (radar ý định, nhịp bình luận) —
               không phải thí nghiệm.
             </p>
             {api === "down" && (
-              <p className="mt-2 text-[11px] font-semibold text-warn">
+              <p className="mt-2 text-meta font-semibold text-warn-ink">
                 Cần máy chủ LiveLift đang chạy để phân tích video — hiện chưa kết nối được.
               </p>
             )}
@@ -274,10 +274,10 @@ export default function HomePage() {
           <CardShell step="3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-base font-semibold text-ink">
+                <h2 className="text-strong text-ink">
                   📡 Chạy phiên live thật của bạn
                 </h2>
-                <p className="mt-1 text-xs leading-relaxed text-sec">
+                <p className="mt-1 text-body leading-relaxed text-sec">
                   Khi đã sẵn sàng lên sóng: chuẩn bị theo 4 bước bên dưới rồi mở Bàn điều khiển.
                 </p>
               </div>
@@ -286,32 +286,32 @@ export default function HomePage() {
               </Link>
             </div>
             <details className="mt-3 border-t border-hairline pt-2">
-              <summary className="focus-ring cursor-pointer select-none rounded text-xs font-semibold text-sec transition-colors duration-150 hover:text-ink">
+              <summary className="focus-ring flex min-h-tap cursor-pointer select-none items-center rounded text-meta font-semibold text-sec transition-colors duration-short2 ease-emphasized hover:text-ink">
                 Xem 4 bước chuẩn bị (tạo sản phẩm → tạo phiên → sinh lịch gán → bắt đầu)
               </summary>
-              <ol className="mt-2 space-y-2 text-xs leading-relaxed text-sec">
+              <ol className="mt-2 space-y-2 text-body leading-relaxed text-sec">
                 <li>
                   <strong className="text-ink">1. Tạo sản phẩm</strong> — thêm từng sản phẩm sẽ
                   lên sóng bằng lệnh{" "}
-                  <code className="rounded bg-raised px-1 py-0.5 text-[11px]">POST /products</code>{" "}
+                  <code className="rounded bg-raised px-1 py-0.5 text-meta">POST /products</code>{" "}
                   (hoặc bấm &quot;Bắt đầu xem thử&quot; ở bước 1 để có sẵn dữ liệu mẫu).
                 </li>
                 <li>
                   <strong className="text-ink">2. Tạo phiên</strong> — đặt tên, nền tảng và thời
                   lượng buổi live bằng{" "}
-                  <code className="rounded bg-raised px-1 py-0.5 text-[11px]">POST /sessions</code>.
+                  <code className="rounded bg-raised px-1 py-0.5 text-meta">POST /sessions</code>.
                 </li>
                 <li>
                   <strong className="text-ink">3. Sinh lịch gán</strong> — hệ thống tự chia phiên
                   thành các khối BẬT/TẮT xen kẽ bằng{" "}
-                  <code className="rounded bg-raised px-1 py-0.5 text-[11px]">
+                  <code className="rounded bg-raised px-1 py-0.5 text-meta">
                     POST /sessions/{"{id}"}/schedule
                   </code>{" "}
                   (bạn không phải tự chọn gì).
                 </li>
                 <li>
                   <strong className="text-ink">4. Bắt đầu</strong> — phát lệnh{" "}
-                  <code className="rounded bg-raised px-1 py-0.5 text-[11px]">
+                  <code className="rounded bg-raised px-1 py-0.5 text-meta">
                     POST /sessions/{"{id}"}/start
                   </code>
                   , mở Bàn điều khiển và bấm nút &quot;Thực hiện&quot; trên thẻ gợi ý khi muốn ghim
@@ -323,7 +323,7 @@ export default function HomePage() {
         </div>
 
         {/* slim footer: version + quick links */}
-        <footer className="mt-auto flex flex-col items-center gap-2 border-t border-hairline pt-4 text-[11px] text-mut sm:flex-row sm:justify-between">
+        <footer className="mt-auto flex flex-col items-center gap-2 border-t border-hairline pt-4 text-meta text-dim sm:flex-row sm:justify-between">
           <span>
             LiveLift <span className="tnum">v0.1.0</span> · thí nghiệm switchback cho
             live-commerce · AISC&apos;26
@@ -331,19 +331,19 @@ export default function HomePage() {
           <span className="flex items-center gap-3">
             <Link
               href="/chay-phien"
-              className="focus-ring rounded transition-colors duration-150 hover:text-sec"
+              className="focus-ring rounded transition-colors duration-short2 ease-emphasized hover:text-sec"
             >
               Chạy phiên
             </Link>
             <Link
               href="/replay"
-              className="focus-ring rounded transition-colors duration-150 hover:text-sec"
+              className="focus-ring rounded transition-colors duration-short2 ease-emphasized hover:text-sec"
             >
               Phát lại
             </Link>
             <Link
               href="/ket-qua"
-              className="focus-ring rounded transition-colors duration-150 hover:text-sec"
+              className="focus-ring rounded transition-colors duration-short2 ease-emphasized hover:text-sec"
             >
               Kết quả
             </Link>

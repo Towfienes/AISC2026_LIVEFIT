@@ -3,18 +3,22 @@
  * must keep their exact semantics:
  * - "neutral" → forecast-sourced numbers ("Ước lượng dự báo", gray, no CI ever)
  * - "good"    → experiment-sourced numbers ("Tác động đo được · KTC 95%", green)
+ *
+ * Type: `meta` (13px) — the floor of the scale. Ink: the AA-safe *-ink tokens,
+ * so a badge clears 4.5:1 on the tinted surface it sits on.
  */
 
 import { cx } from "./cx";
+import StatusMark, { type StatusShape } from "./StatusMark";
 
 export type BadgeTone = "neutral" | "good" | "warn" | "violet" | "critical";
 
 const TONE: Record<BadgeTone, string> = {
-  neutral: "border-hairline bg-axis text-sec",
-  good: "border-[#0ca30c66] bg-[#0ca30c1f] text-[#4ed44e]",
-  warn: "border-warn/60 bg-warn/10 text-warn",
-  violet: "border-s7/50 bg-s7/15 text-s7",
-  critical: "border-critical/50 bg-critical/10 text-critical",
+  neutral: "border-hairline bg-axis text-off-ink",
+  good: "border-[#0ca30c66] bg-[#0ca30c1f] text-good-ink",
+  warn: "border-warn/60 bg-warn/10 text-warn-ink",
+  violet: "border-s7/50 bg-s7/15 text-on-ink",
+  critical: "border-critical/50 bg-critical/10 text-crit-ink",
 };
 
 const DOT: Record<BadgeTone, string> = {
@@ -29,21 +33,33 @@ interface Props {
   tone?: BadgeTone;
   /** Leading status dot (identity never by color alone — text always present). */
   dot?: boolean;
+  /**
+   * Trạng thái BẬT/TẮT/trôi: vẽ ký hiệu hình dạng (chấm đặc / vòng rỗng /
+   * nửa đặc) thay cho chấm tròn, để phân biệt được khi không thấy màu.
+   */
+  mark?: StatusShape;
   className?: string;
   children: React.ReactNode;
 }
 
-export default function Badge({ tone = "neutral", dot = false, className, children }: Props) {
+export default function Badge({
+  tone = "neutral",
+  dot = false,
+  mark,
+  className,
+  children,
+}: Props) {
   return (
     <span
       className={cx(
-        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-meta font-semibold",
         TONE[tone],
         className,
       )}
     >
-      {dot ? (
-        <span aria-hidden className={cx("inline-block h-1.5 w-1.5 rounded-full", DOT[tone])} />
+      {mark ? <StatusMark shape={mark} inherit /> : null}
+      {!mark && dot ? (
+        <span aria-hidden className={cx("inline-block h-2 w-2 rounded-full", DOT[tone])} />
       ) : null}
       {children}
     </span>

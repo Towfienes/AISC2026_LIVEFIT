@@ -1,7 +1,11 @@
 /**
- * StatTile — Tremor-style KPI tile: muted uppercase label, large semibold
- * tabular value, small hint line. `size="lg"` is the hero variant used for
- * the primary experiment result on /ket-qua.
+ * StatTile — Tremor-style KPI tile: `label` eyebrow, a DISPLAY figure on the
+ * num-* steps (tabular by construction), and a `meta` hint line.
+ * `size="lg"` is the hero variant used for the primary experiment result on
+ * /ket-qua.
+ *
+ * Sizes: md → num-s (28px), lg → num-m (40px). Both are display figures, well
+ * clear of the ISO 9241-303 band, so a judge reads the number across the room.
  */
 
 import Card from "./Card";
@@ -9,11 +13,12 @@ import { cx } from "./cx";
 
 type Tone = "ink" | "good" | "warn" | "critical";
 
+/** Value inks — the AA-safe status tokens, never the fill tones. */
 const TONE: Record<Tone, string> = {
   ink: "text-ink",
-  good: "text-good",
-  warn: "text-warn",
-  critical: "text-critical",
+  good: "text-good-ink",
+  warn: "text-warn-ink",
+  critical: "text-crit-ink",
 };
 
 interface Props {
@@ -35,19 +40,17 @@ export default function StatTile({
 }: Props) {
   return (
     <Card padding={size === "lg" ? "lg" : "md"} className={className}>
-      <div className="text-[11px] font-medium uppercase tracking-wide text-mut">{label}</div>
+      <div className="text-label uppercase text-dim">{label}</div>
       <div
         className={cx(
-          "mt-1 font-semibold tabular-nums tracking-tight",
-          size === "lg" ? "text-4xl" : "text-2xl",
+          "mt-1.5 tracking-tight",
+          size === "lg" ? "text-num-m" : "text-num-s",
           TONE[tone],
         )}
       >
         {value}
       </div>
-      {hint != null ? (
-        <div className="mt-1.5 text-[11px] leading-snug text-sec">{hint}</div>
-      ) : null}
+      {hint != null ? <div className="mt-2 text-meta leading-snug text-sec">{hint}</div> : null}
     </Card>
   );
 }

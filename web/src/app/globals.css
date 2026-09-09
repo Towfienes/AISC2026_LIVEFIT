@@ -2,8 +2,147 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===========================================================================
+   DESIGN TOKENS
+   Everything the desk can theme lives here as custom properties: components
+   reference the Tailwind utilities built on top of them (tailwind.config.ts),
+   never raw hex.
+   =========================================================================== */
+
 :root {
   color-scheme: dark;
+
+  /* -------------------------------------------------------------------------
+     MOTION — Material 3 duration + easing tokens.
+     Durations are custom properties so the reduced-motion block below can
+     collapse ALL of them at once; the Tailwind utilities duration-short2 …
+     duration-medium3 and ease-emphasized resolve to these.
+     ------------------------------------------------------------------------- */
+  --dur-short2: 100ms; /* hover / press feedback, colour change */
+  --dur-short4: 200ms; /* small element enter-exit (badge, chip, tooltip) */
+  --dur-medium1: 250ms;
+  --dur-medium2: 300ms; /* surface / panel change */
+  --dur-medium3: 350ms; /* count-up tween của KPI nhảy bậc */
+  --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  /* -------------------------------------------------------------------------
+     MOTION VỚI MỤC ĐÍCH (gói UI-3) — bốn thời lượng riêng cho bốn việc mà
+     thang M3 chung không mô tả được. Mỗi cái gắn với MỘT sự kiện vận hành:
+
+       --dur-tick    nhịp đồng hồ của bàn. Playhead trên dải khối và thanh
+                     tiến trình chạy đúng 1000ms LINEAR để trôi liền mạch giữa
+                     hai lần tick 1 giây — nhanh hơn thì giật, chậm hơn thì
+                     tụt sau đồng hồ.
+       --dur-enter   dòng bình luận mới trượt vào (fade + 6px).
+       --dur-switch  KHOẢNH KHẮC QUAN TRỌNG NHẤT của phiên: khối chuyển
+                     BẬT -> TẮT. Đây là hiệu ứng "to" DUY NHẤT được phép trên
+                     màn vận hành, nên nó dài hơn mọi hiệu ứng khác.
+       --dur-flash-* nháy nền xác nhận khi một con số vừa đổi: 120ms sáng lên
+                     rồi 400ms tắt dần. Chỉ đổi NỀN (alpha ≤ 12%) — không đổi
+                     kích thước, không đẩy bố cục.
+     ------------------------------------------------------------------------- */
+  --dur-tick: 1000ms;
+  --dur-enter: 180ms;
+  --dur-switch: 280ms;
+  --dur-flash-in: 120ms;
+  --dur-flash-out: 400ms;
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  /* Trần alpha của nháy xác nhận. 12% là ngưỡng "thấy được mà không chói" trên
+     nền tối; cao hơn thì con số bị nền nuốt mất đúng lúc cần đọc nó. */
+  --flash-alpha: 0.12;
+
+  /* -------------------------------------------------------------------------
+     STATUS TOKEN PAIRS — fill (area) + ink (text), plus a SHAPE.
+     Colour is never the only channel (WCAG 1.4.1 Use of Colour): a colour-blind
+     operator reads the state from the mark shape and the Vietnamese word alone.
+
+       BẬT  (ON)      .status-mark--on     chấm đặc      filled disc
+       TẮT  (OFF)     .status-mark--off    vòng rỗng     hollow ring
+       TRÔI (washout) .status-mark--drift  nửa đặc       half-filled disc
+
+     Contrast of each ink, measured (WCAG 2.x relative luminance) against the
+     four planes the desk paints — page #0d0d0d, surface #1a1a19, raised
+     #232322, axis #383835. The axis column is the worst case and still clears
+     the 4.5:1 AA threshold for normal-size text:
+
+       --st-on-ink     #b3aaf2   9.21 · 8.25 · 7.45 · 5.57
+       --st-off-ink    #c3c2b7  10.85 · 9.72 · 8.78 · 6.57
+       --st-drift-ink  #a3a19a   7.52 · 6.74 · 6.08 · 4.55
+       --st-good-ink   #4ed44e  10.04 · 9.00 · 8.13 · 6.08
+       --st-warn-ink   #fab219  10.59 · 9.49 · 8.57 · 6.41
+       --st-crit-ink   #f08a8a   8.06 · 7.22 · 6.52 · 4.88
+       --st-info-ink   #78b0f0   8.58 · 7.69 · 6.94 · 5.19
+
+     The base tones are kept for FILLS only: #d03b3b reaches just 4.05:1 on the
+     page plane and #0ca30c only 3.51:1 on axis, so neither may carry text.
+     ------------------------------------------------------------------------- */
+  --st-on: #9085e9; /* fill BẬT — #0d0d0d text on it = 6.22:1 */
+  --st-on-ink: #b3aaf2;
+  --st-off: #383835; /* fill TẮT — #c3c2b7 text on it = 6.57:1 */
+  --st-off-ink: #c3c2b7;
+  --st-drift: #2c2c2a; /* fill trôi (hatched, see .hatch-washout) */
+  --st-drift-ink: #a3a19a;
+  --st-good-ink: #4ed44e;
+  --st-warn-ink: #fab219;
+  --st-crit-ink: #f08a8a;
+  --st-info-ink: #78b0f0;
+
+  /* Focus indicator — 8.58:1 on the page plane, well over the 3:1 that
+     WCAG 2.2 SC 1.4.11 asks of a non-text indicator. */
+  --focus-ring: #78b0f0;
+
+  /* -------------------------------------------------------------------------
+     The LIGHT half of the same pairs. Every status token has to survive a light
+     ground too — a judge printing /ket-qua gets white paper, because browsers
+     drop background graphics by default. Ratios against white #ffffff and a
+     light surface #f5f5f4:
+
+       --st-on-ink-light     #4a3fb8   7.79 · 7.14
+       --st-off-ink-light    #4b4a45   8.88 · 8.14
+       --st-drift-ink-light  #6b6a63   5.43 · 4.98
+       --st-good-ink-light   #0a6f0a   6.38 · 5.85
+       --st-warn-ink-light   #7a5300   6.85 · 6.28
+       --st-crit-ink-light   #b31d1d   6.75 · 6.19
+       --st-info-ink-light   #14539e   7.61 · 6.97
+
+     These are declared but INERT until a light plane opts in (@media print
+     below). They are deliberately NOT wired to `prefers-color-scheme: light`:
+     the desk paints a dark plane unconditionally, so swapping to dark inks on
+     an OS preference would put dark text on a dark ground.
+     ------------------------------------------------------------------------- */
+  --st-on-ink-light: #4a3fb8;
+  --st-off-ink-light: #4b4a45;
+  --st-drift-ink-light: #6b6a63;
+  --st-good-ink-light: #0a6f0a;
+  --st-warn-ink-light: #7a5300;
+  --st-crit-ink-light: #b31d1d;
+  --st-info-ink-light: #14539e;
+  --focus-ring-light: #14539e; /* 7.61 on white */
+}
+
+/* Printing is the one light plane the app really meets. Repaint the ground and
+   swap in the light half of every status pair, so a printed result page keeps
+   the same AA contrast the screen has. */
+@media print {
+  :root {
+    --st-on: #4a3fb8;
+    --st-on-ink: var(--st-on-ink-light);
+    --st-off: #d8d7d2;
+    --st-off-ink: var(--st-off-ink-light);
+    --st-drift: #e8e7e3;
+    --st-drift-ink: var(--st-drift-ink-light);
+    --st-good-ink: var(--st-good-ink-light);
+    --st-warn-ink: var(--st-warn-ink-light);
+    --st-crit-ink: var(--st-crit-ink-light);
+    --st-info-ink: var(--st-info-ink-light);
+    --focus-ring: var(--focus-ring-light);
+  }
+  html,
+  body {
+    background: #ffffff;
+    color: #0d0d0d;
+  }
 }
 
 html,
@@ -53,8 +192,113 @@ body {
   );
 }
 
-/* Respect prefers-reduced-motion: collapse all animation/transition time */
+/* ---------------------------------------------------------------------------
+   STATUS MARK — the redundant, non-colour channel of every status token.
+   Shape carries the meaning; `currentColor` carries the (redundant) colour, so
+   a mark always agrees with the label sitting next to it.
+   --------------------------------------------------------------------------- */
+.status-mark {
+  display: inline-block;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border: 2px solid currentColor;
+  border-radius: 9999px;
+}
+/* BẬT — chấm đặc */
+.status-mark--on {
+  background: currentColor;
+}
+/* TẮT — vòng rỗng */
+.status-mark--off {
+  background: transparent;
+}
+/* TRÔI (washout) — nửa đặc */
+.status-mark--drift {
+  background: linear-gradient(90deg, currentColor 0 50%, transparent 50% 100%);
+}
+
+/* ---------------------------------------------------------------------------
+   HIỆU ỨNG CÓ MỤC ĐÍCH (gói UI-3)
+   Ba lớp dưới đây là TOÀN BỘ chuyển động do JS/keyframes điều khiển trên bàn
+   điều khiển. Không có lớp nào lặp vô hạn: đây là màn hình người ta nhìn 90
+   phút liền, nên mọi thứ động phải có điểm dừng và phải TRẢ LỜI một sự kiện.
+   --------------------------------------------------------------------------- */
+
+/* 1. NHÁY XÁC NHẬN — "con số vừa đổi".
+   Chỉ đổi NỀN, và nền nằm trên một lớp phủ `position: absolute` nên không có
+   một pixel bố cục nào dịch chuyển: không đổi kích thước chữ, không đẩy hàng
+   bên cạnh. 120ms sáng lên (23% của 520ms) rồi 400ms tắt dần. */
+@keyframes ll-flash {
+  0% {
+    background-color: rgba(255, 255, 255, 0);
+  }
+  23% {
+    background-color: rgba(255, 255, 255, var(--flash-alpha));
+  }
+  100% {
+    background-color: rgba(255, 255, 255, 0);
+  }
+}
+.motion-flash {
+  animation: ll-flash calc(var(--dur-flash-in) + var(--dur-flash-out)) var(--ease-out) both;
+}
+
+/* 2. DÒNG MỚI VÀO — bình luận, thẻ hành động, chip cảnh báo.
+   Chỉ `opacity` + `transform` (GPU). KHÔNG animate height/max-height: chiều
+   cao đổi dần sẽ đẩy cả danh sách bên dưới trôi trong lúc người ta đang đọc. */
+@keyframes ll-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.motion-enter {
+  animation: ll-enter var(--dur-enter) var(--ease-out) both;
+}
+
+/* 3. CHUYỂN KHỐI BẬT -> TẮT — khoảnh khắc quan trọng nhất của phiên và là
+   hiệu ứng "to" DUY NHẤT được phép ở đây: chữ trạng thái mới quét (wipe) từ
+   trái sang trong khi mờ dần hiện lên, còn mặt nền của chip chuyển màu bằng
+   `transition-colors` cùng thời lượng — hai nửa của một crossfade. */
+@keyframes ll-switch {
+  from {
+    opacity: 0;
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+.motion-switch {
+  animation: ll-switch var(--dur-switch) var(--ease-emphasized) both;
+}
+
+/* Respect prefers-reduced-motion: collapse every motion token AND any
+   animation/transition a component sets directly. */
 @media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-short2: 1ms;
+    --dur-short4: 1ms;
+    --dur-medium1: 1ms;
+    --dur-medium2: 1ms;
+    --dur-medium3: 1ms;
+    /* Các token của gói UI-3 rút gọn cùng một chỗ với thang M3 — hook
+       `usePrefersReducedMotion` khoá thêm phần tween chạy bằng JS. */
+    --dur-tick: 1ms;
+    --dur-enter: 1ms;
+    --dur-switch: 1ms;
+    --dur-flash-in: 1ms;
+    --dur-flash-out: 1ms;
+    --ease-emphasized: linear;
+    --ease-standard: linear;
+    --ease-out: linear;
+  }
   *,
   *::before,
   *::after {
@@ -70,12 +314,28 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* The num-* steps of the type scale are display FIGURES: they always line up
+   in a column. Tailwind's fontSize tuple cannot carry font-variant-numeric, so
+   it is attached here (different property from the utility — no conflict). */
+.text-num-s,
+.text-num-m,
+.text-num-l,
+.text-num-xl {
+  font-variant-numeric: tabular-nums;
+}
+
 /* Keyboard focus ring (shadcn/ui convention): visible only on :focus-visible,
-   offset from the control, accent-colored. Shared by every interactive element. */
+   offset from the control, accent-colored. Shared by every interactive element
+   — including the ones that only take focus via tabIndex (Term). */
 .focus-ring {
   outline: none;
 }
 .focus-ring:focus-visible {
-  outline: 2px solid rgba(57, 135, 229, 0.75);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
+}
+/* Inside an `overflow-hidden` group (segmented controls) an offset ring is
+   clipped away — draw it inside the control instead. */
+.focus-ring-inset:focus-visible {
+  outline-offset: -2px;
 }

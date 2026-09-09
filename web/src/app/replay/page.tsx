@@ -34,16 +34,19 @@ export default function ReplayPage() {
   return (
     <main className="flex h-screen flex-col gap-3 overflow-hidden bg-page p-3">
       {/* header + provenance banner */}
-      <header className="flex h-11 shrink-0 items-center gap-3 rounded-lg border border-hairline bg-surface px-3">
-        <Link href="/" className="focus-ring shrink-0 rounded text-sm font-bold tracking-tight text-ink">
-          LiveLift <span className="font-normal text-mut">· phát lại phiên</span>
+      <header className="flex h-bar shrink-0 items-center gap-3 rounded-lg border border-hairline bg-surface px-3">
+        <Link
+          href="/"
+          className="focus-ring flex shrink-0 items-center rounded text-body font-bold tracking-tight text-ink"
+        >
+          LiveLift <span className="ml-1 font-normal text-dim">· phát lại phiên</span>
         </Link>
         {rp.connection === "mock" && <DemoBadge />}
         <div className="ml-auto flex min-w-0 items-center gap-2 rounded-md border border-warn/60 bg-warn/10 px-3 py-1">
-          <span aria-hidden className="text-warn">
+          <span aria-hidden className="text-warn-ink">
             ⏮
           </span>
-          <span className="truncate text-xs font-bold tracking-wide text-warn">
+          <span className="truncate text-meta font-bold tracking-wide text-warn-ink">
             PHÁT LẠI DỮ LIỆU THẬT — ghi ngày {recordedOn}
           </span>
         </div>
@@ -105,7 +108,7 @@ export default function ReplayPage() {
                   <Skeleton className="h-24" />
                 </div>
               ) : rp.cards.length === 0 ? (
-                <div className="px-2 py-4 text-xs text-mut">
+                <div className="px-2 py-4 text-body text-dim">
                   Không còn thẻ nào cho thời điểm này (kiểm tra tham số bên phải).
                 </div>
               ) : (
@@ -124,7 +127,7 @@ export default function ReplayPage() {
           {/* parameter panel */}
           <aside className="flex w-60 shrink-0 flex-col border-l border-hairline pl-3">
             <SectionTitle className="mb-1.5">Tham số what-if</SectionTitle>
-            <p className="mb-2 shrink-0 text-[11px] leading-snug text-mut">
+            <p className="mb-2 shrink-0 text-meta leading-snug text-dim">
               Đánh dấu sản phẩm <span className="font-semibold text-sec">hết hàng</span> để xem
               hệ thống xếp hạng lại thẻ hành động.
             </p>
@@ -142,7 +145,7 @@ export default function ReplayPage() {
                   return (
                     <li key={p.product_id}>
                       <label
-                        className={`flex cursor-pointer items-center gap-2 rounded-md border px-2 py-1.5 text-xs transition-colors duration-150 ${
+                        className={`flex min-h-ctl cursor-pointer items-center gap-2 rounded-md border px-2 py-1.5 text-meta transition-colors duration-short2 ease-emphasized ${
                           off
                             ? "border-critical/60 bg-critical/10 text-sec"
                             : "border-hairline bg-raised text-ink hover:border-white/20"
@@ -158,7 +161,7 @@ export default function ReplayPage() {
                           {p.name}
                         </span>
                         {off && (
-                          <span className="shrink-0 text-[10px] font-bold text-critical">
+                          <span className="shrink-0 text-meta font-bold text-crit-ink">
                             HẾT HÀNG
                           </span>
                         )}

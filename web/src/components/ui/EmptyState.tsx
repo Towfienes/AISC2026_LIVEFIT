@@ -1,6 +1,8 @@
 /**
  * EmptyState — never a blank panel: icon, plain-Vietnamese title, one hint,
- * and the next action(s) (NN/g empty-state guidance).
+ * and the next action(s) (NN/g empty-state guidance). Title rides the `title`
+ * step (20px) and the hint the `body` step (16px): this is the first screen a
+ * new operator reads, so it never uses the metadata size.
  */
 
 import { cx } from "./cx";
@@ -26,9 +28,9 @@ export default function EmptyState({ icon, title, hint, action, className }: Pro
           {icon}
         </div>
       ) : null}
-      <h2 className="text-lg font-semibold tracking-tight text-ink">{title}</h2>
+      <h2 className="text-title tracking-tight text-ink">{title}</h2>
       {hint != null ? (
-        <p className="max-w-md text-[13px] leading-relaxed text-sec">{hint}</p>
+        <p className="max-w-lg text-body leading-relaxed text-sec">{hint}</p>
       ) : null}
       {action != null ? (
         <div className="mt-1 flex flex-wrap items-center justify-center gap-3">{action}</div>

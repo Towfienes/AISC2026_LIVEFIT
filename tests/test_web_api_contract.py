@@ -191,7 +191,9 @@ def test_ws_frames_are_type_data_envelopes():
                 },
             ).json()
             assert client.get(f"/r/{link['code']}", follow_redirects=False).status_code == 302
-            assert _envelope(ws.receive_json(), "click") == {"product_id": "P1"}
+            # gói Q1: khung click mang thêm cờ hợp lệ để bàn điều khiển phân
+            # biệt click người / click bị gắn cờ ngay trong phiên
+            assert _envelope(ws.receive_json(), "click") == {"product_id": "P1", "is_valid": True}
 
             assert client.post(f"/sessions/{sid}/end").status_code == 200
             assert _envelope(ws.receive_json(), "state") == {"status": "ended"}
@@ -231,3 +233,56 @@ def test_web_desk_handles_click_and_partial_state():
             f"useDesk đọc '{stale}' — payload 'state' là bản vá một phần, "
             "không phải SessionState đầy đủ"
         )
+
+
+# ---------------------------------------------------------------------------
+# Gói Q3 — design_hash trên payload operator, KHÔNG bao giờ trên payload host
+# ---------------------------------------------------------------------------
+
+
+def test_design_hash_is_in_the_operator_payload_and_typed_in_the_web_client():
+    """Bàn điều khiển hiển thị cam kết thiết kế, nên `design_hash` phải có thật
+    trong payload operator VÀ được khai báo trong types.ts — hai đầu lệch nhau
+    chính là lỗi 27/08 (giao diện đọc trường máy chủ không gửi)."""
+    app = create_app(store=InMemoryStore())
+    with TestClient(app) as client:
+        r = client.post(
+            "/sessions",
+            json={"platform": "youtube", "mode": "suggest", "planned_duration_min": 60},
+        )
+        sid = r.json()["session_id"]
+        sched = client.post(f"/sessions/{sid}/schedule", json={"seed": 7})
+        assert sched.status_code == 200, sched.text
+        assert len(sched.json()["design_hash"]) == 64
+
+        state = client.get(f"/sessions/{sid}/state?role=operator").json()
+        assert state["design_hash"] == sched.json()["design_hash"]
+
+    src = TYPES_TS.read_text(encoding="utf-8")
+    m = re.search(r"export interface SessionState \{[\s\S]*?\n\}", src)
+    assert m, "types.ts không còn khai báo SessionState"
+    assert re.search(r"design_hash:\s*string \| null;", m.group(0)), (
+        "SessionState thiếu design_hash — bàn sẽ đọc undefined"
+    )
+
+
+def test_host_payload_never_carries_the_design_hash():
+    """Quy tắc L6: design_hash là vân tay của cơ chế gán. Nó không được nằm
+    trong payload host, và client vẫn phải liệt kê nó ở lớp phòng thủ thứ hai."""
+    app = create_app(store=InMemoryStore())
+    with TestClient(app) as client:
+        r = client.post(
+            "/sessions",
+            json={"platform": "youtube", "mode": "suggest", "planned_duration_min": 60},
+        )
+        sid = r.json()["session_id"]
+        assert client.post(f"/sessions/{sid}/schedule", json={"seed": 7}).status_code == 200
+        host = client.get(f"/sessions/{sid}/state?role=host").json()
+        assert "design_hash" not in host
+
+    api_src = API_TS.read_text(encoding="utf-8")
+    forbidden = re.search(r"const HOST_FORBIDDEN_KEYS = \[[\s\S]*?\] as const;", api_src)
+    assert forbidden, "api.ts không còn danh sách khóa cấm cho payload host"
+    assert '"design_hash"' in forbidden.group(0), (
+        "HOST_FORBIDDEN_KEYS thiếu design_hash — mất lớp phòng thủ thứ hai"
+    )

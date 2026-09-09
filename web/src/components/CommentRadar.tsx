@@ -8,6 +8,10 @@
  * INTENT_META regardless of which intents appear in the window (color follows
  * the entity). Identity is never color-alone: the legend names every intent and
  * the tooltip lists labels. 2px surface gaps separate stacked segments.
+ *
+ * Chuyển động (gói UI-3): KHÔNG có. Radar được vẽ lại mỗi lần poll 5 giây, nên
+ * mọi `isAnimationActive` — cột lẫn tooltip — đều tắt; cột mọc lên lại 12 lần
+ * mỗi phút thì không đọc được phân bố, chỉ thấy nó nhảy.
  */
 
 import { useMemo } from "react";
@@ -55,7 +59,7 @@ function RadarTooltip({ active, payload, label }: TooltipProps<number, string>) 
   if (!active || !payload || payload.length === 0) return null;
   const total = payload.reduce((s, p) => s + (typeof p.value === "number" ? p.value : 0), 0);
   return (
-    <div className="rounded border border-hairline bg-raised px-3 py-2 text-xs shadow-lg">
+    <div className="rounded border border-hairline bg-raised px-3 py-2 text-meta shadow-lg">
       <div className="mb-1 font-semibold text-sec">
         Phút {String(label)} · <span className="tnum text-ink">{total}</span> bình luận
       </div>
@@ -75,15 +79,38 @@ function RadarTooltip({ active, payload, label }: TooltipProps<number, string>) 
 
 export default function CommentRadar({ comments, nowS }: Props) {
   const rows = useMemo(() => buildRows(comments, nowS), [comments, nowS]);
+  const total = useMemo(
+    () =>
+      rows.reduce(
+        (sum, r) =>
+          sum +
+          INTENT_LABELS.reduce((s, k) => s + (typeof r[k] === "number" ? (r[k] as number) : 0), 0),
+        0,
+      ),
+    [rows],
+  );
+
+  // Cửa sổ rỗng: một lưới trống có trục trông giống lỗi tải hơn là "chưa có
+  // bình luận". Nói rõ đang chờ gì, và rằng không cần thao tác gì.
+  if (total === 0) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-1.5 px-4 text-center">
+        <p className="text-body text-sec">Chưa có bình luận nào trong 5 phút gần nhất.</p>
+        <p className="text-meta text-dim">
+          Radar sẽ tự vẽ phân bố ý định ngay khi người xem bình luận trở lại.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* legend — fixed intent order, names beside colors */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-1 pb-1 text-[10px] text-sec">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-1 pb-1 text-meta text-sec">
         {INTENT_LABELS.map((k) => (
-          <span key={k} className="flex items-center gap-1">
+          <span key={k} className="flex items-center gap-1.5">
             <span
-              className="inline-block h-2 w-2 rounded-sm"
+              className="inline-block h-2.5 w-2.5 rounded-sm"
               style={{ background: INTENT_META[k].color }}
             />
             {INTENT_META[k].label}
@@ -92,22 +119,30 @@ export default function CommentRadar({ comments, nowS }: Props) {
       </div>
       <div className="min-h-0 flex-1">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={rows} margin={{ top: 4, right: 8, left: 0, bottom: 0 }} barCategoryGap="25%">
+          <BarChart
+            data={rows}
+            margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
+            barCategoryGap="25%"
+          >
             <CartesianGrid stroke={CHART.grid} strokeWidth={1} vertical={false} />
             <XAxis
               dataKey="label"
-              tick={{ fill: CHART.mut, fontSize: 10 }}
+              tick={{ fill: CHART.dim, fontSize: 13 }}
               axisLine={{ stroke: CHART.axis }}
               tickLine={false}
             />
             <YAxis
-              width={28}
-              tick={{ fill: CHART.mut, fontSize: 10 }}
+              width={34}
+              tick={{ fill: CHART.dim, fontSize: 13 }}
               axisLine={false}
               tickLine={false}
               allowDecimals={false}
             />
-            <Tooltip content={<RadarTooltip />} cursor={{ fill: "rgba(255,255,255,0.05)" }} />
+            <Tooltip
+              content={<RadarTooltip />}
+              cursor={{ fill: "rgba(255,255,255,0.05)" }}
+              isAnimationActive={false}
+            />
             {INTENT_LABELS.map((k) => (
               <Bar
                 key={k}

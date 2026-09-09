@@ -13,6 +13,16 @@ Signals:
   clicks      self-hosted redirect hits              (only links we serve)
   orders      order records                          (manual/platform import)
 
+``ticks`` means VIEWER telemetry, so a tick row only counts when it actually
+carries a viewer number. A replay analysis writes one tick per 30 s to carry
+the *comment tempo* and fills ``viewers`` with a placeholder 0.0 (YouTube does
+not expose concurrent viewers retroactively —
+``ingest.youtube_replay.synth_ticks_from_comments``). Counting those rows as
+telemetry made the matrix announce "nhịp phiên (người xem theo thời gian): ok"
+for a session that has no viewer number at all — measured on the live-fire of
+10/09/2026. Hence ``n_ticks_with_viewers``: it is required, not defaulted, so
+every caller has to say what it actually measured.
+
 Capability ladder (each row = what unlocks it):
   radar ý định           <- comments
   nhịp phiên             <- ticks
@@ -61,13 +71,20 @@ def assess(
     *,
     has_schedule: bool,
     n_ticks: int,
+    n_ticks_with_viewers: int,
     tick_coverage_share: float,  # share of the live window covered by telemetry
     n_comments: int,
     n_clicks: int,
     n_orders: int,
     analysis_only: bool = False,
 ) -> SignalCoverage:
-    """Grade every signal and derive the capability ladder."""
+    """Grade every signal and derive the capability ladder.
+
+    ``n_ticks`` counts stored tick rows; ``n_ticks_with_viewers`` counts the
+    subset that carries a real concurrent-viewer number. They differ on replay
+    analyses, where every row is comment tempo with a placeholder viewer count
+    — such a session has NO viewer telemetry and must be graded that way.
+    """
     signals: list[SignalState] = []
 
     if has_schedule:
@@ -83,20 +100,41 @@ def assess(
     else:
         signals.append(SignalState("schedule", "missing", "chưa sinh lịch gán"))
 
+    viewer_share = (n_ticks_with_viewers / n_ticks) if n_ticks else 0.0
+    # Both factors have to hold: telemetry must span the session AND the rows
+    # must actually contain a viewer number.
+    effective_coverage = tick_coverage_share * viewer_share
     if n_ticks == 0:
         signals.append(SignalState("ticks", "missing", "không có dữ liệu người xem theo thời gian"))
-    elif tick_coverage_share < 0.8:
+    elif n_ticks_with_viewers == 0:
         signals.append(
             SignalState(
                 "ticks",
-                "degraded",
-                f"telemetry chỉ phủ {tick_coverage_share:.0%} thời gian phát — "
-                "các khoảng trống bị loại khỏi phân tích",
+                "missing",
+                f"{n_ticks} điểm đo chỉ có NHỊP BÌNH LUẬN, không điểm nào có số người xem — "
+                "video đã kết thúc không còn lộ số người xem đồng thời; "
+                "số 0 trong cột người xem là chỗ trống, KHÔNG phải phép đo",
             )
         )
+    elif effective_coverage < 0.8:
+        detail = (
+            f"telemetry chỉ phủ {tick_coverage_share:.0%} thời gian phát — "
+            "các khoảng trống bị loại khỏi phân tích"
+        )
+        if viewer_share < 1.0:
+            detail = (
+                f"chỉ {n_ticks_with_viewers}/{n_ticks} điểm đo có số người xem "
+                f"(phủ {tick_coverage_share:.0%} thời gian phát) — "
+                "các khoảng trống bị loại khỏi phân tích"
+            )
+        signals.append(SignalState("ticks", "degraded", detail))
     else:
         signals.append(
-            SignalState("ticks", "ok", f"{n_ticks} điểm đo, phủ {tick_coverage_share:.0%}")
+            SignalState(
+                "ticks",
+                "ok",
+                f"{n_ticks_with_viewers} điểm đo có người xem, phủ {tick_coverage_share:.0%}",
+            )
         )
 
     signals.append(

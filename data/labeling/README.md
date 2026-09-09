@@ -74,6 +74,18 @@ Khi store là Postgres (dữ liệu nằm trong DB thật), bỏ bước 1 và d
     --out       data/labeling/lot1-achan-b519f75c/train_extra.jsonl
 ```
 
+## Lô 2 — `lot2-da-nguon-10-09/`
+
+Lô **gán nhãn tay MÙ**, không phải lô gửi LLM. 393 dòng từ **ba** buổi live khác
+nhau (`gT0LDiBta2k`, `1NMt8BChQrI`, `47oGShxf80A`), gộp và xáo trộn trước khi in
+ra để người gán **không thấy** dự đoán của model, lớp, hay tên phiên — sửa đúng
+điểm yếu phương pháp của lô 1 (gán theo từng tầng nên biết mình đang soi lớp
+nào). Sinh ra §4 của `docs/benchmarks/live-fire-da-nguon.md`.
+
+Kết quả quan trọng nhất: precision nhãn hành động **1,3% / 12,3% / 67,9%** giữa
+ba buổi — nó đi theo **tỷ lệ nền** ý định mua của buổi (0,0% / 6,8% / 48,0%),
+không theo model. Chi tiết trong `lot2-da-nguon-10-09/README.md`.
+
 ## Dùng hai tầng cho đúng việc
 
 | Câu hỏi | Dùng tầng | Vì sao |

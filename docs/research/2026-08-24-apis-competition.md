@@ -17,6 +17,19 @@
 - `GET /{page-id}/live_videos?broadcast_status=["LIVE"]` to find the active live video ([Page Live Videos reference](https://developers.facebook.com/docs/graph-api/reference/page/live_videos/)).
 - `GET /{live-video-id}/comments?order=reverse_chronological&live_filter=...&since=...` — official best practice is now **"continually poll for comments in reverse_chronological ordering"** ([Live Video Comments reference](https://developers.facebook.com/docs/graph-api/reference/live-video/comments/)). **The old SSE live-comments stream is gone — plan for polling, not push.** Use `since` cursors to de-duplicate; note `live_filter` drops "low quality" comments **by default** — for PhoBERT intent mining you likely want it off so you see everything.
 
+> **Đính chính 09/09/2026 (đối chiếu lại tài liệu):** câu "SSE đã chết" là **nói quá**.
+> Meta vẫn tài liệu hóa `GET /{live-video-id}/live_comments` trên
+> `streaming-graph.facebook.com` ở guide
+> [Interacting with Viewers](https://developers.facebook.com/documentation/live-video-api/interact-with-viewers),
+> nhưng giới thiệu nó cho **client trình duyệt**; polling vẫn là đường phía máy chủ và
+> là lựa chọn của LiveLift (chịu được mất kết nối, không cần giữ kết nối dài).
+> Ba điểm khác cần sửa so với bản ghi 24/08: (1) `filter` mặc định là `toplevel` nên
+> **mất hết bình luận trả lời** — phải đặt `filter=stream`; (2) `order` chỉ là *gợi ý*
+> ("if the comments can be ranked, the order will always be ranked regardless of this
+> modifier") nên không được giả định thứ tự; (3) phải đi theo `paging.next`, vì một
+> trang chỉ chứa `limit` bình luận và con trỏ `since` sẽ nhảy qua phần dư.
+> Chi tiết + cách vận hành: [docs/huong-dan-facebook-token.md](../huong-dan-facebook-token.md).
+
 **Permissions.** With a **Page access token** for your own Page: `pages_show_list`, `pages_read_engagement` (Page's own content/metadata), and — the classic gotcha — **`pages_read_user_content`** for content *other users* post on your Page, which is exactly what viewer comments are. The Live Video API *feature* review (`publish_video`, `pages_manage_posts`, `pages_read_engagement`) is only needed if you **publish/control broadcasts via API** ([Live Video API docs](https://developers.facebook.com/docs/live-video-api/)) — LiveLift only needs to *read*, so skip it.
 
 **The decisive practical point for a student team:** an app in **Development Mode** can use all permissions **without App Review** for users who hold a role on the app. Make every team member an app admin/developer/tester and admin of the Live Lab Page → you can read your own live comments **today, zero review**. App Review (Advanced Access) is only needed when serving Pages you don't own.

@@ -107,7 +107,7 @@ Runner ingest chạy **một tiến trình cho mỗi phiên live** (trên máy v
 
 ```bash
 # Env cần thiết (đọc từ .env tại thư mục chạy lệnh):
-#   - YouTube:  YOUTUBE_API_KEY
+#   - YouTube:  YOUTUBE_API_KEY  (nếu chưa có key: xem "hai đường" ngay bên dưới)
 #   - Facebook: FACEBOOK_PAGE_ACCESS_TOKEN (+ FACEBOOK_GRAPH_VERSION)
 #   - INGEST_TOKEN nếu API bật bảo vệ endpoint ghi (khuyến nghị môi trường thật)
 python -m livelift.ingest.runner \
@@ -122,10 +122,80 @@ python -m livelift.ingest.runner \
 - `--api-url`: qua Caddy dùng `https://<DOMAIN>/api`; dev trên cùng máy dùng
   `http://localhost/api` (hoặc `http://localhost:8000` khi bật cổng dev DEV_PORTS).
 
+#### YouTube — hai đường, chọn bằng `INGEST_YOUTUBE_BACKEND`
+
+| | `api` (mặc định) | `ytdlp` |
+|---|---|---|
+| Cần gì | `YOUTUBE_API_KEY` | **không cần gì** |
+| Độ trễ giao tin (đo thật) | 2–5 s | **~24 s (p50), 37 s (p90)** |
+| Điều khoản dịch vụ | hợp lệ | **KHÔNG hợp lệ** — xem cảnh báo bên dưới |
+
+**A. Có API key — đường chuẩn, dùng cho phiên thí nghiệm chính thức.**
+Không phải đặt gì thêm (`api` là mặc định). Chỉ cần `YOUTUBE_API_KEY` trong `.env`.
+
+**B. Chưa có API key — đường dự phòng bằng yt-dlp** (chạy được ngay, không
+credential; yt-dlp đã có sẵn trong venv):
+
+```bash
+# Linux/macOS
+INGEST_YOUTUBE_BACKEND=ytdlp python -m livelift.ingest.runner \
+  --platform youtube --source-id <VIDEO_ID> --session-id <session_id> --api-url http://localhost:8000
+
+# Windows PowerShell
+$env:INGEST_YOUTUBE_BACKEND="ytdlp"; python -m livelift.ingest.runner `
+  --platform youtube --source-id <VIDEO_ID> --session-id <session_id> --api-url http://localhost:8000
+```
+
+> ⚠️ **Cách truy cập này TRÁI Điều khoản dịch vụ của YouTube.** robots.txt của
+> YouTube chặn đúng hai đường yt-dlp gọi (`/live_chat`, `/youtubei/`), và ToS chỉ
+> miễn trừ truy cập tự động cho "công cụ tìm kiếm công khai theo robots.txt".
+> Chỉ dùng cho **phiên của chính nhóm**, kiểm thử kỹ thuật, hoặc **dự phòng khi
+> key chết giữa phiên**. Nếu dữ liệu này vào bài báo thì **phải khai báo phương
+> pháp thu thập**, không được trình bày như dữ liệu API. Bằng chứng đầy đủ:
+> [docs/research/2026-09-09-youtube-ytdlp-live.md](../../docs/research/2026-09-09-youtube-ytdlp-live.md).
+> **Việc cần làm song song:** xin `YOUTUBE_API_KEY` (miễn phí, không cần thẻ,
+> không cần app review, ~10 phút trong Google Cloud Console) rồi quay về `api`.
+
+Kiểm tra nhanh trước khi chạy đường `ytdlp` (phải in `is_live|<số>|youtube_live_chat`):
+
+```bash
+yt-dlp --skip-download --print "%(live_status)s|%(concurrent_view_count)s|%(subtitles.live_chat.0.protocol)s" \
+  "https://www.youtube.com/watch?v=<VIDEO_ID>"
+```
+
+Ba khác biệt vận hành **phải biết** khi chạy `ytdlp`:
+
+1. **Chạy runner quá khối cuối ít nhất 1 phút.** Bình luận về chậm ~25 s; dấu
+   thời gian vẫn là giờ YouTube nên **không lệch khối**, nhưng tắt sớm thì mất đuôi.
+2. **Bảng điều khiển chậm ~25 s** so với phòng chat — đừng tưởng hệ thống chết.
+3. **Kênh ẩn số người xem** thì không có tick nào (hệ thống **không ghi số 0 giả**);
+   heartbeat sẽ báo `Kênh này ẩn số người xem đồng thời…` và ma trận tín hiệu
+   đánh dấu `ticks` THIẾU. Khi đó *không* kết luận được "nhịp phiên" hay CTR.
+4. Nếu heartbeat báo *"YouTube yêu cầu xác minh không phải bot"*: đặt
+   `YTDLP_COOKIES_FROM_BROWSER=chrome` (hoặc `edge`/`firefox`) trong `.env` rồi
+   chạy lại runner.
+5. **Dừng runner bằng Ctrl+C, đừng kill cứng.** Ctrl+C thì runner tự xóa file
+   chat thô tạm (file này có **tên người bình luận**). Nếu bị kill cứng (mất
+   điện, `kill -9`, container bị kill) thì file còn lại trong thư mục tạm của
+   máy; lần chạy runner sau sẽ tự dọn (thư mục `livelift-ytchat-*` không được
+   ghi quá 30 phút). Muốn dọn tay ngay:
+   `python -c "from livelift.ingest.youtube_ytdlp import sweep_stale_temp_dirs as s; print(s())"`
+
+**Facebook — bắt buộc chạy trước khi phát (30 giây):**
+
+```bash
+python scripts/kiem_tra_facebook.py     # phải in "KẾT LUẬN: SẴN SÀNG"
+```
+
+Script kiểm tra token còn hạn, đủ quyền (`pages_read_user_content` là quyền hay
+thiếu nhất — thiếu nó thì **không đọc được bình luận nào**), Page đọc được, buổi live
+đang phát và in luôn `Live video id` để dán vào `--source-id`. Cách lấy/gia hạn token:
+[docs/huong-dan-facebook-token.md](../../docs/huong-dan-facebook-token.md).
+
 **Kiểm tra heartbeat:** mỗi 60 giây runner in đúng một dòng dạng:
 
 ```
-heartbeat: comments seen=12 posted=12 | ticks seen=4 posted=4 | failures=0 | lỗi gần nhất: không có
+heartbeat: comments seen=12 posted=12 | ticks seen=4 posted=4 | failures=0 | tải API: 12% | lỗi gần nhất: không có
 ```
 
 Điều kiện đạt ở T−2h (sau khi bơm 3 bình luận thử): có dòng heartbeat, `posted` bám sát

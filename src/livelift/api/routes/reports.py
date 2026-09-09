@@ -488,9 +488,16 @@ def session_signals(session_id: str, store: StoreDep) -> SignalCoverageOut:
         if horizon > 0:
             covered = len(ticks) * 30.0  # one tick bucket = 30s of telemetry
             coverage_share = max(0.0, min(1.0, covered / horizon))
+    # A replay analysis stores one tick per 30 s to carry the comment tempo and
+    # leaves viewers at the placeholder 0.0 (a finished VOD does not expose
+    # concurrent viewers). Those rows are not viewer telemetry, so they are
+    # counted separately — otherwise the matrix claims "nhịp phiên (người xem
+    # theo thời gian)" on a session with no viewer number at all.
+    n_with_viewers = sum(1 for t in ticks if float(t.get("viewers") or 0.0) > 0.0)
     cov = assess_signals(
         has_schedule=bool(store.get_blocks(session_id)),
         n_ticks=len(ticks),
+        n_ticks_with_viewers=n_with_viewers,
         tick_coverage_share=coverage_share,
         n_comments=len(store.list_comments(session_id)),
         n_clicks=len(store.list_clicks(session_id)),

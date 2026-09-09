@@ -52,6 +52,17 @@ router = APIRouter()
 MAX_COMMENTS = 20_000
 TICK_S = 30
 
+#: A video can advertise a ``live_chat`` track, download it, and have nothing
+#: in it (measured 10/09/2026 on a 715-minute brand stream: the track existed,
+#: the parsed chat was empty). The job still succeeded and reported
+#: ``n_comments=0`` with no detail, so the operator got a session that looked
+#: healthy and was empty. Say it instead.
+EMPTY_CHAT_DETAIL = (
+    "Chat replay tải về KHÔNG có bình luận nào — phiên phân tích rỗng. "
+    "Thường gặp khi luồng có bật chat nhưng không ai nhắn, hoặc chat replay đã bị "
+    "gỡ. Không có gì để phân tích: hãy chọn buổi live khác."
+)
+
 JobStatus = Literal["queued", "downloading", "ingesting", "done", "error"]
 
 
@@ -199,9 +210,12 @@ def _run_job(job_id: str, url: str, store: Store) -> None:
         job.session_id = session_id
         job.n_comments = len(comments)
         job.status = "done"
-        job.detail = (
-            f"Đã cắt bớt: chỉ nhập {MAX_COMMENTS} bình luận đầu tiên" if truncated else None
-        )
+        if truncated:
+            job.detail = f"Đã cắt bớt: chỉ nhập {MAX_COMMENTS} bình luận đầu tiên"
+        elif not comments:
+            job.detail = EMPTY_CHAT_DETAIL
+        else:
+            job.detail = None
     except Exception:
         logger.exception("replay job %s failed", job_id)
         job.status = "error"

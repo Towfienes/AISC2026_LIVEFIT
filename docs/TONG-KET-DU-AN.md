@@ -43,9 +43,11 @@ hoàn thành**.
 | Trang Kết quả: tác động + KTC + p trung thực (sàn hoán vị, "chưa kết luận được") | ✅ `/ket-qua` |
 | Phân tích VOD YouTube thật: **live-fire 14.903 bình luận thật qua API** — nhãn "quan sát", không số nhân quả | ✅ |
 | **Live-fire trên buổi live BÁN HÀNG thật** (không chỉ VOD kỹ thuật): "Mega Live: Achan Shop Hải Phòng", 117 phút, **6.586 bình luận** qua chính API → phiên `b519f75c`; lọc PII che 588 bình luận (tên 270 · địa chỉ 209 · MXH 123 · mã đơn 6 · SĐT 1) đúng thiết kế | ✅ `docs/benchmarks/live-fire-achan.md` |
+| **Live-fire ĐA NGUỒN (10/09): 16 buổi live thật, 7 ngành hàng, 19.126 bình luận** qua `POST /replays/youtube`. **Tổng cộng đã xử lý 34.029 bình luận thật không trùng lặp** (14.903 VOD kỹ thuật + 6.586 Achan + 12.540 buổi mới). Chạy lại Achan sau 2 ngày trên tiến trình sạch: **trùng từng con số**. Cô lập phiên nối tiếp VÀ song song, đối chiếu với file gốc: **0 rò rỉ**. Tốc độ nạp ~**900 bình luận/giây** | ✅ `docs/benchmarks/live-fire-da-nguon.md` |
 | Ma trận tín hiệu: "đo được gì, thiếu tín hiệu nào, vì sao" cho nguồn bất kỳ | ✅ `GET /sessions/{id}/signals` |
 | Phân loại ý định tiếng Việt **đã train** (macro-F1 0.870 vs 0.653 keyword; ngưỡng tự tin chống ngoài miền) | ✅ **kèm cảnh báo bắt buộc** — xem dòng dưới |
 | **Tự bác bỏ số của chính mình:** live-fire chat bán hàng thật cho thấy 0.870 **không chuyển giao** — macro-F1 thật **0.271**, precision gộp **11%**, accuracy còn thấp hơn baseline `return "khac"`. Đã đo, đã ghi sổ, **không giấu**, và **không train lại vội** khi chưa có nhãn | ✅ sự cố 08/09 trong `docs/incident-log.md` |
+| **…và bác bỏ tiếp trên 3 buổi nữa (gán nhãn tay MÙ, 393 dòng):** radar ý định **không có một độ chính xác duy nhất** — precision nhãn hành động **1,3% · 11,0% · 12,3% · 67,9%** trên bốn buổi. Nguyên nhân là **tỷ lệ nền** ý định mua của buổi đó (0,0% → 48,0%), không phải model. Vẫn thua `return "khac"` (accuracy 0,785 vs 0,905). Độ tự tin dùng được TRONG một phiên (AUC 0,696) nhưng **không** so sánh được GIỮA các phiên | ✅ `docs/benchmarks/live-fire-da-nguon.md` §4 |
 | Bộ nhãn mở rộng 6 → **11 lớp** từ mẫu THẬT (`chao_hoi` 10% · `cam_on_khen` 28% · `hoi_sanpham` · `hoi_daily` · `bao_gia_shop`), gom về **một nguồn duy nhất** `nlp/labels.py` + lô **1.800 nhãn** đã xuất theo protocol hai tầng (ngẫu nhiên cho prevalence + uncertain-first cho học) | ✅ |
 | Thẻ hành động Gamma-Poisson: cold-start = prior = khám phá đều đúng propensity | ✅ |
 | Đo click qua redirect tự phục vụ; lọc PII tiếng Việt recall ≥95%; QC 6 mục sau phiên | ✅ |
@@ -54,9 +56,9 @@ hoàn thành**.
 
 ### I.3 Kỷ luật kỹ thuật
 
-387 test (`pytest --collect-only`, 08/09) — 4 hành trình người dùng end-to-end · tích hợp ingest→API · contract WS
+**611** test (`pytest --collect-only`, 10/09; 598 chạy ở gate `not slow`) — 4 hành trình người dùng end-to-end · tích hợp ingest→API · contract WS
 envelope) · contract test web↔API sinh từ sự cố thật · hai store chung contract ·
-CI 5 job + nightly gate thống kê · **19** sự cố ghi sổ với root cause + gate chặn
+CI 5 job + nightly gate thống kê · **24** sự cố ghi sổ với root cause + gate chặn
 tái diễn · mọi benchmark sinh lại được bằng script (lệnh tái lập ghi ngay đầu
 file benchmark).
 
@@ -103,6 +105,16 @@ file benchmark).
   hàng thật (08/09): macro-F1 0.271, precision gộp 11%** — radar ý định hiện gần
   như là nhiễu trên chat kiểu này, trung control chưa nên tin vào nó. Đường sửa
   đã mở (11 lớp + lô 1.800 nhãn) nhưng **chưa train lại**: `docs/benchmarks/live-fire-achan.md`.
+- **Bổ sung 10/09 sau live-fire 4 buổi:** không có "độ chính xác của radar" —
+  precision nhãn hành động chạy từ **1,3% đến 67,9%** tuỳ buổi, đi theo **tỷ lệ
+  nền** ý định mua của buổi đó chứ không theo model. Buổi nào chat chủ yếu là xã
+  giao thì radar sai gần như hoàn toàn; buổi "comment mã chốt đơn" thì lại đúng
+  86,7% ở lớp `chot_don`. **Cấm** nêu một con số duy nhất, và **cấm** dùng độ tự
+  tin trung vị của phiên làm chỉ báo độ tin cậy (nó có thể ngược dấu):
+  `docs/benchmarks/live-fire-da-nguon.md`.
+- **LiveLift chưa đọc được live ĐẤU GIÁ** (chat là chuỗi trả giá thuần số): đo
+  trên `MPJktS2rkzk`, hệ thống không sinh nhãn rác nhưng bỏ sót gần hết ý định
+  mua. Hoặc làm parser trả giá riêng, hoặc ghi rõ là ngoài phạm vi.
 - **60 dòng `khac` của bộ biên soạn phải gán nhãn lại** trước khi huấn luyện lại
   (~34/60 mâu thuẫn với guideline 11 lớp). Chưa làm.
 - `web/src/lib/types.ts` giữ bản sao bộ nhãn riêng (6 lớp) tách khỏi

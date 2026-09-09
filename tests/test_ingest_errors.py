@@ -16,6 +16,7 @@ import httpx
 import pytest
 
 from livelift.ingest.facebook import AUTH_BACKOFF_S as FB_AUTH_BACKOFF_S
+from livelift.ingest.facebook import RATE_LIMIT_BACKOFF_S as FB_RATE_LIMIT_BACKOFF_S
 from livelift.ingest.facebook import FacebookLiveClient
 from livelift.ingest.runner import Counters, _heartbeat
 from livelift.ingest.youtube import AUTH_BACKOFF_S as YT_AUTH_BACKOFF_S
@@ -210,6 +211,82 @@ def test_fb_comment_loop_expired_token_pauses_long_and_logs_red(sleeps, caplog):
     assert client.last_error is None
 
 
+def test_fb_expired_token_message_names_the_subcode(sleeps, caplog):
+    """error_subcode 463 vs 460 vs 458 là ba việc phải làm khác nhau — thông
+    báo phải nói ra, chứ không để operator đoán lúc T−5 phút."""
+    polls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        polls["n"] += 1
+        if polls["n"] == 1:
+            return httpx.Response(
+                400,
+                json={
+                    "error": {
+                        "type": "OAuthException",
+                        "code": 190,
+                        "error_subcode": 460,
+                        "message": "Error validating access token",
+                    }
+                },
+            )
+        return httpx.Response(200, json={"data": [FB_MESSAGE]})
+
+    async def run():
+        client, http = _fb_client(handler)
+        try:
+            async for comment in client.iter_comments("live-1", poll_s=1.0):
+                return comment
+        finally:
+            await http.aclose()
+        return None
+
+    with caplog.at_level(logging.ERROR, logger="livelift.ingest.facebook"):
+        asyncio.run(run())
+    assert "mật khẩu tài khoản đã đổi" in caplog.text
+    assert "scripts/kiem_tra_facebook.py" in caplog.text  # bước sửa cụ thể
+
+
+def test_fb_rate_limit_is_not_reported_as_a_bad_token(sleeps, caplog):
+    """Facebook trả 'quá nhịp gọi' dưới dạng OAuthException/HTTP 400 y hệt
+    token hỏng. Bảo operator xoay token đúng lúc đang bị bóp nhịp là làm hỏng
+    phiên live — phải nói rõ token vẫn tốt."""
+    polls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        polls["n"] += 1
+        if polls["n"] == 1:
+            return httpx.Response(
+                400,
+                json={
+                    "error": {
+                        "message": "(#4) Application request limit reached",
+                        "type": "OAuthException",
+                        "is_transient": True,
+                        "code": 4,
+                    }
+                },
+            )
+        return httpx.Response(200, json={"data": [FB_MESSAGE]})
+
+    async def run():
+        client, http = _fb_client(handler)
+        try:
+            async for comment in client.iter_comments("live-1", poll_s=1.0):
+                return comment
+        finally:
+            await http.aclose()
+        return None
+
+    with caplog.at_level(logging.ERROR, logger="livelift.ingest.facebook"):
+        comment = asyncio.run(run())
+    assert comment is not None
+    assert "GIỚI HẠN nhịp gọi Facebook" in caplog.text
+    assert "không cần đổi token" in caplog.text
+    assert "hết hạn" not in caplog.text  # KHÔNG được đổ lỗi cho token
+    assert FB_RATE_LIMIT_BACKOFF_S in sleeps  # nghỉ dài hơn backoff thường
+
+
 def test_fb_viewer_loop_5xx_backs_off_exponentially(sleeps):
     polls = {"n": 0}
 
@@ -251,6 +328,24 @@ def test_heartbeat_reports_last_platform_error(caplog):
     with caplog.at_level(logging.INFO, logger="livelift.ingest.runner"):
         asyncio.run(run())
     assert "lỗi gần nhất: LỖI Facebook Graph API" in caplog.text
+
+
+def test_heartbeat_reports_api_usage_before_the_wall(caplog):
+    """Hết hạn mức Facebook cũng giết phiên như token hỏng — heartbeat phải
+    cho thấy mức dùng đang bò lên, không chỉ báo sau khi đã bị chặn."""
+
+    async def run() -> None:
+        counters = Counters()
+        client = SimpleNamespace(last_error=None, last_usage_pct=83.0)
+        task = asyncio.create_task(_heartbeat(counters, client, every_s=0.01))
+        await asyncio.sleep(0.05)
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+
+    with caplog.at_level(logging.INFO, logger="livelift.ingest.runner"):
+        asyncio.run(run())
+    assert "tải API: 83%" in caplog.text
 
 
 def test_heartbeat_healthy_says_no_error(caplog):

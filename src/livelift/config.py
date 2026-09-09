@@ -35,9 +35,28 @@ class Settings(BaseSettings):
     results_freeze_until: str = ""
 
     youtube_api_key: str = ""
+    # Which YouTube live-ingest path the runner uses:
+    #   "api"   — livelift.ingest.youtube, needs YOUTUBE_API_KEY (default: old
+    #             behavior is never changed by adding this setting);
+    #   "ytdlp" — livelift.ingest.youtube_ytdlp, reads the public live chat via
+    #             yt-dlp with NO key and no quota (higher delivery lag, see that
+    #             module's docstring). This is the path a team without
+    #             credentials can run a live session on today.
+    ingest_youtube_backend: str = "api"
     facebook_page_id: str = ""
     facebook_page_access_token: str = ""
-    facebook_graph_version: str = "v23.0"
+    # Graph API version. v25.0 (released 18/02/2026, sunsets 29/07/2028) is the
+    # newest version that has been stable for months; the previous default
+    # v23.0 sunsets 08/10/2027 and is four releases behind. Nothing we read
+    # (live_videos, comments, live_views) changed in v24–v26 — checked
+    # 2026-09-09 against the v25.0/v26.0 changelogs.
+    facebook_graph_version: str = "v25.0"
+    # Optional, only for scripts/kiem_tra_facebook.py: with the app id+secret
+    # the checker can call /debug_token and report the token's real expiry and
+    # granted permissions. Never needed by the ingest runner itself — the
+    # secret must NOT be deployed to the ingest host.
+    facebook_app_id: str = ""
+    facebook_app_secret: str = ""
     # Opt-in workaround for YouTube's anti-bot check on VOD replay analysis:
     # "chrome" / "edge" / "firefox" — yt-dlp reads the local browser's login
     # cookies (nothing leaves the machine except the normal YouTube request).

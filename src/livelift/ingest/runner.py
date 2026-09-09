@@ -24,15 +24,19 @@ from dataclasses import dataclass
 
 import httpx
 
+from livelift.config import get_settings
 from livelift.ingest.base import ApiSink, IngestSink
 from livelift.ingest.facebook import FacebookLiveClient
 from livelift.ingest.youtube import YouTubeLiveChatClient
+from livelift.ingest.youtube_ytdlp import YouTubeYtdlpClient
 
 logger = logging.getLogger("livelift.ingest.runner")
 
 HEARTBEAT_EVERY_S = 60.0
 
-PlatformClient = YouTubeLiveChatClient | FacebookLiveClient
+PlatformClient = YouTubeLiveChatClient | FacebookLiveClient | YouTubeYtdlpClient
+
+YOUTUBE_BACKENDS = ("api", "ytdlp")
 
 
 @dataclass
@@ -78,22 +82,53 @@ async def _heartbeat(
         # The platform client records its most recent poll error (None when
         # healthy) — surfacing it here means a stuck loop (expired token,
         # exhausted quota) is visible in every heartbeat, not only in the
-        # one log line at the moment it broke.
+        # one log line at the moment it broke. The API-usage percentage (read
+        # from Facebook's X-App-Usage/X-Page-Usage headers) is the early
+        # warning for the *other* way a session dies: hitting the rate limit.
         last_error = getattr(client, "last_error", None)
+        usage_pct = getattr(client, "last_usage_pct", None)
         logger.info(
             "heartbeat: comments seen=%d posted=%d | ticks seen=%d posted=%d | failures=%d"
-            " | lỗi gần nhất: %s",
+            " | tải API: %s | lỗi gần nhất: %s",
             c.comments_seen,
             c.comments_posted,
             c.ticks_seen,
             c.ticks_posted,
             c.post_failures,
+            "không rõ" if usage_pct is None else f"{usage_pct:.0f}%",
             last_error or "không có",
         )
 
 
 def _build_client(platform: str) -> PlatformClient:
+    """Pick the platform client, honoring INGEST_YOUTUBE_BACKEND.
+
+    ``api`` (default) keeps the historical behavior: the official Data API,
+    which needs YOUTUBE_API_KEY. ``ytdlp`` reads the same public live chat with
+    yt-dlp and no credential at all — the path to use when the team has no key
+    (see :mod:`livelift.ingest.youtube_ytdlp` for the measured tradeoffs).
+    """
     if platform == "youtube":
+        backend = (get_settings().ingest_youtube_backend or "api").strip().lower()
+        if backend not in YOUTUBE_BACKENDS:
+            raise ValueError(
+                f"INGEST_YOUTUBE_BACKEND không hợp lệ: {backend!r} — "
+                f"chỉ nhận {' hoặc '.join(YOUTUBE_BACKENDS)}"
+            )
+        if backend == "ytdlp":
+            logger.warning(
+                "YouTube backend = yt-dlp: KHÔNG cần API key, nhưng CÁCH TRUY CẬP NÀY "
+                "TRÁI Điều khoản dịch vụ của YouTube (robots.txt chặn /live_chat và "
+                "/youtubei/). Chỉ dùng cho phiên của chính nhóm / kiểm thử kỹ thuật / "
+                "dự phòng khi mất key, và PHẢI khai báo trong phần phương pháp nếu dữ "
+                "liệu này vào bài. Đường chuẩn: xin YOUTUBE_API_KEY (miễn phí, ~10 phút) "
+                "rồi đặt INGEST_YOUTUBE_BACKEND=api."
+            )
+            logger.info(
+                "Độ trễ giao tin đo thật ~25s (p90 ~37s); dấu thời gian bình luận vẫn là "
+                "giờ nền tảng nên không lệch khối. Chạy runner quá khối cuối ít nhất 1 phút."
+            )
+            return YouTubeYtdlpClient()
         return YouTubeLiveChatClient()
     if platform == "facebook":
         return FacebookLiveClient()

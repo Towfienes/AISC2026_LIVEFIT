@@ -225,6 +225,38 @@ def test_replay_route_truncation_cap(client, monkeypatch):
     assert "cắt bớt" in job["detail"].lower()
 
 
+def test_replay_route_says_so_when_the_chat_replay_is_empty(client, monkeypatch):
+    """Regression, live-fire 10/09/2026 (`docs/benchmarks/live-fire-da-nguon.md`).
+
+    Video ``TdLWyV3hNao`` (715 min) advertised a ``live_chat`` track, the
+    download succeeded, and the parsed chat held zero messages. The job
+    reported ``status=done, n_comments=0, detail=null`` — a session that looked
+    healthy and was empty, plus 1430 all-zero tick rows. An empty result is a
+    legitimate outcome, but it has to be stated.
+    """
+
+    def empty(url: str, out_dir, **kwargs) -> DownloadResult:
+        path = Path(out_dir) / "vid123.live_chat.json"
+        path.write_text("", encoding="utf-8")
+        return DownloadResult(
+            chat_path=path, video_title="Live không ai nhắn", duration_s=600.0, error=None
+        )
+
+    monkeypatch.setattr(replays, "download_chat_replay", empty)
+    r = client.post("/replays/youtube", json={"url": "https://youtu.be/vid123"})
+    job = client.get(f"/replays/jobs/{r.json()['job_id']}").json()
+    assert job["status"] == "done"
+    assert job["n_comments"] == 0
+    assert job["detail"], "một phiên rỗng phải được nói ra, không im lặng"
+    assert "rỗng" in job["detail"]
+
+    # ...and the coverage matrix must not dress the empty session up as usable.
+    body = client.get(f"/sessions/{job['session_id']}/signals").json()
+    assert next(s for s in body["signals"] if s["name"] == "comments")["status"] == "missing"
+    assert next(s for s in body["signals"] if s["name"] == "ticks")["status"] == "missing"
+    assert all(c["status"] == "missing" for c in body["capabilities"])
+
+
 def test_replay_route_download_error(client, monkeypatch):
     def failing(url: str, out_dir, **kwargs) -> DownloadResult:
         return DownloadResult(

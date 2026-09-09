@@ -159,16 +159,99 @@ def test_estimator_under_carryover_interference():
 def test_carryover_attenuates_relative_to_clean_world():
     """The direction of the carryover effect must be the documented one."""
     clean = run_validation(
-        n_reps=15, n_sessions_per_rep=5, session_minutes=90,
+        n_reps=15,
+        n_sessions_per_rep=5,
+        session_minutes=90,
         sim_params=SimParams(treatment_effect=0.4, carryover_halflife_s=0.0),
-        n_draws=200, master_seed=77,
+        n_draws=200,
+        master_seed=77,
     )
     leaky = run_validation(
-        n_reps=15, n_sessions_per_rep=5, session_minutes=90,
+        n_reps=15,
+        n_sessions_per_rep=5,
+        session_minutes=90,
         sim_params=SimParams(treatment_effect=0.4, carryover_halflife_s=180.0),
-        n_draws=200, master_seed=77,
+        n_draws=200,
+        master_seed=77,
     )
     assert leaky.mean_estimate <= clean.mean_estimate * 1.1, (
         f"hiệu ứng lưu phải làm suy giảm, không khuếch đại\n"
         f"sạch: {clean.summary()}\nrò rỉ: {leaky.summary()}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Gói P1-K2 — the same two gates, run in a world with REAL outcome clustering
+# ---------------------------------------------------------------------------
+
+ICC_005_SIGMA = 0.06
+"""``session_click_sigma`` that measured ICC(y) = 0.048 ± 0.008 on 400 sessions.
+
+The σ → ICC map lives in the :mod:`livelift.sim.simulator` docstring; this
+constant is the entry the gates below run at, named so a reader of the gate
+never has to guess which world "ICC 0.05" means.
+"""
+
+
+@pytest.mark.slow
+def test_aa_false_positive_rate_near_alpha_under_session_icc():
+    """A/A gate at ICC ≈ 0.05 — the world the estimator claims to survive.
+
+    Every A/A figure this project has published so far was measured in a world
+    with essentially no outcome clustering (measured ICC ≈ 0.01), because until
+    gói P1-K2 the simulator had no knob that produced any: ``session_shock_sd``
+    scales arrivals, hence numerator AND denominator of a rate, and leaves E[y]
+    alone. A referee is entitled to ask what happens when block outcomes of the
+    same session really do move together.
+
+    The PREDICTION is that nothing happens, and the reason is structural rather
+    than lucky: randomization inference redraws assignments WITHIN each session
+    (:func:`livelift.analysis.estimators._redraw_matrix`), so a session-level
+    level shift is common to both arms of that session's contrast and cancels
+    out of the reference distribution as well as out of the estimate. A
+    between-session design would have to pay for the ICC; a switchback does not.
+    Same exact binomial gate as the no-clustering version, same threshold — if
+    the prediction is wrong this test says so instead of being loosened.
+    """
+    n_reps = 200
+    res = run_validation(
+        n_reps=n_reps,
+        n_sessions_per_rep=6,
+        session_minutes=60,
+        sim_params=SimParams(treatment_effect=0.0, session_click_sigma=ICC_005_SIGMA),
+        n_draws=300,
+        master_seed=11,
+    )
+    n_reject = round(res.rejection_rate * n_reps)
+    gate = binomtest(n_reject, n_reps, ALPHA).pvalue
+    assert gate >= 0.01, (
+        f"ở ICC≈0.05 (σ={ICC_005_SIGMA}), tỷ lệ bác bỏ {res.rejection_rate:.1%} "
+        f"({n_reject}/{n_reps}) không khớp mức ý nghĩa {ALPHA:.0%} — "
+        f"kiểm định nhị thức hai phía p={gate:.4f}\n{res.summary()}"
+    )
+
+
+@pytest.mark.slow
+def test_effect_recovery_bias_and_coverage_under_session_icc():
+    """Known-effect gate at ICC ≈ 0.05: same bias and coverage criteria.
+
+    Session clustering inflates the variance of a BETWEEN-session comparison,
+    not of a within-session switchback contrast, so the interval should stay
+    honest at the same width. Thresholds identical to the no-clustering gate.
+    """
+    res = run_validation(
+        n_reps=40,
+        n_sessions_per_rep=8,
+        session_minutes=90,
+        sim_params=SimParams(treatment_effect=0.3, session_click_sigma=ICC_005_SIGMA),
+        n_draws=300,
+        master_seed=13,
+    )
+    assert abs(res.relative_bias) < 0.10, f"σ={ICC_005_SIGMA}\n{res.summary()}"
+    n_covered = round(res.ci_coverage * res.n_reps)
+    cov_gate = binomtest(n_covered, res.n_reps, 1 - ALPHA).pvalue
+    assert cov_gate >= 0.01, (
+        f"ở ICC≈0.05 (σ={ICC_005_SIGMA}), độ phủ KTC {res.ci_coverage:.1%} "
+        f"({n_covered}/{res.n_reps}) lệch khỏi 95% — kiểm định nhị thức "
+        f"p={cov_gate:.4f}\n{res.summary()}"
     )

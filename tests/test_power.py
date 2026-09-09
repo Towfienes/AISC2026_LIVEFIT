@@ -179,9 +179,7 @@ def test_randomization_margin_is_applied_by_default():
     from livelift.analysis.power import RANDOMIZATION_TEST_MARGIN
 
     raw = mde_relative(base(0.5, 650))  # helper pins margin to 1.0
-    reported = mde_relative(
-        PowerInputs(cv=0.5, n_blocks_total=650, n_sessions=30, compliance=1.0)
-    )
+    reported = mde_relative(PowerInputs(cv=0.5, n_blocks_total=650, n_sessions=30, compliance=1.0))
     assert RANDOMIZATION_TEST_MARGIN > 1.0
     assert reported == pytest.approx(raw * RANDOMIZATION_TEST_MARGIN, rel=1e-9)
 
@@ -296,3 +294,163 @@ def test_poisson_floor_degenerate():
 
     z = np.array([0.0])
     assert not np.isfinite(poisson_floor(z, z, z, np.array(["a"]))[0])
+
+
+# --- MDE trên số ĐƠN HÀNG (gói Q4) -----------------------------------------
+
+
+ANCHOR_AUDIENCE = 15.0
+ANCHOR_SESSION_MIN = 90
+ANCHOR_ORDERS_LO, ANCHOR_ORDERS_HI = 0.3, 0.6
+"""Mốc tỉnh táo của agenda Q4: 15 người xem × 90 phút → 0,3–0,6 đơn/phiên."""
+
+
+def _anchor_exposure(burn_in: bool = True) -> float:
+    from livelift.analysis.power import analysis_window_seconds
+
+    if burn_in:
+        return ANCHOR_AUDIENCE * sum(analysis_window_seconds(ANCHOR_SESSION_MIN, 5, True, 60))
+    return ANCHOR_AUDIENCE * ANCHOR_SESSION_MIN * 60
+
+
+def test_funnel_prior_multiplies_to_the_documented_overall_rate():
+    """9,33% × 24,33% ≈ 2,3% — cùng con số đã dán nhãn trong báo cáo."""
+    from livelift.analysis.power import FUNNEL_CART_TO_BUY, FUNNEL_PV_TO_CART
+
+    assert pytest.approx(0.0227, abs=0.0005) == FUNNEL_PV_TO_CART * FUNNEL_CART_TO_BUY
+
+
+def test_poisson_cv_agrees_with_poisson_floor_measured_on_data():
+    """`poisson_cv` (từ λ giả định) và `poisson_floor` (từ click quan sát) phải
+    là CÙNG một đại lượng — nếu không, bảng đơn hàng và bảng click sẽ nói hai
+    thứ khác nhau về cùng một thiết kế."""
+    from livelift.analysis.power import poisson_cv, poisson_floor
+
+    rng = np.random.default_rng(3)
+    n, lam, exposure = 600, 9.0, 5000.0
+    clicks = rng.poisson(lam, n).astype(float)
+    y = 1000.0 * clicks / exposure
+    sids = np.array([f"s{i // 20}" for i in range(n)])
+
+    measured, _ = poisson_floor(y, clicks, np.full(n, exposure), sids)
+    assumed = poisson_cv([lam] * n)
+    assert measured == pytest.approx(assumed, rel=0.05)
+
+
+def test_analysis_window_matches_block_frame_burn_in_rule():
+    """Cửa sổ dùng để tính λ phải đúng bằng cửa sổ `block_frame` thật sự đo."""
+    from livelift.analysis.power import analysis_window_seconds
+    from livelift.core.assigner.outer import DesignParams, generate_schedule
+
+    sched = generate_schedule(90, DesignParams(), 4)
+    burn_in = 60
+    real = sorted(
+        b.duration_s - min(burn_in, max(b.duration_s - 30, 0)) for b in sched.measurement_blocks
+    )
+    # jitter xê dịch ranh giới ±30s nên chỉ so TỔNG và số khối, không so từng khối
+    modelled = sorted(analysis_window_seconds(90, 5, True, burn_in))
+    assert len(modelled) == len(real)
+    assert sum(modelled) == pytest.approx(sum(real), rel=0.02)
+
+
+def test_order_sanity_anchor_matches_the_existing_click_machinery():
+    """Mốc tỉnh táo: 15 người xem × 90 phút phải cho 0,3–0,6 đơn/phiên ở một
+    tỷ lệ nhấp CÙNG BẬC với machinery click hiện có.
+
+    `SimParams.base_click_prob_per_min = 0,06`/người xem·phút ⇔ 1,00 click /
+    1000 giây·người xem. Mốc 0,3–0,6 đơn/phiên ứng với tỷ lệ nhấp 0,2–0,4 —
+    thấp hơn tham số mô phỏng 2,5–5 lần, tức CÙNG BẬC nhưng KHÔNG trùng. Test
+    này khẳng định cả hai vế thay vì làm tròn cho khớp: tham số mô phỏng đó
+    được đánh dấu là GIẢ ĐỊNH và chỉ phiên thăm dò mới chốt được.
+    """
+    from livelift.analysis.power import expected_orders
+    from livelift.sim.simulator import SimParams
+
+    sim_rate_per_1000vs = SimParams().base_click_prob_per_min / 60.0 * 1000.0
+    assert sim_rate_per_1000vs == pytest.approx(1.0, rel=1e-9)
+
+    exposure = _anchor_exposure()
+    lo_rate = ANCHOR_ORDERS_LO / expected_orders(1.0, exposure)
+    hi_rate = ANCHOR_ORDERS_HI / expected_orders(1.0, exposure)
+    assert 0.15 < lo_rate < hi_rate < 0.5, (lo_rate, hi_rate)
+
+    # cùng bậc độ lớn với machinery hiện có (trong vòng một bậc 10)
+    assert lo_rate / sim_rate_per_1000vs > 0.1
+    assert hi_rate / sim_rate_per_1000vs < 10.0
+
+    # và ở tỷ lệ nhấp neo của báo cáo, số đơn rơi đúng vào dải mốc
+    orders = expected_orders(0.30, exposure)
+    assert ANCHOR_ORDERS_LO <= orders <= ANCHOR_ORDERS_HI, orders
+
+
+def test_order_mde_table_shape_and_monotonicity():
+    from livelift.analysis.power import PARTNER_AUDIENCE_MULTIPLIER, Q2_GRID, order_mde_table
+
+    rows = order_mde_table(0.30, (18, 28), (15.0, 150.0), Q2_GRID)
+    assert len(rows) == 2 * 2 * len(Q2_GRID) * 2  # phiên × khán giả × q2 × nhánh
+
+    by_key = {(r["branch"], r["n_sessions"], r["audience"], r["q2"]): r for r in rows}
+    partner = next(b for b in {r["branch"] for r in rows} if b.startswith("có"))
+    solo = next(b for b in {r["branch"] for r in rows} if b.startswith("không"))
+
+    # nhiều phiên hơn -> MDE nhỏ hơn
+    assert (
+        by_key[(solo, 28, 15.0, 0.25)]["mde_relative"]
+        < by_key[(solo, 18, 15.0, 0.25)]["mde_relative"]
+    )
+    # khán giả lớn hơn -> MDE nhỏ hơn
+    assert (
+        by_key[(solo, 18, 150.0, 0.25)]["mde_relative"]
+        < by_key[(solo, 18, 15.0, 0.25)]["mde_relative"]
+    )
+    # q2 cao hơn -> nhiều đơn hơn -> MDE nhỏ hơn
+    assert (
+        by_key[(solo, 18, 15.0, 0.50)]["mde_relative"]
+        < by_key[(solo, 18, 15.0, 0.15)]["mde_relative"]
+    )
+    # nhánh đối tác: khán giả ×4.9 -> MDE chia cho ≈ √4.9
+    solo_row = by_key[(solo, 18, 15.0, 0.25)]
+    partner_row = by_key[(partner, 18, 15.0, 0.25)]
+    assert partner_row["audience_effective"] == pytest.approx(
+        solo_row["audience_effective"] * PARTNER_AUDIENCE_MULTIPLIER
+    )
+    assert solo_row["mde_relative"] / partner_row["mde_relative"] == pytest.approx(
+        PARTNER_AUDIENCE_MULTIPLIER**0.5, rel=0.02
+    )
+
+
+def test_order_mde_is_a_floor_never_smaller_than_the_click_mde_at_equal_n():
+    """Đơn hiếm hơn click đúng bằng hệ số phễu, nên MDE đơn PHẢI lớn hơn MDE
+    click trên cùng số khối — một bảng cho ra ngược lại là bảng sai."""
+    from livelift.analysis.power import (
+        FUNNEL_CART_TO_BUY,
+        FUNNEL_PV_TO_CART,
+        order_mde_table,
+        poisson_cv,
+    )
+
+    exposure_per_block = 15.0 * 240.0
+    click_lam = 0.30 * exposure_per_block / 1000.0
+    order_row = order_mde_table(0.30, (18,), (15.0,), (FUNNEL_CART_TO_BUY,), include_partner=False)[
+        0
+    ]
+    click_mde = mde_relative(
+        PowerInputs(
+            cv=poisson_cv([click_lam] * order_row["n_blocks_total"]),
+            n_blocks_total=order_row["n_blocks_total"],
+            n_sessions=18,
+            compliance=0.95,
+        )
+    )
+    assert order_row["mde_relative"] > click_mde
+    ratio = order_row["mde_relative"] / click_mde
+    assert ratio == pytest.approx((FUNNEL_PV_TO_CART * FUNNEL_CART_TO_BUY) ** -0.5, rel=0.15)
+
+
+def test_order_mde_table_reports_a_zero_lambda_cell_as_infinite():
+    """Khán giả 0 → không đơn nào → MDE vô hạn, không phải một con số đẹp."""
+    from livelift.analysis.power import order_mde_table
+
+    row = order_mde_table(0.30, (18,), (0.0,), (0.25,), include_partner=False)[0]
+    assert not np.isfinite(row["cv_poisson"])
+    assert not np.isfinite(row["mde_relative"])

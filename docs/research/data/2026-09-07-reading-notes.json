@@ -1,0 +1,988 @@
+[
+ {
+  "area": "Giảm phương sai & lực thống kê",
+  "reading_notes": [
+   {
+    "paper": "CUPED on Steroids: Multivariate Covariate Adjustment for Switchback Experiments — Pankratev & Arora, arXiv:2608.24038 (2026)",
+    "key_result": "CUPED đa biến (nhiều lag pre-period của outcome theo cell + sin/cos giờ + dummy giờ, cross-fit ridge) nâng variance reduction từ 45.2%→61.8% (sim) và 78.7%→85.9% (NYC taxi) so với CUPED 1 biến; đạt 83–90% trần lý thuyết VR_att = 1 − sqrt[(S_res/n̄ + (1−r)S_int·κ)/(S_res/n̄ + S_macro·κ)], κ = 1/n̄ + 1 + cv².",
+    "assumptions": "Chỉ dùng hiệp biến pre-experiment (không hậu-can-thiệp); cross-fit phải tôn trọng cấu trúc randomization (chia fold theo cluster/tuần); có đủ lịch sử pre-period (họ dùng 1–3 tuần cell-mean); tác động cộng tính.",
+    "transfers": "Trực tiếp trả lời câu (a): bộ hiệp biến hợp lệ = lịch sử PRE-SESSION (CTR trung bình của streamer theo giờ, pooled nhiều phiên trước) + mã hóa giờ sin/cos + dummy giờ; mở rộng cuped_adjust hiện có (1 biến) thành đa biến với ridge + cross-fit leave-one-session-out. Trần VR_att tính được từ within-session CV + poisson_floor đã đo — biết trước gain tối đa.",
+    "breaks": "Họ có 200 cluster × nhiều tuần pre-period; LiveLift có 18–31 phiên và streamer mới có thể chỉ có 0–2 phiên lịch sử → dummy giờ 24 mức là quá nhiều tham số (chính paper cũng khuyên tránh dummy cluster 200 mức); phải rút xuống sin/cos + 2–3 hiệp biến. Không bàn gì về outcome tỷ lệ hay RI."
+   },
+   {
+    "paper": "Design-Aware Variance Reduction for Switchback Experiments: A Comparative Study — Pankratev, arXiv:2606.27662 (2026)",
+    "key_result": "Regime map CUPED/CUPAC/DML-DR: CUPAC là default bền vững (SE ratio ~0.50 mọi regime, chiếm ~95% gain của DR với wrong-sign rate thấp hơn hẳn); DML-DR sập ở n_cl≤10 do overfit propensity (coverage 0.82–0.83 cho MỌI phương pháp ở n_cl=10); CUPED chỉ cạnh tranh khi autocorrelation ρ≥0.6 (SE ratio 0.62 ở ρ=0.9); dưới carryover nặng, phương pháp càng hiệu quả càng tăng wrong-sign rejection (DR 38% vs Raw 11%).",
+    "assumptions": "SUTVA/carryover đúng đặc tả; cluster-robust SE làm chuẩn so sánh; sim hierarchical với macro shock + AR(1).",
+    "transfers": "Khuyến nghị n_cl<50 → CUPAC (không phải DR) khớp đúng cỡ 18–31 phiên của LiveLift; cảnh báo coverage tụt ở ít cụm biện minh cho việc giữ RI/bootstrap thay vì tin CI tiệm cận; bảng FPR/coverage của họ là template cho gate harness (bias<10%, coverage [90,98]).",
+    "breaks": "CUPAC của họ = ML prediction; với 18–31 phiên và không GPU, 'CUPAC' chỉ nên là ridge/GBM nhỏ trên CPU. Regime map xây trên outcome cộng tính, không phải tỷ lệ click/exposure; propensity trong DR vô nghĩa với thiết kế Bernoulli 0.5 đã biết xác suất — phần DR không chuyển giao."
+   },
+   {
+    "paper": "Powerful Switchback Experiments — Or Not? — Pankratev, arXiv:2606.03012 (2026)",
+    "key_result": "Var(τ̂) ≈ (4σ²/JH)[S_res/n̄ + S_macro(1/n̄ + 1 + cv²)]: macro shock bị phạt nhân (1+cv²) theo CV kích thước cluster/cell và KHÔNG biến mất khi mật độ quan sát tăng; ngưỡng chọn estimator cv* = sqrt[(S_res/S_macro)(E[1/n_jh] − 1/n̄)] — cv>cv* thì dùng cell-level (không trọng số), cv<cv* thì individual-level (trọng số kích thước); nhắm variance reduction vào macro shock hiệu quả gấp ~16× nhắm vào residual trong ví dụ của họ.",
+    "assumptions": "Phân rã phương sai trực giao (macro/cluster-time/residual); OLS cá-thể-mức với cluster-robust SE; tiệm cận theo J·H.",
+    "transfers": "Trả lời câu (b) bằng công thức đóng: khối biên 10ph (exposure ~2×) + khán giả thưa làm cv của exposure giữa cell tăng → ngưỡng cv* cho quyết định weighted-vs-unweighted TÍNH ĐƯỢC từ S_res/S_macro ước qua within-session CV + poisson_floor đã có trong repo. Tự chạy (5–15 viewer, Poisson floor lớn → S_res chiếm ưu) nghiêng về exposure-weighted; đối tác (200–500, macro/burst chat chiếm ưu) nghiêng về khối-không-trọng-số.",
+    "breaks": "Công thức cho OLS + outcome cộng tính, chưa phải Hájek ratio; jitter + biên nhân đôi của LiveLift làm exposure mỗi cell ngẫu nhiên (không cố định như n_jh của họ) → cv phải ước từ pilot/sim chứ không có sẵn; với E[1/n] khi n có thể = 0 (khối không viewer) công thức cần quy ước riêng."
+   },
+   {
+    "paper": "Power-Optimal Covariate Adjustment for Switchback Experiments — arXiv:2607.27376 (2026)",
+    "key_result": "θ CUPAC tối ưu lực không phải OLS unit-level mà là θ* = (a·C^w + b·C^m)/(a·V^w_g + b·V^m_g) với a=1/n̄, b=1/n̄+1+cv² — tức nghiêng hẳn về dự báo thành phần between-cell (macro). Khi macro share chỉ 15%, SE ratio cải thiện 0.821→0.507, power 0.41→0.77 (+38.3%); khi macro share 50% thì gain nhỏ (+5.5%).",
+    "assumptions": "Control variate hiệu chỉnh E[y|X]=g (calibrated); phân rã phương sai đa tầng trực giao; cần ước n̄, cv² (khuyên dùng inverse-variance weight hoặc EB shrinkage cho cell nhỏ); chọn model bằng holdout theo cluster/thời gian, không random split.",
+    "transfers": "Bổ trực tiếp lên P1: cùng một g(·) pre-session, chỉ đổi cách ước θ trong cuped_adjust — vài chục dòng code, không thêm hạ tầng. Cell nhỏ của LiveLift (5–15 viewer) đúng vùng 'within-cell noise dominates' nơi gain lớn nhất.",
+    "breaks": "Cần plug-in S_macro share và cv² từ dữ liệu ít phiên → noise của chính plug-in có thể ăn gain (paper thừa nhận 'macro target is itself biased in small cells', khuyên EB shrinkage — phải kiểm trên sim KuaiLive). Không bàn ratio outcome/RI."
+   },
+   {
+    "paper": "Applying the Delta Method in Metric Analytics — Deng, Knoblich, Lu, KDD 2018 (arXiv:1803.06336)",
+    "key_result": "Với metric tỷ lệ cụm hóa Ȳ = ΣS_i/ΣN_i (S_i, N_i là tổng theo cluster i.i.d.), Var(Ȳ) ≈ (1/(Kμ_N²))(σ_S² − 2(μ_S/μ_N)σ_SN + (μ_S²/μ_N²)σ_N²) — công thức (6); phương sai của MẪU SỐ N đóng góp thẳng vào phương sai metric; mixed-effect model bias nặng khi kích thước cluster không đều (ước 0.547 vs chân trị 0.667) còn delta method bám đúng; kèm bias correction bậc hai và Fieller như đối chiếu.",
+    "assumptions": "Cluster (S_i, N_i) i.i.d.; K đủ lớn cho CLT (bảng của họ: coverage đạt ~95% từ n≥50, hơi lệch ở n=20); không đòi mô hình trong-cluster.",
+    "transfers": "Trả lời câu (c) nửa suy luận: dùng cặp tổng-theo-phiên (tổng click, tổng exposure) cho mỗi cánh rồi delta method (6) — không bao giờ ước phương sai tỷ lệ như thể quan sát độc lập; định lượng luôn khuyến nghị 'làm mẫu số đồng đều' — ủng hộ cap/trim exposure. Kỹ thuật augment người-vắng-mặt bằng (I_it, X_it=0) chuyển thẳng cho khán giả thưa vào-ra phiên.",
+    "breaks": "K của họ là nghìn cluster; K=18–31 phiên nằm đúng vùng coverage lệch (n=20 trong bảng 1) → delta CI chỉ nên là mô tả/backup, suy luận chính vẫn RI/WCR. Công thức coi (S_i,N_i) i.i.d. giữa cụm — đúng cho cấp phiên, không đúng cho cấp khối trong phiên (tự tương quan)."
+   },
+   {
+    "paper": "Cluster-Robust Inference: A Guide to Empirical Practice — MacKinnon, Nielsen, Webb, J. Econometrics 2023 (arXiv:2205.03285)",
+    "key_result": "Khuyến nghị chuẩn: WCR (wild cluster RESTRICTED — áp đặt null khi tạo DGP bootstrap) tốt hơn WCU trong mẫu hữu hạn; Rademacher là lựa chọn mặc định, Webb 6 điểm chỉ cần khi 2^G < B (G nhỏ ~≤13 — thì enumerate toàn bộ); B≥9,999; biến thể mới dùng CV3/jackknife (MacKinnon et al. 2022a) chống over-reject tốt hơn classic CV1 khi cluster lệch kích thước; vùng nguy hiểm: G≤12, G1≤6 treated, cluster lệch nặng/leverage cao NGAY CẢ khi G lớn; RI-t (studentized) tốt hơn RI-β nhưng cả hai đòi đồng nhất giữa cụm mạnh hơn WCR.",
+    "assumptions": "Score cụm độc lập giữa cụm; mô hình tuyến tính; simulation chủ yếu 1 regressor, t-test.",
+    "transfers": "Chốt câu (d): với G=18–31, 2^18=262,144>9,999 nên Rademacher đủ (không cần Webb làm chính); dạng đúng là WCR-Rademacher B=9,999 áp đặt null, cross-check bằng CV3+t(G−1); phải báo cáo G và leverage từng phiên; trick score s*_g = v_g·X_g'ũ_g cho tính nhanh CPU-only. Nhận xét 'RI đòi homogeneity giữa cụm hơn WCR' củng cố việc LiveLift studentize + khử FE phiên trong RI statistic.",
+    "breaks": "Guide viết cho treatment cấp cluster (DiD); switchback của LiveLift can thiệp TRONG cụm theo khối — 'cluster' cho bootstrap là phiên, và wild sign-flip cấp phiên không tái tạo đúng cơ chế gán khối (khác với RI redraw bằng hàm gán production đang có) → WCR chỉ đóng vai sensitivity, không thay được RI chính."
+   },
+   {
+    "paper": "Exact and Asymptotically Robust Permutation Tests — Chung & Romano, Annals of Statistics 41(2), 2013",
+    "key_result": "Test hoán vị với statistic ĐÃ STUDENTIZE giữ đúng mức ý nghĩa tiệm cận dưới null yếu (chỉ bằng nhau về tham số, phân phối được khác nhau — kiểu Behrens–Fisher) đồng thời vẫn exact hữu hạn mẫu khi phân phối trùng nhau; statistic không studentize thì mất validity khi phương sai/cỡ nhóm lệch.",
+    "assumptions": "Estimator có khai triển tiệm cận chuẩn + variance estimator nhất quán dưới cả hoán vị; điều kiện moment yếu.",
+    "transfers": "Là nền lý thuyết cho _batch_studentized hiện có; hệ quả thực dụng cho câu (b): NẾU đổi sang statistic có trọng số exposure thì mẫu số studentize phải là SE của chính statistic có trọng số đó (sandwich theo trọng số), nếu không RI mất robust khi exposure lệch giữa hai cánh trong redraw.",
+    "breaks": "Lý thuyết cho hoán vị i.i.d./two-sample; switchback redraw theo hàm gán khối không phải hoán vị trao đổi được — tính exact dưới sharp null vẫn giữ (do dùng đúng cơ chế gán) nhưng phần 'asymptotically robust dưới weak null' phải mượn thêm khung Liu–Zhong (2602.23257) chứ Chung–Romano không tự động phủ."
+   },
+   {
+    "paper": "Randomization Tests in Switchback Experiments — Liu & Zhong, arXiv:2602.23257 (2026)",
+    "key_result": "CRT (conditional randomization test) với section định trước + statistic HT studentize bằng phương sai chận-trên V̂_up = (1/J²)Σ(Ȳ_j)²[Z_j/p_j² + (1−Z_j)/(1−p_j)²]: giữ size gần danh định cả dưới shock đuôi nặng (nơi test tiệm cận HT bảo thủ còn Fisher-sharp-null over-reject), power ≈ test tiệm cận dưới Gaussian và vượt trội dưới t(3); kèm 'alternating holdout' test cho H_0^m (carryover ≤ m khối) với FWER control tuần tự để CHỌN burn-in bằng dữ liệu; SNR phụ thuộc n = rL − m (pooling r, block length L, burn-in m) — 3 đòn bẩy thiết kế bậc nhất.",
+    "assumptions": "Non-anticipation; carryover hữu hạn ≤ m; ranh giới section cố định TRƯỚC khi thấy assignment (invariance); xác suất khối {q_k} đã biết.",
+    "transfers": "Bản nâng cấp trực tiếp cho randomization_test/randomization_ci: (i) studentize bằng V̂_up thay SE thường → weak-null validity; (ii) test H_0^m cho sweep burn-in b∈{0..3} đã lên kế hoạch một CƠ SỞ SUY LUẬN thay vì chỉ sensitivity; (iii) DesignParams đã lưu từng phiên chính là điều kiện 'section định trước' — LiveLift gần như dựng sẵn hạ tầng cho CRT này.",
+    "breaks": "Outcome vô hướng, không tỷ lệ; không có exposure lệch giữa khối; 1 chuỗi thời gian dài (T~100–200) thay vì 18–31 phiên ngắn — phần asymptotic theo J cần map sang 'J = số section gộp qua các phiên'; jitter + biên nhân đôi của LiveLift phải chứng minh không làm ranh giới section phụ thuộc assignment (nếu có thì mất invariance)."
+   },
+   {
+    "paper": "Evaluating Informative Cluster Size in Cluster Randomized Trials — Blette, Chen, Kahan, Forbes, Harhay, Li, arXiv:2510.01127 (2025)",
+    "key_result": "Khi kích thước cụm (≈ exposure) 'informative' — tương quan với outcome/tác động — estimand cụm-trung-bình (c-ATE) và cá-thể-trung-bình (i-ATE) tách nhau; mixed model/GEE-exchangeable bias cho CẢ HAI; GEE-independence và cluster-level summaries mới unbiased. Đóng góp chính: 3 test (model-based, model-assisted, randomization-based) PHÁT HIỆN informative cluster size với size đúng và power có nghĩa.",
+    "assumptions": "Cluster randomized (treatment cấp cụm); cluster size quan sát được; khung so sánh estimand rõ ràng.",
+    "transfers": "Đóng khung đúng câu (c): 'mẫu số exposure nội sinh' chính là informative cluster size — click/1000 viewer-giây theo khối-không-trọng-số nhắm c-ATE (khối là công dân bình đẳng), Hájek exposure-weighted nhắm i-ATE (viewer-giây bình đẳng); hai con số KHÁC estimand chứ không phải một cái 'sai'. Randomization-based ICS test của họ chuyển thành gate chẩn đoán rẻ trong harness: test xem exposure có phản ứng với pin (chính là kênh 'pin ảnh hưởng viewer').",
+    "breaks": "Treatment của họ ở cấp cụm còn LiveLift can thiệp trong-cụm theo khối; 'cluster size' của họ cố định trước treatment trong nhiều thiết kế còn exposure của LiveLift là hậu-can-thiệp thực thụ — nên phần estimand-tách-đôi chuyển giao, phần estimator (GEE) thì không."
+   }
+  ],
+  "proposals": [
+   {
+    "title": "CUPED đa biến 'pre-session-only' + cross-fit theo phiên (trả lời câu a)",
+    "method_sketch": "Bộ hiệp biến cấp khối (b trong phiên j), TẤT CẢ đo trước phiên hoặc tất định theo lịch — tuân prereg §5c: (1) x1 = CTR lịch sử của streamer tại cùng giờ-trong-ngày, pooled mọi phiên trước (shrink về mean toàn cục bằng EB khi <3 phiên lịch sử); (2) x2,x3 = sin/cos(2π·giờ/24); (3) x4 = phút-vào-phiên (spline bậc 2, 2 knot — bắt suy giảm khán giả trong phiên); (4) x5 = log(1+viewer dự báo từ lịch sử). Fit g_b = ridge(x; λ chọn bằng leave-one-session-out) — fold theo PHIÊN đúng nguyên tắc 'fold tôn trọng cấu trúc randomization' của 2608.24038. Adjusted outcome Ỹ_b = Y_b − θ̂(g_b − ḡ) với θ̂ OLS (nâng cấp θ* ở đề xuất 2). Chạy toàn bộ pipeline RI hiện có trên Ỹ_b: vì g_b cố định qua mọi redraw (không phụ thuộc assignment), RI vẫn EXACT dưới sharp null — không đổi kiểm định chính, chỉ đổi outcome đưa vào. KHÔNG dùng lag trong-phiên (kể cả cách ≥2 khối) làm hiệp biến chính: nó là hậu-can-thiệp của khối trước, dưới carryover sẽ hấp thụ một phần tác động (bias estimand); lag trong-phiên chỉ được vào một nhánh sensitivity có nhãn riêng.",
+    "source_papers": [
+     "arXiv:2608.24038 (CUPED on Steroids)",
+     "arXiv:2606.27662 (regime map: n_cl<50 → CUPAC-lite, tránh DR)",
+     "arXiv:2602.23257 (RI exact khi covariate bất biến qua redraw)"
+    ],
+    "integration_point": "livelift/src/livelift/analysis/estimators.py — mở rộng cuped_adjust(y, x) hiện có (1 biến) thành cuped_adjust_mv(y, X, folds=session_id); gọi trước randomization_test/randomization_ci trong analyze_outer; feature x1/x5 lấy từ core/features.py",
+    "validation_plan": "Sim hiệu chỉnh KuaiLive trong sim/simulator.py: (i) A/A 200 lặp với adjustment bật — gate FPR [3,7]% và coverage [90,98]% giữ nguyên; (ii) lưới tác động biết trước — gate bias<10% (HARNESS §2); (iii) đo SE ratio adjusted/raw trên 30 phiên sim và so với trần VR_att tính từ S_res/S_macro ước bằng within-session CV + poisson_floor; (iv) ablation từng hiệp biến để chốt bộ tối giản trước khóa prereg",
+    "expected_gain": "2608.24038: CUPED 1 biến 45.2% VR → đa biến 61.8% (sim), 78.7%→85.9% (NYC); với LiveLift kỳ vọng thận trọng 20–40% VR (lịch sử pre-session mỏng hơn của họ) ⇒ MDE giảm ~10–23% (=1−sqrt(1−VR)) — đáng kể khi chỉ có 18–31 phiên",
+    "effort": "tuần",
+    "when": "trước khóa prereg"
+   },
+   {
+    "title": "θ* tối ưu lực: nghiêng hệ số CUPED về thành phần macro (nâng cấp đề xuất 1)",
+    "method_sketch": "Thay θ̂ OLS unit-level bằng θ* khớp thiết kế (2607.27376): tách phương sai/hiệp phương sai của (Y,g) thành within-cell (C^w, V^w) và between-cell (C^m, V^m) bằng ANOVA 2 tầng trên các khối; θ* = (a·C^w + b·C^m)/(a·V^w_g + b·V^m_g) với a = 1/n̄, b = 1/n̄ + 1 + cv², trong đó n̄ = exposure trung bình mỗi khối, cv = CV của exposure giữa khối (tính từ DesignParams + log exposure). Với cell nhỏ (5–15 viewer) dùng EB shrinkage cho cell-mean trước khi ước C^m, V^m như paper khuyên. Giữ θ* cố định qua redraw ⇒ RI vẫn exact. Nếu vào sau khóa prereg: chạy như sensitivity có prereg-amendment, kiểm định chính vẫn là θ̂ OLS.",
+    "source_papers": [
+     "arXiv:2607.27376 (Power-Optimal Covariate Adjustment)",
+     "arXiv:2606.03012 (phân rã a/b và penalty (1+cv²))"
+    ],
+    "integration_point": "livelift/src/livelift/analysis/estimators.py — tham số method='power_optimal' trong cuped_adjust_mv; ước n̄, cv² trong analysis/power.py (đã có MDE machinery)",
+    "validation_plan": "Cùng harness với đề xuất 1, thêm trục 'macro share ∈ {15%, 25%, 50%}' trong sim: gate (i) FPR/coverage không đổi, (ii) SE(θ*) ≤ SE(θ_OLS) trên ≥80% cấu hình, (iii) stress test plug-in: nhiễu ước S_macro ±50% không được làm SE tệ hơn θ_OLS quá 2%",
+    "expected_gain": "2607.27376: khi macro share 15% (vùng dữ liệu event thưa như LiveLift) SE ratio 0.821→0.507, power 0.41→0.77 (+38%); khi macro share lớn gain ~5% — kỳ vọng thực tế +10–30% power tùy phiên tự chạy hay đối tác",
+    "effort": "ngày",
+    "when": "chuỗi khẳng định"
+   },
+   {
+    "title": "Quy tắc chọn trọng số exposure bằng ngưỡng cv* + studentize khớp trọng số (trả lời câu b)",
+    "method_sketch": "Hai statistic ứng viên cho RI: (A) khối-không-trọng-số: τ̂ = mean_b∈T(r_b) − mean_b∈C(r_b), r_b = click_b/exposure_b; (B) Hájek exposure-weighted trong phiên: τ̂_H = Σ_T click_b/Σ_T exp_b − Σ_C click_b/Σ_C exp_b, rồi trung bình có trọng số exposure qua phiên. Quyết định MỘT LẦN trước khóa prereg bằng ngưỡng đóng của 2606.03012: tính cv* = sqrt[(S_res/S_macro)(E[1/n_b] − 1/n̄)] với S_res từ poisson_floor + within-session CV, n_b = exposure khối (khối biên 10ph có n gấp đôi — chính là nguồn cv); nếu cv_exposure > cv* → chọn (A), ngược lại (B). Kỳ vọng: tự chạy 5–15 viewer → S_res lớn → (B); đối tác 200–500 → macro lớn → (A). Dù chọn gì, statistic phải STUDENTIZE bằng SE của đúng dạng có trọng số đó (sandwich cấp khối với weight w_b; Chung–Romano) và, theo Liu–Zhong, dùng phương sai chận-trên V̂_up để giữ validity dưới weak null. Khối exposure=0: loại khỏi (A) và tự triệt tiêu trong (B) — cùng quy ước ở mọi redraw.",
+    "source_papers": [
+     "arXiv:2606.03012 (ngưỡng cv*, penalty (1+cv²))",
+     "Chung & Romano 2013, AoS (studentization)",
+     "arXiv:2602.23257 (V̂_up upper-bound studentization)"
+    ],
+    "integration_point": "livelift/src/livelift/analysis/estimators.py — studentized_stat và _batch_studentized nhận tham số weights; analyze_outer chọn statistic theo config prereg; power.py cập nhật MDE cho cả hai dạng",
+    "validation_plan": "Lưới sim 2 chiều (audience ∈ {5–15, 200–500}) × (S_macro share ∈ {10%,30%,50%}) trong sim/simulator.py: đo SE, MDE, FPR A/A 200 lặp cho (A) vs (B); gate: dạng được cv* chọn phải có MDE ≤ dạng kia trên ≥90% cấu hình đúng vùng của nó và FPR trong [3,7]%; thêm case đối kháng 'một khối exposure khổng lồ' kiểm chứng penalty (1+cv²) hiện ra đúng như công thức",
+    "expected_gain": "2606.03012: chọn sai phía ngưỡng có thể trả giá tới (1+cv²)≈2–3× phương sai phần macro (ví dụ của họ: chênh 16× hiệu quả khi nhắm sai thành phần); kỳ vọng thực tế giảm 15–35% SE ở cấu hình tự-chạy khi chuyển đúng sang (B)",
+    "effort": "tuần",
+    "when": "trước khóa prereg"
+   },
+   {
+    "title": "Mẫu số nội sinh: tách p-value (exact) khỏi CI (delta/linearization) + gate ICS (trả lời câu c)",
+    "method_sketch": "Ba tầng: (1) P-VALue chính: dưới sharp null Fisher 'không tác động lên mọi outcome' thì cả click LẪN exposure đều imputable ⇒ RI với statistic tỷ-lệ-của-tổng vẫn EXACT dù mẫu số nội sinh — không phải đổi estimand để cứu kiểm định chính. (2) CI/effect size: KHÔNG dùng phương sai naive; dùng linearization Budylin-style L_b = click_b − r̂_0·exposure_b (r̂_0 = tỷ lệ pooled cánh control) đưa về metric cộng tính rồi chạy nguyên pipeline RI/Fisher-CI hiện có; đối chiếu delta method cấp phiên của Deng et al. công thức (6) trên cặp tổng (S_j, N_j): Var ≈ (1/(Kμ_N²))(σ_S² − 2(μ_S/μ_N)σ_SN + (μ_S²/μ_N²)σ_N²) — chỉ mô tả vì K=18–31 ở vùng coverage lệch. (3) Gate chẩn đoán ICS: randomization-based test (2510.01127) với outcome = exposure_b — nếu pin làm thay đổi exposure (p<0.10) thì báo cáo kèm estimand mẫu-số-cố-định click/giây-khối (mẫu số tất định theo thiết kế) và ghi rõ (A)-khối-đều = c-ATE vs (B)-Hájek = i-ATE là hai estimand khác nhau, không phải hai ước lượng của một số.",
+    "source_papers": [
+     "Deng–Knoblich–Lu KDD 2018 (arXiv:1803.06336)",
+     "arXiv:2510.01127 (informative cluster size)",
+     "Budylin et al. WSDM 2018 (consistent transformation of ratio metrics)",
+     "arXiv:2602.23257 (imputability dưới sharp null)"
+    ],
+    "integration_point": "livelift/src/livelift/analysis/estimators.py — thêm linearize_ratio(click, exposure, r0) + delta_var_ratio(S, N); gate ICS thành hàm trong analysis/ gọi từ api/routes/reports.py (trang báo cáo 5 trạng thái đã lên kế hoạch)",
+    "validation_plan": "Dùng đúng lỗ sim 'non-compliance + pin→viewer retention' đã lên kế hoạch: inject tác động lên exposure (pin giữ viewer +10–20%) với tác động click = 0 và ≠ 0; gate: (i) RI p-value giữ FPR [3,7]% khi click-effect=0 dù exposure-effect≠0; (ii) bias của linearized CI < 10% tác động; (iii) delta CI coverage ghi nhận (không gate cứng vì K nhỏ); (iv) ICS test có power >50% phát hiện exposure-effect 15% ở 30 phiên",
+    "expected_gain": "Loại một lớp bias không định lượng được (mẫu số nội sinh) khỏi kết luận chính; Deng et al. cho thấy bỏ qua cấu trúc này làm SE sai cỡ 2× (naive 0.00522 vs chân trị 0.00895) — tức nguy cơ FPR thật ~2× danh định nếu làm sai",
+    "effort": "tuần",
+    "when": "trước khóa prereg"
+   },
+   {
+    "title": "Spec wild cluster bootstrap chuẩn MNW cho G=18–31 phiên lệch kích thước (trả lời câu d)",
+    "method_sketch": "Vai trò: sensitivity đối chiếu với RI chính (đã ghi trong kế hoạch — đây là spec đúng). Cấu hình: (1) WCR — RESTRICTED, áp đặt H0 khi tạo residual ũ_g (MNW: WCR > WCU mẫu hữu hạn); (2) trọng số Rademacher, B=9,999 — với G≥18 thì 2^G≫B nên KHÔNG cần Webb làm chính; chạy Webb 6-điểm như sensitivity khi leverage cao; (3) cluster = PHIÊN (18–31), model: r_b (hoặc L_b linearized) ~ z_b + FE phiên, sai số cluster theo phiên; (4) tính nhanh CPU bằng score trick s*_g = v_g·(X_g'ũ_g) — chỉ cần X_g'X_g, X_g'y_g một lần (MacKinnon 2022/boottest); (5) cross-check bắt buộc: CV3-jackknife + t(G−1) (biến thể MNW 2022a chống over-reject khi cluster lệch kích thước); (6) báo cáo G, leverage từng phiên; nếu 1–2 phiên đối tác chiếm >30% exposure — đúng cờ đỏ MNW 'cluster lệch nặng nguy hiểm cả khi G lớn' — thì trọng tài là RI + CV3, không phải WCR classic.",
+    "source_papers": [
+     "arXiv:2205.03285 (MacKinnon–Nielsen–Webb 2023)",
+     "Cameron–Gelbach–Miller 2008 (WCR gốc)",
+     "MacKinnon–Nielsen–Webb 2022a (biến thể CV3)"
+    ],
+    "integration_point": "livelift/src/livelift/analysis/estimators.py — hàm wcr_bootstrap(y, z, cluster, B=9999, weights='rademacher', restricted=True, se='cv1'|'cv3') cạnh ols_fe_lin; xuất vào analyze_outer như nhánh sensitivity",
+    "validation_plan": "A/A 200 lặp trên sim 18/24/31 phiên với phân phối exposure lệch (1 phiên đối tác 10× còn lại): gate FPR [3,7]% cho WCR-CV1, WCR-CV3, và RI hiện có trên cùng dữ liệu; case đối kháng few-treated-blocks; đối chiếu 3 phương pháp phải cùng kết luận trên ≥95% lặp A/A — lệch nhau là tín hiệu leverage để điều tra",
+    "expected_gain": "MNW: t-test CV1+t(G−1) ở G~20–30 lệch kích thước có thể over-reject 2–3× danh định; WCR đưa size về gần 5% — đây là bảo hiểm validity (không phải gain power), và là ngôn ngữ chuẩn hội đồng econometrics ở chung kết",
+    "effort": "tuần",
+    "when": "chuỗi khẳng định"
+   },
+   {
+    "title": "Nâng cấp RI theo Liu–Zhong: studentize chận-trên + test carryover chọn burn-in + section pooling",
+    "method_sketch": "Ba mảnh gắn thẳng vào RI đang chạy: (1) đổi mẫu số studentized_stat sang phương sai chận-trên kiểu V̂_up = (1/J²)Σ_j(Ȳ_j)²[Z_j/p_j² + (1−Z_j)/(1−p_j)²] tính trên section (nhóm khối liên tiếp cùng cánh, ranh giới lấy từ DesignParams đã lưu — thỏa điều kiện 'định trước'); bảo thủ đúng hướng dưới weak null, giữ exact dưới sharp null. (2) Carryover diagnostic 'alternating holdout': ghép outcome focal của section chẵn với nhãn redraw của section lẻ để test H_0^m (carryover ≤ m khối) tuần tự m=0,1,2 với FWER control — cho sweep burn-in b∈{0..3} đã lên kế hoạch một CƠ SỞ SUY LUẬN: chọn b = m̄ nhỏ nhất không bác bỏ, ghi vào prereg như quy tắc quyết định (decision rule prereg được, không phải đổi kiểm định hậu kiểm). (3) Với phiên đối tác dài, thêm tham số pooling r (gộp r khối thành section, n = rL − m focal) vào power.py để tối ưu SNR μ_tot theo (L, m, r) thay vì chỉ theo L.",
+    "source_papers": [
+     "arXiv:2602.23257 (Liu & Zhong 2026)",
+     "Chung & Romano 2013 (nền studentization)",
+     "Bojinov et al. 2023 (thiết kế gốc đang dùng)"
+    ],
+    "integration_point": "livelift/src/livelift/analysis/estimators.py — _batch_studentized (mẫu số V̂_up), randomization_test (thêm carryover_diagnostic(m)); core/assigner/outer.py + DesignParams (lưu ranh giới section định trước); analysis/power.py (SNR theo n = rL − m)",
+    "validation_plan": "(i) A/A 200 lặp với shock đuôi nặng (t(3) thay Gaussian trong sim — thêm 1 knob vào simulator.py): gate FPR [3,7]% cho statistic mới trong khi ghi nhận statistic cũ lệch bao nhiêu; (ii) sim có carryover thật 1 khối: test H_0^m phải bác m=0 với power >60% ở 30 phiên và không bác m=1 (size ≤10%); (iii) power curve theo (L,m,r) khớp công thức Prop 5.1 của paper trong 10%",
+    "expected_gain": "Liu–Zhong: CRT giữ size chuẩn dưới heavy-tail nơi test tiệm cận HT bảo thủ (mất power) còn Fisher misspecified over-reject; với chat/click bursty của livestream (đuôi nặng điển hình) đây là vùng LiveLift đang đứng — kỳ vọng bịt lỗ validity + lấy lại phần power bị bảo thủ, và burn-in được CHỌN bằng dữ liệu thay vì giả định",
+    "effort": "nhiều tuần",
+    "when": "trước khóa prereg"
+   }
+  ],
+  "open_questions": [
+   "Prereg §5c cần một ruling rõ trước tuần 6: lag outcome trong-phiên cách ≥2 khối (đã qua burn-in) bị cấm hoàn toàn hay được vào nhánh sensitivity có nhãn? (Đề xuất 1 hiện coi là cấm cho primary — cần đội xác nhận để viết vào prereg)",
+   "Ước S_res/S_macro và cv_exposure từ pilot 3–5 phiên có đủ ổn định để chốt weighted-vs-unweighted qua ngưỡng cv* trước khóa prereg không — hay cần quy tắc quyết định hai-nhánh ghi sẵn trong prereg (nếu ước sai ±50% thì đảo lựa chọn)?",
+   "Jitter + biên nhân đôi của thiết kế hiện tại có làm ranh giới section phụ thuộc vào assignment không? Nếu có thì điều kiện invariance của CRT Liu–Zhong hỏng — cần kiểm tra DesignParams: ranh giới được sinh trước hay sau khi biết chuỗi Z?",
+   "Với khán giả 5–15 người sẽ có khối exposure=0 trong một phần redraw: quy ước loại-khối vs pseudo-exposure ảnh hưởng FPR bao nhiêu, và có làm hai statistic (A)/(B) ở đề xuất 3 mất so sánh được không?",
+   "Khi 1–2 phiên đối tác (200–500 viewer) trộn với ~25 phiên tự chạy (5–15 viewer), leverage một phiên có thể phá đồng thời RI (đòi homogeneity — MNW §6.2) lẫn WCR classic: có nên prereg sẵn phân tích tách tầng (stratified theo loại phiên) làm co-primary thay vì gộp?"
+  ]
+ },
+ {
+  "area": "Thiết kế & carryover",
+  "reading_notes": [
+   {
+    "paper": "Liu & Zhong, \"Randomization Tests in Switchback Experiments\", arXiv:2602.23257, 2026",
+    "key_result": "CRT hợp lệ mẫu hữu hạn dưới carryover bậc m: gộp khối liên tiếp ex-ante thành section (quy tắc greedy: gộp đến khi độ dài ≥ m+1), chỉ giữ section HẰNG (toàn ON hoặc toàn OFF); đơn vị focal = các phút/khối có toàn bộ lịch sử m-lag nằm trong section hằng; redraw nhãn section độc lập với p = Πq_k/(Πq_k+Π(1−q_k)) (Lemma 3.1; = 0.5 khi q=0.5). Hỗ trợ 3 họ null: H0^tot (không hiệu ứng đường-gán-hằng), H0^m (carryover tắt sau m kỳ — chuỗi null lồng nhau, test tuần tự Algorithm 3 có kiểm soát FWER, cho ra m̂), và weak null τ_focal=0. Power xấp xỉ đóng dưới distributed-lag + AR(1): SNR ∝ τ√J_tot với σ²_ε̄(n,ρ)=(σ²/n²)[n+2Σ(n−h)ρ^h]; tỷ lệ section dùng được E[J_tot/J]=π_r(q)=q^r+(1−q)^r.",
+    "assumptions": "Chỉ cần 2 giả định nguyên thủy: non-anticipation và carryover hữu hạn bậc m; KHÔNG cần giả định phân phối, không cần mixing, không cần mô hình outcome. Cơ chế gán phải biết chính xác (ta có: DesignParams lưu từng phiên).",
+    "transfers": "Khớp trực tiếp: khối 5ph là 'kỳ', section = cặp khối gộp r=2; với q=0.5 giữ được kỳ vọng 50% section (π_2(0.5)=0.5) → ~4.5 section hằng/phiên 18 khối, ~135 section trên 30 phiên. m̂-diagnostic (Algorithm 2: holdout xen kẽ section lẻ cho nhãn, section chẵn cho outcome) là quy trình CHUẨN, có FWER, để viết quy tắc 5ph→10ph vào prereg. Redraw machinery của ta (randomization_test) tái dụng được ~70%.",
+    "breaks": "Mất ~50% section (r=2) → MDE sensitivity phồng ~√2; jitter biên ±30s làm section không đều nhẹ (chấp nhận được — CRT chỉ cần luật gán đúng, ta redraw bằng hàm production); weak-null version cần thiết kế 'session-fixed' — cần kiểm tra rerandomization arm-balance của ta có vào khuôn đó không; với 18 khối/phiên, test H0^m per-phiên yếu — phải pool xuyên phiên (paper không bàn multi-session, ta tự stack section)."
+   },
+   {
+    "paper": "Zeng, Adjaho, Bucarey, Qin, Zhang, Hoban, Johari & Wager, \"Sequentially-Rerandomized Switchback Experiments\" (SRSB), arXiv:2604.02489, 2026",
+    "key_result": "Tại mỗi kỳ t, redraw candidate assignment (N/2 treated) đến khi Mahalanobis distance của chênh lệch biến tiên lượng d*=(θ̂*)'Σ̂⁻¹θ̂* < c (vd χ²_d(0.01)); H_{i,t}=f(X_{i,1:t},Y_{i,1:t−1}) — chỉ dùng dữ liệu QUÁ KHỨ đã quan sát, không cần forecast. Inference kép: (1) RI sharp null H0(δ) — impute outcome, sinh M đường gán SRSB-compatible, p-value Monte-Carlo, hợp lệ mọi (N,T); (2) martingale CLT khi T lớn. Phương sai giảm theo hệ số 1−(1−v_{d,c})R²_t với R² = sức dự báo của biến balance. Sim AR(1): giảm RMSE tới ~40% khi ρ cao. Biến thể blocked (Algorithm 3) cho carryover bậc 1: phân đơn vị theo W_{t−1}, rerandomize trong từng block, estimand τ_t = mean[Y(1,1)−Y(0,0)].",
+    "assumptions": "Nhiều đơn vị N song song mỗi kỳ (N/2 treated); N/T→0 cho CLT; sharp null để RI; blocked variant giả định carryover đúng bậc 1.",
+    "transfers": "Ý tưởng lõi chuyển được sang đợt thí nghiệm MỚI ở chung kết: acceptance rule Mahalanobis trên biến tiên lượng xây từ quá khứ (outcome khối trước, viewers đầu khối, chat rate) thêm vào draw_assignments; RI của ta đã redraw bằng hàm production nên inference đi kèm gần như miễn phí (dưới sharp null, H_t tái tạo được từ outcome cố định — đúng logic Algorithm 2 của họ). Hệ số 1−(1−v)R² cho ta công thức ước gain trước.",
+    "breaks": "Ta có MỘT stream (N=1 đơn vị/kỳ) — SRSB nguyên bản cần N đơn vị song song; phải chuyển thành rerandomization TRÊN ĐƯỜNG GÁN trong phiên (dạng P&G) hoặc sequential theo khối. Blocked-SRSB (chia theo W_{t−1}) hoàn toàn không áp dụng với 1 đơn vị — trả lời câu (d): dạng khả thi duy nhất là ràng buộc đếm transition. Gain giảm khi treatment effect lớn (outcome quá khứ kém dự báo)."
+   },
+   {
+    "paper": "Ni, Kalfountzou & Bojinov, \"Reliable Switchback Experiments with Rerandomization for Auction Environments at P&G\", HBS WP 26-012, 09/2025 (đã đọc PDF 12 trang đầu)",
+    "key_result": "Một đơn vị, T kỳ, giả định carryover bậc 1 (Assumption 1: Y_t chỉ phụ thuộc w_{t−1:t}). Estimator HT chỉ dùng kỳ có w_{t−1:t}=(1,1) hoặc (0,0). Rerandomization trên đường gán từ complete randomization (T/2 treated): δ̂_X = [4(T−1)/T(T−2)]Σ(1{(1,1)}−1{(0,0)})X_t, chấp nhận nếu M=δ̂'Var(δ̂)⁻¹δ̂ ≤ a. Phân phối tiệm cận kiểu Li et al. 2020: √T(τ̂−τ)|M≤a → √V_ττ(√(1−R²)ε₀+√R²·L_{K,a}); CI qua quantile range với R̂² (thuật toán 1, các eq. 12–16, variance bảo thủ V̂_ττ=8(s²_{Y(1)}+s²_{Y(0)})+3Tτ̂²/(T−1)). Xử lý non-compliance (pause thí nghiệm) như sự kiện cố định, hiệu chỉnh variance. Production: 70 thí nghiệm, 5 giả thuyết auction, 8 thị trường từ 01/2025; hiệu quả 'insensitive to threshold & covariate choices'.",
+    "assumptions": "Carryover đúng bậc 1 (dựa domain knowledge: trễ ≤30ph với kỳ 1h); covariate X_t biết trước hoặc dự báo tin cậy được; complete randomization làm base.",
+    "transfers": "Đây là template GẦN NHẤT với ta (1 đơn vị/kỳ): (i) estimator HT-cặp-liền-kề là chính là τ̂ robust-carryover cho gate so sánh lag; (ii) rerandomization path-level trên covariate dự báo (viewers theo phase, CTR lịch sử) — họ xác nhận robust với ngưỡng a và bộ covariate, rất hợp đội 4 người; (iii) khung non-compliance-as-fixed-event dùng được cho khối rớt stream.",
+    "breaks": "T của họ ~336 kỳ 1h; ta 18 khối/phiên — tiệm cận Li-et-al-style không đáng tin, nhưng ta thay bằng RI redraw nên không sao; covariate 'biết trước' của ta yếu hơn (viewer forecast từ phiên trước có noise cao với 5–15 khán giả); complete randomization T/2 khác Bernoulli hiện tại của ta (đã có arm-balance rerandomization — tương đương thực dụng)."
+   },
+   {
+    "paper": "Hu & Wager, \"Switchback Experiments under Geometric Mixing\", arXiv:2209.00197 (v4, 12/2025)",
+    "key_result": "Với hệ Markov mixing hình học (‖f'P−fP‖_TV ≤ e^{−1/t_mix}‖f'−f‖_TV): không burn-in sai số T^{−1/3}; với burn-in đúng đạt log(T)^{1/2}T^{−1/2}. Công thức: b=(t_mix/2)·log T, khối l=b+C₁ cho FATE; không burn-in thì l=(4/3)^{1/3}T^{1/3}/(1−e^{−1/t_mix})^{2/3} cho GATE. Mixing bias bị chặn bởi [4Λ/(1−e^{−1/t_mix})]·e^{−b/t_mix}/(l−b) — tắt mũ theo b. Estimator: diff-in-means bỏ b kỳ đầu mỗi khối. Ví dụ ride-share: l=4000s, T=400000s, b=800–1600s giảm bias rõ rệt.",
+    "assumptions": "Markov + geometric mixing; t_mix BIẾT hoặc ước được — chính các tác giả thừa nhận 'may be challenging to estimate from data' và KHÔNG cho quy trình ước lượng.",
+    "transfers": "Cho ta công thức đóng để biến t̂_mix (đo tuần 3) thành (block, burn-in): với phiên 90ph, T=18 khối, b_khối = ceil((t̂_mix/2)·ln 18/300s); bias bound e^{−b/t_mix}/(l−b) là đại lượng để viết quy tắc quyết định 5ph→10ph định lượng thay vì cảm tính; hợp thức hóa sweep b∈{0..3} đã lên kế hoạch.",
+    "breaks": "Không có quy trình đo t_mix — phải lấy từ paper khác (local projection); outcome tỷ lệ click/exposure với 5–15 khán giả không chắc Markov-mixing sạch (shock cấp phiên đã nằm trong 4 lỗ sim); hằng số Λ không biết → chỉ dùng scaling, không dùng số tuyệt đối."
+   },
+   {
+    "paper": "Missault & Masoero, \"Carryover detection in switchback experimentation\", NeurIPS 2025 Workshop on Uncovering Causality in Science (Amazon Science)",
+    "key_result": "Test thống kê phát hiện influence-period bound m bị ĐÁNH GIÁ THẤP: so sánh các estimator xây dưới giả định lag khác nhau (m vs m'), khác biệt có ý nghĩa ⇒ có bias do carryover chưa xử lý ⇒ từ chối kết quả. 'Strong performance in simulations with synthetic effects on real-world covariates'. Đúng dạng kiểm định carryover chính thức H0: bound-m-đủ mà câu hỏi (ii) tìm.",
+    "assumptions": "Có ít nhất một estimator hợp lệ dưới m lớn hơn để làm mốc; cơ chế gán biết để lấy null distribution.",
+    "transfers": "Ý tưởng Hausman-RI tái tạo được ngay bằng hạ tầng của ta: D = τ̂(m=0, dùng mọi khối) − τ̂(m=1, HT cặp-liền-kề kiểu P&G), null distribution bằng redraw production dưới sharp null — thành gate 'carryover-suspect' chạy tự động mỗi lần analyze, nối vào trang báo cáo 5 trạng thái đã lên kế hoạch.",
+    "breaks": "Toàn văn sau cổng verify OpenReview — chưa lấy được statistic/threshold chính xác, phải tự thiết kế phiên bản RI và tự đo size/power trên harness; power với 18 khối/phiên × ~30 phiên chưa rõ, τ̂(m=1) mất nửa dữ liệu nên D nhiễu — cần sim trước khi tin."
+   },
+   {
+    "paper": "Nakakita & Nakatsuma, \"Calibrated Horizon-Weighted Local Projection Designs for Markov Switchbacks\", arXiv:2607.11694, 2026",
+    "key_result": "Mô hình finite-memory Y_t = μ_t + Σ_{ℓ=0}^{H} g_ℓ A_{t−ℓ} + ε_t; local projection dạng distributed-lag 'path-adjusted' cho g_ℓ design-invariant (LP naive là 'design-dependent mixtures'). Risk thiết kế R_c(r)=4σ²(a+br²−2dr)/(1−r²) theo persistence r của chuỗi gán Markov; bias do carryover bỏ sót ngoài H chỉ vào qua trọng số cuối c_H (⇒ 'buffer horizon' hấp thụ đuôi carryover). Inference: HAC sandwich hoặc Fisher randomization test khi r gần biên. Kết quả thiết kế: hiệu ứng tức thời → r=0 (iid); mục tiêu tích lũy mượt → r gần 1; contrast dao động → r<0.",
+    "assumptions": "Additive finite-memory (tuyến tính theo lag của treatment), α-mixing của score; calibrate bằng pilot data/residual bootstrap.",
+    "transfers": "Cho câu (a) chính xác cái Hu–Wager thiếu: QUY TRÌNH ước impulse response ĝ_ℓ sau khi bỏ ghim từ dữ liệu tick phút của ta (build_ticks) bằng OLS distributed-lag + FE phiên — từ đó suy t̂_mix (fit mũ) hoặc phần carryover dư R(k) phi tham số; 'buffer horizon' chính là burn-in nhìn từ phía phân tích. Kết quả 'thiết kế tối ưu phụ thuộc estimand' củng cố việc ta giữ khối đều 5ph (estimand GATE) thay vì đổi sang thiết kế r lệch.",
+    "breaks": "Additive-in-lags là xấp xỉ — hiệu ứng ghim của ta có thể nhân tính theo viewers; HAC với ~30 cụm phiên không đáng tin (ta thay bằng RI); tối ưu r Markov xung đột với thiết kế Bojinov đã chốt — chỉ mượn phần ước lượng LP, không đổi cơ chế gán chính."
+   },
+   {
+    "paper": "Xiong, Chin & Taylor, \"Data-Driven Switchback Experiments: Theoretical Tradeoffs and Empirical Bayes Designs\", arXiv:2406.06768, 2024",
+    "key_result": "Phân rã bias-variance theo 4 yếu tố: carryover, tính chu kỳ, tự tương quan chuỗi, thí nghiệm đồng thời; đổi tần suất switch = đổi carryover-bias lấy correlation-variance; NGẪU NHIÊN HÓA ĐIỂM CUỐI khoảng giảm cả bias lẫn variance từ thí nghiệm đồng thời. EB dùng dữ liệu lịch sử chọn độ dài khoảng: giảm 33% MSE so với status quo trên nền tảng ride-sharing.",
+    "assumptions": "Có kho thí nghiệm/dữ liệu lịch sử đủ dày để ước prior các tham số (carryover, autocorrelation); outcome ổn định giữa quá khứ và thí nghiệm tới.",
+    "transfers": "Khung bias-variance là ngôn ngữ đúng để VIẾT quy tắc 5ph→10ph vào prereg (chọn block tối thiểu hóa MSE ước từ tham số đo tuần 3 thay vì rule cảm tính); jitter biên ±30s của ta chính là 'randomized endpoints' — có căn cứ văn liệu, giữ nguyên; con số 33% là mốc kỳ vọng khi chọn block dữ liệu-driven.",
+    "breaks": "EB cần NHIỀU thí nghiệm lịch sử — ta chỉ có KuaiLive calibration + vài phiên pilot, prior sẽ rất thô; chu kỳ ngày/tuần của họ không có trong phiên 90ph (thay bằng phase ramp/plateau/decay đã mô hình trong sim)."
+   },
+   {
+    "paper": "Wen, Shi, Yang, Tang & Zhu, \"Unraveling the Interplay between Carryover Effects and Reward Autocorrelations in Switchback Experiments\", arXiv:2403.17285 (v 2025)",
+    "key_result": "Trong môi trường Markov, thiết kế switchback tối ưu phụ thuộc đồng thời (i) độ lớn carryover và (ii) tự tương quan sai số reward: carryover lớn → switch THƯA; autocorrelation dương lớn, carryover nhỏ → switch DÀY có lợi (giảm MSE). Kết luận estimator-agnostic cho phần lớn RL estimator.",
+    "assumptions": "Markovian environment; phân tích MSE của ATE trung bình.",
+    "transfers": "Bổ sung chiều thứ hai vào quy tắc quyết định tuần 3: không chỉ đo t_mix (carryover) mà đo cả ρ̂ autocorrelation phút-sang-phút của click-rate (within_session_cv đã có, thêm ACF) — nếu carryover ≈ 0 nhưng ρ cao thì 5ph đang là lựa chọn ĐÚNG, không cần nới; ngược lại carryover đo được > ngưỡng thì nới 10ph bất kể ρ.",
+    "breaks": "Không có công thức đóng trích được từ trang HTML cho switch length tối ưu; setting RL/Markov policy khác estimand thiết kế cố định của ta — chỉ dùng định tính hai chiều (carryover × ρ) cho decision rule."
+   },
+   {
+    "paper": "Yu, Ma & Liu, \"Minimax Optimal Design with Spillover and Carryover Effects\", arXiv:2501.14602, 2025",
+    "key_result": "Thiết kế minimax-optimal đồng thời cho spillover + carryover khi BẬC carryover có thể đặc tả SAI; estimator Horvitz-Thompson với variance bảo thủ; numerical studies cho thấy giảm yêu cầu cỡ mẫu so với thiết kế hiện có.",
+    "assumptions": "Khung nhiều đơn vị có cấu trúc interference; lớp misspecification giới hạn quanh bậc carryover giả định.",
+    "transfers": "Tinh thần 'robust khi m sai' biện minh cho việc ta LUÔN chạy song song estimator m=0 và m=1 (gate P3) thay vì đặt cược một m; variance bảo thủ HT là mẫu tham chiếu khi implement τ̂(m=1).",
+    "breaks": "Thiết kế nhiều-đơn-vị với spillover không gian — không có chiều đó trong 1 stream; phần dùng được chỉ là triết lý robustness + dạng estimator, không phải thiết kế."
+   },
+   {
+    "paper": "Pankratev, \"Design-Aware Variance Reduction for Switchback Experiments: A Comparative Study\", arXiv:2606.27662, 2026",
+    "key_result": "So sánh CUPED/CUPAC/doubly-robust vs cluster-robust SE trên 26 tổ hợp mô phỏng (7 chiều thiết kế gồm cường độ carryover, thời lượng); ra 'regime map': lợi ích phụ thuộc số cụm, mất cân bằng kích thước cụm, autocorrelation, carryover, sức dự báo covariate; số cụm hữu hạn + phụ thuộc thời gian GIỚI HẠN mức cải thiện đạt được.",
+    "assumptions": "Khung mô phỏng; đánh giá bằng FPR/coverage/SE-reduction/MDE — đúng bộ tiêu chí HARNESS.md của ta.",
+    "transfers": "Cảnh báo đúng lúc: với ~30 cụm phiên, CUPED-gain có trần — đừng hứa hẹn quá khi thêm cuped_adjust vào pipeline; 'regime map' là template cho báo cáo gate của ta (trục: số phiên × CV × halflife). Củng cố chọn rerandomization-tại-thiết-kế (P&G/SRSB) thay vì chỉ hiệu chỉnh hậu nghiệm.",
+    "breaks": "Chỉ đọc được mức abstract/tóm tắt; con số cụ thể theo regime chưa trích được — không dùng làm căn cứ định lượng, chỉ định hướng."
+   }
+  ],
+  "proposals": [
+   {
+    "title": "Giao thức đo t_mix tuần 3 bằng distributed-lag local projection + quy tắc 5ph→10ph viết trước",
+    "method_sketch": "(1) Dữ liệu: các phiên PILOT (không tính vào confirmatory), tick phút từ core/features.build_ticks: y_t = clicks_t/exposure_t, a_t = 1{ghim ON phút t}. (2) Ước impulse response dạng path-adjusted distributed-lag (Nakakita–Nakatsuma): y_t = μ_s + Σ_{ℓ=0}^{H} g_ℓ a_{t−ℓ} + ε_t, H=10 phút, FE phiên bằng demean (tái dụng ols_fe_lin.demean), trọng số exposure phút. ĝ_ℓ với ℓ≥1 = carryover ℓ phút sau khi bỏ ghim. (3) Hai đại lượng prereg: t̂_mix từ fit ĝ_ℓ ≈ ĝ_1·ρ^{ℓ−1} (t̂_mix = −1/ln ρ̂) và phi tham số R(5) = Σ_{ℓ=6}^{10} ĝ_ℓ⁺ / Σ_{ℓ=0}^{10} ĝ_ℓ⁺ (phần carryover dư sau 5 phút); CI bằng redraw RI trên phiên pilot (không dùng HAC vì ít cụm). (4) Chẩn đoán xác nhận: m̂ theo Liu–Zhong Algorithm 2+3 (section = cặp khối, holdout xen kẽ, test tuần tự m=0,1,2, α=0.10, FWER-controlled). (5) QUY TẮC QUYẾT ĐỊNH viết vào prereg TRƯỚC khi thấy số: giữ khối 5ph nếu [cận trên 90% của R(5) ≤ 0.15] VÀ [m̂ = 0]; đổi 10ph nếu một trong hai vi phạm; burn-in đặt theo Hu–Wager b = ceil((t̂_mix/2)·ln(18)) giây quy về khối, chặn trong sweep b∈{0..3} đã kế hoạch; đo kèm ACF(1) của y_t — nếu m̂=0 và ρ̂_ACF cao thì 5ph là tối ưu theo Wen et al., ghi rõ để khỏi tranh cãi sau. (6) Cỡ mẫu pilot: dùng power approx Prop 5.2 Liu–Zhong với CV within-session đã đo; yêu cầu tối thiểu 6 phiên pilot × 18 khối.",
+    "source_papers": [
+     "arXiv:2607.11694 (Nakakita–Nakatsuma, LP designs)",
+     "arXiv:2209.00197 v4 (Hu–Wager, b=(t_mix/2)logT, bias ∝ e^{−b/t_mix})",
+     "arXiv:2602.23257 (Liu–Zhong, m̂ diagnostic Alg 2-3)",
+     "arXiv:2403.17285 (Wen et al., carryover × autocorrelation)"
+    ],
+    "integration_point": "Module mới d:\\AISC2026\\livelift\\src\\livelift\\analysis\\carryover.py (hàm impulse_response_lp, fit_tmix, decide_block_len) + CLI scripts/measure_tmix; input từ core/features.build_ticks; quy tắc chép nguyên văn vào PREREGISTRATION.md trước khóa tuần 6",
+    "validation_plan": "Sim sweep carryover_halflife_s ∈ {0, 30, 60, 120, 300} × 200 reps trên sim/simulator.py (knob _carryover_exposure có sẵn): (i) bias/coverage của t̂_mix và R(5); (ii) operating characteristics của quy tắc — chọn 10ph với xác suất ≥ 80% khi halflife ≥ 120s, ≤ 10% khi halflife=0 (đúng khuôn gate Monte-Carlo HARNESS.md); (iii) số phiên pilot tối thiểu để đạt OC đó",
+    "expected_gain": "Biến quyết định thiết kế lớn nhất còn lại thành thủ tục tiền đăng ký có OC đo được thay vì phán đoán; Hu–Wager: burn-in/block đúng cỡ đưa sai số từ T^{−1/3} về log(T)^{1/2}T^{−1/2}, bias tắt theo e^{−b/t_mix}; tránh cả hai lỗi đắt: khối 10ph không cần thiết (mất nửa số khối → MDE tăng ~√2) và khối 5ph khi carryover thật (bias không kiểm soát)",
+    "effort": "tuần",
+    "when": "trước khóa prereg"
+   },
+   {
+    "title": "CRT gộp khối Liu–Zhong làm kiểm định sensitivity bên cạnh RI chính",
+    "method_sketch": "(1) Gộp ex-ante 18 khối đo thành J=9 section r=2 khối liên tiếp (đủ cho m=1 khối carryover; jitter biên giữ nguyên vì CRT chỉ cần luật gán đúng). (2) Với đường gán quan sát: chọn section HẰNG (2 khối cùng arm); focal = khối thứ hai của mỗi section hằng (lịch sử m-lag nội section). (3) Statistic: diff-in-means trọng số exposure trên focal outcomes theo nhãn section; redraw: lật nhãn từng section hằng độc lập với p = q²/(q²+(1−q)²) = 0.5, GIỮ nguyên section không-hằng và outcome focal; p-value Monte Carlo ≥ 2000 draws — tái dụng khung _redraw_matrix/_p_from_stats trong estimators.py. Stack section xuyên ~30 phiên (session-stratified). (4) Khác biệt giả định so với RI chính hiện tại: RI chính test sharp null 'không hiệu ứng gì hết' — vẫn EXACT kể cả có carryover; nhưng Fisher CI của ta impute theo mô hình hiệu-ứng-hằng-trong-khối, thứ này SAI khi carryover ≠ 0. CRT test H0^tot (hiệu ứng đường-gán-hằng — đúng estimand 'ghim luôn vs không ghim') hợp lệ mẫu hữu hạn dưới carryover bậc m — cái RI chính không cho. (5) Giao thức đọc khi mâu thuẫn (viết vào prereg): RI chính reject, CRT không → chạy m̂; nếu m̂≥1 kết luận theo CRT (thận trọng, nghi Fisher CI nhiễm carryover), nếu m̂=0 quy cho CRT mất power (chỉ giữ ~50% section, MDE ×~1.4) và giữ RI chính; CRT reject, RI chính không → báo cáo là evidence yếu, không claim.",
+    "source_papers": [
+     "arXiv:2602.23257 (Liu–Zhong, Lemma 3.1, Alg 1-3, Prop 5.1)"
+    ],
+    "integration_point": "d:\\AISC2026\\livelift\\src\\livelift\\analysis\\crt.py mới (pool_sections, select_constant, crt_test) gọi lại _p_from_stats của estimators.py; nối vào analyze_outer như cột sensitivity; DesignParams từng phiên đã lưu đủ để redraw",
+    "validation_plan": "Theo HARNESS.md: (i) A/A 200 reps FPR ≤ 5.5% với carryover_halflife_s = 0 VÀ = 120s (điểm mấu chốt: CRT phải giữ size khi có carryover, RI-Fisher-CI thì không — đo cả hai để có bảng đối chứng); (ii) power curve CRT vs RI chính trên lưới tác động 10–30%; (iii) kiểm chứng E[số section hằng] ≈ 4.5/phiên khớp π_2(0.5)=0.5",
+    "expected_gain": "Tuyên bố phương pháp mạnh hơn hẳn cho bài báo: 'kết quả chính sống sót dưới kiểm định hợp lệ mẫu hữu hạn cho phép carryover bậc 1' — đúng chỗ reviewer AISC sẽ hỏi; chi phí đo được: giữ 50% section (π_r(q)=q^r+(1−q)^r), MDE sensitivity ×~1.4 so với primary — chấp nhận được cho vai sensitivity; đồng thời có m̂ formal (FWER-controlled) thay cho phán đoán carryover",
+    "effort": "tuần",
+    "when": "trước khóa prereg"
+   },
+   {
+    "title": "Gate phát hiện carryover kiểu Hausman-RI (so sánh estimator m=0 vs m=1) trong trang báo cáo",
+    "method_sketch": "(1) τ̂₀ = estimator chính hiện tại (mọi khối, giả định không carryover). (2) τ̂₁ = HT kiểu P&G chỉ dùng khối có cặp (w_{b−1},w_b) ∈ {(1,1),(0,0)}: τ̂₁ = Σ_b y_b·[1{(1,1)}/P̂(1,1) − 1{(0,0)}/P̂(0,0)] / Σ_b [...], với P̂ tính bằng redraw Monte-Carlo qua đúng hàm gán production (rerandomization làm propensity cặp ≠ 0.25 lý thuyết — phải ước bằng redraw, KHÔNG dùng công thức đóng). (3) Statistic D = τ̂₀ − τ̂₁; null distribution: redraw đường gán dưới sharp null (outcome giữ nguyên), tính D^(j), p_D = tỷ lệ |D^(j)| ≥ |D|. Reject ⇒ carryover đang làm lệch τ̂₀. (4) Nối vào trang báo cáo 5 trạng thái đã kế hoạch: thêm cờ 'carryover-suspect' — khi đỏ, kết quả chính hiển thị kèm cảnh báo và τ̂₁/CRT được nêu làm số tham chiếu; đây là bản RI-hóa của test Missault–Masoero (so sánh estimator khác giả định lag, khác biệt có ý nghĩa ⇒ bias).",
+    "source_papers": [
+     "Missault & Masoero, Carryover detection in switchback experimentation, NeurIPS 2025 WS Uncovering Causality (Amazon Science)",
+     "HBS WP 26-012 (Ni–Kalfountzou–Bojinov, HT cặp-liền-kề + variance bảo thủ eq.14)",
+     "arXiv:2501.14602 (Yu–Ma–Liu, robustness khi bậc m sai)"
+    ],
+    "integration_point": "d:\\AISC2026\\livelift\\src\\livelift\\analysis\\estimators.py thêm ht_lag1() và carryover_gate(); hiển thị qua api/routes/reports.py (trang 5 trạng thái); chạy tự động trong analyze_outer",
+    "validation_plan": "Sim: (i) size — halflife=0, 200 reps, tỷ lệ gate đỏ ≤ 5.5%; (ii) power curve theo halflife ∈ {30,60,120,300}s và theo số phiên {10,18,31}; (iii) kiểm tra τ̂₁ bias < 10% tác động thật khi halflife ≤ 1 khối (gate ước lượng viên HARNESS); báo cáo trung thực nếu power thấp ở 18 phiên — gate vẫn có giá trị như safeguard một phía",
+    "expected_gain": "Safeguard tự động chống kết luận sai do carryover chưa xử lý (đúng chức năng paper Amazon mô tả — 'practical safeguard against erroneous conclusions'); rẻ vì tái dụng toàn bộ redraw machinery; cho bài báo thêm một chẩn đoán formal chạy trên MỌI phiên phân tích thay vì chỉ một lần tuần 3; kỳ vọng thực tế: phát hiện được halflife ≥ 1 phút ở 25–31 phiên (phải xác nhận bằng sim, chưa có số công bố từ paper gốc)",
+    "effort": "ngày",
+    "when": "chuỗi khẳng định"
+   },
+   {
+    "title": "Rerandomization tiên lượng kiểu SRSB/P&G cho đợt thí nghiệm mới ở chung kết",
+    "method_sketch": "(1) Biến tiên lượng KHẢ THI với dữ liệu ta có, xây per-block: X_b = [viewer_forecast_b (trung bình trượt viewers cùng phase từ 3 phiên gần nhất — dữ liệu ingest YouTube/Facebook có sẵn), ctr_hist_phase (CTR lịch sử của phase early/mid/late), b (trend)]; biến thể sequential trong phiên: H_b = [y_{b−1} = clicks/exposure khối trước, viewers đầu khối b, chat_rate khối b−1] — chỉ dùng quá khứ, đúng khuôn SRSB H_{i,t}=f(X_{1:t},Y_{1:t−1}). (2) Tại mỗi biên khối, draw w_b ~ Bernoulli(0.5) (GIỮ marginal 0.5 để propensity sạch), tính imbalance tích lũy δ = Σ_{b'≤b}(2w_{b'}−1)X_{b'}, M = δ'Σ̂⁻¹δ với Σ̂ từ pilot; nếu M > a = χ²_K(0.05) redraw, tối đa n=50 lần rồi lấy min-M (SRSB Alg 1); giữ nguyên arm-balance constraint hiện có. (3) Log seed + mọi giá trị X/H đã dùng vào DesignParams để RI redraw tái tạo ĐÚNG cơ chế: dưới sharp null outcome cố định nên H path tái dựng được — chính là Algorithm 2 của SRSB, và randomization_test của ta đã redraw bằng hàm gán production nên inference đi kèm gần như miễn phí. (4) Fisher CI giữ nguyên khung hiện tại; thêm sanity check asymptotic theo martingale CLT (SRSB Thm 1) làm cột phụ.",
+    "source_papers": [
+     "arXiv:2604.02489 (SRSB, Alg 1-2, hệ số 1−(1−v)R²)",
+     "HBS WP 26-012 (P&G — path-level rerandomization 1 đơn vị, robust với threshold/covariates, Alg 1)"
+    ],
+    "integration_point": "d:\\AISC2026\\livelift\\src\\livelift\\core\\assigner\\outer.py — mở rộng acceptance rule trong draw_assignments (hiện chỉ arm-balance) + DesignParams thêm trường prognostic_snapshot; sim/simulator.py để calibrate Σ̂ và R²; estimators.py không đổi",
+    "validation_plan": "Bắt buộc qua gate trước khi vào production: (i) A/A 200 reps FPR/coverage với cơ chế gán MỚI (điểm rủi ro chính: redraw phải tái tạo đúng acceptance — nếu lệch, FPR vỡ ngay, gate sẽ bắt); (ii) MDE head-to-head thiết kế cũ vs mới trên sim hiệu chỉnh KuaiLive, sweep R² ∈ {0.1,0.2,0.35}; (iii) sweep ngưỡng a ∈ {χ²(0.01), χ²(0.05), χ²(0.2)} kiểm chứng phát hiện 'insensitive to threshold' của P&G trên setting của ta",
+    "expected_gain": "SRSB báo cáo giảm RMSE tới ~40% khi autocorrelation cao, theo hệ số 1−(1−v_{d,c})R²; ước thận trọng cho ta: nếu H dự báo y_b với R²≈0.2–0.35 (đo được từ pilot bằng within_session_cv + ACF) → giảm phương sai ~15–30% → MDE giảm ~8–16% — đáng kể khi chỉ có 18–31 phiên; P&G đã chạy production 70 thí nghiệm từ 01/2025 → câu chuyện 'phương pháp đã kiểm chứng công nghiệp' mạnh cho vòng chung kết",
+    "effort": "tuần",
+    "when": "chung kết"
+   },
+   {
+    "title": "Ràng buộc cân bằng transition (trả lời blocked-by-previous-treatment cho 1 stream)",
+    "method_sketch": "Kết luận từ văn liệu: blocked-SRSB đúng nghĩa (Alg 3 — chia đơn vị theo W_{t−1}, N/4 mỗi nhóm) KHÔNG áp dụng được vì ta có 1 stream/kỳ, không có N đơn vị song song. Dạng khả thi và rẻ: thêm ràng buộc đếm transition vào acceptance rule của draw_assignments: (i) số cặp khối liền kề (1,1) ≥ k_min VÀ (0,0) ≥ k_min (k_min=3 với 18 khối đo), (ii) |#(1,1) − #(0,0)| ≤ 1. Ràng buộc đối xứng 0↔1 nên marginal propensity mỗi khối vẫn 0.5; RI redraw dùng hàm production nên inference tự đúng. Mục đích: bảo đảm MỌI phiên có đủ dữ liệu focal cho τ̂₁ (đề xuất 3) và CRT (đề xuất 2) — với Bernoulli thuần, #(1,1) có mean ≈ 4.25, sd ≈ 1.5, xác suất phiên 'degenerate' (< 2 cặp một loại) không nhỏ, và các estimator robust-carryover sập đúng ở phiên đó.",
+    "source_papers": [
+     "arXiv:2604.02489 (SRSB blocked variant — lý do KHÔNG áp dụng trực tiếp)",
+     "HBS WP 26-012 (estimator HT cặp-liền-kề cần cặp (1,1)/(0,0))",
+     "arXiv:2602.23257 (Liu–Zhong — power ∝ √J_tot số section hằng)"
+    ],
+    "integration_point": "d:\\AISC2026\\livelift\\src\\livelift\\core\\assigner\\outer.py — thêm điều kiện vào vòng rerandomization trong draw_assignments (~15 dòng); constraint_met của Schedule mở rộng tương ứng",
+    "validation_plan": "Sim: (i) phân phối #cặp trước/sau ràng buộc (xác nhận loại bỏ đuôi degenerate, tỷ lệ redraw thêm chấp nhận được < 5 lần/phiên); (ii) A/A FPR + coverage với cơ chế mới (gate chuẩn); (iii) variance của τ̂₁ và số section hằng CRT trước/sau — kỳ vọng ổn định hóa J từ ngẫu nhiên thành ≥ 2·k_min",
+    "expected_gain": "Không tăng power của kiểm định CHÍNH (vẫn dùng mọi khối) nhưng cắt phương sai giữa-phiên của các estimator sensitivity: cố định J_pairs ≥ 6 thay vì ngẫu nhiên (var(τ̂₁) ∝ 1/J_pairs) — ước giảm 10–20% variance của τ̂₁ và loại hẳn phiên không phân tích được (số chính xác đo trên sim); chi phí gần bằng 0, một ràng buộc acceptance",
+    "effort": "ngày",
+    "when": "trước khóa prereg"
+   }
+  ],
+  "open_questions": [
+   "Toàn văn Missault–Masoero (NeurIPS 2025 WS) nằm sau cổng verify OpenReview — cần lấy PDF để đối chiếu statistic/ngưỡng gốc trước khi chốt bản RI-hóa của ta; nếu không lấy được, size/power phải tự chuẩn hóa hoàn toàn bằng harness.",
+   "Với khán giả 5–15 người tự chạy, impulse response phút-mức có thể quá nhiễu: cần sim power study xác định số phiên pilot tối thiểu để t̂_mix có CI nửa-bề-rộng ≤ 2.5 phút — nếu > 10 phiên thì quy tắc tuần 3 phải hạ xuống chỉ dùng m̂ (thô hơn nhưng khả thi).",
+   "Weak-null version của Liu–Zhong (τ_focal) yêu cầu thiết kế 'session-fixed' — cần đọc kỹ Section tương ứng để xác định rerandomization arm-balance + jitter của ta có thỏa không, hay chỉ dùng được sharp-null variant.",
+   "Rerandomization tiên lượng ở tầng ngoài (đề xuất 4) có làm lệch đánh giá OBP counterfactual replay của tầng trong Gamma-Poisson không — propensity tầng trong được log theo giả định gán tầng ngoài độc lập outcome quá khứ; cần kiểm tra tương tác hai tầng trên sim trước khi bật ở chung kết.",
+   "Khung non-compliance-as-fixed-event của P&G (pause thí nghiệm, eq. phần 4) có đáng port cho khối rớt-stream/lỗi kỹ thuật của ta không, hay 4 lỗ sim đã kế hoạch (analyzed_mask, non-compliance) đủ phủ — quyết định sau khi có số phiên rớt thực tế từ pilot."
+  ]
+ },
+ {
+  "area": "Mô phỏng & hiệu chỉnh",
+  "reading_notes": [
+   {
+    "paper": "KuaiLive: A Real-time Interactive Dataset for Live Streaming Recommendation — arXiv:2508.05633 (2025)",
+    "key_result": "23.772 user, 452.621 streamer, 11,6M phòng live, 5,36M tương tác/21 ngày (click 4,91M, comment 196k, like 179k, gift 72,6k — gift chỉ = 1,5% click). Phân bố hoạt động user cực lệch: 43,8% user <50 tương tác, 12,6% siêu tích cực; 27,1% user quay lại cùng streamer với chu kỳ NGÀY; đỉnh tương tác 18h–24h. Schema có timestamp vào/ra phòng chính xác + 20 đặc trưng user.",
+    "assumptions": "\"Click\" = VÀO PHÒNG live, không phải nhấp sản phẩm ghim; nền tảng Kuaishou lướt-feed (81% lượt vào <1 phút theo số đo trong repo docs/benchmarks/kuailive-calibration.md); không có biến can thiệp.",
+    "transfers": "(1) Phân bố số-click-trên-mỗi-user (lệch mạnh) → hiệu chỉnh phương sai frailty Gamma cho knob ICC outcome: fit negative binomial trên click count/user với offset thời gian xem trong analysis/calibration/kuailive_calibration.py, cv² frailty = 1/k_NB. (2) Điều biến arrival theo giờ trong ngày. (3) Quantile dwell đã đo (p25=0.03, median=0.09, mean=2.04, p90=3.41 phút; nhóm gắn bó 19%: median 3.6, mean 10.0) → tham số mixture đuôi nặng.",
+    "breaks": "Mức tuyệt đối (400M DAU, khán giả nghìn người) vô nghĩa với 5–15 viewer của ta — chỉ dùng HÌNH DẠNG phân phối; click-ghim và tỷ lệ mua không hiệu chỉnh được từ đây (đã ghi thẳng trong doc calibration của repo)."
+   },
+   {
+    "paper": "KuaiLive-M3: Multimodal Live Streaming Dataset — arXiv:2607.24862 (2026)",
+    "key_result": "21.938 user, 35M tương tác live + 111M short-video, ~88M biểu diễn đa phương thức theo timestamp, và 25.403 phiếu khảo sát SATISFACTION tường minh — cầu nối tín hiệu hành vi ngầm ↔ hài lòng tường minh.",
+    "assumptions": "Vẫn Kuaishou; embedding mã hóa thay vì nội dung thô; satisfaction hỏi theo phiếu, không theo từng khối thời gian trong phiên.",
+    "transfers": "Ý tưởng dùng được: neo 'chất lượng engagement' bằng tín hiệu tường minh — gợi ý cho LiveLift thêm 1 câu hỏi micro-survey cuối phiên pilot để neo lại tương quan click-ghim ↔ ý định mua thay vì suy diễn thuần từ hành vi.",
+    "breaks": "Không có funnel mua hàng; độ phân giải satisfaction quá thô cho khối 5 phút; không giúp gì trực tiếp cho 5 knob sim — giá trị chủ yếu là phương pháp luận."
+   },
+   {
+    "paper": "LiveRec: Recommendation on Live-Streaming Platforms: Dynamic Availability and Repeat Consumption — Rappaz, McAuley, Aberer, RecSys 2021 (DOI 10.1145/3460231.3474267; dataset Twitch 475M, repo JRappaz/liverec) — đã đọc full PDF",
+    "key_result": "Bản full: 15,5M user, 465k streamer, 474,7M tương tác, 124M giờ xem, 43 ngày, snapshot 10 phút (6.148 vòng). Lặp lại tiêu thụ chiếm >50% (65% cặp user-item ở test đã thấy ở train); khoảng cách giữa hai lần xem cùng streamer có đỉnh chu kỳ NGÀY và TUẦN rõ rệt (Fig 5); phổ biến cực lệch (top-5 streamer ~4% tổng tương tác); phần Discussion ghi nhận 'bursts of activity around specific channels' và sụt khán giả cuối phiên.",
+    "assumptions": "Đơn vị thời gian 10 phút — thô hơn khối 5 phút của ta; Twitch gaming, xem dài, không thương mại; 'interaction' = có mặt trong chat của phòng.",
+    "transfers": "(1) Cấu trúc khán giả gồm pool NGƯỜI QUAY LẠI có chu kỳ + vãng lai — sim hiện coi mọi arrival là người mới, nên thiếu tương quan khán giả giữa các phiên của cùng kênh (ảnh hưởng phân tích gộp 18–31 phiên); (2) bằng chứng burst quanh kênh → knob Hawkes; (3) sụt cuối phiên khớp _phase_curve hiện có.",
+    "breaks": "Không đo được dwell dưới 10 phút → vô dụng cho mixture dwell trong-khối; quy mô kênh lớn; muốn dùng số chu kỳ quay lại phải tự tải 475M bản ghi — chi phí lớn so với lợi ích trước vòng 1."
+   },
+   {
+    "paper": "YTLive: A Dataset of Real-World YouTube Live Streaming Sessions — arXiv:2510.24769 (2025)",
+    "key_result": "507.290 bản ghi, 12.156 phiên YouTube Live (5–6/2024): durations.csv (start/end giây) + viewers.csv (concurrent viewers mỗi 5 phút). Median concurrent ~1.500; biến thiên ngắn hạn: thay đổi median giữa hai mốc 5 phút = 60–90 viewer (~4–6% mức nền), Q3 của cú nhảy lớn nhất <300 (~20%); max/mean Q3 <2,0; phiên NGẮN (<120') đông và ỔN ĐỊNH hơn phiên dài; đỉnh 17–19h.",
+    "assumptions": "Chỉ có tổng-số-người-xem (không có sự kiện cá nhân, không dwell từng người); kênh được thu thập là kênh có tồn tại số liệu công khai → thiên về kênh lớn.",
+    "transfers": "ĐÂY là nguồn chuẩn để đặt MỤC TIÊU MOMENT cho knob shock thang phút trên đúng nền tảng ta ingest (YouTube): sim sau khi thêm Hawkes/share-shock phải tái tạo (dưới dạng tỷ lệ so với mức nền) |Δviewers 5ph|/mean ≈ 4–6% median, cú nhảy Q3 ≈ 20%, max/mean <2. Cũng xác nhận phiên 60–90' của ta thuộc nhóm 'ổn định nhất' — điểm cộng cho thiết kế.",
+    "breaks": "Mức tuyệt đối 1.500 viewer ≫ 5–15 của ta → chỉ match moment TƯƠNG ĐỐI; lấy mẫu 5 phút = đúng bằng độ dài khối nên không tách được dao động trong-khối — phải bổ sung bằng trace viewer_count 30s của chính pilot."
+   },
+   {
+    "paper": "LSEC: Live-Streaming E-Commerce (GNN đa nhiệm) — KDD 2021 ADS, arXiv:2106.03415",
+    "key_result": "LSEC-Large: 202.850 user, 7.395 streamer, 109.502 sản phẩm, 3,06M giao dịch MUA, 5,44M follow, 1,95M quan hệ bán (12/2020–1/2021); mật độ mua 0,0138%. Số then chốt: user mua sản phẩm do streamer mình FOLLOW quảng bá với xác suất GẤP 4,9 LẦN.",
+    "assumptions": "Chỉ có 3 quan hệ NHỊ PHÂN buy/follow/sell — KHÔNG có sự kiện click, không có timestamp trong thống kê công bố.",
+    "transfers": "(1) Hệ số 4,9x follow→buy = knob 'tỷ lệ khán giả trung thành' trong kịch bản funnel (trộn hai nhóm follower/vãng lai với propensity mua chênh 4,9 lần); (2) độ thưa của mua (0,014%) → kỳ vọng đúng đắn rằng ĐƠN HÀNG không thể là primary metric ở cỡ mẫu của ta.",
+    "breaks": "GÃY QUAN TRỌNG: vì không có click, mọi 'tỷ lệ click→mua lấy từ LSEC' đều là NGỤY TẠO — mapping này phải cấm tường minh trong doc calibration. LSEC chỉ hợp lệ cho: mức thưa của mua + multiplier follow."
+   },
+   {
+    "paper": "Taobao UserBehavior — Alibaba Tianchi dataset #649 (2017, công bố 2018)",
+    "key_result": "987.994 user, 4,16M item, 100,15M sự kiện pv/cart/fav/buy trong 9 ngày (25/11–3/12/2017). Funnel đo được từ các phân tích công khai: pv→(cart|fav) ≈ 9,33%, (cart|fav)→buy ≈ 24,33%; buy/pv cấp sự kiện ≈ 2,2% (buy ~2% tổng sự kiện, pv ~89,6%).",
+    "assumptions": "E-commerce DUYỆT-TÌM (search/browse), không phải livestream; 2017; 'pv' = xem trang chi tiết sản phẩm — gần nghĩa với 'click sản phẩm ghim' hơn mọi nguồn khác ta có.",
+    "transfers": "Cấu trúc funnel HAI TẦNG click→intent→buy với (q1≈9,3%, q2≈24,3%) làm PRIOR CÓ DÁN NHÃN cho tầng purchase của sim; đủ để sizing poisson_floor cho outcome đơn-hàng và để chứng minh định lượng rằng purchase-MDE ở 5–15 viewer là bất khả thi.",
+    "breaks": "Livestream flash-sale có tính khan hiếm/thúc giục mà browse 2017 không có — q2 thật có thể cao hơn nhiều; vì vậy chỉ dùng làm KỊCH BẢN dán nhãn 'e-commerce browse prior', quét dải q2 ∈ [0.15, 0.5], tuyệt đối không trình bày như số liệu livestream."
+   },
+   {
+    "paper": "Understanding Web Browsing Behaviors through Weibull Analysis of Dwell Time — Liu, White, Dumais, SIGIR 2010",
+    "key_result": "Dwell time khớp Weibull tốt hơn hẳn exponential; hiện tượng 'negative aging' phổ biến (shape k<1: hazard rời đi GIẢM dần theo thời gian đã ở lại) → mô hình hai pha 'screen-and-glean': sàng lọc nhanh vài giây, qua được thì ở lại lâu.",
+    "assumptions": "Web page 2010, không phải video live; tham số cụ thể (k, λ) không chuyển giao được — chỉ chuyển giao DẠNG HÀM và cơ chế hai pha.",
+    "transfers": "Đây là căn cứ văn liệu cho knob dwell mixture: exponential hiện tại (k=1, hazard hằng) sai về cơ chế; KuaiLive xác nhận cùng cấu trúc hai pha trên livestream (81% bounce <1', mean/median toàn thể = 22x). Mixture bounce+engaged với thành phần engaged lognormal/Weibull k<1 là mô hình đúng.",
+    "breaks": "Không có số livestream; σ, μ của từng thành phần phải fit từ KuaiLive (đã có quantile trong repo) rồi ĐO LẠI trên pilot Facebook/YouTube tuần 3 vì tỷ lệ bounce phụ thuộc cách khán giả đến phiên (chủ động mở ≠ lướt feed)."
+   },
+   {
+    "paper": "Simulation-Based Calibration Checking for Bayesian Computation: The Choice of Test Quantities Shapes Sensitivity — Modrák, Moon, Kim, Bürkner, Huurre, Faltejsková, Gelman, Vehtari — arXiv:2211.02383, Bayesian Analysis 2023 (kế thừa Talts et al. arXiv:1804.06788)",
+    "key_result": "SBC: sinh tham số từ prior → sinh dữ liệu → tính rank của tham số thật trong posterior; đúng thì rank ~ đều. Đóng góp mới: SBC chuẩn KHÔNG phát hiện được cả lớp lỗi (vd posterior = prior); thêm test quantity PHỤ THUỘC DỮ LIỆU (đặc biệt joint log-likelihood) mở rộng độ nhạy; khuyến nghị thực hành: ECDF-difference plot với dải đồng thời + thống kê gamma thay cho nhìn histogram bằng mắt.",
+    "assumptions": "Khung Bayesian; nhưng phần kiểm tra uniformity áp thẳng được cho tần suất: dưới H0, p-value của randomization test ~ U(0,1) chính xác — cùng bài toán kiểm tra rank-uniformity.",
+    "transfers": "Khuôn mẫu cho 'sim validation report' chuẩn: thay vì MỘT con số FPR 4.5%, vẽ ECDF-diff của phân phối p-value A/A trên TỪNG Ô của lưới thế-giới × cỡ-mẫu, kèm dải 95% đồng thời + gamma statistic; bài học 'chọn test quantity quyết định độ nhạy' → thêm test quantity phụ (studentized stat, số khối measurable) chứ không chỉ p cuối.",
+    "breaks": "Số simulation SBC khuyến nghị (hàng trăm–nghìn) × lưới nhiều ô = tốn CPU; phải chọn lưới thưa có chủ đích (~20 ô × 200 reps là chạy được qua đêm trên CPU theo tốc độ gate Monte-Carlo hiện tại)."
+   },
+   {
+    "paper": "Social feedback amplifies emotional language in online video live chats — arXiv:2408.05700 (2024)",
+    "key_result": "Chat của video live có tính TỰ KÍCH THÍCH (self-exciting): sự kiện trước làm tăng cường độ sự kiện sau, mô hình hóa tốt bằng Hawkes process; burst chat là hiện tượng có cấu trúc, không phải Poisson thuần.",
+    "assumptions": "Đối tượng là TIN NHẮN CHAT, không phải lượt VÀO PHÒNG; tham số kích thích của chat không dùng cho arrival được.",
+    "transfers": "Căn cứ 2024 cho cấu trúc Hawkes trong sim: (1) comment/like nên sinh từ Hawkes thay vì Poisson độc lập (ảnh hưởng covariate radar + kiểm tra SRM); (2) cùng họ mô hình cho arrival burst khi share/raid — branching ratio fit từ trace pilot của chính nhóm.",
+    "breaks": "Không có số liệu arrival; với khán giả 5–15 người, Hawkes arrival gần như thoái hóa về vài cú sốc rời rạc — nên mô hình 'share-shock' (điểm nhảy hiếm + dư chấn ngắn) thay vì Hawkes đầy đủ ở scale nhỏ."
+   }
+  ],
+  "proposals": [
+   {
+    "title": "Knob 1 — Dwell mixture đuôi nặng hai pha (bounce/engaged) thay exponential",
+    "method_sketch": "Thay 'stay = Exp(mean 10ph)' trong simulate_session bằng mixture 2 pha theo screen-and-glean: với xác suất π_b viewer là scroller: T ~ LogNormal(μ_b, σ_b); ngược lại engaged: T ~ LogNormal(μ_e, σ_e). Hiệu chỉnh từ quantile KuaiLive đã đo trong repo: π_b=0.81 (kịch bản lướt-feed); engaged: μ_e=ln(216s)≈5.37, σ_e=sqrt(2·ln(mean/median))=sqrt(2·ln(10/3.6))≈1.43 (kiểm tra: p90 dự đoán 22.5ph vs đo 29.1ph — hơi nhẹ đuôi, script calibration chọn giữa LogNormal và Weibull k<1 bằng QQ trên quantile); bounce: quantile-match μ_b≈ln(4s), σ_b≈1.0 từ nhóm <1ph. Vì khán giả Facebook/YouTube của ta chủ động mở phiên, π_b là KNOB quét dải {0.2, 0.5, 0.8} và dán nhãn kịch bản. Kỷ luật CRN: mỗi arrival rút MỘT uniform u từ world_rng rồi lấy T = F^{-1}(u) để all-ON/all-OFF chia sẻ đúng dwell draw. SimParams thêm: dwell_bounce_share, dwell_bounce_lognorm, dwell_engaged_lognorm; giữ đường cũ khi dwell_bounce_share=None để test hồi quy không đổi.",
+    "source_papers": [
+     "arXiv:2508.05633 (KuaiLive)",
+     "Liu, White, Dumais SIGIR 2010 (Weibull dwell, negative aging)",
+     "arXiv:2510.24769 (YTLive)"
+    ],
+    "integration_point": "src/livelift/sim/simulator.py (SimParams + vòng arrival trong simulate_session); analysis/calibration/kuailive_calibration.py (fit tham số, thêm bảng QQ); sim/cli.py thêm --dwell-mixture",
+    "validation_plan": "Chạy lại toàn bộ gate HARNESS E3-06/07 (bias<10%, coverage [90,98]) và A/A 200 reps trên thế giới mixture vs exponential; đo lại bảng carryover-halflife (0/120/180s) trong validate.py — kỳ vọng thế giới mixture KHÓ hơn (viewer engaged sống qua nhiều khối → thành phần khán giả tương quan giữa khối); cập nhật MDE và within-session CV từ sim mới trước khi chốt prereg.",
+    "expected_gain": "Sửa sai cơ chế bậc nhất: exponential hiện cho 100% viewer mean 10ph trong khi KuaiLive đo mean/median toàn thể = 22x (2.04/0.09ph) — sim đang ĐÁNH GIÁ THẤP nhiễu thành phần khán giả. Bảng carryover trong repo đã cho thấy chỉ đổi mean stay 6→10ph làm coverage tại halflife 180s rơi 76%→60%; knob này cho con số trung thực trước khóa prereg thay vì phát hiện sau.",
+    "effort": "ngày",
+    "when": "trước khóa prereg"
+   },
+   {
+    "title": "Knob 2 — ICC outcome thật: frailty Gamma người-xem + shock click cấp phiên (kèm định danh viewer)",
+    "method_sketch": "Hiện session_shock chỉ vào arrivals → ICC outcome ≈ 0, mọi gate đang chạy trên thế giới dễ. Sửa: (1) refactor 'stays: list[float]' thành list[Viewer(stay_còn_lại, frailty u_i)]; u_i ~ Gamma(shape=1/cv², scale=cv²) (mean 1); p_click của viewer i = p_base·u_i·noise·lift. Hiệu chỉnh cv²: fit negative binomial trên số click/user của KuaiLive với offset log(thời gian xem tích lũy) — cv² = 1/k_NB (thêm vào kuailive_calibration.py, số liệu user-level đã có trong bộ). (2) Shock click cấp phiên: nhân p_click với exp(N(0, σ_c²)) rút một lần mỗi phiên từ world_rng (TÁCH với shock arrival) — đây là nguồn ICC between-session. (3) Đo ICC thực nghiệm trong sim bằng ANOVA một chiều trên block-y của A/A rồi chọn σ_c chạm lưới ICC ∈ {0, 0.02, 0.05, 0.10}. Lift can thiệp vẫn nhân sau cùng nên CRN không đổi.",
+    "source_papers": [
+     "arXiv:2508.05633 (KuaiLive — phân bố hoạt động user để fit frailty)"
+    ],
+    "integration_point": "src/livelift/sim/simulator.py (cấu trúc Viewer + SimParams.viewer_frailty_cv, click_shock_sd); analysis/calibration/kuailive_calibration.py (fit NB); sim/validate.py thêm trục lưới ICC",
+    "validation_plan": "Lưới {ICC} × {phiên 18, 31} × {viewer 5, 15, 30}: đo FPR A/A và coverage của analyze_outer hiện tại; đây chính là bằng chứng định lượng cho hai việc đã lên kế hoạch (RI statistic khử-FE-phiên, wild cluster bootstrap) — knob này cho con số 'nếu bỏ qua thì FPR bao nhiêu' để đưa vào phụ lục prereg.",
+    "expected_gain": "FPR A/A 4.5% hiện tại là trên thế giới ICC≈0 — con số tự khen. Với ~30 cụm phiên và ICC outcome 0.05, kỳ vọng FPR danh nghĩa 5% phồng lên hai chữ số nếu statistic không khử phiên (số chính xác do chính gate đo); không có knob này thì mọi so sánh RI-statistic mới/cũ đều thiếu thế giới để phân biệt chúng.",
+    "effort": "tuần",
+    "when": "trước khóa prereg"
+   },
+   {
+    "title": "Knob 3 — Kênh can-thiệp→khán-giả (mẫu số nội sinh của y = clicks/1000 viewer-giây)",
+    "method_sketch": "Outcome production là tỷ lệ clicks/exposure (features.py); nếu ghim ảnh hưởng VIỆC Ở LẠI thì mẫu số nội sinh — sim hiện không có kênh này nên gate không thể phát hiện thiên lệch tỷ lệ. Thêm: hazard rời đi h_i(t) = h_0·exp(γ_d·z(t)) và arrival λ(t) *= (1+γ_a·z(t)). Cài đặt giữ CRN: mỗi viewer rút một E ~ Exp(1) lúc đến (world_rng); rời đi khi tích lũy Λ(t)=Σ_ticks h_0·e^{γ_d z}·tick vượt E — một draw, mọi arm so sánh được. true_effect phải ĐỊNH NGHĨA LẠI tường minh: ground truth cho estimand tỷ-lệ-khối = hiệu y_ON − y_OFF theo CRN như hiện tại (nay hai arm có exposure khác nhau), đồng thời xuất thêm ground truth cho tổng-clicks và viewer-giây để tách 'hiệu ứng lên tử số' khỏi 'hiệu ứng lên mẫu số'. Quét γ_d, γ_a ∈ {−0.1, 0, +0.1}.",
+    "source_papers": [
+     "arXiv:2510.24769 (YTLive — biến động viewer làm mẫu số dao động)",
+     "arXiv:2508.05633 (KuaiLive — dwell là hành vi phản ứng nội dung)"
+    ],
+    "integration_point": "src/livelift/sim/simulator.py (hazard/arrival phụ thuộc z + true_effect đa-estimand); src/livelift/sim/validate.py (bias theo từng estimand)",
+    "validation_plan": "Gate mới: với γ_d=±0.1, đo relative bias của estimator tỷ lệ so với ground-truth tỷ lệ CRN — nếu vượt ngưỡng 10% thì kết luận đưa vào prereg: (a) viewer-giây/khối phải thành SECONDARY OUTCOME tiền đăng ký, (b) diễn giải primary là 'hiệu ứng trên tỷ lệ khối' chứ không phải 'hiệu ứng trên click'. RI sharp-null vẫn hợp lệ (kiểm tra FPR A/A với γ_d≠0, γ_a≠0 nhưng effect=0... lưu ý: γ≠0 CHÍNH LÀ effect lên hành vi — thế giới null thật sự là γ=0 và effect=0; thế giới 'chỉ ảnh hưởng mẫu số' (effect_click=0, γ_d≠0) là thế giới đối kháng đáng giá nhất: đo xem test có bắt nhầm thành 'lift click' không).",
+    "expected_gain": "Đóng đúng lỗ hổng mà không gate nào hiện chạm tới: thiên lệch ước lượng tỷ lệ khi can thiệp đổi mẫu số. Kết quả trực tiếp quyết định một dòng trong prereg (secondary outcome viewer-giây) — giá trị lớn nhất trên mỗi dòng code của cả đợt này vì nó xảy ra TRƯỚC khóa tuần 6.",
+    "effort": "tuần",
+    "when": "trước khóa prereg"
+   },
+   {
+    "title": "Knob 4 — Shock thang phút: share-shock + dư chấn Hawkes ngắn, match moment YTLive",
+    "method_sketch": "Arrival hiện = Poisson(λ base × phase × shock-phiên) — không có biến động thang phút có cấu trúc. Thêm hai tầng: (1) share-shock: quá trình điểm hiếm cường độ ρ (0.5–2/giờ); mỗi cú tiêm M ~ ⌈LogNormal(μ_M, 1)⌉ arrival trải đều 2–5 phút sau đó (mô phỏng share link/notification); (2) dư chấn tự kích thích: λ(t) = λ_base(t)·(1 + Σ_{t_i<t} α·e^{−(t−t_i)/τ}) trên các arrival gần, giữ branching ratio n = α·τ·λ ≤ 0.3 để không nổ. Hiệu chỉnh bằng MOMENT MATCHING tương đối theo YTLive: median(|Δviewers giữa 2 mốc 5ph|)/mean ≈ 4–6%, Q3 cú nhảy lớn nhất ≈ 20% mức nền, max/mean < 2, CV trace ~0.4; ở scale 5–15 viewer thì cùng tỷ lệ (một cú share = +2–4 người). Comment/like cũng chuyển sang cluster (mỗi sự kiện mẹ kéo Poisson(α_c) sự kiện con trong τ_c=30s) theo bằng chứng self-excitation của chat live. Mọi draw từ world_rng để CRN giữ nguyên.",
+    "source_papers": [
+     "arXiv:2510.24769 (YTLive — mục tiêu moment)",
+     "arXiv:2408.05700 (self-excitation trong live chat)",
+     "10.1145/3460231.3474267 (LiveRec — bursts quanh kênh)"
+    ],
+    "integration_point": "src/livelift/sim/simulator.py (thay _poisson arrivals + sinh comment/like); scripts calibration mới analysis/calibration/ytlive_moments.py tải viewers.csv YTLive và in bảng moment đích",
+    "validation_plan": "Hai bước: (i) sim-vs-data: bảng moment YTLive (4 chỉ số trên) nằm trong ±50% đích — in vào validation report; (ii) gate hệ quả: A/A FPR + coverage khi có share-shock rơi TRÙNG ranh giới khối (kịch bản đối kháng: shock tương quan thời gian với chu kỳ 5ph) — đây là thế giới phân biệt RI statistic thường vs khử-FE-phiên + trọng số exposure (việc đã lên kế hoạch, nay có thế giới để chấm điểm).",
+    "expected_gain": "Biến 'shock thang phút' từ mục kế hoạch thành knob có ĐÍCH HIỆU CHỈNH từ 12.156 phiên YouTube thật — đúng nền tảng ingest; cho phép tuyên bố trong paper 'biến động khán giả của sim khớp moment YTLive' thay vì 'chúng tôi thêm nhiễu'.",
+    "effort": "tuần",
+    "when": "trước khóa prereg"
+   },
+   {
+    "title": "Tầng funnel click→đơn có dán nhãn kịch bản (UserBehavior prior × hệ số follow LSEC)",
+    "method_sketch": "Sau mỗi click sim, sinh chuỗi hai tầng: intent ~ Bernoulli(q1), rồi buy ~ Bernoulli(q2) với trễ LogNormal(μ=ln(5ph), σ=1) (đơn có thể rơi sang khối khác — đúng hiện thực attribution). Prior dán nhãn 'e-commerce browse 2017': q1=0.093, q2=0.243 (⇒ click→buy ≈ 2.3%); trộn hai nhóm khán giả: follower (tỷ lệ φ ∈ {0.1, 0.5}) có odds mua ×4.9 (LSEC). MAPPING HỢP LỆ ghi thẳng vào doc: UserBehavior pv≈click-sản-phẩm → dùng cho q1·q2; LSEC KHÔNG có click → chỉ dùng cho multiplier 4.9x và độ thưa; KuaiLive click=vào-phòng → CẤM dùng cho funnel; quét q2 ∈ [0.15, 0.5] làm dải kịch bản vì livestream flash-sale không có trong nguồn nào. Xuất event 'purchase' vào stream sự kiện sim.",
+    "source_papers": [
+     "Tianchi UserBehavior #649",
+     "arXiv:2106.03415 (LSEC KDD21)"
+    ],
+    "integration_point": "src/livelift/sim/simulator.py (tầng purchase sau click); src/livelift/core/features.py (đếm purchases/khối, KHÔNG đưa vào y primary); src/livelift/analysis/power.py (MDE cho outcome đơn hàng qua poisson_floor)",
+    "validation_plan": "poisson_floor + MDE: với 15 viewer, ~90ph, click-rate hiện tại, kỳ vọng ~0.3–0.6 đơn/phiên → in bảng 'MDE đơn hàng theo số phiên' chứng minh định lượng rằng đơn hàng chỉ khả thi ở nhánh đối tác 200–500 khán giả; A/A trên outcome đơn để xác nhận test không phồng FPR với outcome cực thưa (kịch bản poisson_floor reducible_share≈0 đã có sẵn làm đối chứng).",
+    "expected_gain": "Một trang số liệu trung thực trả lời câu ban giám khảo chắc chắn hỏi ('sao không đo đơn hàng?') bằng MDE định lượng thay vì phân trần; đồng thời radar/demo có sự kiện purchase chân thực. Không đụng primary nên không rủi ro prereg.",
+    "effort": "ngày",
+    "when": "chuỗi khẳng định"
+   },
+   {
+    "title": "Sim Validation Report một trang kiểu SBC: ECDF-band p-value trên lưới thế giới đối kháng",
+    "method_sketch": "Chuẩn hóa đầu ra thẩm định thành MỘT trang tự sinh: lưới W = {dwell exp | mixture} × {ICC 0, 0.05, 0.1} × {share-shock on/off} × {γ_d 0, ±0.1} × {viewer 5, 15, 30} × {effect 0, MDE} (chọn ~20 ô có chủ đích, không tích Descartes đầy đủ). Mỗi ô: (1) A/A: thay 'FPR=x%' bằng kiểm tra uniformity của phân phối p-value (dưới H0, p của RI ~ U(0,1) chính xác) với ECDF-difference plot + dải tin cậy đồng thời 95% và gamma statistic theo Modrák — phát hiện lệch dạng (p dồn về 0.3–0.7 chẳng hạn) mà một con số FPR bỏ sót; (2) coverage với khoảng Wilson; (3) relative bias + MC error. Học từ bài học 'test quantity quyết định độ nhạy': thêm 2 test quantity phụ mỗi ô — phân phối studentized stat và số khối measurable/phiên (bắt lỗi analyzed_mask). Ô đỏ = ngoài dải và không có waiver dán nhãn. Report này ĐÓNG BĂNG cùng prereg làm bằng chứng phương pháp.",
+    "source_papers": [
+     "arXiv:2211.02383 (Modrák et al. 2023)",
+     "arXiv:1804.06788 (Talts et al. 2018)"
+    ],
+    "integration_point": "src/livelift/sim/report.py (mới) + sim/cli.py --grid; xuất docs/benchmarks/sim-validation-report.md (+HTML); thêm 1 dòng gate vào HARNESS.md §2 'mọi ô lưới trong dải hoặc có waiver'",
+    "validation_plan": "Tự thẩm định bằng nghịch đảo: tiêm 3 lỗi biết trước (RI không studentize; quên loại khối unmeasurable; SE gộp bỏ cụm phiên) và xác nhận report bắt được cả 3 ở đúng ô kỳ vọng — đây chính là 'SBC cho harness'; đo chi phí CPU (mục tiêu ≤ 1 đêm cho 20 ô × 200 reps × 500 draws, ước từ tốc độ gate Monte-Carlo hiện có).",
+    "expected_gain": "Nâng chuẩn bằng chứng từ 'FPR 4.5% một thế giới' lên 'uniformity p-value đạt dải 95% đồng thời trên 20 thế giới đối kháng' — đúng thông lệ tốt nhất của văn liệu calibration checking; là hiện vật (artifact) mạnh nhất để phản biện vòng chung kết và là khung tái dùng cho mọi phương pháp mới sau này (mỗi phương pháp mới = thêm cột, không thêm quy trình).",
+    "effort": "tuần",
+    "when": "trước khóa prereg"
+   }
+  ],
+  "open_questions": [
+   "π_bounce trên kênh của chính nhóm là bao nhiêu? KuaiLive cho 0.81 nhưng đó là hành vi lướt-feed Kuaishou; khán giả Facebook/YouTube chủ động mở phiên có thể chỉ 0.2–0.4 — cần 2–3 phiên pilot tuần 3 đo trực tiếp (tỷ lệ rời <1 phút) trước khi chốt giá trị mặc định của knob dwell.",
+   "ICC outcome thật của click-ghim không có trong bất kỳ nguồn công khai nào (không dataset nào log click sản phẩm ghim theo khối thời gian) — có nên chạy 2 phiên pilot A/A thật chỉ để ước lượng ICC trước khóa prereg, hay chấp nhận quét dải {0.02, 0.05, 0.1} và ghi rõ trong prereg?",
+   "Khi mẫu số nội sinh (knob 3) cho thấy bias tỷ lệ đáng kể, prereg nên chốt estimand nào làm primary: tỷ-lệ-khối như hiện nay (dễ diễn giải, có thể lệch) hay cặp (tổng click, viewer-giây) phân tích riêng? Quyết định này phải xong TRƯỚC tuần 6 và knob 3 là đầu vào trực tiếp.",
+   "viewers.csv của YTLive lấy mẫu 5 phút — đủ cho moment matching thang 5ph nhưng không xác định được τ dư chấn Hawkes dưới 5 phút; có nên bổ sung mục tiêu moment thang 30s từ trace viewer_count của chính pilot (ingest đã log sẵn) trước khi chốt tham số dư chấn?",
+   "Có đáng tải bản benchmark LiveRec (3M tương tác, 100k user — không cần bản full 475M) để fit chu kỳ quay-lại của khán giả trung thành cho pool returning-viewer giữa các phiên, hay hoãn sau mùa thi vì phân tích gộp 18–31 phiên hiện coi phiên là độc lập?"
+  ]
+ },
+ {
+  "area": "NLP & dataset",
+  "reading_notes": [
+   {
+    "paper": "Pangakis & Wolken, 'Knowledge Distillation in Automated Annotation: Supervised Text Classification with LLM-Generated Training Labels' — ACL 2024 Workshop NLP+CSS (2024.nlpcss-1.9)",
+    "key_result": "Classifier fine-tune trên nhãn do GPT-4 sinh đạt hiệu năng TƯƠNG ĐƯƠNG classifier fine-tune trên nhãn người, trên 14 task phân loại CSS; corpus giữ trong archive có mật khẩu để tránh contamination.",
+    "assumptions": "Task tiếng Anh, guideline rõ ràng lấy từ bài báo gốc; so sánh ở mức downstream classifier (không phải từng nhãn); có sẵn nhãn người làm chuẩn đánh giá.",
+    "transfers": "Trực tiếp hợp thức hóa chiến lược 'distill nhãn LLM → model nhỏ' của LiveLift (LLM consensus → ViSoBERT). Bài học then chốt: đánh giá ở downstream (macro-F1 của model distill trên gold người) chứ không chỉ agreement rate — cần gold set người gán độc lập.",
+    "breaks": "Không có task tiếng Việt/teencode; họ dùng 1 LLM (GPT-4) chứ không phải consensus 2 model; không nói gì về stratified sampling khi dữ liệu đến theo phiên như LiveLift."
+   },
+   {
+    "paper": "ViGoEmotions: Benchmark Fine-grained Emotion Detection tiếng Việt — arXiv:2602.08371, EACL 2026",
+    "key_result": "20.664 bình luận, 27 lớp cảm xúc. Quy trình: 3 LLM pre-label (Gemini 2.0 Flash, Llama-3-70B, Gemma 3; temp 0.5, top_p 0.9) → 3 người duyệt độc lập, nhãn cuối = giao của quyết định + majority khi bất đồng. Pilot 140 mẫu để sửa guideline. Cohen's kappa trung bình cặp 0.34–0.71 theo lớp. LLM khớp chính xác với người chỉ 40,82%. ViSoBERT tốt nhất: Macro-F1 61,50%.",
+    "assumptions": "Multi-label 27 lớp (khó hơn nhiều 6 lớp intent); annotator là sinh viên bản ngữ; kappa tính trung bình cặp thay vì Krippendorff alpha.",
+    "transfers": "Đúng miền ngôn ngữ LiveLift. Chuyển giao: (1) pilot ~140 mẫu trước khi khóa guideline; (2) báo cáo agreement THEO LỚP chứ không chỉ tổng; (3) con số 40,82% là bằng chứng phải giữ người duyệt trong vòng lặp; (4) ViSoBERT thắng 8 model trên text mạng xã hội Việt → củng cố lựa chọn 5CD-AI/visobert.",
+    "breaks": "40,82% là trên 27 lớp multi-label — với 6 lớp intent đơn nhãn, đồng thuận LLM sẽ cao hơn nhiều (kỳ vọng 80–90%); không nên trích số này để dọa chính mình, chỉ dùng làm lý do audit."
+   },
+   {
+    "paper": "SetFit: Efficient Few-Shot Learning Without Prompts — Tunstall et al., arXiv:2209.11055",
+    "key_result": "Contrastive fine-tune sentence-transformer + head. Với 8 mẫu/lớp trên Customer Reviews: 88,5% vs 58,8% của head fine-tune thường; trung bình 6 dataset N=8: hơn ADAPET 4,0 điểm, ngang T-Few 3B dù nhỏ hơn 27 lần (MPNet 110M); train ~30 giây.",
+    "assumptions": "Cần sentence-transformer đa ngữ chất lượng cho tiếng Việt (paraphrase-multilingual-mpnet); hiệu quả nhất khi lớp tách biệt ngữ nghĩa rõ.",
+    "transfers": "Là NẤC THANG GIỮA đã lên kế hoạch: khi mới có vài trăm nhãn thật, SetFit đa ngữ cho model dùng được ngay, CPU-friendly, và là một dòng trong bảng ablation (keyword → TF-IDF → SetFit → ViSoBERT).",
+    "breaks": "Sentence-transformer đa ngữ không được pretrain trên teencode Việt — chữ mất dấu/viết tắt có thể phá embedding; TF-IDF char n-gram hiện tại lại rất khỏe với teencode, nên SetFit có thể KHÔNG thắng ở miền này — phải đo, không giả định."
+   },
+   {
+    "paper": "BamiBERT: BERT mới cho tiếng Việt — arXiv:2607.02259 (Qualcomm AI Research, 2026)",
+    "key_result": "Encoder Việt train từ đầu trên 129GB text, 20 epoch, context 2048, KHÔNG cần tách từ ngoài; best trên 11/15 metric của 8 benchmark Việt, vượt PhoBERT; công bố trên HuggingFace, license CC BY 4.0.",
+    "assumptions": "Corpus general-domain (không chuyên mạng xã hội như ViSoBERT); base-size chạy được trên Colab free.",
+    "transfers": "Ứng viên thứ hai cho bảng ablation encoder; license CC BY 4.0 sạch cho câu chuyện thi; không cần VnCoreNLP word-segmenter là điểm cộng vận hành lớn (pipeline CPU đơn giản).",
+    "breaks": "General-domain vs 1GB social-media-domain của ViSoBERT: với bình luận livestream đầy teencode, chưa chắc thắng ViSoBERT; chỉ đáng thêm nếu tải/fine-tune chạy được trong 1 buổi Colab, không được làm trễ mốc chính."
+   },
+   {
+    "paper": "ViSoLex: Chuẩn hóa từ vựng mạng xã hội Việt — arXiv:2409.20467",
+    "key_result": "Framework semi-supervised + weak supervision chuẩn hóa từ không chuẩn (teencode): F1 82,72%, vocab accuracy 99,22%, cải thiện task downstream trung bình +1–3% accuracy; xử lý được text mất dấu; license CC BY-NC-SA 4.0.",
+    "assumptions": "Chuẩn hóa là bước tiền xử lý tách rời; lỗi chuẩn hóa (18% F1 hụt) truyền xuống downstream; NC license giới hạn dùng thương mại.",
+    "transfers": "(1) Bước tiền xử lý tùy chọn trước classify — một dòng ablation rẻ; (2) tiền lệ LICENSE cho dataset Việt cùng loại: CC BY-NC-SA 4.0; (3) kỹ thuật weak supervision cho từ điển teencode nếu cần tự xây.",
+    "breaks": "+1–3% là trên task của họ; với TF-IDF char n-gram vốn đã chịu teencode tốt, phần lời có thể ≈0; chỉ đáng chạy như ablation ngày công thấp, không phải hạng mục chính."
+   },
+   {
+    "paper": "ViSoBERT — Nguyen et al., EMNLP 2023, arXiv:2310.11166",
+    "key_result": "Pretrain 1GB text mạng xã hội Việt (FB/TikTok/YouTube), tokenizer SentencePiece riêng. Recipe fine-tune công bố: lr 2e-5, AdamW eps 1e-8, batch 40, max_len 128, 10 epoch. Thắng PhoBERT-large: emotion 68,10% vs 64,71%; hate speech 88,51% vs 87,32%; sentiment 77,83% vs 76,52%.",
+    "assumptions": "Task đánh giá là single-sentence classification giống hệt bài toán intent; max_len 128 đủ cho bình luận ngắn.",
+    "transfers": "Recipe fine-tune DÙNG NGUYÊN XI làm điểm xuất phát cho train_visobert.py (lr 2e-5, batch 16–40, ≤10 epoch + early stopping, max_len 64–128); khoảng cách +1,2 đến +3,4 điểm so PhoBERT là mức kỳ vọng có căn cứ.",
+    "breaks": "Số của họ đo trên dataset UIT chuẩn — bình luận livestream bán hàng ngắn hơn, nhiều số/emoji/mã sản phẩm hơn; và với chỉ 2–3k nhãn (họ dùng dataset lớn hơn), variance giữa seed sẽ lớn — phải chạy ≥5 seed và báo mean±std."
+   },
+   {
+    "paper": "Gebru et al., 'Datasheets for Datasets' — arXiv:1803.09010, CACM 2021",
+    "key_result": "Chuẩn tài liệu hóa dataset theo 7 nhóm câu hỏi: Motivation, Composition, Collection process, Preprocessing, Uses, Distribution, Maintenance — mô phỏng datasheet linh kiện điện tử, tăng minh bạch & trách nhiệm giải trình.",
+    "assumptions": "Người tạo dataset trả lời trung thực, kể cả hạn chế và rủi ro; datasheet đi kèm mọi bản phân phối.",
+    "transfers": "Khung xương cho docs/dataset/DATASHEET.md: đặc biệt các câu về PII (composition), quy trình nhãn LLM+người (collection), scrub PII (preprocessing), giới hạn dùng (uses), license (distribution), kế hoạch cập nhật lô nhãn (maintenance).",
+    "breaks": "Gebru không phủ phần metadata máy-đọc-được — 2025–2026 chuẩn thực tế đã cộng thêm Croissant (NeurIPS bắt buộc); datasheet thuần văn bản là chưa đủ để 'đáng tin cậy' theo mặt bằng mới."
+   },
+   {
+    "paper": "'When LLMs Agree, Are They Right? Auditing Self-Consistency and Cross-Model Agreement as Confidence Signals' — arXiv:2607.08065 (2026)",
+    "key_result": "265k mẫu, 53 cấu hình, K=50: agreement chỉ tương quan YẾU với đúng/sai (rho 0.20–0.59); model mạnh nhất có agreement ≥0.8 trên 77% case GPQA nhưng 48% trong số đó SAI; lỗi-tự-tin lặp lại XUYÊN nhà cung cấp (shared bias vượt null). Kết luận: agreement là 'conditional proxy', không phải điểm tin cậy độc lập.",
+    "assumptions": "Đo trên task suy luận khó (GPQA/AIME) — nơi shared bias nặng nhất; task phân loại dễ hơn thì agreement hữu ích hơn.",
+    "transfers": "Sửa trực tiếp một điểm mù của pipeline hiện tại: consensus 2-LLM ≠ nhãn đúng. Bắt buộc (1) audit người trên mẫu ngẫu nhiên của CHÍNH các dòng consensus (không chỉ duyệt bất đồng), (2) chọn 2 model khác nhà VÀ khác prompt-ordering để giảm bias chung, (3) báo cáo alpha(consensus, người-audit) trong datasheet.",
+    "breaks": "Intent 6 lớp dễ hơn GPQA nhiều — không nên ngoại suy '48% sai'; điểm chuyển giao là NGUYÊN TẮC audit, không phải con số."
+   },
+   {
+    "paper": "'A Methodological Guide on Using LLMs for Reproducible Text Annotation in the Social Sciences' — arXiv:2604.09638 (2026)",
+    "key_result": "Workflow chuẩn: codebook rõ ràng → chia gold set exploration 10–20% / validation 40–60% / test 20–30% (cân bằng lớp) → prompt tường minh + few-shot + role, temperature=0 + seed cố định → đo Krippendorff alpha (ví dụ chạy: 0.222 = prompt tồi, 0.894 = sau tinh chỉnh) → audit trail từng phiên bản prompt (ngày, version, alpha) → hiệu chỉnh sai số nhãn trong phân tích downstream.",
+    "assumptions": "Có gold nhãn người để validate; ngưỡng alpha phải 'có động cơ lý thuyết' — không có ngưỡng phổ quát; LLM không thể vượt trần agreement của chính con người.",
+    "transfers": "Đây là paper NỀN cho câu hỏi (a): LiveLift lấy nguyên cấu trúc 3 phần gold set, quy tắc temperature=0 cho batch gán nhãn (hiện chưa quy định!), audit trail prompt (prompt_hash + guideline_version vào từng dòng train_extra.jsonl), và nguyên tắc 'chỉnh sửa prompt trên exploration set, không đụng test set'.",
+    "breaks": "Guide giả định 1 LLM + gold người; LiveLift dùng 2 LLM consensus — cần lai ghép: alpha đo cả 3 cặp (A-B, consensus-người, người-người); phần hiệu chỉnh sai số downstream ít quan trọng vì intent chỉ là covariate thăm dò, không vào ước lượng nhân quả."
+   },
+   {
+    "paper": "'Who Annotates in NLP? Large-scale Assessment of Human Annotation Reporting 2018–2025' — arXiv:2606.02255",
+    "key_result": "Khảo sát 2.667 task gán nhãn trong 1.603 paper: đa số THIẾU thông tin thẩm định — huấn luyện annotator, trình độ ngôn ngữ, thù lao, nhân khẩu, quy tắc adjudication, giá trị agreement; đề xuất bộ 'bare-minimum reporting'.",
+    "assumptions": "Reporting tốt ≈ dataset đáng tin — có tính quy chuẩn cộng đồng.",
+    "transfers": "Checklist báo cáo tối thiểu cho datasheet + báo cáo thi: số người duyệt, bản ngữ, cách huấn luyện (pilot + guideline version), thù lao/vai trò (thành viên đội), quy tắc adjudication (người thắng consensus), giá trị alpha kèm CI — đây chính là thứ phân biệt 'công bố' với 'dump file'.",
+    "breaks": "Không có khuyến nghị riêng cho nhãn LLM-sinh; LiveLift phải tự cộng thêm trường 'source' (llm-consensus/human) — đã có sẵn trong finalize_rows, chỉ cần đưa vào datasheet."
+   },
+   {
+    "paper": "AFaCTA: Assisting Annotation of Factual Claims with Reliable LLM Annotators — arXiv:2402.11073, ACL 2024",
+    "key_result": "Hiệu chỉnh confidence gán nhãn bằng ĐỘ NHẤT QUÁN dọc 3 đường suy luận định sẵn (self-consistency có cấu trúc); mẫu nhất quán hoàn hảo được auto-accept, mẫu không nhất quán đi vào hàng người duyệt; hỗ trợ chuyên gia gán nhãn hiệu quả, sinh dataset PoliClaim.",
+    "assumptions": "Các đường suy luận đủ khác nhau để bất đồng nội tại lộ ra câu khó; chi phí gọi LLM k lần chấp nhận được.",
+    "transfers": "Nâng cấp tự nhiên cho merge: thay 1 phiếu/model bằng k=3 phiếu/model (2 model × 3 lần, temp 0.7) → 6 phiếu; 6/6 auto-accept, 4–5/6 vào hàng duyệt ưu tiên, ≤3/6 duyệt bắt buộc — hàng đợi người duyệt được XẾP HẠNG theo rủi ro thay vì nhị phân đồng-thuận/bất-đồng.",
+    "breaks": "Chi phí ×3 (vẫn <$90 tổng — chấp nhận được); và theo arXiv:2607.08065, 6/6 vẫn có thể sai do shared bias → auto-accept vẫn cần 5% audit người, không được coi là miễn kiểm."
+   },
+   {
+    "paper": "Guo, Zhang, Goh, Peng — 'Can Social Technologies Drive Purchases in E-Commerce Live Streaming? Cognitive and Affective Social Call-to-Actions' — Production & Operations Management 2025 (DOI 10.1177/10591478241276131)",
+    "key_result": "Text-mining lời nói streamer + mô hình kinh tế lượng: SCTA CẢM XÚC tăng đơn hàng (+0,43% đơn/sản phẩm cho mỗi đơn vị từ-SCTA-cảm-xúc/phút; trung bình +1,10% demand/phút) qua kênh tăng tương tác xã hội; SCTA NHẬN THỨC không có ý nghĩa thống kê, thậm chí cản tương tác; hiệu ứng tùy loại sản phẩm/streamer.",
+    "assumptions": "Đo trên LỜI NÓI CỦA STREAMER (không phải bình luận khán giả); nền tảng Trung Quốc, phiên lớn; định danh nhân quả bằng kinh tế lượng quan sát, không phải thí nghiệm.",
+    "transfers": "Có, nhưng đặt ĐÚNG CHỖ: lớp nhãn CTA cognitive/affective đáng thêm cho TRANSCRIPT PhoWhisper của streamer (cửa sổ phút, khớp khối 5ph) làm moderator thăm dò của hiệu ứng ghim (giả thuyết: ghim + CTA cảm xúc > ghim + CTA nhận thức) — câu chuyện khác biệt hóa mạnh ở chung kết.",
+    "breaks": "KHÔNG đáng làm lớp nhãn 2 trên 14.903 bình luận khán giả — construct của Guo không định nghĩa trên viewer comment; và mọi phân tích dùng nó phải là secondary/exploratory vì prereg khóa tuần 6; phiên 5–15 khán giả tự chạy có thể quá thưa để moderator có power."
+   }
+  ],
+  "proposals": [
+   {
+    "title": "PROTOCOL v1.0 gán nhãn: lấy mẫu phân tầng + gold set người + Krippendorff alpha + versioning guideline",
+    "method_sketch": "(1) LẤY MẪU mỗi lô: 10% SRS ngẫu nhiên thuần (ước lượng prevalence không chệch + eval), 90% uncertain-first NHƯNG phân tầng theo phiên × tam-phân-vị thời-điểm-trong-phiên (đầu/giữa/cuối), cap ≤15%/phiên để không phiên nào chi phối — thêm cờ --stratify-session và --random-holdout 0.1 vào prepare_batch(). (2) GOLD SET 300 câu từ phần SRS: 2 người duyệt gán ĐỘC LẬP (không nhìn nhãn LLM), bất đồng adjudicate bằng thảo luận; chia exploration/validation/test = 60/120/120 theo guide 2604.09638. (3) ĐO: hàm thuần krippendorff_alpha(labels, level='nominal') + bootstrap CI 95% trong module mới agreement.py; báo cáo alpha(người-người), alpha(LLM-A, LLM-B), alpha(consensus, người) và agreement THEO LỚP (bài học ViGoEmotions: 0.34–0.71 chênh lớn giữa lớp). (4) QUY ĐỊNH PROMPT: temperature=0 + seed cho batch API; 8 ví dụ/lớp cân bằng (đã có); HAI model khác nhà VÀ hoán vị thứ tự 6 lớp trong guideline giữa 2 model để khử position-bias chung (arXiv:2607.08065). (5) AUDIT: 5% dòng consensus (ngẫu nhiên) được người duyệt kiểm lại — gate: sai ≤5% mới finalize lô. (6) VERSIONING: docs/guidelines/intent-guideline.md mang semver + changelog; mỗi dòng train_extra.jsonl thêm guideline_version + prompt_sha256; pilot 140 câu (theo ViGoEmotions) trước khi khóa v1.0.",
+    "source_papers": [
+     "arXiv:2604.09638 (methodological guide)",
+     "arXiv:2602.08371 (ViGoEmotions)",
+     "arXiv:2607.08065 (agreement audit)",
+     "ACL 2024.nlpcss-1.9 (distillation)"
+    ],
+    "integration_point": "d:\\AISC2026\\livelift\\src\\livelift\\nlp\\label_llm.py (prepare_batch + merge_labels + finalize_rows thêm trường), module mới d:\\AISC2026\\livelift\\src\\livelift\\nlp\\agreement.py, docs/guidelines/intent-guideline.md, cập nhật docs/benchmarks/llm-labeling.md",
+    "validation_plan": "Unit test alpha trên bộ nhãn tổng hợp có alpha đóng (2 bộ trùng nhau → alpha=1; hoán vị ngẫu nhiên → alpha≈0; case Krippendorff kinh điển đối chiếu số tay); test A-A kiểu HARNESS: chạy merge trên 2 file nhãn sinh từ CÙNG phân phối → alpha khớp lý thuyết; test cap-phiên và tỷ lệ holdout trên store giả; gate lô = audit-sai ≤5% + alpha(consensus,người) báo cáo kèm CI trước khi train_extra vào dataset.",
+    "expected_gain": "Biến '84% đồng thuận' thành con số khoa học kiểm chứng được: alpha kèm CI + audit 5% chặn rủi ro 'đồng thuận nhưng sai do bias chung' (arXiv:2607.08065: agreement chỉ tương quan yếu rho 0.20–0.59 với đúng/sai); phần SRS 10% cho ước lượng phân phối intent không chệch — thứ mà uncertain-first thuần làm méo hoàn toàn; đây là điều kiện cần để tuyên bố 'dataset intent livestream Việt đầu tiên' đứng vững trước phản biện.",
+    "effort": "tuần",
+    "when": "trước khóa prereg"
+   },
+   {
+    "title": "Nâng merge lên 6 phiếu: self-consistency k=3 mỗi model + hàng đợi duyệt xếp hạng rủi ro + calibration trên gold",
+    "method_sketch": "Mỗi model chấm mỗi câu 3 lần (temperature 0.7, cùng prompt) → 6 phiếu/câu. Quy tắc: 6/6 = auto-accept (vẫn nằm trong bể audit 5% của P1); 4–5/6 = hàng duyệt ưu tiên cao; ≤3/6 hoặc nhãn thắng khác nhau giữa 2 model = duyệt bắt buộc. merge_labels nhận list file theo model (--model-a a1.jsonl a2.jsonl a3.jsonl), đầu ra consensus.jsonl thêm trường votes ({label: count}) và vote_confidence = max_votes/6. HIỆU CHUẨN: trên gold 300 của P1, vẽ đường reliability (vote_confidence vs tỷ lệ đúng), tính ECE; nếu 6/6 có accuracy <97% thì hạ ngưỡng auto-accept xuống chỉ 6/6 + audit tăng 10%. Chi phí ×3 vẫn <$90 toàn bộ 14.903 câu (ước tính hiện tại <$30).",
+    "source_papers": [
+     "arXiv:2402.11073 (AFaCTA)",
+     "arXiv:2607.08065 (agreement audit)",
+     "arXiv:2502.06233 (confidence-informed self-consistency)"
+    ],
+    "integration_point": "d:\\AISC2026\\livelift\\src\\livelift\\nlp\\label_llm.py (merge_labels tổng quát hóa k-phiếu, giữ tương thích ngược 1 file/model), script hiệu chuẩn mới d:\\AISC2026\\livelift\\src\\livelift\\nlp\\calibrate_labels.py",
+    "validation_plan": "Unit test quy tắc phiếu (bảng chân trị 6 phiếu → 3 nhánh routing); property test: k=1 mỗi model phải cho kết quả GIỐNG HỆT merge hiện tại (không phá pipeline cũ); trên gold 300: kiểm reliability curve đơn điệu tăng + ECE báo cáo; gate = accuracy nhóm auto-accept ≥95% trên gold trước khi cho auto-accept bỏ qua duyệt.",
+    "expected_gain": "AFaCTA cho thấy consistency có cấu trúc tách được câu 'chắc' khỏi câu 'khó' để dồn giờ người vào đúng chỗ; kỳ vọng giảm 30–50% hàng đợi duyệt so với quy tắc nhị phân hiện tại (câu 4–5/6 hiện đang bị tính là 'đồng thuận' nếu 2 phiếu đơn trùng nhau, hoặc 'bất đồng' phải duyệt toàn bộ) đồng thời TĂNG chất lượng vì câu 4/6 lung lay giờ mới bị lôi ra duyệt; 2–4 giờ duyệt/2k câu hiện tại giữ nguyên nhưng phủ được lô lớn hơn.",
+    "effort": "tuần",
+    "when": "chuỗi khẳng định"
+   },
+   {
+    "title": "Recipe fine-tune ViSoBERT cụ thể + bảng ablation 6 dòng chuẩn báo cáo thi",
+    "method_sketch": "train_visobert.py: base 5CD-AI/visobert-14gb-corpus; lr 2e-5, AdamW eps 1e-8, batch 16 (Colab T4 free — đội không có GPU budget, chỉ TRAIN trên Colab, INFER CPU), max_len 96, ≤10 epoch + early stopping theo macro-F1 validation (patience 2), warmup 10%; IMBALANCE: class_weight nghịch đảo tần suất cap 10× (lớp khac sẽ chiếm đa số trong nhãn thật) + label smoothing 0.1; 5 seed, báo mean±std; ABSTAIN: temperature scaling trên validation rồi chọn ngưỡng τ thay MIN_CONFIDENCE=0.45 sao cho routing-khac trên bộ out-of-domain (chat cờ vua tiếng Anh 02/09 đã có) ≥ mức 81% hiện tại; xuất ONNX INT8 (đã trong roadmap) sau khi đạt gate. BẢNG ABLATION (mỗi dòng × {test biên soạn 320, gold thật 300 của P1}): (1) keyword baseline, (2) TF-IDF+LogReg, (3) SetFit paraphrase-multilingual-mpnet 8-shot/lớp, (4) ViSoBERT fine-tune 2–3k nhãn, (5) ViSoBERT + chuẩn hóa ViSoLex, (6) BamiBERT cùng recipe (nếu checkpoint tải được trong 1 buổi); cộng 1 hàng phụ: ViSoBERT train trên consensus-only vs consensus+human để định lượng giá trị người duyệt (theo thiết kế đo của ACL 2024.nlpcss-1.9).",
+    "source_papers": [
+     "arXiv:2310.11166 (ViSoBERT)",
+     "arXiv:2209.11055 (SetFit)",
+     "arXiv:2607.02259 (BamiBERT)",
+     "ACL 2024.nlpcss-1.9"
+    ],
+    "integration_point": "module mới d:\\AISC2026\\livelift\\src\\livelift\\nlp\\train_visobert.py + benchmark_intent.py; d:\\AISC2026\\livelift\\src\\livelift\\nlp\\intent.py giữ nguyên chữ ký classify/classify_with_confidence + fallback keyword (backend registry); kết quả vào docs/benchmarks/intent-classifier.md",
+    "validation_plan": "Gate swap-in theo tinh thần HARNESS: chỉ thay backend khi (i) macro-F1 trên GOLD THẬT 300 hơn TF-IDF ≥5 điểm, (ii) p95 latency CPU <50ms/câu qua ONNX INT8, (iii) routing out-of-domain về khac ≥81% (không thoái lui so hiện tại), (iv) test split theo PHIÊN không rò rỉ; 5 seed để std không nuốt mất khoảng cách; nếu SetFit/BamiBERT thua thì vẫn giữ làm dòng ablation — bảng đầy đủ là sản phẩm, không chỉ model thắng.",
+    "expected_gain": "ViSoBERT hơn PhoBERT-large +1,2 đến +3,4 điểm trên 5 task mạng xã hội Việt (68,10 vs 64,71 emotion); TF-IDF 0.870 là số trên bộ biên soạn — trên VOD thật kỳ vọng tụt mạnh, và fine-tune encoder miền-xã-hội với 2–3k nhãn thật kỳ vọng +5–10 điểm macro-F1 so TF-IDF trên gold thật; bảng ablation 6 dòng + mean±std + provenance nhãn là đúng ngôn ngữ ban giám khảo học thuật.",
+    "effort": "tuần",
+    "when": "chung kết"
+   },
+   {
+    "title": "Ablation chuẩn hóa teencode ViSoLex trước classify (ngày công thấp)",
+    "method_sketch": "normalize.py: tra từ điển teencode→chuẩn (lấy lexicon/tài nguyên ViSoLex, CC BY-NC-SA — dùng nghiên cứu OK) dạng longest-match trên token đã strip_diacritics, thêm ~50 cặp đặc thù livestream bán hàng tự thu (ib=inbox, stk, sz, bn...); gọi tùy chọn qua flag normalize=True trong classify_with_confidence; KHÔNG bật mặc định — chỉ là một dòng ablation (4) vs (5) trong bảng của đề xuất ViSoBERT; đo thêm delta cho TF-IDF hiện tại (có thể ≈0 vì char n-gram đã chịu teencode).",
+    "source_papers": [
+     "arXiv:2409.20467 (ViSoLex)"
+    ],
+    "integration_point": "module mới d:\\AISC2026\\livelift\\src\\livelift\\nlp\\normalize.py; hook trong d:\\AISC2026\\livelift\\src\\livelift\\nlp\\intent.py sau _load_model; dòng ablation trong docs/benchmarks/intent-classifier.md",
+    "validation_plan": "Unit test bảng cặp teencode; benchmark trên gold 300 + bộ biên soạn: chỉ báo cáo delta macro-F1 kèm CI bootstrap; gate latency: lookup phải <1ms/câu (dict thuần, CPU); nếu delta ≤0 thì ghi nhận trung thực trong bảng — kết quả âm cũng là ablation hợp lệ.",
+    "expected_gain": "ViSoLex báo +1–3% accuracy downstream sau chuẩn hóa; với ViSoBERT (tokenizer SentencePiece xã hội) kỳ vọng +0–2 điểm, với TF-IDF ≈0 — giá trị chính là một dòng ablation chứng tỏ đội đã khảo sát trục tiền xử lý với chi phí 1 ngày công.",
+    "effort": "ngày",
+    "when": "chung kết"
+   },
+   {
+    "title": "Gói công bố dataset: datasheet + data statement + Croissant + license + PII re-audit + split theo phiên",
+    "method_sketch": "(1) DATASHEET.md theo 7 mục Gebru (motivation/composition/collection/preprocessing/uses/distribution/maintenance) + phần reporting tối thiểu theo arXiv:2606.02255: số người duyệt, bản ngữ, pilot, guideline version, quy tắc adjudication, alpha kèm CI, trường source (llm-consensus/human) từng dòng. (2) PII RE-AUDIT trước khi xuất: chạy lại filter 95 case đối kháng trên TOÀN bộ file xuất (không tin scrub lúc ingest) + người xem tay 1.000 dòng mẫu + kiểm 'search-traceability' (thử tìm nguyên văn 50 câu trên Google — bình luận công khai truy ngược được là rủi ro tái nhận dạng, cân nhắc drop các câu độc nhất >20 từ); ẩn danh: bỏ user id, session id → mã ngẫu nhiên, timestamp bucket về phút. (3) SPLIT: train/dev/test chia theo PHIÊN (không random theo dòng) chống rò rỉ within-session; công bố split cố định. (4) PHÂN PHỐI: HuggingFace Datasets (tự sinh Croissant — chuẩn NeurIPS, 85,7% paper accepted 2025 có) + snapshot Zenodo lấy DOI; license CC BY-NC-SA 4.0 theo tiền lệ ViSoLex (NC tránh rắc rối thương mại với nền tảng nguồn); dataset card = datasheet rút gọn. (5) Kiểm tra ToS YouTube/Facebook về redistribute text bình luận — nếu vướng thì phương án B: chỉ phát hành phiên tự-stream của đội (nội dung mình sở hữu) + phần đối tác để 'available on request'.",
+    "source_papers": [
+     "arXiv:1803.09010 (Datasheets)",
+     "arXiv:2606.02255 (Who Annotates)",
+     "NeurIPS 2025 Data Hosting Guidelines / Croissant",
+     "arXiv:2409.20467 (tiền lệ license)"
+    ],
+    "integration_point": "module mới d:\\AISC2026\\livelift\\src\\livelift\\nlp\\export_dataset.py (đọc store → JSONL công bố, tái dùng d:\\AISC2026\\livelift\\src\\livelift\\ingest\\pii\\filter.py), docs/dataset/DATASHEET.md, test mới tests/test_export_dataset.py",
+    "validation_plan": "Gate PII: 0 hit trên 95 pattern đối kháng chạy trên file XUẤT (test tự động, chạy trong CI); unit test split: giao phiên train∩test = rỗng; round-trip: file tải lên HF load được bằng mlcroissant + datasets.load_dataset; checklist datasheet đủ 7 mục được review chéo bởi 2 thành viên trước khi công khai.",
+    "expected_gain": "Khác biệt giữa 'file JSONL trên GitHub' và 'dataset công bố được trích dẫn': Croissant đã thành chuẩn de-facto (bắt buộc ở NeurIPS D&B, thiếu license là lỗi phổ biến nhất 11,9%); với ban giám khảo, datasheet + alpha + DOI + split cố định là bằng chứng đội hiểu chuẩn công bố — và là móng cho tuyên bố 'dataset intent livestream tiếng Việt đầu tiên'.",
+    "effort": "tuần",
+    "when": "chung kết"
+   },
+   {
+    "title": "Lớp nhãn 2: CTA nhận thức/cảm xúc trên TRANSCRIPT streamer (không phải trên 14.903 bình luận) làm moderator thăm dò",
+    "method_sketch": "Trả lời câu hỏi 'có đáng thêm theo Guo et al. POM 2025': ĐÁNG, nhưng đúng đối tượng — construct SCTA định nghĩa trên LỜI STREAMER, không phải bình luận khán giả. Cách làm: transcript PhoWhisper (co-pilot đã trong kế hoạch) → cửa sổ 1 phút khớp block 5 phút → gán 3 lớp {cta_cognitive (nói thông số/giá/so sánh + kêu gọi), cta_affective (khen, tạo gấp gáp cảm xúc, gắn kết + kêu gọi), none} bằng CHÍNH pipeline label_llm (guideline riêng cta-guideline-v1.md với định nghĩa + ví dụ dịch từ Guo; 2 LLM + duyệt); đầu ra: cta_affective_rate và cta_cognitive_rate per block → covariate/moderator trong phân tích SECONDARY (interaction pin×CTA-rate), TUYỆT ĐỐI không vào kiểm định chính (prereg khóa tuần 6). Khối lượng nhỏ: 18–31 phiên × ~60–120 cửa sổ = 2–4k cửa sổ, phần lớn none.",
+    "source_papers": [
+     "Guo et al., POM 2025, DOI 10.1177/10591478241276131",
+     "arXiv:2602.08371 (quy trình LLM+người tiếng Việt)"
+    ],
+    "integration_point": "module mới d:\\AISC2026\\livelift\\src\\livelift\\nlp\\cta.py (guideline + few-shot riêng, tái dùng toàn bộ label_llm.py); biến block-level mới đưa vào d:\\AISC2026\\livelift\\src\\livelift\\analysis\\estimators.py nhánh secondary/exploratory",
+    "validation_plan": "Gate theo HARNESS: (i) randomization check — cta_rate không được khác biệt hệ thống giữa 2 arm trong cùng block (nếu khác = streamer nhìn thấy trạng thái ghim và đổi lời nói → thành mediator chứ không phải moderator, phải báo cáo đúng bản chất đó); (ii) sim: cấy hiệu ứng moderator biết trước vào simulator (tau tăng theo cta_affective_rate) → kiểm interaction estimator bắt được không chệch, A-A moderator giả → FPR đúng mức; (iii) agreement lớp CTA đo bằng alpha như P1, pilot 100 cửa sổ trước.",
+    "expected_gain": "Guo: +0,43% đơn/đơn-vị-từ-cảm-xúc/phút, cognitive không ý nghĩa — cho giả thuyết heterogeneity CÓ CĂN CỨ VĂN LIỆU thay vì fishing; ở chung kết đây là cầu nối câu chuyện 'ghim sản phẩm × cách nói của streamer' mà chưa đội thi nào có, và thêm một lớp nhãn công bố kèm dataset (transcript phiên tự-stream thuộc sở hữu đội — sạch bản quyền).",
+    "effort": "tuần",
+    "when": "chung kết"
+   }
+  ],
+  "open_questions": [
+   "ToS YouTube/Facebook có cho phép redistribute NGUYÊN VĂN bình luận (dù đã scrub PII) trong dataset công khai không — hay phải theo mô hình hydrate-by-ID như X, hoặc thu hẹp về chỉ các phiên tự-stream mà đội sở hữu nội dung? Đây là rủi ro pháp lý duy nhất có thể chặn tuyên bố 'dataset đầu tiên'.",
+   "Chốt cặp 2 LLM khác nhà + batch API cụ thể TRƯỚC lot 1 (prompt_hash và guideline_version phải ổn định xuyên lô); nếu giữa mùa đổi model thì lô cũ có phải gán lại không, hay chấp nhận trường 'annotator_model' trong provenance?",
+   "Ngân sách giờ người thực tế của đội 4 sinh viên cho: gold 300 gán đôi độc lập (~6–8h/người) + pilot 140 + audit 5% liên tục — có bền qua 6 tuần thi không, hay phải hạ gold xuống 200?",
+   "BamiBERT checkpoint trên HuggingFace (Qualcomm, CC BY 4.0) có fine-tune nổi trên Colab T4 free trong 1 buổi không (129GB corpus base-size nhưng context 2048 có thể ngốn VRAM) — nếu không thì bỏ dòng ablation này, không cố.",
+   "Phiên tự chạy 5–15 khán giả: số bình luận/phiên có đủ để phân phối intent per-block dùng được làm covariate không, hay lớp intent chỉ có ý nghĩa ở các phiên đối tác 200–500 khán giả — ảnh hưởng trực tiếp việc datasheet phải khai 'intended use' thế nào cho trung thực?"
+  ]
+ },
+ {
+  "area": "Bandit & OPE",
+  "reading_notes": [
+   {
+    "paper": "Liang & Bojinov — Experimental Design for Any p-value (Mixture Adaptive Design, MAD) — arXiv:2311.05794 (v4, 2024)",
+    "key_result": "Trộn bandit bất kỳ với Bernoulli: p_t^MAD(w) = δ_t·(1/2) + (1−δ_t)·p_t^A(w). Ước lượng IPW τ̂_i = 1{W_i=1}Y_i/p_i(1) − 1{W_i=0}Y_i/p_i(0), trung bình hoá; confidence sequence V̂_t = sqrt[(2(Ŝ_tη²+1)/(t²η²))·log(sqrt(Ŝ_tη²+1)/α)] anytime-valid tiệm cận, co về 0, loại 0 trong thời gian hữu hạn khi ATE≠0.",
+    "assumptions": "δ_t = ω(t^{−1/4}) (tiến về 0 chậm hơn t^{−1/4}); propensity biết chính xác; outcome đủ moment; anytime-validity là tiệm cận, không phải hữu hạn mẫu chính xác.",
+    "transfers": "Khung hoàn hảo để 'MAD hoá' inner tier Gamma-Poisson: giữ Thompson-style nhưng bảo đảm sàn propensity δ_t/k > 0 mãi mãi → mọi OPE về sau đều khả thi; cho phép nhìn CS liên tục trên desk mà không phạm peeking. Các schedule mẫu: δ_t = t^{−0.24}, hoặc max{t^{−0.24}, c} để giữ sàn học.",
+    "breaks": "Horizon của ta cực ngắn (~10–15 quyết định ghim/phiên, ~100–150 quyết định cho đợt chung kết): tính tiệm cận của CS chưa chắc đạt — bắt buộc kiểm coverage hữu hạn mẫu bằng Monte-Carlo trên sim của mình. MAD nhắm ATE giữa 2 arm; inner tier của ta là chọn 1 trong k≤3 sản phẩm thay đổi theo phiên → cần ánh xạ sang policy value hoặc so sánh cặp trong overlap set."
+   },
+   {
+    "paper": "Molitor & Gold — Covariate-Adjusted MAD (MADCovar, MADMod) — arXiv:2506.20523 (2025)",
+    "key_result": "MADCovar: hiệu chỉnh hiệp biến trong khung MAD, giữ CS anytime-valid, giảm bề rộng CS tới ~60% so với MAD chuẩn (sim + RCT 32k người). MADMod: tái phân bổ mẫu cho arm yếu để giữ power đều giữa các arm.",
+    "assumptions": "Kế thừa điều kiện MAD (δ_t, propensity biết); hiệp biến đo trước thời điểm gán; CS vẫn là tiệm cận.",
+    "transfers": "Với 5–15 khán giả, outcome click/exposure cực nhiễu — hiệp biến khối (viewers hiện tại, pha phiên, click tích luỹ của sản phẩm) rẻ và có sẵn trong session_tick; giảm 30–60% bề rộng CS là khác biệt giữa demo 'CI vô dụng' và demo thuyết phục ở chung kết.",
+    "breaks": "Mức −60% đo trên RCT lớn; với t~100 quyết định, phần hồi quy hiệp biến có thể overfit — cần giới hạn 2–3 hiệp biến và cross-fit theo phiên. MADMod ít liên quan vì k của ta nhỏ và thay đổi."
+   },
+   {
+    "paper": "Waudby-Smith, Arbour, Sinha, Kennedy, Ramdas — Anytime-valid off-policy inference for contextual bandits — arXiv:2210.10768 (2022/2024)",
+    "key_result": "CS cho policy value khi logging policy h_t THAY ĐỔI THEO DỮ LIỆU (chỉ cần h_t đo được theo H_{t−1}); target là giá trị trung bình theo thời gian ν̃_t = (1/t)Σν_i với ν_i = E_π[R_i|H_{i−1}]. Pseudo-outcome DR: φ_t = w_t(R_t − [r̂_t∧k_t/w_t]) + E_{a∼π}[r̂_t∧k_t/w_t], w_t = π/h_t; CS kiểu betting (Thm 1) và empirical-Bernstein (Thm 2), tốc độ Õ(sqrt(V_t)/t). KHÔNG cần w_max bị chặn hay biết trước.",
+    "assumptions": "Propensity h_t biết chính xác và π≪h_t (support); r̂_t predictable (chỉ dùng quá khứ); reward bị chặn dưới (cần truncation k_t cho đuôi nặng; heuristic: k_t = median(w_1..w_{t−1})).",
+    "transfers": "ĐÂY là câu trả lời cho câu hỏi (a): log 1/k của inner tier là 'predictable logging policy' đúng nghĩa (k xác định từ posterior quá khứ) → IPW/DR + CS của họ HỢP LỆ với chính log hiện tại, không cần đổi production. Reward model r̂_t = posterior mean Gamma-Poisson (đã predictable sẵn!) dùng làm DR miễn phí.",
+    "breaks": "Estimand là ν̃ dọc quỹ đạo đã log — KHÔNG phải 'giá trị nếu chạy π từ đầu' (posterior sẽ tiến hoá khác dưới π) — caveat bắt buộc của demo. Reward của ta là tỷ lệ clicks/exposure với exposure không đồng đều giữa các quyết định → cần chặn r_t và/hoặc chuẩn hoá exposure trước khi áp CS."
+   },
+   {
+    "paper": "Zhan, Hadad, Hirshberg, Athey — OPE via Adaptive Weighting with Data from Contextual Bandits — KDD 2021, arXiv:2106.02029",
+    "key_result": "Trên dữ liệu thu thích ứng: DM (mô hình hoá trực tiếp) bị thiên lệch XUỐNG hệ thống (arm xui sớm bị lấy mẫu ít đi); IPW/DR thường có variance nổ và inference i.i.d. sai. Sửa: Q̂_T = Σh_tΓ̂_t/Σh_t với Γ̂_t là score AIPW, h_t đo được theo H_{t−1}; StableVar h_t = φ(v)=1/√v với v = E[Σ_w π²/e_t | H_{t−1}] → t-statistic tiệm cận chuẩn.",
+    "assumptions": "e_t(x,w) ≥ C·t^{−α}, α∈[0,1/2) (sàn propensity suy giảm chậm); propensity biết; điều kiện ổn định của 1/e_t.",
+    "transfers": "Hai bài học chuyển thẳng: (1) CẤM dùng DM/posterior mean làm ước lượng chính trên log inner tier — nó thiên lệch xuống có hệ thống; (2) nếu muốn CI kiểu cổ điển (không anytime) cho báo cáo, dùng adaptive weighting h_t thay vì trung bình đều. Sàn propensity: trong lớp policy 'chỉ chọn trong overlap set', e_t ≥ 1/3 hằng số → thoả α=0 dễ dàng.",
+    "breaks": "Bước quyết định deterministic (propensity 1, k=1) vi phạm positivity cho MỌI hành động ngoài lựa chọn đã log → policy value chỉ được nhận dạng trên lớp policy tuyệt đối liên tục với logging (chọn trong overlap set). Kết quả tiệm cận; n~10²–10³ cần kiểm sim."
+   },
+   {
+    "paper": "Saito et al. — Open Bandit Dataset & Pipeline — arXiv:2008.07146 (NeurIPS datasets 2021)",
+    "key_result": "Benchmark 7 estimator (DM, IPW, SNIPW, DR, SNDR, Switch-DR, DRos) trên dữ liệu thật ZOZOTOWN với ground truth on-policy từ policy kia. n=300k: DRos tốt nhất (RMSE 0.316e-3, hơn 30–60%); n=10k: DM lại thắng — 'estimator tốt nhất đổi theo cỡ mẫu'. DRos/Switch-DR cực nhạy siêu tham số (λ, τ), auto-tuning còn yếu.",
+    "assumptions": "Logging policy cố định (Random hoặc Bernoulli TS chạy suốt), context i.i.d., propensity logged đúng — KHÔNG có logging thích ứng.",
+    "transfers": "OBP là bộ khung code tốt cho replay demo (chuẩn hoá estimator + bootstrap CI); bài học chọn estimator theo n: ở n vài trăm, tránh estimator nhiều siêu tham số (DRos/Switch-DR) — không có dữ liệu để tune; IPW/SNIPW/DR đơn giản + trọng số bị chặn ≤3 của ta là vùng an toàn.",
+    "breaks": "Kết luận 'DM thắng ở n nhỏ' KHÔNG chuyển sang ta: DM của họ dùng log từ policy cố định; log của ta thích ứng → DM thiên lệch xuống (Zhan). Ground-truth kiểu OBP cần 2 policy chạy song song — ta không có; ground truth của ta phải đến từ sim đã hiệu chỉnh."
+   },
+   {
+    "paper": "Li, Chu, Langford, Wang — Unbiased Offline Evaluation of Contextual Bandits (Replay) — WSDM 2011, arXiv:1003.5956",
+    "key_result": "Replay/rejection sampling: trên log khám phá NGẪU NHIÊN ĐỀU, giữ lại sự kiện khi policy đích chọn trùng hành động đã log → ước lượng không thiên lệch cho giá trị policy (context i.i.d., logging đều), dùng ~1/K dữ liệu. Là nền của demo artwork Netflix (blog 403, không đọc được — dẫn paper gốc).",
+    "assumptions": "Logging uniform trên K hành động; context i.i.d.; policy đích không tự học trong lúc replay (hoặc chấp nhận thiên lệch horizon).",
+    "transfers": "Bên trong MỖI quyết định randomized=True của ta, phân phối log là ĐỀU trên overlap set → replay áp dụng được trên tập con này: đếm 'nếu policy đích cũng chọn đúng sản phẩm này thì tính click'. Trực quan hơn IPS cho ban giám khảo: 'trong 43 lần trùng lựa chọn, policy B đạt X clicks/1000 viewer-s'.",
+    "breaks": "k thay đổi theo quyết định (2 hoặc 3) → phải phân tầng theo k hoặc dùng IPS-weights (=k) thay vì đếm thô, nếu không sẽ thiên lệch về các quyết định k nhỏ. Bước deterministic không đóng góp gì; policy đích phải 'đóng băng' (không cập nhật posterior khác đi) — đúng caveat one-step deviation."
+   },
+   {
+    "paper": "Lichtenberg, Buchholz, Di Benedetto, Ruffini, London (Amazon Music) — Double Clipping — CONSEQUENCES@RecSys 2023, arXiv:2309.01120",
+    "key_result": "Clipping trên (min{w,U}) LUÔN thiên lệch xuống với reward không âm; double clipping thêm chặn dưới max{·, 1/L} tạo thiên lệch lên bù trừ, giảm MSE so với clipped-IPS. Chưa có quy tắc chọn U, L.",
+    "assumptions": "Reward không âm; propensity biết; đánh giá trên synthetic.",
+    "transfers": "Bài học chính cho ta là NGƯỢC: vì trọng số của ta bị chặn tự nhiên w ≤ k ≤ 3 (lớp policy trong overlap set), KHÔNG cần clip — tránh được cả tầng bias phức tạp này. Ghi rõ điều đó vào docstring ope.py như một lợi thế thiết kế của propensity 1/k.",
+    "breaks": "Nếu sau này mở rộng lớp policy ra ngoài overlap set (không nên) hoặc dùng MAD với δ nhỏ, w_max = k/δ có thể lớn → lúc đó mới cần quay lại đây; hiện tại không áp dụng."
+   },
+   {
+    "paper": "Additive Control Variates Dominate Self-Normalisation in OPE — arXiv:2602.14914 (2026)",
+    "key_result": "β-IPS: V̂ = β + (1/n)Σw_i(r_i − β) với β* = Cov(w, wr)/Var(w) thống trị SNIPS về MSE tiệm cận (Thm 3.1, chặt khi β*≠V(π)); khoảng cách variance Δ = (1/n)(V(π)σ_w² − σ_{wr})²/σ_w². SNIPS vẫn là mặc định ổn ở mẫu RẤT nhỏ; β* ước lượng từ dữ liệu gây bias O(n^{−1}) → khuyên k-fold cross-fitting.",
+    "assumptions": "i.i.d. sampling (không bàn logging thích ứng); propensity biết; không bàn propensity deterministic.",
+    "transfers": "Ở n ~150–500 quyết định, dùng cặp (SNIPS làm mặc định báo cáo, β-IPS cross-fit theo phiên làm sensitivity) — cả hai 1 dòng code trên nền IPS; công thức Δ cho phép ước lượng trước mức lợi từ log pilot.",
+    "breaks": "Lý thuyết i.i.d.; với log thích ứng phải ghép vào khung martingale (β predictable theo H_{t−1} thì vẫn hợp lệ — cần tự chứng minh 3 dòng + kiểm sim, không có sẵn trong paper)."
+   },
+   {
+    "paper": "Extending Open Bandit Pipeline to Simulate Industry Challenges — arXiv:2209.04147 (2022)",
+    "key_result": "Mở rộng OBP để mô phỏng delayed reward, concept drift, reward design, business-rule constraints — khung để stress-test OPE trước khi tin số.",
+    "assumptions": "Môi trường synthetic của OBP; các challenge tham số hoá đơn giản.",
+    "transfers": "Mẫu thiết kế cho gate harness của ta: thay vì tin RMSE trên sim 'sạch', chạy OPE gate dưới drift (khẩu vị khán giả đổi giữa phiên) và delayed reward (click trễ sang khối sau) — hai hiện tượng chắc chắn có trong livestream.",
+    "breaks": "Không có logging thích ứng kiểu posterior-dependent trong các challenge của họ; ta phải tự viết logging replayer tái dùng đúng build_candidates + choose_action của production (nguyên tắc giống RI outer tier đã làm)."
+   },
+   {
+    "paper": "Off-policy estimation with adaptively collected data: the power of online learning — arXiv:2411.12786 (NeurIPS 2024)",
+    "key_result": "Chặn MSE tổng quát cho lớp AIPW trên dữ liệu thích ứng, phụ thuộc 'sequentially weighted error' của mô hình outcome; đề xuất reduction: học mô hình outcome bằng online learning no-regret → đạt tối ưu instance-dependent (local minimax lower bound).",
+    "assumptions": "Propensity logging biết; kết quả dạng chặn MSE/minimax, phần lớn lý thuyết.",
+    "transfers": "Củng cố lựa chọn kiến trúc: mô hình outcome cho DR nên được cập nhật ONLINE theo thứ tự thời gian (đúng cách posterior Gamma-Poisson của ta vốn hoạt động) thay vì fit một lần trên toàn bộ log — vừa predictable vừa gần tối ưu theo nghĩa của paper.",
+    "breaks": "Không cho công thức CI thực hành ở n nhỏ; dùng làm căn cứ trích dẫn cho thiết kế 'DR với reward model online', không implement trực tiếp."
+   }
+  ],
+  "proposals": [
+   {
+    "title": "Gate mô phỏng 'OPE-trên-log-thích-ứng' trong harness (điều kiện tiên quyết cho mọi số OPE)",
+    "method_sketch": "Viết sim/inner_replay.py: mô phỏng chuỗi quyết định ghim bằng ĐÚNG build_candidates (api/cards.py) + choose_action (core/assigner/inner.py) trên dữ liệu tick sinh từ simulator.py với true click-rate λ_j/sản phẩm biết trước; log (overlap_set, k, propensity, clicks, exposure) y hệt intervention_log. Định nghĩa true policy value ν̃ = (1/T)Σ_t E_π[r_t|H_{t−1}] tính được giải tích từ λ_j. Gates: (G1) IPS/SNIPS/DR bias < 10% tác động (chuẩn HARNESS §2); (G2) coverage CS 95% trong [90%, 98%] tại T ∈ {50, 150, 500}; (G3) NEGATIVE CONTROLS bắt buộc — chứng minh trên sim rằng (i) DM/posterior-mean thiên lệch XUỐNG (cơ chế Zhan: arm xui sớm bị bỏ đói) và (ii) CI Wald i.i.d. trên IPS under-cover — hai điều này in vào báo cáo gate để cấm vĩnh viễn DM làm số chính; (G4) stress theo mẫu arXiv:2209.04147: drift λ_j giữa phiên + click trễ 1 khối.",
+    "source_papers": [
+     "arXiv:2106.02029",
+     "arXiv:2210.10768",
+     "arXiv:2209.04147"
+    ],
+    "integration_point": "livelift/src/livelift/sim/ (module mới inner_replay.py, tái dùng simulator.py), gate mới trong bảng HARNESS.md §2, tests đánh dấu -m slow",
+    "validation_plan": "Chính nó LÀ harness: chạy Monte-Carlo ≥1000 lặp mỗi cấu hình (T×3, hiệu ứng 0 và ≠0); tiêu chí pass ghi trong bảng gate; CI nightly như gate Monte-Carlo hiện có",
+    "expected_gain": "Chặn hai lỗi chết người đã được văn liệu ghi nhận (DM bias xuống hệ thống, Wald i.i.d. under-coverage trên dữ liệu thích ứng — Zhan et al. 2021) trước khi bất kỳ số OPE nào xuất hiện trong báo cáo; mọi đề xuất OPE sau đều đo được bias/coverage thật ở đúng T~150 của ta thay vì tin tiệm cận",
+    "effort": "tuần",
+    "when": "trước khóa prereg"
+   },
+   {
+    "title": "Module analysis/ope.py: IPS trọng-số-bị-chặn + CS anytime-valid cho log 1/k hiện tại (không đổi production)",
+    "method_sketch": "Trả lời câu hỏi (a): log hiện tại HỢP LỆ cho OPE vì propensity 1/k_t đo được theo H_{t−1} và được ghi chính xác — nhưng chỉ cho lớp policy Π_ov = {π chọn trong overlap set đã log} (bước deterministic có k=1 → π buộc trùng, tránh vi phạm positivity), và chỉ với inference kiểu martingale, không phải Wald i.i.d. Implement: (1) reward mỗi quyết định r_t = clicks_t/u_t (clicks trong cửa sổ ghim / exposure units), chặn tại r_max prereg (vd 5.0, sensitivity ±); (2) w_t = π(a_t|s_t)·k_t ∈ [0, k_t], k_t ≤ 3 → KHÔNG clip (né toàn bộ bias clipping của arXiv:2309.01120); (3) estimand ν̃_T = (1/T)Σν_t (time-averaged, Waudby-Smith); (4) ước lượng: IPS + empirical-Bernstein CS (Thm 2 arXiv:2210.10768), DR với r̂_t = posterior mean Gamma-Poisson tính từ dữ liệu TRƯỚC t (predictable sẵn có từ cards.py, đúng tinh thần online-learning của arXiv:2411.12786), pseudo-outcome φ_t = w_t(r_t − r̂_t∧k_t/w_t) + E_{a∼π}[r̂_t∧k_t/w_t]; (5) sensitivity: SNIPS và β-IPS cross-fit theo phiên với β* = Cov(w,wr)/Var(w) (arXiv:2602.14914); (6) hàm khai báo policy chuẩn: PolicyInOverlap(candidates_json, k) → phân phối trên overlap set, để mọi policy đích đều bị ép vào Π_ov ở cấp kiểu dữ liệu.",
+    "source_papers": [
+     "arXiv:2210.10768",
+     "arXiv:2602.14914",
+     "arXiv:2106.02029",
+     "arXiv:2309.01120"
+    ],
+    "integration_point": "livelift/src/livelift/analysis/ope.py (mới, cạnh estimators.py, cùng phong cách hàm thuần + docstring dẫn nguồn theo HARNESS §4.3); đọc intervention_log.candidates_json + inner_propensity",
+    "validation_plan": "Phải pass toàn bộ gate của đề xuất 1 (bias<10%, coverage CS trong [90,98] ở T=50/150/500, negative controls); thêm A/A-OPE: policy đích = chính logging policy → CS phải phủ giá trị on-policy ≥95%; so MSE IPS vs SNIPS vs β-IPS vs DR ở từng T để chọn mặc định báo cáo bằng số liệu, không bằng khẩu vị",
+    "expected_gain": "CI hợp lệ đầu tiên cho mọi câu hỏi 'policy ghim nào tốt hơn' trên dữ liệu thật; vì w ≤ 3, variance IPS bị chặn (E[w²r²] ≤ 9·r_max²) — không có hiện tượng weight explosion mà Zhan cảnh báo; DR với posterior predictable kỳ vọng giảm thêm variance (OBP: DR ≥ IPW ở mọi n lớn; ở n nhỏ đo bằng gate)",
+    "effort": "tuần",
+    "when": "trước khóa prereg"
+   },
+   {
+    "title": "Demo counterfactual replay trung thực cho chung kết: 3 policy trong overlap set + dải CS + bảng caveat bắt buộc",
+    "method_sketch": "Trả lời câu hỏi (b). So sánh 4 policy đều thuộc Π_ov nên được nhận dạng đầy đủ: π_log (uniform 1/k — production), π_greedy (luôn top posterior mean trong overlap), π_margin (trong overlap chọn sản phẩm biên lợi nhuận cao nhất — câu chuyện kinh doanh), π_explore (uniform trên top-k đầy đủ — chỉ để minh hoạ chi phí khám phá, vẫn trong Π_ov vì overlap ⊆ top-k... nếu overlap ⊂ top-k thì π_explore bị loại — kiểm tra support tự động và chỉ giữ policy hợp lệ). Hai tầng trình bày: (1) tầng trực quan — replay đếm kiểu Li-2011 phân tầng theo k: trong các quyết định randomized có k=2 (rồi k=3), 'khi policy đích trùng lựa chọn đã log, thu được X clicks/1000 viewer-s' — giám khảo hiểu ngay; (2) tầng thống kê — dải CS empirical-Bernstein theo chỉ số quyết định t cho ν̃_t của từng policy VÀ cho hiệu π_A−π_B (CS của hiệu, không phải hiệu của CS). Bảng caveat in cứng trên trang: (C1) 'các policy trùng nhau trên Z% quyết định (deterministic) — chỉ phần randomized phân biệt chúng, n_eff = số quyết định randomized'; (C2) 'đây là giá trị của one-step deviation dọc quỹ đạo đã ghi — KHÔNG phải giá trị nếu chạy policy khác từ đầu phiên (posterior sẽ tiến hoá khác)' — đúng estimand ν̃ của Waudby-Smith; (C3) cửa sổ quy click và r_max đã chặn; (C4) anytime-valid nên nhìn giữa chừng không phạm peeking.",
+    "source_papers": [
+     "arXiv:1003.5956",
+     "arXiv:2210.10768",
+     "arXiv:2008.07146"
+    ],
+    "integration_point": "livelift/src/livelift/analysis/ope.py (hàm replay_stratified + policy_diff_cs) + trang mới trong api/routes/reports.py (cạnh trang báo cáo 5 trạng thái đã lên kế hoạch); desk chỉ đọc, không hiển thị interval trên thẻ forecast (giữ luật E2-04)",
+    "validation_plan": "Sim ground-truth: chạy từng policy THẬT trong inner_replay.py (đề xuất 1) để có ν̃ thật của one-step deviation, đối chiếu replay/IPS ước lượng — bias<10%, coverage CS đạt band; kiểm tra tự động support (policy đặt mass ngoài overlap → raise); kiểm agreement % và n_eff khớp giữa hai tầng trình bày",
+    "expected_gain": "Demo chung kết có số thật + CI thật thay vì screenshot; với ~20 phiên × ~8 quyết định randomized ≈ 160 quyết định, w≤3, CS đủ hẹp để tách π_margin vs π_log nếu hiệu thật ~15–20% (đo chính xác bằng power-run trên sim ở gate); tính trung thực (caveat C1–C4) là điểm chấm phản biện",
+    "effort": "tuần",
+    "when": "chuỗi khẳng định"
+   },
+   {
+    "title": "MAD hoá inner tier cho đợt chung kết: δ_t = max{t^{−0.24}, 0.3} trong phiên, sàn propensity δ_t/k, log đầy đủ mixture",
+    "method_sketch": "Trả lời câu hỏi (c). Thay quy tắc 'chỉ random khi overlap' bằng mixture MAD trên top-k candidates: p_t(a) = δ_t·(1/k_t) + (1−δ_t)·p_t^TS(a), với p_t^TS = xác suất a là tối ưu theo posterior Gamma-Poisson (ước lượng bằng 200 mẫu Gamma — CPU không đáng kể), t là CHỈ SỐ QUYẾT ĐỊNH TRONG PHIÊN (posterior reset theo phiên nên lý thuyết một-chuỗi của MAD áp cho từng phiên; gộp phiên bằng CS trên chuỗi nối — kiểm bằng sim, xem open question). Schedule 'regret-then-learning' δ_t = max{t^{−0.24}, 0.3}: với t≤15/phiên thì δ_t ∈ [0.52, 1] — thực tế gần Bernoulli, đúng với nhu cầu inference ở n nhỏ; sàn 0.3 bảo đảm min propensity = δ_t/k ≥ 0.1 → w_max ≤ 10, mọi OPE tầng sau vẫn lành mạnh. Log thêm cột: delta_t, policy_probs_json (phân phối đầy đủ), giữ inner_propensity = p_t(a_chọn). Inference ĐƯỢC PHÉP tuyên bố: (i) CS anytime-valid cho hiệu click-rate giữa 2 sản phẩm cụ thể trong phiên (công thức V̂_t Thm 1 MAD, cộng MADCovar với 2 hiệp biến viewers + pha phiên); (ii) CS cho policy value qua ope.py; (iii) dừng sớm khi CS loại 0 — hợp lệ theo thiết kế. KHÔNG được tuyên bố: p-value cổ điển, và mọi kết quả inner tier vẫn là secondary so với switchback outer đã prereg.",
+    "source_papers": [
+     "arXiv:2311.05794",
+     "arXiv:2506.20523",
+     "arXiv:2210.10768"
+    ],
+    "integration_point": "livelift/src/livelift/core/assigner/inner.py (hàm mới choose_action_mad, giữ choose_action cũ cho vòng 1), api/routes/actions.py (log delta_t, policy_probs_json — cần migration 000X thêm 2 cột intervention_log), analysis/ope.py (MADCovar estimator)",
+    "validation_plan": "Gate Monte-Carlo mới trước khi bật: (1) A/A trên sim inner_replay — CS MAD coverage trong [90,98] tại t=15 (một phiên) và t=150 (gộp); (2) regret so với quy tắc overlap hiện tại trên sim hiệu chỉnh KuaiLive — chấp nhận nếu mất <5% clicks kỳ vọng; (3) sweep δ-floor ∈ {0.2, 0.3, 0.5} chọn theo cân bằng coverage/regret; (4) MADCovar giảm bề rộng CS bao nhiêu % trên sim của TA (không tin con số 60% của paper)",
+    "expected_gain": "Exploration không bao giờ chết (paper: p_t > 0 mãi, tránh chia-cho-0 của IPW) → dữ liệu chung kết đánh giá được MỌI policy trên top-k chứ không chỉ Π_ov; MADCovar hứa hẹn thu hẹp CS tới 60% (số của paper, sẽ đo lại); có quyền dừng sớm hợp lệ giữa buổi demo — 'CS loại 0 ngay trên sân khấu' là khoảnh khắc demo mạnh",
+    "effort": "nhiều tuần",
+    "when": "chung kết"
+   },
+   {
+    "title": "Dải CS trực tiếp trên trang báo cáo phiên: 'sản phẩm nào đang thắng' cập nhật theo thời gian thực, an toàn peeking",
+    "method_sketch": "Tận dụng tính anytime-valid: thêm panel vào trang báo cáo (không phải thẻ forecast — giữ E2-04) vẽ CS ν̃_t của 2–3 policy và CS hiệu giữa sản phẩm dẫn đầu vs nhì (từ ope.py/MADCovar), cập nhật mỗi khối 5 phút. Đường CS vẽ cả lịch sử (dải hẹp dần) — minh hoạ trực quan 'chúng tôi được phép nhìn liên tục vì dùng confidence sequence, không phải CI cổ điển' — đây là điểm phương pháp ăn điểm với ban giám khảo. Trạng thái 3 mức: 'chưa tách' (CS hiệu chứa 0), 'tách' (loại 0), 'n quá nhỏ' (dưới ngưỡng n_eff). Trang tự chú thích công thức + arXiv ID ở footer.",
+    "source_papers": [
+     "arXiv:2311.05794",
+     "arXiv:2210.10768"
+    ],
+    "integration_point": "livelift/src/livelift/api/routes/reports.py (panel mới, tái dùng hàm ope.py — logic ở analysis/, route chỉ gọi và vẽ theo quy ước HARNESS §6)",
+    "validation_plan": "Test giao diện kiểu E2-04 hiện có: panel không bao giờ xuất hiện trên thẻ nguồn 'forecast'; test tích hợp: chuỗi sự kiện sim đẩy qua API → CS đơn điệu hợp lệ (dải t+1 ⊆ logic cập nhật đúng), trạng thái 3 mức chuyển đúng ngưỡng; số trên panel đối chiếu bit-một-bit với ope.py chạy offline trên cùng log",
+    "expected_gain": "Không thêm sức mạnh thống kê nhưng chuyển toàn bộ đầu tư OPE thành thứ NHÌN THẤY ĐƯỢC trong 5 phút demo; chi phí thấp vì mọi tính toán đã có từ đề xuất 2/4; loại rủi ro đội tự ý 'nhìn số giữa chừng rồi kể chuyện' — giờ việc nhìn giữa chừng là hợp lệ theo thiết kế",
+    "effort": "tuần",
+    "when": "chung kết"
+   }
+  ],
+  "open_questions": [
+   "Prereg tuần 6 nên khai OPE inner-tier ở mức nào: chỉ 'secondary, estimator IPS+EB-CS, r_max=5, lớp policy Π_ov' (đủ ràng buộc để đáng tin) hay khai cả bộ sensitivity (SNIPS, β-IPS, DR)? Khai càng chi tiết càng ăn điểm phản biện nhưng mất tự do sửa sau khi thấy log pilot.",
+   "MAD với t reset theo phiên: lý thuyết CS của Liang–Bojinov là cho MỘT chuỗi; nối ~10 phiên (mỗi phiên t=1..15, posterior reset) thành một CS duy nhất có giữ anytime-validity không, hay phải meta-analyze CS cấp phiên? Cần kiểm coverage bằng sim trước khi hứa gì trong báo cáo.",
+   "Reward r_t = clicks/exposure với exposure units rất nhỏ (khán giả 5–15 → ~2-4 units/quyết định) có đuôi nặng do chia cho số bé; chặn r_max làm thiên lệch xuống bao nhiêu trên sim hiệu chỉnh KuaiLive, và có nên chuyển sang cặp (clicks, exposure) với CS cho tỷ số hai tổng (ratio-of-sums) thay vì tỷ lệ từng quyết định?",
+   "Kịch bản đối tác 200–500 khán giả: posterior hẹp nhanh → overlap set co về k=1 sớm, tỷ lệ quyết định randomized giảm mạnh → n_eff cho replay demo có thể sụp. Có nên tăng INTERVAL_K theo cỡ khán giả (giữ tỷ lệ randomized ~50%) và điều đó có phải 'thay đổi logic gán sau tuần 6' bị HARNESS §5 cấm không — hay phải chốt trước prereg?",
+   "Gộp hai chế độ log trong một CS (dữ liệu vòng 1 với quy tắc overlap 1/k + dữ liệu chung kết với MAD δ_t): martingale cho phép logging policy đổi giữa chừng (Waudby-Smith), nhưng estimand ν̃ trộn hai quỹ đạo posterior khác nhau — diễn giải thế nào cho trung thực trong báo cáo cuối?"
+  ]
+ },
+ {
+  "area": "Đo lường & platform",
+  "reading_notes": [
+   {
+    "paper": "Fabijan et al., \"Diagnosing Sample Ratio Mismatch in OCEs: A Taxonomy and Rules of Thumb\", KDD 2019 (doi:10.1145/3292500.3330722) — đọc toàn văn PDF",
+    "key_result": "Taxonomy 25 nguyên nhân SRM theo 5 giai đoạn: Assignment / Execution / Log Processing / Analysis / Interference; ~6% thí nghiệm tại Microsoft dính SRM; 10 rules of thumb chẩn đoán (soi scorecard lọc, segment người dùng, lát thời gian, đếm tần suất SRM, A/A, so 2 pipeline...). Điểm vàng cho LiveLift: SRM giai đoạn Log Processing thường do LỌC BOT dựa trên dữ liệu hậu-can-thiệp (ví dụ MSN carousel: user engaged bị gắn nhãn bot) — khuyến nghị chốt trạng thái bot tại first exposure và cấm đổi sau đó.",
+    "assumptions": "A/B user-level, đơn vị = user, kiểm bằng chi-square trên tỷ lệ user mỗi nhánh; ngầm định phân phối gán nhị thức đơn giản.",
+    "transfers": "(1) Nguyên tắc 'lọc phải mù với can thiệp, quyết tại thời điểm sự kiện' → định nghĩa click hợp lệ của ta chỉ được dùng thuộc tính request, áp giống hệt ON/OFF; (2) rule 'so 2 pipeline' → đối chiếu block từ desk event log vs DB; (3) telemetry-delivery metrics làm chỉ báo sớm.",
+    "breaks": "Chi-square trên số user không áp được: đơn vị của ta là KHỐI 5ph trong phiên, phân phối gán là Bernoulli 0.5 + rerandomization (bị cắt cụt) → chi-square naive sai mức ý nghĩa; 'exposure mỗi nhánh' là hậu-can-thiệp trong switchback nên không được dùng làm SRM trực tiếp."
+   },
+   {
+    "paper": "IAB Click Measurement Guidelines v1.0, 2009 (iab.com/guidelines/click-measurement-guidelines, MRC đồng bảo trợ) — đọc toàn văn",
+    "key_result": "Click hợp lệ = một trong 2 phương pháp đếm: (a) one-click-per-impression, hoặc (b) multiple-click với 'repeat-click-refractory-period' do publisher tự định; cộng thêm bắt buộc lọc GIVT: protocol validation (GET/30x), loại prefetch (header X-Moz: prefetch, trả 403), khớp IAB/ABCe Spiders & Robots List, UA lạ/non-browser, proxy xấu, IP nội bộ, và activity-based filtration (nhiều click liên tiếp từ 1 user trong 1 khoảng, khoảng cách click đều tăm tắp, outlier). Audit: valid clicks ≤ measured clicks; giữ 'pre-anonymized period' đủ dài để kiểm toán rồi mới ẩn danh hoá; công bố Description of Methodology nhưng giấu tham số refractory để chống reverse-engineering.",
+    "assumptions": "Bối cảnh quảng cáo thương mại, có auditor thứ ba, IP/UA thô còn giữ trong pre-anonymized period.",
+    "transfers": "Khung 'valid click' chuyển gần như nguyên khối cho /r/{code}: refractory window trên (dedup_hash, shortlink_code), cap số click/hash/block ('Maximum Level of Clicks per User' — IAB khuyến nghị pre-establish và cho auditor xem), lọc UA bot list + prefetch header, flag-don't-drop; quy tắc valid ≤ measured thành invariant test.",
+    "breaks": "Ta không giữ IP thô (dedup_hash một chiều, salt xoay) nên không làm được lọc datacenter-IP và 'pre-anonymized period' đầy đủ; hash đổi giữa phiên nên activity-based filtration chỉ khả thi TRONG phiên — chấp nhận, vì outcome cũng chỉ so trong phiên."
+   },
+   {
+    "paper": "Lindon & Malek, \"Anytime-Valid Inference for Multinomial Count Data\", NeurIPS 2022 (arXiv:2011.03567) — đọc toàn văn PDF",
+    "key_result": "Posterior odds Dirichlet-multinomial O_n = [Beta(α₀+S_n)/Beta(α₀)]·θ₀^{−S_n} (cập nhật đệ quy eq.4) là nonnegative supermartingale dưới H₀ → bác bỏ khi O_n ≥ 1/u cho Type I ≤ u dưới optional stopping (Thm 2.2); sequential p-value p_n = min(p_{n−1}, 1/O_n). Thm 4.1: với d tiến trình Poisson KHÔNG thuần nhất chung λ(t), chuỗi 'mark' (điểm rơi vào arm nào) là Multinomial(1,θ) ancillary với λ(t) → test tỷ lệ giữa arm hợp lệ dù cường độ biến thiên theo thời gian. Case study Netflix: bug ảnh hưởng 60% thiết bị phát hiện <1s; ví dụ SRM signup dừng ở n=144.",
+    "assumptions": "Marks độc lập có điều kiện, tỷ lệ null θ₀ biết trước và không đổi theo thời gian (còn λ(t) tự do); các arm chia sẻ cùng nhiễu thời gian.",
+    "transfers": "Bộ giám sát vận hành GIỮA phiên cho LiveLift: stream tick-delivery theo arm (θ₀ = tỷ lệ thời gian ON/OFF biết từ schedule) và stream click-marks — hợp lệ bất chấp viewers dao động trong livestream, đúng chỗ Poisson thuần nhất gãy; closed-form vài dòng Python, CPU-only.",
+    "breaks": "Khối 5ph tạo phụ thuộc chuỗi trong marks (carryover) → chỉ dùng cho VẬN HÀNH (phát hiện ingest hỏng/bot storm), không thay kiểm định chính; θ₀ phải lấy từ schedule đã persist chứ không phải 0.5 danh nghĩa vì rerandomization."
+   },
+   {
+    "paper": "Howard, Ramdas, McAuliffe, Sekhon, \"Time-uniform, nonparametric, nonasymptotic confidence sequences\" (arXiv:1810.08240, Ann. Stat. 2021)",
+    "key_result": "Confidence sequences phủ đồng thời mọi thời điểm dừng, bề rộng co như √(log log n / n) (tốc độ LIL), xây từ Cramér–Chernoff + SPRT phi tham số; phủ sub-Gaussian, empirical-Bernstein, self-normalized.",
+    "assumptions": "Điều kiện đuôi kiểu sub-Gaussian/Bernstein trên increment; độc lập hoặc martingale difference.",
+    "transfers": "Nền lý thuyết cho mọi theo dõi giữa phiên không chạm kết quả chính (RESULTS_FREEZE): CI vận hành trên tỷ lệ invalid click, độ trễ ingest... peeking bao nhiêu lần cũng không phá α.",
+    "breaks": "Empirical-Bernstein bounds tổng quát rộng hơn cần thiết và lỏng ở n nhỏ; với count data theo arm thì bản Dirichlet-multinomial của Lindon–Malek chặt và đơn giản hơn → dùng Howard làm khung, Lindon làm công cụ."
+   },
+   {
+    "paper": "Bakshy, Eckles, Bernstein, \"Designing and Deploying Online Field Experiments\" (PlanOut), WWW 2014",
+    "key_result": "Kiến trúc 3 tầng tách rời: định nghĩa thí nghiệm / GÁN (hàm băm quyết định luận — 'assignment là hàm, không phải sự kiện') / LOGGING exposure (sự kiện riêng ghi lúc treatment thực sự được giao). Kỷ luật phân tích: chỉ phân tích đơn vị có exposure event; assignment tái lập được từ seed nên không cần lưu, nhưng exposure bắt buộc lưu.",
+    "assumptions": "Gán theo user/cluster qua hash id; hạ tầng log client-server chuẩn.",
+    "transfers": "Đúng khuôn cho việc tách 2 dòng sự kiện của ta: assignment_event materialize lịch đã persist (kèm design_hash+seed) tại t₀, exposure_event ghi lúc desk THỰC SỰ áp pin ở biên khối — compliance_rate trở thành view dẫn xuất thay vì cột tự khai.",
+    "breaks": "Ở PlanOut đơn vị chưa exposure thì loại khỏi phân tích; ở switchback ITT theo assignment là primary (đã prereg) — exposure event chỉ nuôi compliance/secondary và RI exposure-weighting, không được đổi vai primary."
+   },
+   {
+    "paper": "Schultzberg, Ankargren, Frånberg (Spotify), \"Risk-aware product decisions in A/B tests with multiple metrics\" (arXiv:2402.11609, 2024)",
+    "key_result": "Khung quyết định 4 loại metric: success (superiority), guardrail (non-inferiority với margin NIM), deterioration (inferiority), quality. Định lý chính: guardrail non-inferiority KHÔNG cần hiệu chỉnh α đa kiểm định (chỉ có thể làm ship khó hơn → FPR của quyết định ship vẫn bị chặn bởi α của success metric); ngược lại PHẢI hiệu chỉnh β (power) theo số guardrail khi tính cỡ mẫu. Chứng minh + Monte Carlo.",
+    "assumptions": "Các test z/t tiệm cận; quyết định ship = giao (AND) của tất cả điều kiện; NIM cố định trước.",
+    "transfers": "Cho gói Performance: primary CTR-lift giữ nguyên α; thêm guardrails (retention khán giả, tỷ lệ intent tiêu cực, override của host) như non-inferiority KHÔNG tốn α — sống còn với 18–31 phiên vì Bonferroni 4 metric sẽ đòi gần gấp đôi số phiên; NIM ghi vào prereg như secondary.",
+    "breaks": "Kết quả xây trên test tiệm cận độc lập user-level; ta phải thực thi bằng RI/wild-bootstrap cấp khối — tính chất 'không cần chỉnh α' vẫn giữ (là tính chất của cấu trúc quyết định AND, không phụ thuộc test) nhưng power correction phải chạy lại bằng sim harness."
+   },
+   {
+    "paper": "Liu & Zhong, \"Randomization Tests in Switchback Experiments\" (arXiv:2602.23257, 02/2026)",
+    "key_result": "CRT (conditional randomization test) cho switchback: pool các khối thiết kế thành 'sections' ex-ante để có cấu trúc gán điều kiện gọn; p-value hữu hạn mẫu, phi phân phối, chỉ cần biết cơ chế gán; bản studentized cho weak null cấp phiên chịu seasonality trong phiên; kèm chẩn đoán HỌC cửa sổ carryover m và kiểm non-anticipation.",
+    "assumptions": "Non-anticipation + carryover hữu hạn m; cơ chế gán biết chính xác.",
+    "transfers": "Hai thứ cho mảng đo lường: (1) chẩn đoán non-anticipation chính là placebo test 'viewers tại đầu khối không phụ thuộc assignment sắp tới' — bắt được bug desk lộ lịch gán sớm; (2) khẳng định hướng đã planned (RI studentized khử-FE-phiên) là đúng văn liệu mới nhất.",
+    "breaks": "Section-pooling giả định nhiều khối/section; phiên ngắn 18–31×(6–12 khối) làm một số section quá mỏng — cần sim chọn cỡ section; carryover m của ta đã xử bằng biên nhân đôi nên chủ yếu dùng phần chẩn đoán."
+   },
+   {
+    "paper": "Johnson, Lewis, Nubbemeyer, \"Ghost Ads: Improving the Economics of Measuring Online Ad Effectiveness\", J. Marketing Research 2017 (SSRN 2620078)",
+    "key_result": "Ghost ads: platform GHI LẠI thời điểm control-user 'lẽ ra được thấy ad' thay vì đốt tiền chạy PSA → xác định counterpart của exposed users trong control, đo lift chính xác với chi phí thấp hơn ~1 bậc độ lớn so với PSA/ITT; Predicted Ghost Ads: không cần serve gì cho control, chỉ cần log dự đoán 'would-serve'.",
+    "assumptions": "Model chọn ad chạy giống hệt ở 2 nhánh (cùng version, cùng input); log would-serve trung thực, không bị chỉnh sau.",
+    "transfers": "Holdback 10% khối của gói Performance = control; intervention_log với source='holdback' + candidates_json + inner_propensity CHÍNH LÀ predicted-ghost-pin đã có sẵn → billing theo incremental valid clicks đối chiếu ON vs holdback, per-product lift không tốn thêm inventory; cần khóa model-version trong phiên để so sánh hợp lệ.",
+    "breaks": "Ghost ads đo cấp user với hàng triệu impression; ta đo cấp khối với 5–15 khán giả → billing phải cộng dồn qua nhiều phiên và floor tại 0, không hứa hẹn per-session precision."
+   },
+   {
+    "paper": "\"When Handshakes Tell the Truth: Detecting Web Bad Bots via TLS Fingerprints\" (arXiv:2602.09606, 02/2026)",
+    "key_result": "JA4 TLS fingerprint (ja4_b, cipher_count, ext_count là feature mạnh nhất) + CatBoost đạt AUC 0.998 / F1 0.973 phát hiện bad bot kể cả loại vượt Captcha và giả hành vi người; hoạt động tầng protocol, không cần cookie/JS/PII.",
+    "assumptions": "Có quyền truy cập TLS handshake (terminating proxy); bộ nhãn huấn luyện bot/người đại diện; bot chưa giả mạo TLS stack trình duyệt thật.",
+    "transfers": "Caddy (đã có, terminate TLS công khai) có thể log JA4 miễn phí → thêm 1 cột ua_tls_class vào click_event mà không đụng ẩn danh (fingerprint của SOFTWARE, không phải người); phase sau: rule-based trên JA4 known-bot list thay vì ML (không GPU, không cần nhãn).",
+    "breaks": "Không có budget huấn luyện classifier riêng → chỉ dùng ở mức rule/allowlist trình duyệt phổ biến; khán giả VN dùng in-app browser (Zalo/FB webview) có TLS stack lạ → phải để chế độ FLAG chứ không bao giờ auto-drop, tránh false positive giết click thật."
+   },
+   {
+    "paper": "GrowthBook gbstats (docs.growthbook.io/statistics) + Spotify confidence (github.com/spotify/confidence) — đọc tài liệu kiến trúc",
+    "key_result": "Cả hai tách 3 tầng: query/data → statistics engine thuần (DataFrame vào, DataFrame ra, không I/O) → report/visualization. GrowthBook chạy 6 health checks tự động tách khỏi kết quả (SRM, multiple exposures, guardrails, minimum data, variation-ID mismatch, suspicious uplift). Spotify confidence: ztest/t-test/chi², non-inferiority qua tham số NIM per-metric, group-sequential; mọi phép tính nhận/trả DataFrame nên test được 100%.",
+    "assumptions": "A/B user-level chuẩn, data warehouse SQL.",
+    "transfers": "Khuôn cho trang báo cáo 5 trạng thái đã planned: health checks là TẦNG RIÊNG chạy trước, kết quả chỉ hiện khi health pass; estimators.py giữ pure-function DataFrame-in/out (đã đúng HARNESS) và NIM thành tham số per-metric trong config.",
+    "breaks": "SRM check của cả hai là chi-square user-count — sai cho switchback rerandomized của ta (phải thay bằng redraw Monte-Carlo); sequential engine của họ gắn với user-stream, không tái dùng được trực tiếp."
+   },
+   {
+    "paper": "MRC/IAB Invalid Traffic Detection and Filtration Guidelines Addendum (mediaratingcouncil.org, bản cập nhật 2020) + fraud0 Q2/2025, Spider AF 2024, Imperva Bad Bot Report 2025",
+    "key_result": "GIVT = lọc được bằng list/tham số chuẩn (datacenter IP, bot UA, non-browser header, prefetch, headless); SIVT = cần phân tích nâng cao/đa điểm. GIVT là 'sàn' bắt buộc với mọi tổ chức đo lường được kiểm định. Số liệu ngành: 18,6% traffic desktop/mobile-web invalid (fraud0 Q2/2025); trung bình 5,1% click gian lận (Spider AF 2024); 51% tổng traffic web 2024 là tự động (Imperva 2025).",
+    "assumptions": "Đo lường thương mại quy mô lớn, có bên kiểm định; nhiều kỹ thuật cần IP thô.",
+    "transfers": "Ta chỉ cần cam kết mức GIVT-lite (UA list + prefetch + protocol + refractory) là đã đạt 'sàn' ngành và đủ trung thực để viết vào paper + hợp đồng Performance; con số ngành làm expected-gain có căn cứ cho việc lọc.",
+    "breaks": "SIVT (bot giả hành vi người) nằm ngoài tầm — phải khai rõ giới hạn trong DOM; shortlink công khai không đăng nhập nên không có lớp account-based nào cứu."
+   },
+   {
+    "paper": "NIST Interoperable Randomness Beacons (csrc.nist.gov/projects/interoperable-randomness-beacons) + \"Traceable random numbers from a nonlocal quantum advantage\" (arXiv:2411.05247, Nature 2025)",
+    "key_result": "Quy trình chuẩn public-verifiability cho thủ tục ngẫu nhiên: (1) công bố trước statement mô tả phép sinh quyết định luận; (2) seed = hash(statement ‖ beacon pulse tại thời điểm t hẹn trước); auditor không thể bị thiên vị chọn mẫu, bên bị kiểm không biết trước. Nature 2025 nêu đích danh use-case 'public scientific hypothesis tests / registered reports' — mọi input được commit trước khi seed tồn tại.",
+    "assumptions": "Beacon đáng tin, có timestamp ký số; statement được công bố ở kênh không sửa được (git commit/artifact).",
+    "transfers": "Nâng cấp trực tiếp cho seed phiên: seed = SHA256(DesignParams ‖ NIST pulse tại T₀ hẹn trước) + design_hash công bố trước phiên → nhà bán (gói Performance) và ban giám khảo tự verify lịch gán không bị cherry-pick, khớp văn hoá prereg sẵn có.",
+    "breaks": "Beacon pulse 60s/lần → phải chốt T₀ trước và chịu trễ ≤1 phút khi tạo lịch; nếu mất mạng lúc T₀ cần fallback đã khai báo (seed local + commit hash) — ghi cả hai đường vào prereg."
+   }
+  ],
+  "proposals": [
+   {
+    "title": "Tiền-đăng-ký 'click hợp lệ': dedup refractory + GIVT-lite trên /r/{code}, flag-don't-drop",
+    "method_sketch": "Migration thêm cột vào click_event: is_valid bool DEFAULT true, invalid_reason text, ua_class text (không bao giờ xoá row — flag-don't-edit như excluded_reason). Hàm thuần classify_click(row, recent_clicks_same_hash, headers) chạy NGAY lúc ghi + recount lại ở quality T+30': (1) GIVT-UA: UA khớp regex bot|crawler|spider|headless|python|curl|wget hoặc rỗng/non-browser → 'givt_ua' (IAB 6.2.1 robots-list match = exclude); (2) prefetch: header Sec-Purpose/Purpose/X-Moz chứa prefetch|preview → 'prefetch'; (3) chỉ đếm GET; (4) refractory: cùng (dedup_hash, shortlink_code) trong τ=10s sau click hợp lệ gần nhất → 'duplicate' (IAB 3b: repeat-click-refractory-period do publisher định; prereg τ=10s primary, sensitivity τ∈{5,30,60}); (5) volume cap: click hợp lệ thứ >M=5 của cùng hash trên cùng shortlink trong 1 khối → 'volume_cap' (IAB 'Maximum Level of Clicks per User'). NGUYÊN TẮC FABIJAN §5.3: mọi rule chỉ dùng thuộc tính request tại thời điểm click, mù hoàn toàn với assignment, áp giống hệt ON/OFF — tránh post-treatment selection SRM. Prereg §7 ghi: primary outcome = VALID clicks/exposure với đúng bộ tham số này; raw clicks = secondary bắt buộc báo song song; quality.py thêm check 'invalid-rate lệch ON/OFF' chỉ ở mức cờ điều tra (có thể là hiệu ứng thật — Fabijan §4.6). Tuỳ chọn rẻ: log JA4 TLS fingerprint từ Caddy vào ua_class để flag (không drop) bot giả UA (arXiv:2602.09606).",
+    "source_papers": [
+     "IAB Click Measurement Guidelines v1.0 2009 (iab.com)",
+     "Fabijan et al. KDD 2019 doi:10.1145/3292500.3330722",
+     "MRC IVT Detection & Filtration Guidelines Addendum 2020",
+     "arXiv:2602.09606"
+    ],
+    "integration_point": "src/livelift/api/routes/redirect.py (classify lúc ghi), src/livelift/core/quality.py + quality_cli.py (recount T+30'), src/livelift/migrations/000X (cột mới), src/livelift/analysis/estimators.py (mask is_valid), PREREGISTRATION.md §7",
+    "validation_plan": "Gate sim mới trong HARNESS: tiêm 3 kịch bản bot vào simulator (burst 10 click 1 hash trong 5s; crawler UA rải đều; double-click người thật 1-2s) với ATE biết trước → estimator trên valid clicks bias <10% trong khi raw clicks bias >20%; A/A 200 lặp với bot tiêm vào FPR giữ ≤5%; property test: valid ≤ measured (invariant IAB 7.1.1.1); test không phá redirect (luôn 302).",
+    "expected_gain": "Ngành: 5,1% click gian lận trung bình (Spider AF 2024), 18,6% web traffic invalid (fraud0 Q2/2025); với 5–15 khán giả thật/phiên, MỘT crawler burst 10 click ≈ nhân đôi CTR một khối → đây là nguồn bias đơn lẻ lớn nhất của outcome công khai chưa được xử; đồng thời câu 'valid click preregistered theo chuẩn IAB' là điểm cộng trung thực trong paper.",
+    "effort": "ngày",
+    "when": "trước khóa prereg"
+   },
+   {
+    "title": "SRM đúng thiết kế cho switchback trong-phiên: bộ 3 kiểm định (integrity–conformity–delivery) + placebo balance",
+    "method_sketch": "Thay chi-square user-count (sai dưới rerandomization vì phân phối gán bị cắt cụt) bằng 3 tầng: (i) ASSIGNMENT-INTEGRITY — đã có block_integrity; bổ sung cross-pipeline recount (Fabijan rule 10): đếm khối từ desk/ws event log vs bảng experiment_block, lệch = fail. (ii) DESIGN-CONFORMITY qua redraw: dùng đúng hàm gán production + DesignParams đã persist, vẽ B=10.000 lịch; p_MC = (1+#{b: T_b ≥ T_obs})/(B+1) với T = max-statistic của (|#ON−E[#ON]|, mất cân bằng theo phase, longest-run) → bắt generator hỏng/seed sai mà chi-square không thấy. (iii) TELEMETRY-DELIVERY SRM (execution/log-processing): trên đại lượng ĐỘC LẬP can thiệp — số session_tick record rơi vào khối mỗi nhánh với kỳ vọng = tỷ lệ thời gian ON/OFF BIẾT TỪ schedule (không phải 0.5) → exact binomial có điều kiện trên schedule; spool-replay completeness per-arm tương tự. TUYỆT ĐỐI không SRM trên viewers/comments/clicks (hậu-can-thiệp). Thay vào đó PLACEBO BALANCE: hồi quy viewers-tại-tick-đầu-khối lên assignment, p từ redraw — hợp lệ vì rerandomization chỉ dùng phase, độc lập viewers; đây đồng thời là chẩn đoán non-anticipation của Liu–Zhong (bắt bug desk lộ lịch sớm). Map vào 5 trạng thái trang báo cáo đã planned: PASS / fail-integrity / fail-conformity / fail-delivery / fail-balance; fail nào cũng chỉ CỜ phiên (excluded_reason), không sửa dữ liệu.",
+    "source_papers": [
+     "Fabijan et al. KDD 2019 doi:10.1145/3292500.3330722",
+     "arXiv:2602.23257 (Liu & Zhong 2026)",
+     "GrowthBook health-checks docs.growthbook.io"
+    ],
+    "integration_point": "src/livelift/core/quality.py (3 check mới, hàm thuần), src/livelift/core/assigner/outer.py (expose hàm redraw cho quality), src/livelift/api/routes/reports.py (trang 5 trạng thái), tests/ + gate Monte-Carlo trong HARNESS.md",
+    "validation_plan": "Harness tiêm 4 lỗi biết trước: (a) drop 10% tick của khối OFF; (b) dịch schedule 1 khối; (c) seed sai ở generator; (d) desk hiện assignment sớm 30s (viewers phản ứng trước) → power phát hiện ≥0.8 từng lỗi; A/A 200 phiên sạch: FPR mỗi check ≤5%, family ≤10%; đối chiếu p_MC vs chi-square trên sim để ghi nhận mức sai của chi-square (làm bằng chứng chọn redraw trong paper).",
+    "expected_gain": "Fabijan: ~6% thí nghiệm ở Microsoft dính SRM và SRM = 'analysis completely untrustworthy'; với 18–31 phiên, phát hiện sớm 1 phiên hỏng = cứu/loại đúng 3–5% mẫu thay vì để nó đầu độc ước lượng; redraw p đúng exact theo thiết kế trong khi chi-square naive lệch mức ý nghĩa dưới rerandomization.",
+    "effort": "ngày",
+    "when": "trước khóa prereg"
+   },
+   {
+    "title": "Tách assignment_event / exposure_event thành 2 dòng sự kiện bất biến + design_hash commitment (kỷ luật PlanOut)",
+    "method_sketch": "Migration 000X: bảng assignment_event(event_id, session_id, block_index, assignment, propensity, design_hash, seed_commit, emitted_ts DEFAULT now()) — ghi TOÀN BỘ lịch một lần tại t₀ trước phiên (materialize lịch từ seed, PlanOut: 'assignment là hàm'; event chỉ đóng dấu thời gian làm chứng cứ), append-only, không UPDATE/DELETE (revoke quyền ở DB role). Bảng exposure_event(event_id, block_id, actual_start_ts, actual_end_ts, applied_pin_product_id, desk_ack_latency_ms, interruption_s) — ghi tại biên khối khi desk THỰC SỰ áp trạng thái pin. compliance_rate của experiment_block chuyển thành VIEW dẫn xuất = overlap(exposure, assignment)/độ dài khối, hết là cột tự khai. design_hash = SHA256(canonical_json(DesignParams ∪ {seed})), công bố TRƯỚC phiên (hiện trên desk + commit git); đây là móc nối cho proposal billing và cho RI exposure-weighting ĐÃ PLANNED (đọc exposure_event thay vì compliance_rate — chính xác đến giây thay vì tỷ lệ gộp). Phân tích: ITT theo assignment giữ nguyên primary (prereg không đổi); exposure chỉ nuôi compliance/secondary.",
+    "source_papers": [
+     "Bakshy, Eckles, Bernstein WWW 2014 (PlanOut)",
+     "Fabijan et al. KDD 2019 (Execution-stage SRM: variants started at different times)"
+    ],
+    "integration_point": "src/livelift/migrations/000X, src/livelift/api/service.py + routes/events.py (emit 2 dòng sự kiện), src/livelift/core/assigner/outer.py (design_hash), web/ desk (hiển thị hash trước phiên); mở khóa cho RI exposure-weighting planned trong analysis/estimators.py",
+    "validation_plan": "Gate migration up/down/up trên DB sạch (chuẩn E1-02); integration test dùng hạ tầng spool/replay sẵn có: replay 1 phiên YouTube → compliance tính từ exposure_event khớp compliance_rate cũ ±1%; property test: assignment_event bất biến sau khi phiên live (mọi UPDATE bị từ chối); A/A gate không đổi kết quả.",
+    "expected_gain": "Chi phí 1–2 ngày nhưng: (1) audit trail mà giám khảo/đối tác verify được (khớp câu chuyện 'randomization kiểm chứng được' sẵn có); (2) gỡ nút thắt dữ liệu cho RI exposure-weighting đã lên kế hoạch; (3) chặn cả lớp Execution-SRM (variant áp trễ/desk treo) hiện chỉ đo gián tiếp qua compliance_rate tự khai.",
+    "effort": "ngày",
+    "when": "trước khóa prereg"
+   },
+   {
+    "title": "Giám sát vận hành giữa phiên bằng e-process Dirichlet-multinomial (Lindon–Malek) — không chạm kết quả chính",
+    "method_sketch": "Module mới core/monitoring.py, hàm thuần: class SeqMultinomialMonitor(theta0, k=100, u): α₀=k·θ₀; update(x): O_n = O_{n−1}·[Beta(α_{n−1}+x)/Beta(α_{n−1})]·θ₀^{−x} (eq.4 của paper, tính log-space bằng gammaln); alert khi O_n ≥ 1/u → Type I ≤ u dưới peeking liên tục (Thm 2.2). Hai stream mỗi phiên: (1) TICK-DELIVERY: mỗi session_tick là 1 mark theo arm của khối chứa nó, θ₀ = tỷ lệ thời gian ON/OFF lấy từ schedule ĐÃ PERSIST (không phải 0.5); phát hiện mất telemetry lệch nhánh/ingest chết. (2) CLICK-MARKS: mỗi click (kể cả invalid, đếm riêng) là mark ON/OFF với θ₀ = exposure-time ratio; Thm 4.1: marks của Poisson không thuần nhất ancillary với λ(t) chung → hợp lệ dù viewers dao động mạnh trong livestream. Tuân RESULTS_FREEZE: alert chỉ nhị phân 'ANOMALY stream X phiên Y' đẩy vào ops/ pager + ws, KHÔNG hiển thị hướng/độ lớn; log O_n niêm phong tới sau freeze. u=0.01/stream/phiên (vận hành, không phải suy diễn khoa học); mỗi phiên reset e-process riêng.",
+    "source_papers": [
+     "arXiv:2011.03567 (Lindon & Malek, NeurIPS 2022)",
+     "arXiv:1810.08240 (Howard et al.)"
+    ],
+    "integration_point": "src/livelift/core/monitoring.py (mới, hàm thuần), src/livelift/api/routes/ws.py (đẩy alert), ops/ (pager hook), đọc schedule từ live_session.design",
+    "validation_plan": "Gate sim: 200 phiên A/A calibrated-KuaiLive → tỷ lệ false alarm ≤ u/stream; kịch bản tiêm: spool outage 2 phút giữa phiên, bot burst 20 click 1 nhánh, desk treo 1 khối → thời gian phát hiện trung vị <60s và <1 khối; kiểm bằng chứng không rò rỉ: snapshot API alert không chứa trường sign/magnitude.",
+    "expected_gain": "Hiện sự cố giữa phiên chỉ lộ ở quality check T+30' — tức mất trọn phiên (3–5% tổng mẫu 18–31 phiên). Netflix cùng công thức phát hiện bug 60% thiết bị <1s và SRM signup ở n=144; quy mô ta nhỏ hơn nhưng bài toán giống hệt (đếm mark theo nhánh, cường độ thời gian biến thiên). CPU-only, ~50 dòng code lõi.",
+    "effort": "tuần",
+    "when": "chuỗi khẳng định"
+   },
+   {
+    "title": "Guardrail non-inferiority theo khung Spotify: quyết định 'ship' gói Performance không tốn α",
+    "method_sketch": "Prereg secondary §: bộ guardrails G = {retention (viewer-phút/khối), tỷ lệ intent tiêu cực/comment, tỷ lệ override của host}; NIM_g chọn từ margin đo được của pipeline MDE sẵn có (vd NIM_retention = 0.5×SD cấp khối within-session). Test mỗi g: H₀: τ_g ≤ −NIM_g vs H₁: τ_g > −NIM_g; thực thi bằng máy móc sẵn có: non-inferior ⟺ cận dưới CI (wild cluster bootstrap ĐÃ PLANNED, hoặc Fisher CI/RI dịch chuyển: redraw trên outcome trừ NIM·assignment) > −NIM_g. Quyết định ship = primary superiority (α giữ nguyên như prereg) AND ∀g non-inferior. Theo Thm trong 2402.11609: KHÔNG hiệu chỉnh α cho guardrail (điều kiện AND chỉ làm ship khó hơn → FPR quyết định ship ≤ α primary — tính chất cấu trúc, không phụ thuộc loại test); NHƯNG hiệu chỉnh β: power kế hoạch 1−β* phân bổ β_primary + Σ_g β_g ≤ β*, chạy bảng power bằng analysis/power/bang_mde_hai_kich_ban.py mở rộng. Vai trò: secondary/decision-rule nên vào ĐƯỢC sau khóa prereg nếu trễ, nhưng NIM nên chốt trước khóa cho đẹp.",
+    "source_papers": [
+     "arXiv:2402.11609 (Schultzberg et al. 2024)",
+     "Spotify confidence github.com/spotify/confidence (NIM per-metric API)"
+    ],
+    "integration_point": "src/livelift/analysis/estimators.py (test dịch chuyển NIM), analysis/power/ (bảng β-correction), PREREGISTRATION.md § secondary, src/livelift/api/routes/reports.py (khối 'ship decision')",
+    "validation_plan": "Gate Monte-Carlo: (a) τ_primary=0, guardrail đúng biên −NIM → P(ship) ≤ α (kiểm FPR cấu trúc AND); (b) τ_primary=MDE, guardrail vô hại → power ship ≥0.7 với 18–31 phiên; (c) so sánh với Bonferroni-4-metric để định lượng số phiên tiết kiệm; coverage CI dịch chuyển trong [90,98]% theo chuẩn HARNESS.",
+    "expected_gain": "Với 4 metric, Bonferroni α/4 tại n=18–31 phiên gần như gấp đôi số phiên cần cho cùng power — khung này giữ nguyên α primary, chỉ trả giá bằng β có kiểm soát; đồng thời trả lời đúng câu hỏi thương mại của gói Performance: 'ghim tăng click mà KHÔNG hại kênh' — có kiểm định, không phải lời hứa.",
+    "effort": "tuần",
+    "when": "chuỗi khẳng định"
+   },
+   {
+    "title": "Holdback billing tự kiểm toán: ledger + seed công khai kiểu beacon + recount mã nguồn mở (Ghost-Pins)",
+    "method_sketch": "Ba lớp nhà bán tự verify: (1) COMMITMENT: seed phiên = SHA256(canonical_json(DesignParams) ‖ NIST-beacon-pulse tại T₀ hẹn trước); design_hash + T₀ công bố trước phiên (desk + git); sau phiên reveal DesignParams → nhà bán chạy assigner mã nguồn mở tái tạo đúng lịch khối, chứng minh không cherry-pick holdback (quy trình chuẩn NIST beacon cho audit/registered-reports; fallback offline: seed local + commit hash, khai sẵn trong DOM). (2) LEDGER: export CSV ký số sau mỗi phiên gồm schedule + exposure_event + click_event(ts, block_id, product_id, dedup_hash 8 ký tự đầu, is_valid, invalid_reason) — đủ để recount, không đủ để định danh; scripts/billing_audit.py (mã nguồn mở, deterministic) tính Bill = Σ_p margin_p × max(0, C_ON,p − r·C_HB,p) với C = valid clicks, r = t_ON/t_HB từ exposure_event; nhà bán chạy lại script trên ledger phải ra đúng số hoá đơn. Invariant IAB: valid ≤ measured; điều khoản revision 7 ngày nếu phát hiện invalid muộn (IAB campaign-reporting), tham số công bố trước. (3) GHOST-PINS: intervention_log source='holdback' đã log candidates_json + inner_propensity cùng model-version → báo cáo per-product lift kiểu Predicted Ghost Ads (control observations chi phí 0); khoá model-version trong phiên để so sánh hợp lệ. Kèm DOM 1 trang (IAB §9): phương pháp đếm, tham số lọc, quy trình revision.",
+    "source_papers": [
+     "Johnson, Lewis, Nubbemeyer JMR 2017 (Ghost Ads, SSRN 2620078)",
+     "IAB Click Measurement Guidelines 2009 §6-9",
+     "NIST Interoperable Randomness Beacons (csrc.nist.gov)",
+     "arXiv:2411.05247 (Nature 2025, traceable randomness cho registered reports)"
+    ],
+    "integration_point": "scripts/billing_audit.py (mới, ngoài src/ để nhà bán chạy độc lập), src/livelift/core/assigner/outer.py (trộn beacon pulse vào seed, giữ nguyên hàm gán), src/livelift/api/routes/reports.py (export ledger), docs/ (DOM); dựa trên assignment/exposure_event của proposal 3",
+    "validation_plan": "Sim 50 phiên known-lift từ simulator hiệu chỉnh KuaiLive: phân phối sai số hoá đơn, |bias| <5% và floor-at-0 không tạo bias dương quá 2% khi lift thật =0; test đối kháng: recount độc lập từ ledger khớp 100% số operator; test tamper: sửa 1 row click → chữ ký/đối chiếu fail; beacon fallback path có test riêng.",
+    "expected_gain": "Ghost Ads: đo lift rẻ hơn ~1 bậc so với PSA holdout — ta đã trả chi phí holdback 10%, lớp audit biến nó thành tài sản: 'hoá đơn mà nhà bán tự kiểm được đến từng click' là differentiator chung kết và là câu trả lời cho nghi vấn measure-to-bill conflict-of-interest (nền tảng vừa đo vừa thu tiền).",
+    "effort": "tuần",
+    "when": "chung kết"
+   }
+  ],
+  "open_questions": [
+   "Chọn refractory window τ để prereg khi chưa có phiên thật: 10s (double-click điều hướng) hay 30s? Cần 1–2 phiên pilot trước khóa prereg tuần 6 để nhìn phân bố khoảng cách click cùng hash; nếu không kịp, prereg τ=10s + sensitivity {5,30,60} có đủ phòng thủ trước reviewer?",
+   "dedup_hash hiện salt theo PROCESS (_PROCESS_SALT trong redirect.py) chứ không phải per-session như docstring §11.2: restart giữa phiên làm hash đổi → dedup/refractory vỡ trong chính phiên đó. Chuyển sang salt per-session giữ trong bộ nhớ (sinh lúc session start, mất khi restart) hay HMAC(secret, session_id)? — cần cân privacy (DB dump + logs) vs độ bền dedup.",
+   "Placebo balance test 'viewers tại đầu khối' có đủ power ở 5–15 khán giả (bước nhảy 1 người = 7–20%)? Sim quyết định: nếu power <50% ở lỗi non-anticipation thực tế thì chỉ giữ telemetry-delivery SRM làm gate, balance test hạ xuống mức báo cáo.",
+   "Billing nên tính theo point estimate (floor 0, cộng dồn nhiều phiên) hay cận dưới CI (bảo thủ, nhà bán thiệt khi n nhỏ)? Cần mô phỏng incentive: rule nào khiến cả hai bên không có động cơ thao túng số phiên tham gia gói Performance.",
+   "E-process giữa phiên đọc click-marks có nhãn nhánh — alert nhị phân đã đủ tuân RESULTS_FREEZE_UNTIL chưa, hay cần tách hẳn: chỉ stream tick-delivery được chạy trước freeze, còn click-marks monitor bật sau freeze / chỉ trong phiên pilot không tính vào confirmatory?"
+  ]
+ }
+]

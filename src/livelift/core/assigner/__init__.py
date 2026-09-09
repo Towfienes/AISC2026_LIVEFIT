@@ -17,6 +17,7 @@ from livelift.core.assigner.outer import (
     Block,
     DesignParams,
     Schedule,
+    design_hash,
     draw_assignments,
     generate_schedule,
 )
@@ -28,6 +29,7 @@ __all__ = [
     "InnerDecision",
     "Schedule",
     "choose_action",
+    "design_hash",
     "draw_assignments",
     "generate_schedule",
     "intervals_overlap",

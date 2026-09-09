@@ -2,7 +2,14 @@
 
 Every executed action lands in ``intervention_log`` with block_id, server ts,
 source, inner_propensity and the full candidate set (candidates_json) —
-the three fields no competing tool records (description §9.2)."""
+the three fields no competing tool records (description §9.2).
+
+It ALSO lands in the append-only ``exposure_event`` table (gói Q3, migration
+0006): the same fact recorded as "what was actually on screen, when", separate
+from the mutable intervention log. ``intervention_log`` stays the decision
+record (why this product, at what propensity); ``exposure_event`` is the
+exposure record compliance is derived from
+(:func:`livelift.core.quality.derive_compliance`)."""
 
 from __future__ import annotations
 
@@ -144,6 +151,19 @@ def execute_action(session_id: str, body: ExecuteRequest, store: StoreDep) -> Ex
         "seconds_since_last_switch": _seconds_since_last_switch(blocks, elapsed),
     }
     store.add_intervention(session_id, row)
+    store.add_exposure_event(
+        session_id,
+        {
+            "block_idx": block["block_index"],
+            "event_type": "pin",
+            "product_id": decision.product_id,
+            "ts_utc": now,
+            # ack_latency_ms needs the desk's client_ts, which the execute
+            # request does not carry yet — NULL is the honest value, not 0.
+            "ack_latency_ms": None,
+            "source": "model",
+        },
+    )
     store.publish(
         session_id,
         {"type": "state", "data": {"pinned_product_id": decision.product_id}},
@@ -186,6 +206,20 @@ def override_action(session_id: str, body: OverrideRequest, store: StoreDep) -> 
         "seconds_since_last_switch": _seconds_since_last_switch(blocks, elapsed) if block else None,
     }
     store.add_intervention(session_id, row)
+    store.add_exposure_event(
+        session_id,
+        {
+            # None when the override lands outside every block (not live yet /
+            # already ended). Kept as a row rather than dropped — flag,
+            # don't drop; derive_compliance counts it as unattributed.
+            "block_idx": block["block_index"] if block else None,
+            "event_type": action_type,
+            "product_id": body.product_id,
+            "ts_utc": now,
+            "ack_latency_ms": None,
+            "source": "human",
+        },
+    )
     if block is not None:
         store.increment_override(block["block_id"])
     store.publish(session_id, {"type": "state", "data": {"pinned_product_id": body.product_id}})

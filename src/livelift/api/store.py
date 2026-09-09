@@ -19,6 +19,11 @@ three methods.
 
 PII note (hard rule 1): comment rows only ever carry ``text_scrubbed`` — the
 store has no field, method, or log line for raw comment text.
+
+Append-only note (migration 0006): ``assignment_event`` and ``exposure_event``
+are the experiment's audit trail. Neither backend exposes an update or delete
+method for them, and none may ever be added — enforcement of the same rule at
+the database role level belongs to deploy.
 """
 
 from __future__ import annotations
@@ -141,10 +146,30 @@ class Store(Protocol):
     # clicks
     def add_click(self, session_id: str | None, row: dict[str, Any]) -> dict[str, Any]: ...
     def list_clicks(self, session_id: str) -> list[dict[str, Any]]: ...
+    def list_clicks_for_fingerprint(
+        self, session_id: str, dedup_hash: str, shortlink_code: str | None
+    ) -> list[dict[str, Any]]: ...
 
     # interventions
     def add_intervention(self, session_id: str, row: dict[str, Any]) -> dict[str, Any]: ...
     def list_interventions(self, session_id: str) -> list[dict[str, Any]]: ...
+
+    # assignment / exposure events — APPEND-ONLY (migration 0006).
+    #
+    # There is deliberately NO update_* or delete_* method for these two tables
+    # in this protocol or in either backend. They are the experiment's audit
+    # trail: the design as drawn before broadcast (assignment_event) and what
+    # the desk actually did (exposure_event). A store that could edit them
+    # would make the trail worthless — a corrected row and a tampered row look
+    # identical afterwards. Corrections are expressed by APPENDING (a new
+    # design draw carries a new design_hash; a wrong pin is followed by an
+    # unpin), never by rewriting history (HARNESS.md §3: flag, don't edit).
+    def add_assignment_events(
+        self, session_id: str, rows: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]: ...
+    def list_assignment_events(self, session_id: str) -> list[dict[str, Any]]: ...
+    def add_exposure_event(self, session_id: str, row: dict[str, Any]) -> dict[str, Any]: ...
+    def list_exposure_events(self, session_id: str) -> list[dict[str, Any]]: ...
 
     # orders
     def add_order(self, session_id: str | None, row: dict[str, Any]) -> dict[str, Any]: ...
@@ -182,6 +207,9 @@ class InMemoryStore:
         self._clicks: dict[str, list[dict[str, Any]]] = {}
         self._interventions: dict[str, list[dict[str, Any]]] = {}
         self._orders: dict[str, list[dict[str, Any]]] = {}
+        # Append-only event tables (migration 0006) — written, never rewritten.
+        self._assignment_events: dict[str, list[dict[str, Any]]] = {}
+        self._exposure_events: dict[str, list[dict[str, Any]]] = {}
         self._broadcaster = Broadcaster()
 
     # -- products ----------------------------------------------------------
@@ -299,11 +327,35 @@ class InMemoryStore:
 
     # -- clicks ------------------------------------------------------------
     def add_click(self, session_id: str | None, row: dict[str, Any]) -> dict[str, Any]:
-        self._clicks.setdefault(session_id or "", []).append(dict(row))
-        return dict(row)
+        # Validity columns (migration 0004) default exactly like the SQL
+        # schema: is_valid true, reason/ua_class NULL — so a caller that
+        # predates classification stores a VALID click in both backends.
+        stored = {"is_valid": True, "invalid_reason": None, "ua_class": None, **row}
+        self._clicks.setdefault(session_id or "", []).append(stored)
+        return dict(stored)
 
     def list_clicks(self, session_id: str) -> list[dict[str, Any]]:
         return sorted((dict(c) for c in self._clicks.get(session_id, [])), key=_by_ts("ts"))
+
+    def list_clicks_for_fingerprint(
+        self, session_id: str, dedup_hash: str, shortlink_code: str | None
+    ) -> list[dict[str, Any]]:
+        """Clicks of ONE (dedup_hash, shortlink) in a session, oldest first.
+
+        The redirect classifies validity on the hot path and needs only this
+        fingerprint's history (refractory + volume cap). Reading the whole
+        session instead made every redirect cost O(clicks-so-far) — worst
+        exactly during the bot bursts gói Q1 exists to catch. Both backends
+        must return the same narrow slice (test_store_contract).
+        """
+        return sorted(
+            (
+                dict(c)
+                for c in self._clicks.get(session_id, [])
+                if c.get("dedup_hash") == dedup_hash and c.get("shortlink_code") == shortlink_code
+            ),
+            key=_by_ts("ts"),
+        )
 
     # -- interventions -----------------------------------------------------
     def add_intervention(self, session_id: str, row: dict[str, Any]) -> dict[str, Any]:
@@ -312,6 +364,54 @@ class InMemoryStore:
 
     def list_interventions(self, session_id: str) -> list[dict[str, Any]]:
         return sorted((dict(i) for i in self._interventions.get(session_id, [])), key=_by_ts("ts"))
+
+    # -- assignment / exposure events (APPEND-ONLY, migration 0006) --------
+    #
+    # No update/delete counterpart exists on purpose — see the Store protocol.
+    def add_assignment_events(
+        self, session_id: str, rows: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """Materialize the WHOLE schedule as it was drawn, in one append."""
+        stored = [
+            {
+                "id": _new_id(),
+                "session_id": session_id,
+                "block_idx": r["block_idx"],
+                "assignment": r.get("assignment"),
+                "block_start_s": r["block_start_s"],
+                "block_end_s": r["block_end_s"],
+                "design_hash": r["design_hash"],
+                "created_at": r["created_at"],
+            }
+            for r in rows
+        ]
+        self._assignment_events.setdefault(session_id, []).extend(stored)
+        return [dict(r) for r in stored]
+
+    def list_assignment_events(self, session_id: str) -> list[dict[str, Any]]:
+        return sorted(
+            (dict(r) for r in self._assignment_events.get(session_id, [])),
+            key=lambda r: (r["created_at"], r["block_idx"]),
+        )
+
+    def add_exposure_event(self, session_id: str, row: dict[str, Any]) -> dict[str, Any]:
+        stored = {
+            "id": _new_id(),
+            "session_id": session_id,
+            "block_idx": row.get("block_idx"),
+            "event_type": row["event_type"],
+            "product_id": row.get("product_id"),
+            "ts_utc": row["ts_utc"],
+            "ack_latency_ms": row.get("ack_latency_ms"),
+            "source": row["source"],
+        }
+        self._exposure_events.setdefault(session_id, []).append(stored)
+        return dict(stored)
+
+    def list_exposure_events(self, session_id: str) -> list[dict[str, Any]]:
+        return sorted(
+            (dict(r) for r in self._exposure_events.get(session_id, [])), key=_by_ts("ts_utc")
+        )
 
     # -- orders ------------------------------------------------------------
     def add_order(self, session_id: str | None, row: dict[str, Any]) -> dict[str, Any]:
@@ -631,8 +731,9 @@ class PostgresStore:
         out = self._one(
             """
             INSERT INTO click_event
-                (click_id, session_id, block_id, ts, product_id, shortlink_code, dedup_hash)
-            VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING *
+                (click_id, session_id, block_id, ts, product_id, shortlink_code,
+                 dedup_hash, is_valid, invalid_reason, ua_class)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *
             """,
             (
                 row["click_id"],
@@ -642,6 +743,9 @@ class PostgresStore:
                 row.get("product_id"),
                 row.get("shortlink_code"),
                 row.get("dedup_hash"),
+                row.get("is_valid", True),
+                row.get("invalid_reason"),
+                row.get("ua_class"),
             ),
         )
         assert out is not None
@@ -651,6 +755,18 @@ class PostgresStore:
         return self._all(
             "SELECT * FROM click_event WHERE session_id = %s ORDER BY ts",
             (session_id,),
+        )
+
+    def list_clicks_for_fingerprint(
+        self, session_id: str, dedup_hash: str, shortlink_code: str | None
+    ) -> list[dict[str, Any]]:
+        return self._all(
+            """
+            SELECT * FROM click_event
+            WHERE session_id = %s AND dedup_hash = %s AND shortlink_code IS NOT DISTINCT FROM %s
+            ORDER BY ts
+            """,
+            (session_id, dedup_hash, shortlink_code),
         )
 
     # -- interventions -----------------------------------------------------
@@ -686,6 +802,76 @@ class PostgresStore:
     def list_interventions(self, session_id: str) -> list[dict[str, Any]]:
         return self._all(
             "SELECT * FROM intervention_log WHERE session_id = %s ORDER BY ts",
+            (session_id,),
+        )
+
+    # -- assignment / exposure events (APPEND-ONLY, migration 0006) --------
+    #
+    # No update/delete counterpart exists on purpose — see the Store protocol.
+    def add_assignment_events(
+        self, session_id: str, rows: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """Materialize the WHOLE schedule as it was drawn, in ONE transaction.
+
+        One connection for the batch: a half-written schedule would be an audit
+        trail that disagrees with itself, and the append is the only chance to
+        record the design as drawn (there is no update path to repair it).
+        """
+        if not rows:
+            return []
+        inserted: list[dict[str, Any]] = []
+        with self._pool.connection() as conn:
+            for r in rows:
+                out = conn.execute(
+                    """
+                    INSERT INTO assignment_event
+                        (session_id, block_idx, assignment, block_start_s, block_end_s,
+                         design_hash, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING *
+                    """,
+                    (
+                        session_id,
+                        r["block_idx"],
+                        r.get("assignment"),
+                        r["block_start_s"],
+                        r["block_end_s"],
+                        r["design_hash"],
+                        r["created_at"],
+                    ),
+                ).fetchone()
+                assert out is not None
+                inserted.append(_norm_row(out))
+        return inserted
+
+    def list_assignment_events(self, session_id: str) -> list[dict[str, Any]]:
+        return self._all(
+            "SELECT * FROM assignment_event WHERE session_id = %s ORDER BY created_at, block_idx",
+            (session_id,),
+        )
+
+    def add_exposure_event(self, session_id: str, row: dict[str, Any]) -> dict[str, Any]:
+        out = self._one(
+            """
+            INSERT INTO exposure_event
+                (session_id, block_idx, event_type, product_id, ts_utc, ack_latency_ms, source)
+            VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING *
+            """,
+            (
+                session_id,
+                row.get("block_idx"),
+                row["event_type"],
+                row.get("product_id"),
+                row["ts_utc"],
+                row.get("ack_latency_ms"),
+                row["source"],
+            ),
+        )
+        assert out is not None
+        return out
+
+    def list_exposure_events(self, session_id: str) -> list[dict[str, Any]]:
+        return self._all(
+            "SELECT * FROM exposure_event WHERE session_id = %s ORDER BY ts_utc",
             (session_id,),
         )
 

@@ -1,0 +1,569 @@
+[
+ {
+  "role": "Phương pháp luận",
+  "verdicts": [
+   {
+    "proposal": "CUPED đa biến pre-session-only + cross-fit theo phiên",
+    "verdict": "adopt",
+    "reason": "Hiệp biến toàn bộ pre-session hoặc tất định theo lịch → bất biến qua redraw, RI giữ exact dưới sharp null; fold theo phiên đúng nguyên tắc. Một quy ước phải ghi vào prereg: khi đảo Fisher CI, θ̂ và g được cố định theo quan sát hay tính lại trên outcome đã dịch chuyển — chọn MỘT và test đúng quy ước đó trong A/A. Ablation chốt bộ hiệp biến phải chạy trên SIM trước khóa (như plan đã ghi), không trên dữ liệu thật."
+   },
+   {
+    "proposal": "θ* power-optimal nghiêng về thành phần macro",
+    "verdict": "adapt",
+    "reason": "Sửa 2 điểm: (1) n̄, cv² tính từ exposure THỰC là đại lượng hậu-can-thiệp — dưới sharp null RI vẫn exact nhưng dưới alternative trọng số nội sinh làm hành vi estimator khó kiểm soát; dùng exposure kỳ vọng theo thiết kế (độ dài khối × dự báo viewer pre-session). (2) Với cell 5–15 viewer, plug-in C^m/V^m nhiễu rất nặng — giữ đúng vai sensitivity như đề xuất tự nhận, primary vẫn θ̂ OLS; gate stress ±50% giữ nguyên và thêm trục nhiễu ước cv²."
+   },
+   {
+    "proposal": "Quy tắc cv* chọn trọng số exposure + studentize khớp trọng số",
+    "verdict": "adapt",
+    "reason": "Quyết định một-lần-trước-khóa là hợp lệ prereg, nhưng: (1) cv* dựa trên S_res/S_macro ước từ pilot mỏng — phải kèm phân tích độ ổn định của QUYẾT ĐỊNH trên cả dải ước lượng hợp lý (nếu quyết định lật khi S_res đổi ±50% thì ngưỡng vô dụng); (2) exposure thực là hậu-can-thiệp: prereg phải ghi nhánh rẽ 'nếu gate ICS (đề xuất mẫu số nội sinh) đỏ thì trọng số chuyển sang exposure kỳ vọng theo thiết kế'; (3) prereg phải NÊU TÊN estimand của statistic được chọn (khối-đều=c-ATE vs Hájek=i-ATE), không chỉ nêu quy tắc chọn."
+   },
+   {
+    "proposal": "Mẫu số nội sinh: p-value exact / CI linearization / gate ICS",
+    "verdict": "adopt",
+    "reason": "Đề xuất đúng nhất về mặt logic suy luận của cả đợt: sharp null làm cả exposure imputable nên p-value chính đứng vững không cần đổi estimand; linearization tách CI khỏi phương sai naive; delta method tự giới hạn ở vai mô tả vì K=18–31. Chỉ cần ghi quy ước r̂_0: cố định theo quan sát qua mọi redraw (hoặc tính lại per-redraw — cả hai hợp lệ dưới sharp null nhưng phải chọn một và A/A đúng quy ước đó); ICS gate power 50% ở 30 phiên là kỳ vọng thực tế, chấp nhận."
+   },
+   {
+    "proposal": "Wild cluster bootstrap spec MNW (G=18–31)",
+    "verdict": "adopt",
+    "reason": "Spec đúng sách: WCR restricted + Rademacher (2^18≫9999 nên không cần Webb làm chính), CV3 cross-check chống cluster lệch kích thước, leverage report, và quan trọng nhất là xác định đúng vai sensitivity với RI làm trọng tài khi 1–2 phiên đối tác chiếm exposure lớn. Gate A/A với exposure lệch 10× là đúng thế giới cần test."
+   },
+   {
+    "proposal": "Nâng cấp RI Liu–Zhong: V̂_up + carryover test chọn burn-in + pooling",
+    "verdict": "adapt",
+    "reason": "Lỗ hổng chính: mọi công thức p_j và propensity section giả định Bernoulli iid, trong khi production có rerandomization + arm-balance (và sắp thêm ràng buộc transition) → propensity phải ước bằng redraw qua hàm gán production, không dùng công thức đóng — đề xuất Hausman-RI thấy điều này, đề xuất này thì không. Thêm rủi ro lịch: 'nhiều tuần' trước khóa tuần 6 là sát nút — ưu tiên mảnh (1) studentize V̂_up vào primary; mảnh (2) carryover-decision-rule và (3) pooling vào sau như decision rule/power tool nếu không kịp."
+   },
+   {
+    "proposal": "Giao thức đo t_mix tuần 3 (LP) + quy tắc 5ph→10ph viết trước",
+    "verdict": "adapt",
+    "reason": "Khung decision-rule-trước-khi-thấy-số là đúng chuẩn prereg. Nhưng R(5) = tỷ số tổng phần-dương ĝ_ℓ⁺ có bias dương hệ thống: ở lag 6–10 với 6 phiên pilot × 5–15 viewer, ĝ chủ yếu là nhiễu và positive-part truncation giữ lại toàn phần dương của nhiễu → quy tắc nghiêng oan về khối 10ph (mất √2 MDE vô cớ). Sửa: bỏ truncation, dùng tổng có shrinkage hoặc test-based, và BẮT BUỘC gate OC chạy với đúng noise level 6-phiên-pilot chứ không phải 30 phiên; ngưỡng 0.15 calibrate lại trên chính OC đó."
+   },
+   {
+    "proposal": "CRT gộp khối Liu–Zhong làm sensitivity",
+    "verdict": "adapt",
+    "reason": "Giá trị thật (test hữu hạn mẫu hợp lệ dưới carryover bậc m — thứ Fisher CI hiện tại không cho) nhưng có lỗ validity: lật nhãn section hằng độc lập p=0.5 chỉ đúng dưới Bernoulli iid; rerandomization + arm-balance (+ ràng buộc transition mới) làm phân phối có điều kiện của nhãn section KHÔNG độc lập và không đúng 0.5. Sửa: redraw qua hàm gán production có điều kiện trên phần không-focal, hoặc chứng minh bằng A/A sim CHẠY ĐÚNG cơ chế gán production rằng méo không đáng kể — plan hiện ghi A/A nhưng phải nêu tường minh là test điểm này. Giao thức đọc mâu thuẫn viết trước là điểm cộng lớn, giữ nguyên."
+   },
+   {
+    "proposal": "Gate Hausman-RI (τ̂₀ vs τ̂₁) trong trang báo cáo",
+    "verdict": "adapt",
+    "reason": "Đúng chỗ khó nhất (propensity cặp ước bằng redraw, không công thức đóng). Nhưng null distribution của D lấy dưới sharp null, trong khi gate cần giữ size dưới thế giới 'có effect trực tiếp, không carryover' — sim plan hiện chỉ check size tại halflife=0 mà không nói τ≠0. Bổ sung: (1) size check với τ=MDE & halflife=0 (nếu gate đỏ >5.5% ở đây thì nó đang bắt effect chứ không bắt carryover); (2) studentize D. Nếu size không giữ dưới τ≠0 thì hạ cấp thành chẩn đoán mô tả, không auto-flag phiên."
+   },
+   {
+    "proposal": "Rerandomization tiên lượng SRSB/P&G cho đợt chung kết",
+    "verdict": "adapt",
+    "reason": "Đúng khi để làm đợt thí nghiệm MỚI với prereg riêng. Sửa phạm vi: mặc định chỉ bản pre-session X (không sequential); biến thể H_b dùng y_{b−1} làm assignment phụ thuộc outcome — redraw sharp-null tái tạo được H path (SRSB Alg 2) nhưng Fisher CI đảo kiểm định phải tái dựng H path dưới outcome ĐÃ IMPUTE cho từng τ giả thuyết, tức máy móc CI hiện tại không dùng thẳng được; biến thể sequential chỉ vào sau khi gate riêng chứng minh CI-inversion-có-tái-dựng-H đạt coverage. Gate A/A với cơ chế gán mới (điểm họ đã ghi) là bắt buộc tuyệt đối."
+   },
+   {
+    "proposal": "Ràng buộc cân bằng transition trong acceptance rule",
+    "verdict": "adopt",
+    "reason": "Kết luận 'blocked-SRSB không áp được với 1 stream' là đọc văn liệu đúng; ràng buộc đối xứng 0↔1 giữ marginal 0.5, redraw dùng hàm production nên inference tự nhất quán; sửa đúng bệnh thật (phiên degenerate làm sập τ̂₁ và CRT). Điều kiện đi kèm: mọi propensity dạng công thức đóng dùng ở nơi khác (V̂_up, cặp liền kề) phải đồng loạt chuyển sang ước-bằng-redraw vì acceptance region giờ hẹp thêm — ăn khớp với sửa ở hai đề xuất Liu–Zhong."
+   },
+   {
+    "proposal": "Knob 1 — Dwell mixture đuôi nặng",
+    "verdict": "adopt",
+    "reason": "Sửa sai cơ chế bậc nhất có số liệu đối chứng (mean/median 22× của KuaiLive vs exponential thuần); kỷ luật CRN một-uniform-một-viewer đúng; giữ đường cũ khi knob=None cho test hồi quy là đúng chuẩn kỹ nghệ. Thế giới mixture khó hơn phải có TRƯỚC khi chốt MDE/CV vào prereg — timing 'trước khóa' chính xác."
+   },
+   {
+    "proposal": "Knob 2 — ICC outcome frailty + shock click cấp phiên",
+    "verdict": "adopt",
+    "reason": "Knob quan trọng nhất của cả đợt sim: FPR A/A 4.5% hiện tại đo trên thế giới ICC≈0 là con số tự khen, và mọi so sánh RI-statistic khử-FE-phiên vs cũ đều thiếu thế giới phân biệt nếu không có nó. Fit cv² qua NB với offset thời gian xem là cách hiệu chỉnh đúng; tách shock click khỏi shock arrival đúng về cơ chế. Đây là điều kiện tiên quyết ngầm cho gần nửa số đề xuất thống kê khác."
+   },
+   {
+    "proposal": "Knob 3 — Kênh can-thiệp→khán-giả (mẫu số nội sinh trong sim)",
+    "verdict": "adopt",
+    "reason": "Cặp bài trùng với đề xuất tách p-value/CI mẫu số nội sinh — không có knob này thì gate không thể chấm điểm linearization và ICS test. Điểm cộng phương pháp luận hiếm: tự phân biệt đúng 'thế giới null thật (γ=0, effect=0)' vs 'thế giới chỉ-mẫu-số (γ_d≠0, effect_click=0)' và nhận ra thế giới sau là đối kháng đáng giá nhất; ground truth đa-estimand (tử số/mẫu số/tỷ lệ) là đúng cách định nghĩa."
+   },
+   {
+    "proposal": "Knob 4 — Share-shock + Hawkes thang phút match YTLive",
+    "verdict": "adopt",
+    "reason": "Moment-matching có đích đo được từ 12k phiên thật thay vì 'thêm nhiễu tùy hứng'; branching ratio ≤0.3 chặn nổ; kịch bản đối kháng shock-trùng-ranh-giới-khối là đúng thế giới cần để chấm RI statistic khử-FE + exposure-weighting đã planned. Giữ tiêu chí ±50% moment là thô nhưng trung thực với việc chỉ match tương đối."
+   },
+   {
+    "proposal": "Funnel click→đơn dán nhãn kịch bản",
+    "verdict": "adopt",
+    "reason": "Không chạm primary nên không rủi ro prereg; mapping nguồn ghi tường minh (CẤM KuaiLive cho funnel vì click=vào-phòng) là kỷ luật provenance đúng; sản phẩm là bảng MDE chứng minh định lượng 'đơn hàng chỉ khả thi ở nhánh đối tác' — trả lời giám khảo bằng số thay vì phân trần. Trễ LogNormal rơi sang khối khác cũng tạo thế giới test attribution tốt."
+   },
+   {
+    "proposal": "Sim Validation Report kiểu SBC: ECDF-band trên lưới thế giới",
+    "verdict": "adopt",
+    "reason": "Nâng chuẩn đúng hướng văn liệu calibration: uniformity p-value (ECDF-band đồng thời + gamma statistic) bắt lệch dạng mà một con số FPR bỏ sót; tự thẩm định bằng tiêm 3 lỗi biết trước là 'SBC cho harness' thật sự chứ không phải 'chạy thử thấy ổn'. Nên nâng thành ĐIỀU KIỆN đóng băng prereg: report này + waiver có nhãn là bằng chứng phương pháp đi kèm §7."
+   },
+   {
+    "proposal": "PROTOCOL v1.0 gán nhãn (SRS + gold + alpha + versioning)",
+    "verdict": "adopt",
+    "reason": "Đúng chuẩn đo lường: SRS 10% cứu ước lượng prevalence khỏi méo của uncertain-first; gold độc lập không nhìn nhãn LLM; alpha theo LỚP (bài học ViGoEmotions) thay vì một số gộp; audit 5% chặn đúng rủi ro 'đồng thuận nhưng cùng sai' mà agreement không đo được; versioning guideline + prompt_sha256 là provenance đúng nghĩa. Điều kiện cần cho mọi tuyên bố dataset."
+   },
+   {
+    "proposal": "Merge 6 phiếu self-consistency + hàng đợi rủi ro + calibration",
+    "verdict": "adapt",
+    "reason": "Mâu thuẫn nội bộ với PROTOCOL v1.0: P1 quy định temperature=0 + seed, đề xuất này cần temperature=0.7 cho self-consistency — hai giao thức không thể cùng là v1.0. Sửa: chọn một (nếu lấy 6 phiếu thì bump guideline lên v1.1, ghi changelog, và mọi con số alpha/calibration trên gold phải chạy lại dưới giao thức mới); property test 'k=1 phải giống merge cũ' giữ nguyên; ngưỡng auto-accept chỉ kích hoạt sau khi reliability curve trên gold xác nhận accuracy ≥95% như plan."
+   },
+   {
+    "proposal": "Recipe ViSoBERT + bảng ablation 6 dòng",
+    "verdict": "adopt",
+    "reason": "Gate swap-in đo trên GOLD THẬT (không phải bộ biên soạn), split theo phiên chống rò rỉ, 5 seed mean±std, tiêu chí latency CPU tường minh — đúng chuẩn báo cáo; hàng phụ consensus-only vs consensus+human định lượng giá trị người duyệt là thiết kế đo hiếm thấy ở đội thi. Timing 'chung kết' đúng vì phụ thuộc 2–3k nhãn."
+   },
+   {
+    "proposal": "Ablation chuẩn hóa teencode ViSoLex",
+    "verdict": "adopt",
+    "reason": "Chi phí 1 ngày, cam kết báo cáo delta kèm CI kể cả khi ≤0 — kết quả âm là ablation hợp lệ, đúng thái độ. Dự đoán trước 'TF-IDF char n-gram sẽ ≈0' là falsifiable claim tốt."
+   },
+   {
+    "proposal": "Gói công bố dataset (datasheet + Croissant + PII re-audit + split phiên)",
+    "verdict": "adopt",
+    "reason": "Thứ tự rủi ro đúng: PII re-audit trên file XUẤT (không tin scrub lúc ingest), search-traceability check cho bình luận công khai, split theo PHIÊN chống rò rỉ within-session, và có phương án B khi ToS vướng. Đây là khoảng cách giữa file JSONL và dataset trích dẫn được."
+   },
+   {
+    "proposal": "Lớp nhãn CTA trên transcript streamer làm moderator",
+    "verdict": "adapt",
+    "reason": "cta_rate đo TRONG khối là biến hậu-can-thiệp nếu streamer thấy trạng thái ghim — chính đề xuất thấy điều này nhưng để nó ở validation thay vì ở thiết kế phân tích. Sửa thành quy tắc rẽ nhánh viết TRƯỚC vào prereg (nhánh exploratory): pass randomization-balance → dùng làm moderator; fail → chỉ báo cáo mô tả như mediator, KHÔNG chạy interaction test; và cấm tuyệt đối vào adjustment của primary (đề xuất đã nói — nâng thành điều kiện cứng có test). Sim moderator giả A/A trong plan là đúng."
+   },
+   {
+    "proposal": "Gate 'OPE-trên-log-thích-ứng' trong harness",
+    "verdict": "adopt",
+    "reason": "Đúng thứ tự phương pháp luận: gate trước, số sau. Negative controls bắt buộc (chứng minh DM thiên lệch xuống và Wald i.i.d. under-cover NGAY TRÊN SIM CỦA MÌNH rồi mới cấm) là tinh thần phản biện đúng — không cấm bằng trích dẫn suông. Phải là blocking gate trong HARNESS cho mọi đề xuất OPE phía sau."
+   },
+   {
+    "proposal": "analysis/ope.py: IPS chặn trọng số + CS anytime-valid",
+    "verdict": "adopt",
+    "reason": "Chẩn đoán 'log hiện tại hợp lệ NHƯNG chỉ cho Π_ov và chỉ với inference martingale' là chính xác — đây là câu trả lời đúng duy nhất cho propensity thích ứng; ép Π_ov ở cấp kiểu dữ liệu là chốt chặn kỹ thuật tốt; w≤3 né toàn bộ tranh cãi clipping. Điều kiện đã tự ghi: chỉ sau khi gate đề xuất trên pass, và r̂_t phải predictable (dữ liệu trước t) — giữ nghiêm."
+   },
+   {
+    "proposal": "Demo counterfactual replay 3 policy + caveat bắt buộc",
+    "verdict": "adopt",
+    "reason": "Caveat C2 (one-step deviation dọc quỹ đạo đã ghi ≠ giá trị chạy policy khác từ đầu — posterior sẽ tiến hóa khác) là đúng chỗ mọi demo OPE thường overclaim, và họ in cứng nó lên trang; support check tự động loại policy ngoài Π_ov; CS của hiệu thay vì hiệu của CS là đúng. Validation có ground truth ν̃ thật từ inner_replay."
+   },
+   {
+    "proposal": "MAD hoá inner tier cho chung kết",
+    "verdict": "adapt",
+    "reason": "Ba sửa: (1) lý thuyết MAD một-chuỗi áp per-phiên (posterior reset), gộp phiên là open question như tự nhận — gate coverage trên chuỗi nối phải PASS trước khi tuyên bố bất kỳ CS gộp nào, không 'kiểm bằng sim' chung chung; (2) đổi inner policy giữa vòng 1 và chung kết đổi NGHĨA của 'pin ON' → estimand outer của đợt chung kết khác đợt 1: cấm gộp outer hai đợt, prereg đợt mới phải định nghĩa 'ON = ghim dưới policy π_inner cụ thể'; (3) migration log delta_t + policy_probs_json phải vào trước phiên MAD đầu tiên, thiếu là mất khả năng OPE hồi tố."
+   },
+   {
+    "proposal": "Dải CS 'sản phẩm đang thắng' thời gian thực trên trang báo cáo",
+    "verdict": "adapt",
+    "reason": "Anytime-validity giải quyết peeking THỐNG KÊ nhưng không giải quyết ô nhiễm HÀNH VI: hiển thị 'sản phẩm dẫn đầu' giữa phiên cho host/streamer mở kênh feedback outcome→lời-nói-của-streamer tương quan với lịch sử gán — đe dọa non-anticipation của outer tier và mâu thuẫn trực tiếp với triết lý niêm phong hướng/độ lớn của đề xuất e-process (cùng đợt NCV!). Sửa: panel chỉ hiện SAU phiên (hoặc sau RESULTS_FREEZE); bản 'live' cho demo chung kết chạy ở chế độ replay phiên đã kết thúc — vẫn giữ nguyên khoảnh khắc 'CS loại 0 trên sân khấu'."
+   },
+   {
+    "proposal": "Tiền-đăng-ký 'click hợp lệ' (refractory + GIVT-lite, flag-don't-drop)",
+    "verdict": "adopt",
+    "reason": "Đúng chuẩn ở mọi điểm hiểm: rule chỉ dùng thuộc tính request, mù assignment, áp giống hệt hai cánh (né post-treatment selection); flag-don't-drop giữ invariant valid≤measured; tham số prereg + sensitivity τ; invalid-rate lệch cánh chỉ là cờ điều tra vì có thể là hiệu ứng thật. Với 5–15 viewer, một bot burst ≈ nhân đôi CTR một khối — đây thật sự là nguồn bias đơn lẻ lớn nhất của outcome công khai chưa xử, và gate sim có ATE biết trước đủ mạnh để chứng minh."
+   },
+   {
+    "proposal": "SRM 3 tầng integrity–conformity–delivery + placebo balance",
+    "verdict": "adopt",
+    "reason": "Từ chối chi-square dưới rerandomization (phân phối gán bị cắt cụt) và thay bằng redraw-conformity qua đúng hàm gán production là đúng nguyên lý — cùng một nhất quán 'mọi propensity qua redraw' cần lan ra các đề xuất khác. Một lưu ý diễn giải phải ghi vào trang cờ: 'viewers tick đầu khối b' chịu dư âm khán giả của khối b−1 dưới carryover, nên fail-balance đọc là 'bug HOẶC carryover', không tự động là bug. Harness tiêm 4 lỗi biết trước với power ≥0.8 là kế hoạch thẩm định thật."
+   },
+   {
+    "proposal": "Tách assignment_event/exposure_event + design_hash commitment",
+    "verdict": "adopt",
+    "reason": "Nền móng rẻ (1–2 ngày) gỡ đúng nút: compliance thành VIEW dẫn xuất từ sự kiện bất biến thay vì cột tự khai; ITT theo assignment giữ nguyên primary nên prereg không đổi; mở khóa dữ liệu cho RI exposure-weighting đã planned và là móc cho billing audit. Property test 'mọi UPDATE bị từ chối' là đúng cách kiểm bất biến."
+   },
+   {
+    "proposal": "Giám sát e-process Dirichlet-multinomial giữa phiên",
+    "verdict": "adopt",
+    "reason": "Thiết kế tôn trọng RESULTS_FREEZE đúng cách: alert nhị phân không hướng/độ lớn, log niêm phong tới sau freeze, θ₀ lấy từ schedule đã persist (không phải 0.5 ngây thơ) — tương phản tốt với đề xuất panel CS live bên Bandit (cần sửa theo hướng này). Type I ≤ u dưới peeking liên tục là đúng công cụ cho giám sát vận hành; gate false-alarm + median detection time + kiểm 'API alert không chứa sign/magnitude' là đủ."
+   },
+   {
+    "proposal": "Guardrail non-inferiority khung Spotify",
+    "verdict": "adopt",
+    "reason": "Định lý 'AND chỉ làm ship khó hơn → không tốn α' là tính chất cấu trúc, dùng đúng; cái giá thật nằm ở β và họ có kế hoạch phân bổ β tường minh — hiểu đúng bài toán. Thực thi bằng shifted-RI/WCR sẵn có nên không thêm giả định mới; NIM chốt trước khóa. Lưu ý nhất quán: retention (viewer-phút/khối) chính là secondary mẫu-số của các đề xuất mẫu-số-nội-sinh — dùng chung một định nghĩa outcome, đừng sinh hai biến thể."
+   },
+   {
+    "proposal": "Holdback billing tự kiểm toán (ledger + beacon + Ghost-Pins)",
+    "verdict": "adapt",
+    "reason": "Phần commitment (beacon/seed công bố trước, design_hash) + ledger recount deterministic là đúng chuẩn audit và adopt được nguyên trạng. Phần cần sửa: 'per-product lift kiểu Predicted Ghost Ads' với 18–31 phiên × ít click mỗi sản phẩm là chỗ dễ overclaim nhất — per-product chỉ được báo kèm CS/CI và n_eff, dán nhãn 'ước lượng dựa mô hình, không phải đo trực tiếp', và không được xuất hiện trên hoá đơn (hoá đơn chỉ dùng recount tổng theo công thức đã công bố). Giữ timing chung kết."
+   }
+  ],
+  "missing": [
+   "Hệ thống phân cấp suy luận + kiểm soát đa trùng lặp ở cấp CÂU CHUYỆN: cả 6 NCV cộng lại tạo ra >15 kiểm định/chẩn đoán/gate mỗi cái α riêng (SRM 3 tầng, ICS, Hausman-RI, carryover m̂, guardrails, CRT, placebo balance...) nhưng không ai định nghĩa gatekeeping hierarchy tiền đăng ký: khi 18–31 phiên chạy qua ngần ấy cờ, xác suất ÍT NHẤT một cờ đỏ do ngẫu nhiên là rất cao — prereg phải ghi trước family của các cờ, thứ tự đọc, và quy tắc tổng hợp khi các sensitivity mâu thuẫn nhau (chỉ đề xuất CRT có giao thức mâu thuẫn cục bộ).",
+   "Độ mịn (granularity) của phân phối RI dưới chồng ràng buộc acceptance: rerandomization + arm-balance + transition constraint + (tương lai) prognostic rerandomization cùng cắt cụt không gian lịch gán của chỉ 18 khối/phiên — không ai kiểm số lịch khả thi phân biệt được, p-value tối thiểu đạt được, và Monte Carlo error của p so với α=0.05 (đặc biệt CRT chỉ còn ~4.5 section hằng/phiên); nếu support quá thô, kiểm định chính mất power một cách vô hình và Fisher CI thành rời rạc.",
+   "Mô hình imputation hiệu-ứng-cộng-hằng của Fisher CI vs bản chất NHÂN TÍNH của lift trên outcome tỷ lệ: CI hiện đảo kiểm định với hiệu ứng cộng hằng trên mọi khối, trong khi lift ghim gần chắc là nhân tính (tỷ lệ nền khác nhau nhiều lần giữa khối/phiên) — không NCV nào đề xuất inversion trên thang log/multiplicative hoặc ít nhất một gate sim đo coverage của CI cộng-hằng dưới thế giới hiệu ứng nhân (khác với lỗ carryover đã nêu).",
+   "Estimand của treatment kép (compound treatment): 'pin ON' thực chất là 'pin dưới policy inner π' — hiệu ứng outer phụ thuộc policy chọn sản phẩm đang chạy; không ai viết định nghĩa estimand ràng buộc này vào prereg, không ai cam kết ĐÓNG BĂNG inner policy (và model-version) trong suốt một đợt confirmatory, và hệ quả cấm-gộp-outer giữa hai đợt (vòng 1 vs chung kết MAD) chưa được phát biểu ở đâu ngoài ngầm định.",
+   "Loại trừ phiên như post-treatment selection: nhiều đề xuất tạo cờ loại phiên (SRM fail, excluded_reason) nhưng không ai xử lý suy luận SAU loại trừ — cờ chất lượng có thể tương quan với thể hiện của randomization (ví dụ chuỗi ON dài làm desk quá tải → fail-delivery), nên 'phân tích trên phiên sạch' là mẫu chọn lọc; cần prereg quy tắc loại trừ + bắt buộc sensitivity all-sessions + bounds (kiểu Lee/worst-case) cho kịch bản loại 1–3 phiên trên tổng 18–31."
+  ],
+  "top_picks": [
+   "Mẫu số nội sinh: tách p-value exact khỏi CI linearization + gate ICS (Giảm phương sai #4) — sửa đúng chỗ suy luận dễ sai nhất trước khóa prereg",
+   "Knob 2 — ICC outcome frailty + shock click cấp phiên (Sim #2) — không có nó thì mọi gate FPR/coverage hiện tại là tự khen trên thế giới quá dễ",
+   "Sim Validation Report kiểu SBC với ECDF-band + tiêm lỗi tự thẩm định (Sim #6) — nâng chuẩn bằng chứng của cả harness, điều kiện đóng băng prereg",
+   "Tiền-đăng-ký 'click hợp lệ' flag-don't-drop (Đo lường #1) — nguồn bias đơn lẻ lớn nhất của outcome công khai ở quy mô 5–15 viewer, chi phí ngày công",
+   "SRM 3 tầng bằng redraw qua hàm gán production (Đo lường #2) — chi-square naive sai dưới rerandomization; nguyên tắc 'mọi propensity qua redraw' ở đây cần lan ra cả các đề xuất Liu–Zhong/CRT"
+  ]
+ },
+ {
+  "role": "Kỹ thuật",
+  "verdicts": [
+   {
+    "proposal": "CUPED đa biến pre-session-only + cross-fit theo phiên",
+    "verdict": "adapt",
+    "reason": "Điểm tích hợp đúng (cuped_adjust 1 biến có sẵn, sklearn đã là dep qua TF-IDF+LogReg, ridge không thêm phụ thuộc). Nhưng x1/x5 cần ≥3 phiên lịch sử cùng giờ — với 18-31 phiên tự chạy, nửa đầu thí nghiệm covariate này bị EB shrink về hằng số, gain gần 0. SỬA: phiên bản v1 chỉ 3 hiệp biến tất định (sin/cos giờ + spline phút-vào-phiên), x1/x5 vào v2 khi đủ lịch sử; effort thật ~2 tuần gồm gate. Chặn bởi: Sim#2 (ICC knob) phải có trước thì gate A/A mới có ý nghĩa."
+   },
+   {
+    "proposal": "θ* tối ưu lực nghiêng về macro",
+    "verdict": "defer",
+    "reason": "Phụ thuộc cứng vào CUPED đa biến đã qua gate; ước C^m/V^m trên cell 5-15 viewer rất nhiễu, stress test plug-in ±50% là điều kiện đúng nhưng thêm ~1 tuần sim thật. LÙI đến sau khi CUPED v1 pass gate và có ≥10 phiên thật để ước cv; vai sensitivity như NCV tự đề — đúng, giữ nguyên vai đó."
+   },
+   {
+    "proposal": "Quy tắc cv* chọn trọng số exposure + studentize khớp",
+    "verdict": "adapt",
+    "reason": "Đây là spec cho việc ĐÃ planned (RI statistic + trọng số exposure) nên không phải scope mới — tốt. Nhưng lưới sim 2×3 + case đối kháng là ~1.5-2 tuần thật. SỬA: cài cả hai statistic (A)/(B) + studentization khớp trọng số (bắt buộc), nhưng thay lưới đầy đủ bằng đúng 2 cấu hình thật (tự-chạy 5-15, đối tác 200-500); tính cv* một lần trên pilot, ghi quyết định vào prereg. Lưu ý: trọng số exposure chính xác cần exposure_event của Platform#3 — thứ tự: Platform#3 trước."
+   },
+   {
+    "proposal": "Tách p-value exact khỏi CI + linearization + gate ICS (mẫu số nội sinh)",
+    "verdict": "adopt",
+    "reason": "Giá trị/effort tốt nhất khối stats: linearize_ratio là hàm thuần ~50 dòng, không dep mới, tái dùng toàn bộ pipeline RI; quyết định NGỮ NGHĨA primary outcome nên bắt buộc trước khóa prereg. Chặn bởi: Sim#3 (kênh can-thiệp→mẫu-số) — validation plan của chính nó cần knob đó; làm Sim#3 song song hoặc trước."
+   },
+   {
+    "proposal": "Spec WCR chuẩn MNW cho G=18-31",
+    "verdict": "adopt",
+    "reason": "Là spec đúng cho wild cluster bootstrap ĐÃ planned. Điều kiện: tự viết ~150 dòng numpy với score trick, KHÔNG kéo boottest/wildboottest làm dep mới. CV3-jackknife để đợt 2 nếu thiếu giờ. Vai sensitivity nên không đụng prereg — timing 'chuỗi khẳng định' hợp lý. Effort thật ~1.5 tuần gồm A/A gate trên thế giới exposure lệch (cần Sim#2 trước để gate có nghĩa)."
+   },
+   {
+    "proposal": "Nâng cấp RI Liu–Zhong: V̂_up + test carryover + section pooling",
+    "verdict": "adapt",
+    "reason": "'Nhiều tuần' của NCV = 4-6 tuần thật, gói 3 mảnh không đều giá trị. SỬA: lấy mảnh (1) V̂_up — trùng với việc đổi RI statistic đã planned, ~3-4 ngày vì _batch_studentized đã đúng chỗ; mảnh (2) carryover holdout GỘP vào CRT (Design#2) làm MỘT thủ tục carryover duy nhất — hiện có 4 cơ chế carryover rải ở 3 area, phải dedupe; mảnh (3) pooling cho phiên đối tác lùi chung kết."
+   },
+   {
+    "proposal": "Giao thức đo t_mix tuần 3 + quy tắc 5ph→10ph viết trước",
+    "verdict": "adapt",
+    "reason": "Yêu cầu 6 phiên pilot × 18 khối trước tuần 6 là gánh vận hành lớn nhất của cả gói — nhưng pilot vốn phải chạy để rehearsal nên chi phí biên chấp nhận được NẾU gộp: cùng các phiên pilot đó phục vụ luôn cv* (Stats#3), R² cho SRSB, và CV within-session. SỬA: hạ xuống 4 pilot tối thiểu; giữ R(5) phi tham số + m̂ làm quy tắc quyết định, bỏ fit ρ̂ tham số (nice-to-have). Module carryover.py mới là đúng kiến trúc (tái dùng demean của ols_fe_lin)."
+   },
+   {
+    "proposal": "CRT gộp khối Liu–Zhong làm sensitivity",
+    "verdict": "adopt",
+    "reason": "Tự chứa, tái dùng _p_from_stats/_redraw_matrix đúng như khai, không dep mới, và là ứng viên DUY NHẤT nên giữ trong 4 cơ chế carryover được đề xuất (gộp m̂ của Stats#6 vào đây). Giao thức đọc-khi-mâu-thuẫn viết vào prereg là điểm cộng hiếm. Effort thật ~2 tuần gồm gate halflife=0/120s. Chặn bởi: Design#5 (transition constraint) phải vào assigner TRƯỚC phiên confirmatory đầu tiên để bảo đảm section hằng tồn tại."
+   },
+   {
+    "proposal": "Gate Hausman-RI τ̂₀ vs τ̂₁ trong trang báo cáo",
+    "verdict": "adapt",
+    "reason": "Rẻ thật (~2-3 ngày, tái dùng redraw; P̂ cặp qua Monte-Carlo là đúng cách dưới rerandomization). Nhưng power ở 18 phiên sẽ thấp — chính NCV thừa nhận. SỬA: chỉ là CỜ một phía trên trang 5 trạng thái, không bao giờ gate kết luận; làm SAU khi CRT + Design#5 đã vào (cùng phụ thuộc dữ liệu cặp (1,1)/(0,0)). Timing 'chuỗi khẳng định' đúng."
+   },
+   {
+    "proposal": "Rerandomization tiên lượng SRSB/P&G cho đợt mới chung kết",
+    "verdict": "defer",
+    "reason": "Thay đổi CƠ CHẾ GÁN production — lớp rủi ro cao nhất repo này có (FPR vỡ nếu redraw không tái tạo đúng acceptance); effort thật nhiều tuần chứ không phải 'tuần' vì kéo theo re-gate toàn bộ A/A + DesignParams schema mới. LÙI: chỉ khởi động sau chung-kết-hồ-sơ ổn, và chỉ khi pilot đo được R²≥0.2 (đo miễn phí từ dữ liệu pilot của Design#1). Nếu R²<0.15 thì bỏ hẳn — gain không bõ rủi ro."
+   },
+   {
+    "proposal": "Ràng buộc cân bằng transition trong draw_assignments",
+    "verdict": "adopt",
+    "reason": "~15 dòng thật sự (đã xem outer.py, constraint_met là chỗ cắm đúng), đối xứng nên propensity giữ 0.5, RI redraw tự đúng vì dùng hàm production. Là NÚT CỔ CHAI thứ tự: phải merge trước phiên confirmatory đầu tiên vì CRT (Design#2) và τ̂₁ (Design#3) sập trên phiên degenerate — dữ liệu đã chạy không cứu lại được. Làm trong tuần này."
+   },
+   {
+    "proposal": "Knob 1 — Dwell mixture đuôi nặng",
+    "verdict": "adopt",
+    "reason": "Stdlib-only (quantile inverse tự viết), flag dwell_bounce_share=None giữ đường cũ nên test hồi quy an toàn — đúng kỷ luật repo; effort 'ngày' ≈ 2-3 ngày thật gồm QQ calibration. Sửa sai cơ chế bậc nhất trước khi chốt MDE vào prereg. Thứ tự: sau Sim#2 (cùng người, cùng file, refactor Viewer của Sim#2 nên đi trước để khỏi refactor hai lần)."
+   },
+   {
+    "proposal": "Knob 2 — ICC outcome: frailty Gamma + shock click phiên",
+    "verdict": "adopt",
+    "reason": "Quan trọng nhất khối sim: FPR 4.5% hiện tại đo trên thế giới ICC≈0 — mọi gate của mọi đề xuất khác đang chấm trên thế giới dễ. Không có knob này thì không thể phân xử RI-FE-phiên vs cũ, WCR vs RI. Refactor stays→Viewer đụng kỷ luật CRN nên cần cẩn thận (~1.5 tuần thật, thêm test CRN bất biến). LÀM ĐẦU TIÊN trong chuỗi sim — mọi gate khác chờ nó."
+   },
+   {
+    "proposal": "Knob 3 — Kênh can-thiệp→khán-giả (mẫu số nội sinh)",
+    "verdict": "adopt",
+    "reason": "Cặp bài trùng với Stats#4 — validation của Stats#4 không chạy được nếu thiếu knob này, nên hai cái phải cùng sprint. Cài đặt Exp(1)-tích-lũy-hazard giữ CRN là đúng kỹ thuật; true_effect đa-estimand là thay đổi API của simulator cần cập nhật validate.py đồng bộ. ~1 tuần thật. Trước khóa prereg vì quyết định dòng 'secondary outcome viewer-giây'."
+   },
+   {
+    "proposal": "Knob 4 — Share-shock + Hawkes match moment YTLive",
+    "verdict": "adapt",
+    "reason": "Hawkes + branching ratio tuning + comment clustering là hố thời gian (2 tuần+ thật) cho giá trị biên. SỬA: đợt 1 chỉ share-shock compound-Poisson (nửa ngày code) + bảng moment YTLive trên bản đơn giản; tự-kích-thích và comment cluster chỉ làm nếu moment lệch >50% đích. Kịch bản 'shock trùng ranh giới khối' giữ lại — đó là phần ăn tiền để chấm RI statistic mới."
+   },
+   {
+    "proposal": "Tầng funnel click→đơn dán nhãn kịch bản",
+    "verdict": "adapt",
+    "reason": "Mục tiêu thật (trả lời 'sao không đo đơn hàng?' bằng MDE) đạt được RẺ HƠN: bảng MDE đơn hàng tính giải tích từ poisson_floor + click-rate hiện có, không cần cài tầng purchase sim đầy đủ với trễ LogNormal cross-block. Làm bảng tĩnh trước (nửa ngày), tầng sim đầy đủ chỉ khi cần demo event purchase cho radar ở chung kết."
+   },
+   {
+    "proposal": "Sim Validation Report một trang kiểu SBC",
+    "verdict": "adapt",
+    "reason": "Là artifact mạnh nhưng phụ thuộc TOÀN BỘ knob 1-4 (trục lưới là các knob) nên không thể 'trước khóa prereg' trọn vẹn; chi phí 20 ô × 200 reps × 500 draws cần đo trước vào budget CI đêm. SỬA: dựng skeleton report + ECDF-band uniformity check (phần này nhỏ, ~100 dòng) chạy trên thế giới hiện có ngay; lưới lớn dần theo knob nào đã land; đóng băng trạng thái-tại-thời-điểm cùng prereg. Test tiêm-3-lỗi giữ nguyên — rất đúng tinh thần HARNESS."
+   },
+   {
+    "proposal": "PROTOCOL v1.0 gán nhãn (SRS + gold + alpha + versioning)",
+    "verdict": "adopt",
+    "reason": "Điểm tích hợp khớp code thật (prepare_batch/merge_labels/finalize_rows đều có, thêm flag là hợp lý); agreement.py hàm thuần không dep mới (tự viết alpha, đừng kéo thư viện krippendorff). Chi phí thật nằm ở NGƯỜI: gold 300 × 2 người độc lập + adjudicate ≈ 2-3 ngày người — phải xếp lịch tường minh cho 2/4 thành viên. Phải khóa protocol TRƯỚC khi gán lô lớn tiếp theo, không nhất thiết trước prereg-thí-nghiệm."
+   },
+   {
+    "proposal": "Merge 6 phiếu self-consistency + calibration",
+    "verdict": "defer",
+    "reason": "Chi phí API ×3 và merge phức tạp hơn, trong khi nghẽn thật hiện tại chưa phải hàng đợi duyệt. LÙI đến sau khi PROTOCOL v1.0 chạy trên gold 300: nếu audit 5% cho thấy nhóm 'đồng thuận 2/2' có sai >5% thì mới nâng lên 6 phiếu — lúc đó có số liệu biện minh chi phí. Property test 'k=1 giống hệt merge cũ' là yêu cầu đúng, giữ lại khi làm."
+   },
+   {
+    "proposal": "Recipe ViSoBERT + bảng ablation 6 dòng",
+    "verdict": "adapt",
+    "reason": "Colab T4 free không vi phạm chuyện CPU-only inference (train ngoài, infer ONNX INT8 CPU) nhưng free tier sẽ đứt phiên: 6 dòng × 5 seed × 10 epoch là quá tay. SỬA: 3 seed, 4 dòng chính (keyword/TF-IDF/SetFit/ViSoBERT), BamiBERT chỉ nếu checkpoint chạy trong 1 buổi; giữ gate swap-in 4 điều kiện — rất đúng. Chặn bởi NLP#1: không có gold 300 thật thì mọi số ablation vô nghĩa. Timing chung kết đúng."
+   },
+   {
+    "proposal": "Ablation chuẩn hóa teencode ViSoLex",
+    "verdict": "adopt",
+    "reason": "Đúng nghĩa 1 ngày công: dict lookup thuần, không dep, không bật mặc định, kết quả âm vẫn là dòng ablation hợp lệ. License CC BY-NC-SA dùng nghiên cứu OK. Không chặn gì, không bị chặn — nhét vào bất kỳ khe rảnh nào trước hồ sơ chung kết."
+   },
+   {
+    "proposal": "Gói công bố dataset (datasheet+Croissant+PII re-audit)",
+    "verdict": "adapt",
+    "reason": "Rủi ro pháp lý là điểm chính: ToS YouTube/Facebook gần như chắc chắn KHÔNG cho redistribute nguyên văn bình luận — phương án B (chỉ phiên tự-stream + đối tác on-request) nên là phương án A mặc định ngay từ đầu, đỡ luôn phần search-traceability. Effort thật ~2 tuần (PII re-audit + duyệt tay 1000 dòng là người-giờ). Split theo phiên + gate PII trên file XUẤT giữ nguyên — đúng. Timing chung kết đúng."
+   },
+   {
+    "proposal": "Lớp nhãn CTA trên transcript streamer",
+    "verdict": "defer",
+    "reason": "Phụ thuộc PhoWhisper co-pilot (planned nhưng chưa build) + guideline mới + vòng gán nhãn mới, tất cả cho một moderator SECONDARY. Là mục đầu tiên phải cắt khi thiếu giờ. LÙI: chỉ khởi động khi (i) PhoWhisper đã chạy ổn ≥5 phiên, (ii) đã có ≥25 phiên dữ liệu, (iii) hồ sơ chung kết còn ≥4 tuần. Randomization-check moderator-vs-mediator trong validation plan rất đúng — giữ khi làm."
+   },
+   {
+    "proposal": "Gate OPE-trên-log-thích-ứng trong harness",
+    "verdict": "adapt",
+    "reason": "Thứ tự nội bộ đúng (gate trước, số sau) nhưng timing 'trước khóa prereg' sai chỗ: OPE là secondary, không bị khóa prereg chi phối, còn tuần trước vòng 1 thì mọi giờ người phải dồn cho primary. SỬA: giữ nguyên nội dung, dời sang chuỗi khẳng định; inner_replay.py tái dùng simulator + build_candidates/choose_action là đúng kiến trúc; 1000 lặp × cấu hình cần cho vào budget CI nightly có đánh dấu -m slow."
+   },
+   {
+    "proposal": "analysis/ope.py IPS chặn trọng số + CS anytime-valid",
+    "verdict": "adapt",
+    "reason": "Nội dung đúng và không dep mới (numpy/gammaln); phân tích 'log hiện tại hợp lệ cho lớp Π_ov' là kết luận kỹ thuật giá trị nhất khối này. Nhưng phụ thuộc cứng gate OPE (#1) nên dời cùng nó sang chuỗi khẳng định; PolicyInOverlap ép positivity ở cấp kiểu là thiết kế tốt. Effort thật ~1.5 tuần sau khi #1 xong."
+   },
+   {
+    "proposal": "Demo counterfactual replay 3 policy + caveat",
+    "verdict": "adopt",
+    "reason": "Đúng vai chung kết, phụ thuộc #1+#2 đã rõ; hai tầng trình bày + caveat C1-C4 in cứng là cách trung thực duy nhất với n_eff ~160 quyết định randomized. Route chỉ gọi hàm analysis/ theo HARNESS §6 — đúng contract web↔API. Chỉ lưu ý: đo power-run trên sim TRƯỚC khi hứa 'tách được π_margin vs π_log' trong kịch bản demo."
+   },
+   {
+    "proposal": "MAD hoá inner tier (δ_t floor 0.3)",
+    "verdict": "adapt",
+    "reason": "Trùng mục 'MAD cho inner tier ở chung kết' đã planned — đây là spec deepening hợp lệ. 'Nhiều tuần' là thật: migration 2 cột (phải viết cho CẢ 2 backend store), choose_action_mad song song giữ đường cũ rollback được — thiết kế đúng. SỬA: chốt điều kiện go/no-go bằng số: chỉ bật nếu regret sim <5% clicks VÀ coverage gộp-phiên đạt band (lý thuyết một-chuỗi theo phiên là open question NCV tự nhận — gate sim phải trả lời trước khi production)."
+   },
+   {
+    "proposal": "Panel CS thời gian thực trên trang báo cáo",
+    "verdict": "adopt",
+    "reason": "Chi phí thấp thật vì logic đã ở ope.py, route chỉ vẽ — đúng phân tầng kiến trúc; giữ luật E2-04 tường minh; test đối chiếu bit-một-bit với offline là gate đúng. Phụ thuộc: chỉ sau khi ope.py (#2) qua gate. Giá trị demo/điểm phương pháp cao so với effort — làm ở chặng chung kết."
+   },
+   {
+    "proposal": "Tiền-đăng-ký 'click hợp lệ' (dedup refractory + GIVT-lite)",
+    "verdict": "adopt",
+    "reason": "Giá trị/effort cao nhất TOÀN BỘ 28 đề xuất: với 5-15 khán giả, một crawler burst nhân đôi CTR một khối — nguồn bias đơn lẻ lớn nhất chưa xử, và nó ĐỊNH NGHĨA primary outcome nên bắt buộc trước khóa prereg. Flag-don't-drop + mù-với-assignment là đúng nguyên tắc. Migration cột mới phải test up/down trên cả 2 backend store. Effort 2-3 ngày thật. Làm NGAY tuần này, trước vòng 1. Bỏ JA4 fingerprint đợt đầu (đụng config Caddy, để sau)."
+   },
+   {
+    "proposal": "SRM 3 tầng integrity–conformity–delivery + placebo balance",
+    "verdict": "adapt",
+    "reason": "Nội dung đúng (chi-square user-count sai dưới rerandomization — chẩn đúng bệnh), nhưng 'ngày' là lạc quan: 4 lỗi tiêm + đo power ≥0.8 từng lỗi là ~1 tuần thật. SỬA thành 2 đợt: đợt 1 trước vòng 1 = integrity recount + delivery binomial (rẻ, bắt lỗi vận hành ngay); đợt 2 chuỗi khẳng định = conformity redraw B=10k + placebo balance + bảng đối chiếu chi-square. Map vào trang 5 trạng thái đã planned — khớp."
+   },
+   {
+    "proposal": "Tách assignment_event/exposure_event + design_hash",
+    "verdict": "adopt",
+    "reason": "1-2 ngày NCV ≈ 3-4 ngày thật (migration + emit + desk + test) nhưng là NÚT MỞ KHÓA: RI exposure-weighting đã planned và Stats#3 cần exposure chính xác đến giây; billing audit chung kết cũng đứng trên nó. Lưu ý kiến trúc: 'revoke quyền DB role' chỉ có nghĩa trên Postgres — với backend sqlite phải chặn ở tầng app/trigger; ITT theo assignment giữ primary nên prereg không đổi. Làm sớm, trước khóa prereg."
+   },
+   {
+    "proposal": "Giám sát e-process Dirichlet-multinomial giữa phiên",
+    "verdict": "defer",
+    "reason": "~50 dòng lõi là thật nhưng phần đắt là dây pager/ws + kỷ luật không-rò-rỉ dưới RESULTS_FREEZE (snapshot test không chứa sign/magnitude — phải viết cẩn thận). Bảo hiểm vận hành, không chặn gì. LÙI với trigger cụ thể: bật làm khi mất phiên đầu tiên vì sự cố chỉ lộ ở T+30', hoặc khi bắt đầu phiên đối tác (giá mỗi phiên đắt hơn hẳn)."
+   },
+   {
+    "proposal": "Guardrail non-inferiority khung Spotify",
+    "verdict": "adapt",
+    "reason": "Tính chất cấu trúc 'AND không tốn α' đúng và rẻ về lý thuyết, máy móc thực thi tái dùng WCR/Fisher-shift đã planned. SỬA để khớp lịch: phần VĂN BẢN (danh sách guardrail + NIM từ MDE machinery) chốt vào prereg ngay — chi phí vài giờ; phần MÁY MÓC (test dịch chuyển + bảng β) làm ở chuỗi khẳng định sau khi WCR land. Tách như vậy thì không mục nào bị nghẽn."
+   },
+   {
+    "proposal": "Holdback billing tự kiểm toán (ledger + beacon + Ghost-Pins)",
+    "verdict": "defer",
+    "reason": "Differentiator chung kết thật nhưng 3 lớp × (beacon external service + ký số + script mã nguồn mở + DOM) = 2 tuần+ thật, và đứng trên Platform#3 chưa merge. NIST beacon là phụ thuộc dịch vụ ngoài — fallback offline phải là đường chính, beacon là tùy chọn. LÙI: chỉ khởi động khi (i) Platform#3 đã chạy ≥5 phiên, (ii) có đối tác thật ký gói Performance — không có người trả tiền thì audit trail là sản phẩm không có khán giả."
+   }
+  ],
+  "missing": [
+   "Không NCV nào làm phép cộng capacity: các mục 'trước khóa prereg' cộng ~14 tuần-NCV ≈ 6+ người-tháng thật cho 4 sinh viên vừa chạy phiên vừa lo vòng 1 ngày 14/09; cần một bảng cắt còn ~6 hạng mục có tên người chịu trách nhiệm, phần còn lại xếp hàng sau vòng 1.",
+   "Không có budget compute cho CI: ~10 gate Monte-Carlo mới × 200-1000 reps sẽ phình nightly lên nhiều giờ CPU; cần phân tầng per-PR (nhanh) vs nightly (-m slow) vs weekly (lưới lớn) ghi vào HARNESS.md, kèm đo thời gian thực tế trước khi nhận thêm gate.",
+   "Store 2 backend bị bỏ quên: mọi migration mới (is_valid, assignment_event/exposure_event, cột MAD) phải viết + test up/down trên CẢ HAI backend; vài đề xuất ngầm định Postgres-only (revoke quyền DB role, ký số) — với sqlite phải chặn append-only ở tầng app.",
+   "Xung đột file estimators.py: 7+ đề xuất cùng sửa một file (cuped_mv, weights, V̂_up, linearize, wcr, NIM-shift, ht_lag1) — nguy cơ merge conflict và vô tình đổi kiểm định chính sau khóa; cần tách module (adjust.py/robust.py/carryover.py) và commit HASH của code phân tích chính vào prereg như một commitment.",
+   "Chưa ai gộp lịch pilot: CUPED-x1, cv*, t_mix/R(5), R² cho SRSB, CV within-session đều cần CÙNG các phiên pilot trước tuần 6 — thiết kế một giao thức pilot chung (4-6 phiên, mỗi phiên phục vụ cả 4 phép đo) thay vì mỗi đề xuất tự giả định có pilot riêng."
+  ],
+  "top_picks": [
+   "Tiền-đăng-ký 'click hợp lệ' (Platform#1) — định nghĩa primary outcome, 2-3 ngày, chặn nguồn bias đơn lẻ lớn nhất",
+   "Knob ICC outcome (Sim#2) — mọi gate khác đang chấm trên thế giới ICC≈0; là tiền đề phân xử RI-FE-phiên và WCR",
+   "Ràng buộc cân bằng transition (Design#5) — ~15 dòng, phải vào TRƯỚC phiên confirmatory đầu tiên, mở khóa CRT và τ̂₁",
+   "Tách assignment_event/exposure_event + design_hash (Platform#3) — nút mở khóa cho exposure-weighting đã planned và mọi thứ billing/audit về sau",
+   "Tách p-value exact khỏi CI + gate ICS (Stats#4, cặp với Sim#3) — bịt lớp bias mẫu số nội sinh trước khi prereg khóa ngữ nghĩa primary"
+  ]
+ },
+ {
+  "role": "Chiến lược thi",
+  "verdicts": [
+   {
+    "proposal": "CUPED đa biến 'pre-session-only' + cross-fit theo phiên",
+    "verdict": "adapt",
+    "reason": "Trả lời đúng câu hội đồng chắc chắn hỏi ('18-31 phiên thì đủ lực không?') và cho MỘT con số slide được ('MDE giảm ~15%'). Nhưng cắt scope: chỉ x1 (CTR lịch sử EB-shrink) + x5 (log viewer dự báo) + sin/cos giờ; bỏ spline phút-vào-phiên đợt đầu. Timebox 1 tuần, ablation đầy đủ gộp vào Sim Validation Report chứ không chạy riêng. Lý do cắt: mỗi hiệp biến thêm là một câu hỏi phản biện thêm, và gain biên của spline không lên được slide."
+   },
+   {
+    "proposal": "θ* tối ưu lực (power-optimal covariate adjustment)",
+    "verdict": "defer",
+    "reason": "Hoàn toàn vô hình với giám khảo — không ai chấm điểm việc θ̂ OLS được thay bằng θ* ANOVA 2 tầng, và gain chỉ lớn ở vùng macro share thấp. Lùi tới sau vòng 1, và CHỈ làm nếu (a) CUPED cơ bản đã qua gate, (b) sim đo macro share <20% trên cấu hình thật. Nếu không thỏa cả hai: bỏ hẳn, một dòng 'đã cân nhắc' trong phụ lục là đủ."
+   },
+   {
+    "proposal": "Quy tắc chọn trọng số exposure bằng ngưỡng cv*",
+    "verdict": "adopt",
+    "reason": "Đây là quyết định prereg one-shot bắt buộc phải chốt trước tuần 6 — chọn sai trả giá 2-3× phương sai và không sửa được sau khóa. Rẻ về câu chuyện: một dòng trong prereg 'statistic chọn theo quy tắc đóng cv*, quyết định trước khi thấy dữ liệu'. Điều kiện duy nhất: validation gộp vào lưới Sim Validation Report, không dựng lưới sim riêng — tiết kiệm 2-3 ngày công."
+   },
+   {
+    "proposal": "Mẫu số nội sinh: tách p-value (exact) khỏi CI + gate ICS",
+    "verdict": "adopt",
+    "reason": "Trả lời trực diện câu phản biện dự kiến sắc nhất của hội đồng có người biết nghề: 'outcome là tỷ lệ, nếu ghim giữ người xem lại thì mẫu số của anh nhiễm rồi'. Có sẵn câu trả lời 3 tầng + gate ICS trên trang báo cáo là điểm cộng lớn; ngược lại bị hỏi mà ú ớ là mất điểm nặng nhất khu thống kê. Phải xong trước khóa prereg vì quyết định secondary outcome viewer-giây."
+   },
+   {
+    "proposal": "Spec wild cluster bootstrap chuẩn MNW",
+    "verdict": "adapt",
+    "reason": "Đã trong kế hoạch, spec này đúng — nhưng với track Data Driven Business, WCR/CV3/Webb là ngôn ngữ ít giám khảo chấm. Thu về 1 cấu hình: WCR restricted Rademacher + cross-check CV3, thành ĐÚNG MỘT dòng trong bảng robustness; bỏ nhánh Webb và phân tích leverage chi tiết trừ khi có phiên đối tác lệch thật. Làm sau vòng 1 (vai sensitivity, không bị khóa prereg chính)."
+   },
+   {
+    "proposal": "Nâng cấp RI theo Liu–Zhong (V̂_up + carryover test + pooling)",
+    "verdict": "adapt",
+    "reason": "'Nhiều tuần' trước khóa prereg là chi phí cơ hội lớn nhất của cả khu vực. Chỉ giữ mảnh (2) — carryover test chọn burn-in làm decision rule prereg, và GỘP nó vào giao thức t_mix tuần 3 thành một quy trình duy nhất. Mảnh (1) V̂_up: vô hình, lùi sau vòng 1 làm sensitivity. Mảnh (3) pooling: chỉ khi có phiên đối tác dài thật. Ba mảnh tách rời = ba tuần công cho một dòng slide."
+   },
+   {
+    "proposal": "Giao thức đo t_mix tuần 3 + quy tắc 5ph→10ph viết trước",
+    "verdict": "adopt",
+    "reason": "Điểm nhấn phương pháp mạnh: 'chúng tôi ĐO carryover bằng pilot rồi mới chốt thiết kế, quy tắc quyết định viết trước khi thấy số' — câu này giám khảo học thuật lẫn business đều hiểu và không đội nào khác có. Đồng thời chặn lỗi đắt nhất (khối 10ph thừa → mất √2 MDE). Điều kiện: nuốt luôn carryover test Liu–Zhong vào đây, và chỉ kể MỘT câu chuyện carryover trên hồ sơ."
+   },
+   {
+    "proposal": "CRT gộp khối Liu–Zhong làm sensitivity",
+    "verdict": "defer",
+    "reason": "Dự án đang có 3-4 lớp chẩn đoán carryover (t_mix protocol, m̂-test, Hausman gate, CRT) — đây chính là risk 'quá nhiều phương pháp, thiếu một câu chuyện'. Lùi sau vòng 1 và chỉ kích hoạt nếu chẩn đoán tuần 3 cho tín hiệu m≥1; khi đó CRT mới là vũ khí đúng (test hợp lệ dưới carryover). Nếu m̂=0 sạch, một dòng 'CRT sensitivity xác nhận' trong phụ lục là đủ, không đáng 1 tuần trước prereg."
+   },
+   {
+    "proposal": "Gate carryover Hausman-RI trong trang báo cáo",
+    "verdict": "adopt",
+    "reason": "Ngày công, tái dụng toàn bộ redraw machinery, và NHÌN THẤY ĐƯỢC: cờ 'carryover-suspect' trên trang báo cáo 5 trạng thái là thứ chỉ được vài phút demo nhưng nói 'hệ thống tự canh gác chính nó'. Chấp nhận power thấp ở 18 phiên — vai trò safeguard một phía. Lưu ý trình bày: trên slide chỉ nói 'gate tự động', chi tiết Hausman-RI để phần hỏi đáp."
+   },
+   {
+    "proposal": "Rerandomization tiên lượng SRSB/P&G cho đợt chung kết",
+    "verdict": "defer",
+    "reason": "Gain 8-16% MDE không lên slide được, còn rủi ro thì lên ngay: redraw không tái tạo đúng acceptance → FPR vỡ trên chính đợt dữ liệu chung kết. Lùi với điều kiện kép: pilot đo được R²≥0.2 VÀ còn ≥4 tuần trước đợt thí nghiệm chung kết sau khi 5 điểm nhấn đã xong. Mặc định là bỏ — thiết kế hiện tại đã đủ kể chuyện, đừng đổi máy bay giữa trời."
+   },
+   {
+    "proposal": "Ràng buộc cân bằng transition",
+    "verdict": "adopt",
+    "reason": "~15 dòng code, một ngày, đối xứng nên không đụng propensity, và cứu các estimator sensitivity khỏi phiên degenerate — với 18-31 phiên, mất 2 phiên không phân tích được là mất 7-10% mẫu. Đây là loại đề xuất tốt nhất theo trục chi phí cơ hội: gần như miễn phí, chặn một rủi ro thật, không thêm gì vào câu chuyện phải kể."
+   },
+   {
+    "proposal": "Knob 1 — Dwell mixture đuôi nặng",
+    "verdict": "adopt",
+    "reason": "Mọi con số quyền lực của hồ sơ (FPR 4.5%, coverage, MDE) đang đứng trên thế giới sim quá dễ — giám khảo kỹ tính sẽ hỏi 'sim của em khó cỡ nào?'. Ngày công, sửa sai cơ chế bậc nhất (KuaiLive mean/median 22× vs exponential), và bắt buộc phải có TRƯỚC khi chốt MDE vào prereg — số MDE sai là số sẽ bị đối chiếu ở chung kết."
+   },
+   {
+    "proposal": "Knob 2 — ICC outcome (frailty + shock click phiên)",
+    "verdict": "adopt",
+    "reason": "Quan trọng nhất trong 4 knob: FPR 4.5% trên thế giới ICC≈0 là con số tự khen, và bảng 'nếu bỏ qua ICC thì FPR phồng lên X%' chính là bằng chứng định lượng bảo vệ lựa chọn RI khử-FE-phiên trước hội đồng. Ưu tiên tuần công này trên hầu hết đề xuất thống kê khác — không có nó, mọi so sánh phương pháp thiếu thế giới để phân định."
+   },
+   {
+    "proposal": "Knob 3 — Kênh can-thiệp→khán-giả",
+    "verdict": "adopt",
+    "reason": "Cặp bài trùng với đề xuất tách p-value/CI mẫu số nội sinh: knob này là thế giới đối kháng duy nhất kiểm được nó, và kết quả quyết định một dòng prereg (secondary outcome viewer-giây) trước tuần 6. Giá trị/dòng code cao nhất đợt sim đúng như tự nhận. Làm ngay sau Knob 2."
+   },
+   {
+    "proposal": "Knob 4 — Share-shock + Hawkes match moment YTLive",
+    "verdict": "adapt",
+    "reason": "Câu 'sim khớp moment 12.156 phiên YouTube thật' là một dòng đẹp trong paper, nhưng full Hawkes + comment clustering là tuần công cho phần đuôi. Cắt: chỉ share-shock đơn giản (quá trình điểm hiếm + M arrivals) trước khóa prereg — đủ cho kịch bản đối kháng 'shock trùng ranh giới khối'; Hawkes chat + moment matching đầy đủ lùi sau vòng 1 làm polish cho paper chung kết."
+   },
+   {
+    "proposal": "Tầng funnel click→đơn dán nhãn kịch bản",
+    "verdict": "adopt",
+    "reason": "Ngày công đổi lấy câu trả lời cho câu hỏi business CHẮC CHẮN bị hỏi ở cả hai vòng: 'sao không đo đơn hàng?'. Bảng 'MDE đơn hàng theo số phiên' chứng minh định lượng vì-sao-chỉ-khả-thi-ở-nhánh-đối-tác là cách trả lời của người lớn thay vì phân trần. Kèm bonus demo có event purchase. Một trong những đề xuất điểm/công tốt nhất toàn danh mục."
+   },
+   {
+    "proposal": "Sim Validation Report một trang kiểu SBC",
+    "verdict": "adopt",
+    "reason": "Artifact phản biện mạnh nhất khu sim: một trang 'p-value uniform trên 20 thế giới đối kháng, đóng băng cùng prereg' — giám khảo NHÌN THẤY được và không đội sinh viên nào khác có. Giá trị nhân đôi vì nó là khung validation chung: các đề xuất CUPED/cv*/knobs đều chấm điểm qua đây thay vì mỗi thứ một lưới sim riêng — tiết kiệm ròng nhiều ngày công. Đây là ứng viên top-5 slide."
+   },
+   {
+    "proposal": "PROTOCOL v1.0 gán nhãn (gold set + alpha + versioning)",
+    "verdict": "adopt",
+    "reason": "Điều kiện cần cho tuyên bố 'dataset intent livestream Việt đầu tiên' — không có alpha kèm CI + gold set người thì claim này chết ngay câu hỏi đầu tiên của giám khảo học thuật. Phần SRS 10% + audit 5% là chỗ chống đỡ đúng điểm yếu 'đồng thuận LLM nhưng sai chung một kiểu'. Phải trước khóa vì nhãn nuôi cả nhánh NLP về sau."
+   },
+   {
+    "proposal": "Merge 6 phiếu self-consistency + calibration",
+    "verdict": "defer",
+    "reason": "Marginal so với PROTOCOL v1.0: audit 5% + alpha đã cho khung chất lượng kiểm chứng được; 6 phiếu tối ưu hàng đợi duyệt là bài toán hiệu suất nội bộ, giám khảo không thấy. Lùi sau vòng 1, chỉ làm khi lô nhãn thật vượt 5k câu và hàng đợi duyệt thành nút cổ chai đo được. Tuần công này trước 14/09 nên đổ vào hồ sơ vòng 1."
+   },
+   {
+    "proposal": "Recipe ViSoBERT + bảng ablation 6 dòng",
+    "verdict": "adopt",
+    "reason": "Bảng ablation 6 dòng × 2 test set + mean±std là NGÔN NGỮ CHUẨN của slide học thuật — giám khảo quét 5 giây là thấy đội làm nghiêm túc. Timeline chung kết đúng, đừng kéo sớm. Một lưu ý chiến lược: dòng 'consensus-only vs consensus+human' là dòng đắt giá nhất bảng (định lượng giá trị người duyệt) — giữ bằng được dòng đó kể cả khi phải bỏ BamiBERT."
+   },
+   {
+    "proposal": "Ablation chuẩn hóa teencode ViSoLex",
+    "verdict": "adopt",
+    "reason": "Một ngày công cho một dòng ablation chứng tỏ đội khảo sát trục tiền xử lý — kể cả delta ≤0 vẫn là ablation hợp lệ và cộng điểm trung thực. Chỉ làm cùng đợt với ViSoBERT (chung kết), tuyệt đối không chen vào trước vòng 1."
+   },
+   {
+    "proposal": "Gói công bố dataset (datasheet + Croissant + DOI + PII re-audit)",
+    "verdict": "adapt",
+    "reason": "Đây là một trong 3 thứ giám khảo chung kết nhớ được sau buổi chấm — NHƯNG thứ tự làm đang sai: kiểm ToS YouTube/Facebook về redistribute bình luận phải làm TUẦN NÀY (vài giờ), vì nếu vướng thì toàn bộ câu chuyện co về 'phiên tự-stream + available on request' và ảnh hưởng cách viết hồ sơ vòng 1. Sửa: feasibility check (ToS + search-traceability 50 câu) ngay; datasheet/Croissant/DOI giữ timeline chung kết."
+   },
+   {
+    "proposal": "Lớp nhãn CTA trên transcript streamer (moderator)",
+    "verdict": "defer",
+    "reason": "Câu chuyện 'ghim × cách nói streamer' hay, có căn cứ POM 2025 — nhưng nó là điểm nhấn thứ 6 trong hồ sơ chỉ nên có 5, lại phụ thuộc PhoWhisper chưa chạy. Lùi tới sau khi 5 điểm nhấn chung kết đã đứng vững và transcript pipeline ổn định; nếu tháng 11 còn 2 tuần rảnh thì đây là thứ đầu tiên lôi lại. Đừng nhắc trong hồ sơ vòng 1."
+   },
+   {
+    "proposal": "Gate mô phỏng OPE-trên-log-thích-ứng",
+    "verdict": "adapt",
+    "reason": "Nội dung đúng và là điều kiện tiên quyết cho demo replay — nhưng nhãn 'trước khóa prereg' sai về lịch: OPE là secondary, không bị khóa prereg chính. Dời cả gate sang ngay sau vòng 1 để tuần trước 14/09 dồn cho hồ sơ + các knob sim primary. Giữ nguyên negative controls (DM bias xuống, Wald under-cover) — bảng đó là đạn phản biện tốt khi giám khảo hỏi 'sao không dùng số bandit trực tiếp'."
+   },
+   {
+    "proposal": "Module analysis/ope.py: IPS chặn trọng số + CS anytime-valid",
+    "verdict": "adapt",
+    "reason": "Cần cho điểm nhấn demo, thiết kế đúng (w≤3 không cần clip là lợi thế cấu trúc nên nói to trong hồ sơ). Cùng lý do trên: dời sau vòng 1, làm ngay sau gate OPE pass. Cắt nhánh β-IPS cross-fit nếu thiếu thời gian — SNIPS làm sensitivity là đủ cho demo; β-IPS thêm một tên phương pháp nữa vào câu chuyện vốn đã đông."
+   },
+   {
+    "proposal": "Demo counterfactual replay 3 policy + dải CS + bảng caveat",
+    "verdict": "adopt",
+    "reason": "Điểm nhấn demo mạnh nhất danh mục: 'nếu chọn sản phẩm biên lợi nhuận cao thì được bao nhiêu click' là câu business thuần, có số thật + CI thật, và bảng caveat C1-C4 in cứng là điểm trung thực giám khảo phản biện đánh giá cao (họ chấm cách đội xử lý giới hạn, không chỉ kết quả). π_margin là policy phải giữ bằng được — nó nối thẳng sang câu chuyện billing."
+   },
+   {
+    "proposal": "MAD hoá inner tier cho chung kết",
+    "verdict": "defer",
+    "reason": "'Nhiều tuần' + đổi assigner production giữa mùa giải + lý thuyết một-chuỗi per-session còn là open question tự nhận — rủi ro cao nhất danh mục trên mỗi điểm slide thu về. Khoảnh khắc 'CS loại 0 trên sân khấu' đạt được bằng ope.py trên log Π_ov hiện có, không cần MAD. Điều kiện lùi: replay chạy tốt trên dữ liệu thật, còn ≥6 tuần trước chung kết, và gate A/A MAD pass — thiếu một trong ba thì bỏ."
+   },
+   {
+    "proposal": "Dải CS trực tiếp trên trang báo cáo phiên",
+    "verdict": "adopt",
+    "reason": "Chi phí thấp (tái dùng ope.py), và là thứ biến toàn bộ đầu tư OPE thành cái NHÌN THẤY trong 5 phút demo — 'chúng tôi được nhìn liên tục vì đây là confidence sequence' là câu phương pháp ăn điểm mà khán phòng hiểu được. Gộp với demo replay thành MỘT điểm nhấn 'phòng điều khiển thống kê thời gian thực', đừng trình bày thành hai."
+   },
+   {
+    "proposal": "Tiền-đăng-ký 'click hợp lệ' IAB (dedup + GIVT-lite)",
+    "verdict": "adopt",
+    "reason": "Ngày công, trước prereg, chặn nguồn bias đơn lẻ lớn nhất của outcome công khai (1 crawler burst ≈ nhân đôi CTR một khối ở quy mô 5-15 khán giả). Câu 'primary outcome là valid click tiền đăng ký theo chuẩn IAB' trả lời gọn câu hỏi bot chắc chắn bị hỏi và là nền của điểm nhấn billing. Flag-don't-drop + mù với assignment là chi tiết đúng nghề — giữ nguyên."
+   },
+   {
+    "proposal": "SRM đúng thiết kế 3 tầng + placebo balance",
+    "verdict": "adopt",
+    "reason": "Ngày công, nối thẳng vào trang 5 trạng thái đã planned (visible), và 'chi-square SRM sai dưới rerandomization, chúng tôi dùng redraw exact' là một mini-điểm-nhấn phương pháp có bằng chứng sim kèm theo. Fabijan 6% thí nghiệm dính SRM là con số citable trên slide. Điểm/công thuộc nhóm tốt nhất."
+   },
+   {
+    "proposal": "Tách assignment_event/exposure_event + design_hash",
+    "verdict": "adopt",
+    "reason": "1-2 ngày đổi lấy ba thứ: audit trail giám khảo/đối tác verify được, mở khóa RI exposure-weighting đã planned, và là móng kỹ thuật của billing tự kiểm toán. Không có nó thì điểm nhấn billing chỉ là lời hứa. Làm sớm vì migration càng muộn càng đau."
+   },
+   {
+    "proposal": "Giám sát e-process Dirichlet-multinomial giữa phiên",
+    "verdict": "adapt",
+    "reason": "Giá trị thật là vận hành (cứu phiên = cứu 3-5% mẫu) chứ không phải slide; câu chuyện Netflix hay nhưng là gia vị. Cắt còn bản tối giản: chỉ stream tick-delivery (~50 dòng lõi), sau vòng 1; stream click-marks lùi tới trước đợt phiên đối tác — nơi mất một phiên mới thật sự đắt. Kỷ luật niêm phong alert theo RESULTS_FREEZE giữ nguyên, chi tiết đó đáng một câu trong hồ sơ."
+   },
+   {
+    "proposal": "Guardrail non-inferiority khung Spotify",
+    "verdict": "adopt",
+    "reason": "Đây là khung biến kết quả thống kê thành QUYẾT ĐỊNH KINH DOANH — 'ship khi tăng click hợp lệ mà không hại retention/sentiment, có kiểm định' — đúng trái tim track Data Driven Business, và khối 'ship decision' trên trang báo cáo là thứ giám khảo doanh nghiệp nhớ. Không tốn α là luận điểm thanh lịch dễ trình bày. Chốt NIM trước khóa prereg, code sau vòng 1 được."
+   },
+   {
+    "proposal": "Holdback billing tự kiểm toán (ledger + beacon + Ghost-Pins)",
+    "verdict": "adopt",
+    "reason": "Differentiator chung kết số 1 theo trục business: 'hoá đơn nhà bán tự recount được đến từng click, seed công khai kiểu NIST beacon' trả lời thẳng nghi vấn conflict-of-interest vừa-đo-vừa-thu-tiền mà mọi hội đồng có người làm industry sẽ nêu. Không đội sinh viên nào khác có lớp này. Phụ thuộc đề xuất event tables — làm theo đúng thứ tự đó; demo billing_audit.py chạy live 30 giây là khoảnh khắc sân khấu."
+   }
+  ],
+  "missing": [
+   "KHÔNG AI CỘNG NGÂN SÁCH: các đề xuất dán nhãn 'trước khóa prereg' cộng lại ~14-16 tuần công, trong khi 4 sinh viên đến tuần 6 còn phải chạy pilot, ingest phiên thật và làm hồ sơ — tức chỉ khả thi ~50%. Thiếu hẳn một bảng cắt-giữ theo thứ tự ưu tiên; không cắt chủ động thì mọi thứ dở dang đúng lúc khóa prereg.",
+   "VÒNG 1 NGÀY 14/09 — CÒN 1 TUẦN: cả 6 NCV viết cho chung kết tháng 11, không một đề xuất nào về hồ sơ/demo/slide vòng 1. Trượt vòng 1 thì 34 đề xuất thành giấy vụn. Tuần này phải đóng băng feature, chỉ nhận việc 'ngày công' phục vụ trực tiếp hồ sơ (valid click, funnel MDE đơn hàng, SRM 5 trạng thái là ba thứ vừa rẻ vừa lên được hồ sơ vòng 1).",
+   "PHIÊN ĐỐI TÁC LÀ ĐÒN BẨY LỚN NHẤT KHÔNG AI NHẮC: một đối tác 200-500 khán giả giảm SE nhiều hơn toàn bộ CUPED + θ* + cv* cộng lại, và giám khảo business chấm traction thật. Cần một người trong đội làm 'BD track' song song: pipeline 3-5 nhà bán/streamer tiềm năng, một trang pitch dùng chính billing tự kiểm toán làm mồi. Đây là việc tuần, không phải việc tháng 11.",
+   "KỊCH BẢN DEMO 5 PHÚT + BẢN GHI DỰ PHÒNG: demo live trên phiên thật là rủi ro sân khấu kinh điển; chưa ai lên kịch bản demo có script (desk → ghim đổi trạng thái → dải CS hẹp dần → billing recount 30 giây) lẫn bản thu sẵn fallback. Giám khảo nhìn thấy desk và trang báo cáo, không nhìn thấy estimators.py — tỷ lệ đầu tư hiện tại đang ngược.",
+   "CHƯA GÁN ĐỀ XUẤT VÀO CÂU CHUYỆN MỘT DÒNG: hồ sơ cần dạng 'LiveLift chứng minh ghim tăng X% click hợp lệ bằng thí nghiệm switchback tự-kiểm-toán được, và biến nó thành hoá đơn nhà bán tự verify' — mọi kỹ thuật phải là bằng chứng cho một trong ≤5 điểm nhấn, còn lại xuống phụ lục. Hiện 6 NCV × 5-6 đề xuất là 34 tiêu đề ngang hàng; giữ nguyên cấu trúc này vào slide là tự sát trình bày."
+  ],
+  "top_picks": [
+   "1. 'Hoá đơn tự kiểm toán đến từng click': valid click IAB tiền đăng ký + assignment/exposure event + ledger/beacon/billing_audit.py — differentiator business trả lời conflict-of-interest, demo recount 30 giây trên sân khấu.",
+   "2. 'Phòng điều khiển thống kê thời gian thực': demo counterfactual replay (π_margin vs π_log) + dải CS anytime-valid trên trang báo cáo + trang 5 trạng thái với cờ SRM/carryover — thứ giám khảo NHÌN THẤY trong 5 phút.",
+   "3. 'Sim Validation Report một trang': p-value uniform trên ~20 thế giới đối kháng (dwell mixture, ICC, mẫu số nội sinh, share-shock), đóng băng cùng prereg — bằng chứng phương pháp không đội sinh viên nào khác có.",
+   "4. 'Dataset intent livestream tiếng Việt đầu tiên' + bảng ablation ViSoBERT 6 dòng: gold set người, alpha kèm CI, datasheet + Croissant + DOI, split theo phiên — điều kiện: kiểm ToS ngay tuần này.",
+   "5. 'Quyết định ship có kiểm định': primary superiority + guardrail non-inferiority khung Spotify ('tăng click hợp lệ mà không hại retention/sentiment') + thiết kế đo-trước-quyết-sau (t_mix protocol, quy tắc 5ph→10ph viết trước khi thấy số)."
+  ]
+ }
+]

@@ -111,8 +111,12 @@ PHIÊN LIVE (90 phút)
     → chọn đều, ghi propensity 1/k → dữ liệu off-policy sạch
 ```
 
-**Biến kết quả chính:** lượt nhấp / 1000 giây·người xem theo khối, đo qua link chuyển
-hướng tự phục vụ (`/r/{code}`) — định nghĩa vận hành nhóm kiểm soát hoàn toàn.
+**Biến kết quả chính:** lượt nhấp **HỢP LỆ** / 1000 giây·người xem theo khối, đo qua link
+chuyển hướng tự phục vụ (`/r/{code}`) — định nghĩa vận hành nhóm kiểm soát hoàn toàn.
+"Hợp lệ" theo 5 quy tắc kiểu IAB/GIVT-lite (`core/click_validity.py`, tiền đăng ký §4.1):
+UA robot, header prefetch, chỉ-GET, refractory τ=10 giây, trần 5 lượt/fingerprint/khối.
+Click vi phạm bị **gắn cờ chứ không xóa** (flag-don't-drop) và chuỗi raw luôn được báo
+cáo song song; mọi quy tắc chỉ nhìn thuộc tính request — **mù với nhánh gán**.
 
 <details>
 <summary><b>Suy diễn thống kê — chi tiết</b></summary>
@@ -177,6 +181,9 @@ flowchart LR
 | **Độ phủ KTC 95%** | **95.5%** | cùng gate |
 | **Thu hồi tác động biết trước** | sai lệch **−0.3%** | `livelift-simulate` |
 | **Dưới hiệu ứng lưu** 2ph/3ph | lệch −20%/−30% *về phía 0* (bảo thủ), coverage 84%/60% | đo & ghi trung thực — lý do tuần 3 đo t_mix |
+| **Dưới phân cụm phiên (ICC≈0,05)** | A/A và độ phủ giữ nguyên ngưỡng cũ — switchback không phải trả giá ICC vì redraw diễn ra **trong** phiên | 2 gate slow mới; knob `session_click_sigma` |
+| **Ánh xạ knob → ICC (400 phiên)** | σ=0 → **+0,008**; σ=0,06 → **+0,048**; σ=0,3 → **+0,535**. Frailty có tác dụng phụ ICC (cv=2 → **+0,083**) và *chỉ* nó làm tăng phương sai trong-phiên — cột phân biệt hai cơ chế | `python analysis/calibration/bang_icc_mo_phong.py` → `docs/benchmarks/sim-icc-map.md` |
+| **Lưới SBC (bộ khung)** | 4/4 ô XANH; **cổng có răng**: lỗi tiêm vào làm ô ĐỎ đúng như phải thế | `python -m livelift.sim.cli --grid` → `docs/benchmarks/sim-validation-report.md` |
 | **MDE khớp lực thật** | 20.1% (công thức cũ sai: 30.1%) | sweep tác động × 60 lặp |
 | **Ý định tiếng Việt** | macro-F1 **0.870** vs baseline 0.653 | `python -m livelift.nlp.train_intent` |
 | **Lọc PII** | recall ≥ 95%/loại | gate `test_pii_filter.py` |

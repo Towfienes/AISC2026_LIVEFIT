@@ -14,7 +14,8 @@ Người chịu trách nhiệm: TN (trưởng phân tích) · Người duyệt: 
 ## 1. Câu hỏi nghiên cứu chính
 
 Chiến lược ghim sản phẩm do LiveLift đề xuất (nhánh BẬT) có làm thay đổi **tỷ lệ nhấp
-sản phẩm theo khối** so với chiến lược mặc định của đội vận hành (nhánh TẮT) hay không?
+sản phẩm HỢP LỆ theo khối** (định nghĩa hợp lệ ở mục 4.1, sửa 08/09) so với chiến lược
+mặc định của đội vận hành (nhánh TẮT) hay không?
 
 Ước lượng chính là **ITT cấp khối** trong chuỗi phiên Live Lab chế độ tự động
 (tuân thủ kỳ vọng ≈95%); LATE báo cáo bổ sung (mục 5d).
@@ -31,6 +32,15 @@ Cài đặt tham chiếu: `livelift.core.assigner.generate_schedule` (chính hà
 - **Rerandomization:** chuỗi gán được vẽ lại đến khi **mỗi 1/3 phiên (đầu/giữa/cuối) có
   ≥ 2 khối mỗi nhánh** (Ni, Kalfountzou & Bojinov 2025); số lần vẽ lại (`n_redraws`)
   lưu cùng lịch.
+- **Cân bằng transition (bổ sung 08/09/2026, trước khóa):** acceptance rule yêu cầu thêm,
+  trên chuỗi khối đo được, **#cặp liền kề (BẬT,BẬT) ≥ 3 VÀ #(TẮT,TẮT) ≥ 3 VÀ
+  |#(BẬT,BẬT) − #(TẮT,TẮT)| ≤ 1** — bảo đảm mọi phiên có đủ dữ liệu focal cho các ước
+  lượng nhạy carryover (HT cặp liền kề kiểu Ni et al. 2025; CRT gộp khối Liu & Zhong).
+  Ràng buộc **đối xứng dưới hoán vị BẬT↔TẮT** nên xác suất biên mỗi khối giữ đúng 0,5;
+  đây là dạng khả thi duy nhất của blocked-SRSB (Zeng et al. 2026, arXiv:2604.02489)
+  khi chỉ có một stream. Phiên ngắn không đủ khối: yêu cầu bị hạ theo trần khả thi của
+  chuỗi, giá trị thực thi lưu ở `realized_transition_pairs` kèm cảnh báo trước phát sóng
+  (không bao giờ chết vòng lặp — trần `max_redraws` giữ nguyên).
 - **Khối biên nhân đôi:** khối đầu và khối cuối phiên dài **2×X** phút (quy tắc 2m,
   Bojinov, Simchi-Levi & Zhao 2023) — khối biên nhiễm carryover nhiều hơn nên kéo dài
   chứ không vứt bỏ.
@@ -42,6 +52,21 @@ Cài đặt tham chiếu: `livelift.core.assigner.generate_schedule` (chính hà
 - **Sinh lịch TRƯỚC phiên:** lịch + seed + tham số thiết kế được sinh và lưu vào
   `experiment_block` / `live_session.design` tại mốc T−1h, trước phát sóng
   (runbook `ops/runbooks/quy-trinh-phien.md`). Phiên không có lịch đã lưu không được phát.
+- **Cam kết thiết kế `design_hash` (bổ sung 08/09/2026, trước khóa — gói Q3):** cùng lúc
+  sinh lịch, hệ thống tính `design_hash = SHA256(JSON chuẩn tắc của tham số thiết kế ∪
+  seed)` và công bố nó ở phản hồi `POST /schedule`, trong `live_session.design`, và trên
+  thanh trạng thái bàn điều khiển. Lịch là hàm tất định của (tham số, seed) nên hash này
+  là vân tay của toàn bộ ngẫu nhiên hóa: người đọc giữ `design.params` + `design.seed`
+  tính lại được và xác nhận thiết kế đã chạy đúng là thiết kế đã công bố.
+- **Ghi sự kiện chỉ-ghi-thêm (bổ sung 08/09/2026, trước khóa — gói Q3):** TOÀN BỘ lịch
+  được materialize vào `assignment_event` ngay lúc sinh (ý định thí nghiệm), và mọi hành
+  động ghim/bỏ ghim của bàn được ghi vào `exposure_event` (thực tế vận hành) — hai bảng
+  không có đường sửa/xóa ở tầng ứng dụng. **Tuân thủ trở thành đại lượng DẪN XUẤT** từ
+  phép nối hai bảng (`livelift.core.quality.derive_compliance`), không còn là con số ghi
+  đè được trên `experiment_block.compliance_rate`. Phiên ghi trước bổ sung này giữ nguyên
+  đường cũ (`intervention_log`); hai nguồn không bao giờ trộn trong cùng một phiên.
+  **Estimand chính KHÔNG đổi:** ITT vẫn theo `assignment`; hai bảng này chỉ phục vụ
+  first-stage/LATE (mục 5(d)) và dấu vết kiểm chứng.
 - **Xác suất gán dùng cho suy diễn** là xác suất *có điều kiện trên tập chuỗi qua được
   rerandomization* — mọi redraw trong kiểm định ngẫu nhiên hóa dùng đúng thủ tục sinh
   lịch production (cùng ràng buộc), không dùng Bernoulli không ràng buộc.
@@ -58,10 +83,21 @@ Bất đồng này được giải **bằng dữ liệu hiệu chỉnh tuần 3�
    (c) tự tương quan dư của tỷ lệ nhấp theo khối sau khử FE-phiên;
    (d) CV trong-phiên của tỷ lệ nhấp theo khối; ICC **cấp phiên**.
 2. Chạy power curve trên simulator đã hiệu chỉnh (`livelift.sim`) trên lưới
-   độ dài khối {5, 10, 15} phút × carryover {đo được, 0, 2× đo được}.
-3. **Quy tắc quyết định:** chọn X nhỏ nhất trong lưới sao cho, với t_mix đo được,
-   bias mô phỏng của ước lượng viên chính (có burn-in b=1) < 10% hiệu ứng và MDE mô phỏng
-   nhỏ nhất. Nếu t_mix > 3 phút, X=5 bị loại và lưới xét {10, 15}.
+   độ dài khối {5, 10, 15} phút × carryover {đo được, 0, 2× đo được}
+   × ICC cấp phiên {0, đo được ở 1(d)}.
+   *(Sửa 09/09, gói P1-K2 — trước khi khóa.)* Trục ICC mới thêm vào: cho tới 09/09
+   simulator **không có** cách nạp ICC đo được ở 1(d) vào mô phỏng — cú sốc phiên
+   `session_shock_sd` chỉ nhân lượt vào, tức nhân cả tử lẫn mẫu của một tỷ lệ, nên
+   không tạo ICC ở biến kết quả. Bước 1(d) đo ICC rồi bước 2 vứt đi. Knob
+   `SimParams.session_click_sigma` (ánh xạ σ→ICC **đo được**, bảng chuẩn ở
+   `docs/benchmarks/sim-icc-map.md`, sinh lại bằng
+   `python analysis/calibration/bang_icc_mo_phong.py`) khép vòng đó lại. Khi bước
+   1(d) cho ICC đo được trên phiên thật, tra bảng đó ra σ tương ứng rồi chạy lưới
+   ở bước 2 — đó là toàn bộ đường nạp, không có bước ước đoán nào.
+3. **Quy tắc quyết định:** chọn X nhỏ nhất trong lưới sao cho, với t_mix đo được
+   **và ICC đo được**, bias mô phỏng của ước lượng viên chính (có burn-in b=1)
+   < 10% hiệu ứng và MDE mô phỏng nhỏ nhất. Nếu t_mix > 3 phút, X=5 bị loại và
+   lưới xét {10, 15}.
 4. Kết quả (X, các số đo, power curve) ghi vào notebook `analysis/calibration/`,
    commit `<hash>`; giá trị chốt điền vào mục 2 khi khóa.
 
@@ -74,19 +110,43 @@ thực như một hạn chế. (Cài đặt: tham số `burn_in_s` của `liveli
 
 ### 4.1 Biến chính
 
-**Tỷ lệ nhấp sản phẩm theo khối, chuẩn hóa exposure:**
+**Tỷ lệ nhấp HỢP LỆ theo khối, chuẩn hóa exposure** (sửa 08/09/2026 — gói Q1, trước khóa):
 
 ```
-y_b = 1000 × (số click hợp lệ trong khối b, sau burn-in) / (viewer-giây exposure của khối b, sau burn-in)
+y_b = 1000 × (số LƯỢT NHẤP HỢP LỆ trong khối b, sau burn-in) / (viewer-giây exposure của khối b, sau burn-in)
 ```
 
-đơn vị: **click / 1.000 viewer-giây**.
+đơn vị: **lượt nhấp hợp lệ / 1.000 viewer-giây**.
 
 - **Định nghĩa vận hành của một click** (mọi nền tảng): một request đến redirect tự host
   `/r/{code}` của shortlink UTM ghim trong bình luận/overlay, ghi ở bảng `click_event`
-  với timestamp **server-side**, sau khử trùng lặp bằng `dedup_hash` (salt xoay theo
-  phiên). Click quy về khối chứa timestamp của nó. Đây là định nghĩa duy nhất — không
-  dùng số liệu click của nền tảng.
+  với timestamp **server-side**. Click quy về khối chứa timestamp của nó. Đây là định
+  nghĩa duy nhất — không dùng số liệu click của nền tảng.
+- **Click HỢP LỆ** (IAB Click Measurement Guidelines 2009, lọc GIVT-lite; Fabijan et al.
+  KDD 2019): một click bị gắn cờ KHÔNG hợp lệ (`is_valid=false` + `invalid_reason`,
+  không bao giờ xóa row — flag-don't-drop) khi vi phạm một trong 5 quy tắc, cài đặt
+  tham chiếu `livelift.core.click_validity.classify_click`:
+  1. `givt_ua` — user-agent khớp danh sách robot/spider/công cụ đã biết (regex GIVT-lite,
+     case-insensitive: bot, crawler, spider, headless, curl, wget, python-requests,
+     scrapy, phantomjs, selenium, …);
+  2. `prefetch` — header prefetch/prerender/preview của trình duyệt (`Sec-Purpose` chứa
+     prefetch/prerender, `X-Moz: prefetch`, `X-Purpose: preview`);
+  3. `non_get` — chỉ request GET được đếm là click;
+  4. `refractory` — đã có click ĐƯỢC ĐẾM cùng `dedup_hash` (salt xoay theo phiên) trên
+     cùng shortlink trong vòng **τ = 10 giây** trước đó (giá trị chính);
+  5. `volume_cap` — quá **M = 5** click được đếm cùng `dedup_hash`/shortlink/khối.
+- **Sensitivity bắt buộc:** kết quả chính báo cáo kèm τ ∈ {5, 30, 60} giây (chạy lại
+  phân loại bằng `recount_click_validity`, đối soát T+30′ sau phiên qua
+  `livelift-qc --recount-clicks`). Nếu kết luận đổi theo τ, báo cáo trung thực như
+  một hạn chế.
+- **Raw clicks là secondary BẮT BUỘC báo cáo kèm:** chuỗi y_b tính trên TOÀN BỘ click
+  (kể cả click bị gắn cờ; `block_frame(include_invalid=True)`, trường `clicks_raw`)
+  được báo cáo song song với chuỗi hợp lệ trong mọi kết quả chính; tổng
+  `raw_clicks`/`valid_clicks` là số vận hành trong `/experiment/summary`.
+- **Nguyên tắc mù với nhánh gán:** mọi quy tắc hợp lệ chỉ dùng thuộc tính request
+  (user-agent, header, method, lịch sử request cùng fingerprint) — module phân loại
+  không nhận và không được phép nhận nhánh gán/propensity (bất biến có test khẳng định:
+  `tests/test_click_validity.py::test_assignment_blindness`).
 - **Viewer-giây exposure** = tích phân số người xem đồng thời trên phần khối sau burn-in
   (từ `session_tick` 30 giây).
 - **Quy tắc tối thiểu:** khối có exposure < `E_min` giây·người xem bị loại khỏi phân tích.
@@ -99,6 +159,23 @@ y_b = 1000 × (số click hợp lệ trong khối b, sau burn-in) / (viewer-giâ
 
 Số đơn theo khối, tỷ lệ chuyển đổi click→đơn, GMV, biên đóng góp, tốc độ bình luận
 có intent mua.
+
+**Vì sao đơn hàng KHÔNG được nâng lên biến chính (bổ sung 08/09/2026, trước khóa — gói
+Q4).** Đã tính MDE cho biến kết quả số đơn bằng đúng machinery lực thống kê của mục 6
+(`livelift.analysis.power.order_mde_table`; bảng sinh lại được bằng một lệnh:
+`python analysis/power/bang_mde_don_hang.py` → `docs/benchmarks/order-mde.md`). Đơn là
+biến ĐẾM HIẾM nên phương sai bị nhiễu đếm chi phối; CV nạp vào là CV Poisson
+`√(trung bình_k 1/λ_k)` — cùng đại lượng `poisson_floor()` đo trên dữ liệu thật — nên
+con số ra là **SÀN**, MDE thật chỉ có thể lớn hơn. Kết quả: ở quy mô khán giả của giai
+đoạn thí nghiệm (≤ 50 người xem đồng thời), MDE tốt nhất trong toàn lưới vẫn **~79%**.
+Đơn hàng vì thế ở lại mục 4.2, báo cáo kèm bất định, **không dùng để kết luận**; không
+có kịch bản nào trong lưới biện minh cho việc chuyển nó lên biến chính.
+
+Chuyển đổi click→đơn dùng **prior** pv→giỏ 9,33% × giỏ→mua 24,33% ≈ 2,27% (Taobao
+UserBehavior, Alibaba Tianchi bộ #649), quét q2 ∈ {0,15; 0,25; 0,35; 0,50}; nhánh đối
+tác nhân **khán giả** ×4,9 (arXiv:2106.03415). Toàn bộ dán nhãn KỊCH BẢN — không dòng
+nào là số đo của dự án. **CẤM map KuaiLive vào phễu này**: 'click' của KuaiLive là *vào
+phòng live*, không phải nhấp sản phẩm ghim.
 
 ## 5. Ước lượng viên và suy diễn
 
@@ -151,15 +228,69 @@ dùng **wild cluster bootstrap** (9.999 reps).
 > bộ mô phỏng đã hiệu chỉnh: CV trong-phiên 0,352 vs sàn Poisson 0,356 → phần giảm được
 > ≈ 0.
 
-(Cài đặt: `ols_fe_lin`, `cuped_adjust`, `poisson_floor`.)
+**CUPED đa biến — chỉ hiệp biến TẤT ĐỊNH (bổ sung 09/09/2026, trước khóa — gói P4).**
+`cuped_adjust_mv(y, X, session_ids)` mở rộng (c) sang nhiều hiệp biến cùng lúc, với X do
+`build_deterministic_covariates` sinh: `sin/cos(2π·giờ-trong-ngày/24)` lấy từ **giờ bắt đầu
+thật của khối** (đổi sang Asia/Ho_Chi_Minh — nhịp mua sắm theo đồng hồ địa phương) và spline
+bậc 2 của **phút-vào-phiên tại giữa khối** (`t`, `t²`, `max(0, t−45)²`, nút 45 phút là hằng số
+lịch, KHÔNG khớp từ dữ liệu). Mọi cột là hàm của LỊCH và ĐỒNG HỒ, nên X bất biến khi vẽ lại
+vector gán ⇒ kiểm định ngẫu nhiên hóa vẫn CHÍNH XÁC. θ̂ ước lượng bằng ridge dạng đóng, λ chọn
+bằng **CV bỏ-một-PHIÊN** (bỏ-một-khối sẽ rò rỉ: các khối cùng phiên chia chung cú sốc phiên).
+Báo cáo kèm R² **ngoài-phiên** bên cạnh R² trong-mẫu — số trong-mẫu luôn lạc quan.
+Danh sách CẤM ở khung §5c trên vẫn nguyên vẹn: **cấm mọi lag trong-phiên**. Đường này
+**TẮT mặc định** (`analyze_outer(adjust='none')`); bật cho kết quả khẳng định là một quyết
+định tiền đăng ký của nhóm, phải ghi trước khi mở khóa dữ liệu. Nhắc lại đo lường ở khung
+trên: nếu `reducible_share ≈ 0` thì hàm này đúng khi KHÔNG giảm được gì — `se_ratio ≈ 1` và
+R² ngoài-phiên ≤ 0 là kết quả trung thực, không phải lỗi.
+
+(Cài đặt: `ols_fe_lin`, `cuped_adjust`, `cuped_adjust_mv`,
+`build_deterministic_covariates`, `poisson_floor`.)
 
 **(d) LATE qua biến công cụ** — cho chế độ đề xuất (suggest) và dữ liệu đối tác:
 2SLS với Z (gán) làm công cụ cho D = "sản phẩm hệ thống đề xuất thực sự được ghim ≥
-`<x>`% khối" (từ `compliance_rate` + cờ override trong log). Báo cáo first-stage F và
+`<x>`% khối". **Nguồn của D (cập nhật 08/09/2026, trước khóa — gói Q3):**
+`derive_compliance(assignment_event, exposure_event)` — chỉ phơi nhiễm `source='model'`
+tính là hệ thống chạy chính sách; ghim tay là bất tuân theo đúng định nghĩa. Phiên ghi
+trước gói Q3 rơi về `compliance_rate` + cờ override trong log. Báo cáo first-stage F và
 **Anderson–Rubin CI**. (Cài đặt: `late_wald`; mở rộng `linearmodels.IV2SLS`/`ivmodels`.)
 
+**(e) Mẫu số nội sinh — độ nhạy bắt buộc báo cáo (bổ sung 09/09/2026, trước khóa — gói P3).**
+Biến kết quả chính là một TỶ LỆ: click hợp lệ chia viewer-giây. Phép chia đó chỉ vô hại nếu
+**mẫu số không chịu tác động của can thiệp** — mà ghim thẻ là thay đổi nhìn thấy được trong
+phòng live, hoàn toàn có thể giữ chân hoặc đuổi người xem. Giả định đó vì vậy được KIỂM TRA
+chứ không được mặc định:
+
+- **Cổng ICS** (`analysis.robust.ics_gate`, arXiv:2510.01127): chạy đúng kiểm định ngẫu nhiên
+  hóa ở (a) — cùng cơ chế redraw production, cùng thống kê studentized — nhưng lấy
+  **viewer-giây làm biến kết quả**. Mức gắn cờ **α = 0,10** (lỏng hơn 0,05 có chủ đích: bỏ sót
+  một mẫu số nội sinh tốn kém hơn nhiều so với in thừa một chú thích). Kết quả là **CỜ**:
+  không loại khối, không đổi con số chính, chỉ buộc đọc kèm estimand mẫu-số-cố-định
+  (HARNESS §3, flag-don't-drop). Không gắn cờ **KHÔNG** phải bằng chứng mẫu số ngoại sinh —
+  ở vài chục phiên kiểm định này ít công suất trước hiệu ứng nhỏ.
+  **Đây KHÔNG phải một mục SRM và không thuộc bộ §8.1**: §8.1 cấm chạy SRM trên đại lượng hậu
+  can thiệp, và viewer-giây đúng là hậu can thiệp. Khác biệt nằm ở Ý NGHĨA của cờ — SRM đỏ nói
+  "dữ liệu hỏng, đi tìm lỗi đường ống", cổng này nói "estimand cần một chú thích".
+  Vì nó kiểm định trên đại lượng hậu can thiệp, nó **cũng bị khóa theo §7**: `/experiment/summary`
+  chỉ trả cờ này sau ngày mở khóa.
+- **Estimand mẫu-số-cố-định** (`analysis.adjust.linearize_ratio`, Deng KDD 2018 /
+  arXiv:1803.06336): `L_b = click_b − r0·exposure_b`, chạy **nguyên** pipeline (a) — redraw,
+  thống kê studentized, Fisher CI — trên `L_b`. **Quy ước r0 (tiền đăng ký):** `r0` là tỷ lệ
+  gộp `Σclick / Σexposure` **của mẫu quan sát**, tính MỘT LẦN từ dữ liệu như đã ghi và **CỐ
+  ĐỊNH qua mọi redraw**, mọi điểm lưới Fisher-CI, mọi lần bootstrap. Tính lại r0 bên trong một
+  redraw sẽ làm vector kết quả động theo vector gán đang kiểm định và phá tính chính xác của
+  kiểm định. **Đơn vị của τ̂ trên đường này là CLICK đã tuyến tính hóa, không phải
+  click/1.000 viewer-giây** — chỉ so được dấu và mức ý nghĩa với con số chính, tuyệt đối không
+  in cạnh nhau như hai ước lượng cùng thang. Đường này TẮT mặc định
+  (`analyze_outer(outcome_mode='ratio')`).
+- **Phương sai delta-method theo cụm** (`analysis.adjust.delta_var_ratio`, cùng nguồn Deng):
+  **CHỈ MÔ TẢ**. Nó là xấp xỉ chuẩn dựa vào CLT theo cụm; mẫu tiền đăng ký K = 18–31 phiên nằm
+  đúng vùng xấp xỉ đó lệch (arXiv:2606.27662), nên **không dùng làm KTC chính**. KTC chính vẫn
+  là Fisher CI ở (a), vốn không cần CLT theo cụm.
+
 **Quy tắc nhất quán:** nếu (a) và (c) cho kết luận khác nhau, (a) là kết luận chính;
-khác biệt phải được báo cáo và mổ xẻ trong phụ lục.
+khác biệt phải được báo cáo và mổ xẻ trong phụ lục. Nếu cổng ICS ở (e) gắn cờ, kết luận chính
+phải được báo cáo **kèm** kết quả đường mẫu-số-cố-định, và sự khác biệt (nếu có) là một hạn chế
+được nêu thẳng, không phải một lựa chọn hậu nghiệm giữa hai con số.
 
 ## 6. Lực thống kê — hai kịch bản (trung thực, không trộn dữ liệu hiệu chỉnh)
 
@@ -187,6 +318,12 @@ Cơ chế cưỡng chế ở tầng API (thêm 06/09): đặt `RESULTS_FREEZE_UN
 trong cấu hình — trước ngày đó `/experiment/summary` gạt mọi trường suy diễn
 (τ̂, p, KTC) và chỉ trả số liệu vận hành; giá trị sai định dạng khóa luôn (fail-closed).
 
+Cổng ICS §5e **cũng nằm trong phạm vi khóa** (bổ sung 09/09, trước khóa — gói P3): nó kiểm
+định trên viewer-giây, một đại lượng HẬU CAN THIỆP, nên biết nó có gắn cờ hay không đã là biết
+một phần tác động của can thiệp. Trường `denominator_check` vì thế chỉ mang p-value sau ngày
+mở khóa; trước đó nó trả về lý do khóa. (Đây là chỗ nó khác các kiểm tra §8.1, vốn chạy trên
+đại lượng độc lập với nhánh gán và được phục vụ hằng tuần.)
+
 ## 8. Quy tắc loại trừ khối (tiền đăng ký, áp dụng mù với nhánh gán)
 
 Khối bị đánh dấu `excluded_reason` (không bao giờ sửa số liệu) khi:
@@ -194,6 +331,40 @@ mất ingest > 60 giây liên tục trong khối; exposure < E_min (mục 4.1); 
 ngoài 3 lý do cho phép (`hết hàng`, `sai giá`, `sự cố kỹ thuật`); vi phạm làm mù nghiêm
 trọng ghi trong nhật ký phiên; lỗi lịch gán (khối không khớp lịch tiền-phiên).
 Số khối loại và lý do báo cáo đầy đủ; phân tích độ nhạy có/không khối bị loại.
+
+### 8.1 Kiểm tra toàn vẹn sau phiên — SRM đợt 1 (bổ sung 08/09/2026, trước khóa — gói Q5)
+
+Bộ QC sau phiên (kế hoạch §8.3) lên **8 mục**, thêm hai kiểm tra chẩn đoán. Cài đặt tham
+chiếu: `livelift.core.quality`, chạy qua `livelift-qc`.
+
+- **`assignment_integrity`** — số khối và **chuỗi gán** phải khớp giữa lịch ĐÃ LƯU và
+  khung phân tích thật sự đi vào ước lượng viên (`core.features.block_frame`). Nguồn lịch
+  ưu tiên `assignment_event` (bảng chỉ-ghi-thêm, lọc theo `design_hash` của lượt rút đã
+  chạy), rơi về `design['blocks']` cho phiên tiền-Q3; hai nguồn persist mâu thuẫn nhau là
+  một lỗi riêng biệt. Lệch bất kỳ = FAIL kèm chi tiết. Kiểm tra tất định, không có α.
+- **`telemetry_delivery`** — kiểm định nhị thức CHÍNH XÁC hai phía
+  (`scipy.stats.binomtest`) trên số nhịp `session_tick` rơi vào khối BẬT vs TẮT. Kỳ vọng
+  là **tỷ lệ THỜI GIAN BẬT/TẮT của lịch đã persist**, *không phải 0,5* — khối biên nhân
+  đôi (mục 2) và jitter làm tỷ lệ thời gian lệch khỏi một nửa ở nhiều lịch hoàn toàn hợp
+  lệ. Nhịp tick do đồng hồ sinh nên độc lập với nhánh; lệch ⇒ lỗi đường ống hoặc sự cố
+  telemetry.
+
+**α = 0,005 mỗi kiểm định**, họ ~10 kiểm tra ⇒ sai lầm loại I toàn họ ≤ 5% (Bonferroni).
+
+**Kết quả là CỜ, không phải hành động.** Không kiểm tra nào tự sửa hay tự loại dữ liệu;
+một mục ĐỎ buộc điều tra nguyên nhân trước khi tin số của phiên đó (HARNESS §3). Loại
+khối vẫn chỉ theo đúng danh sách lý do ở mục 8.
+
+**TUYỆT ĐỐI KHÔNG chạy SRM trên người xem / bình luận / click.** Ba đại lượng đó là hậu
+can thiệp: nếu can thiệp có tác dụng thì chúng PHẢI lệch giữa hai nhánh — đó chính là
+điều thí nghiệm đi đo. SRM chỉ hợp lệ trên đại lượng được quyết định trước hoặc độc lập
+với nhánh (dấu vết gán; nhịp giao telemetry theo đồng hồ).
+
+**Độ nhạy đã đo (không phỏng đoán).** Ở mức MỘT phiên 90 phút (~180 nhịp),
+`telemetry_delivery` chỉ bắt được sự cố thô (mất ~50% nhịp một nhánh); mất 10% là vô
+hình. Chẩn đoán mất mát nhỏ phải GỘP cả chuỗi phiên (cộng `TelemetryCounts` rồi kiểm định
+một lần): đo được công suất 100% và FPR 0% trên 50 lần lặp × 30 phiên khi mất 10% nhịp
+khối TẮT. Bảo thủ ở mức mỗi-phiên là cố ý — một cổng kêu oan hàng tuần sẽ bị bỏ qua.
 
 ## 9. Biện pháp chống nhiễu (tiền đăng ký như một phần thiết kế)
 
@@ -215,6 +386,10 @@ Danh sách đầy đủ — mọi phân tích ngoài danh sách này dán nhãn 
 4. Outcome đơn hàng/GMV theo khối (funnel click→đơn).
 5. Tương quan intent bình luận (radar NLP) với click — chỉ mô tả.
 6. A/A trên các phiên hiệu chỉnh và trên simulator (false-positive rate ≈ α).
+7. Độ nhạy mẫu số nội sinh: cổng ICS + đường estimand mẫu-số-cố-định (§5e) — báo cáo kèm
+   kết quả chính, không thay thế nó.
+8. Giảm phương sai bằng CUPED đa biến trên hiệp biến tất định (§5c) — báo cáo `se_ratio` và
+   R² ngoài-phiên đo được, kể cả khi bằng 0.
 
 ## 11. Tài liệu tham khảo
 
@@ -231,8 +406,18 @@ Toàn văn tổng thuật và đường dẫn trong `docs/research/` (đặc bi�
 - Bojinov, I., & Shephard, N. (2019). *Time series experiments and causal estimands.*
   JASA 114(528). (Randomization inference đúng phân bố gán.)
 - Ni, T., Kalfountzou, E., & Bojinov, I. (2025). *Reliable Switchback Experiments with
-  Rerandomization.* HBS WP 26-012. (Ràng buộc ≥2 khối/nhánh/giai đoạn.)
+  Rerandomization.* HBS WP 26-012. (Ràng buộc ≥2 khối/nhánh/giai đoạn; HT cặp liền kề.)
+- Zeng, Adjaho, Bucarey, Qin, Zhang, Hoban, Johari & Wager (2026). *Sequentially-
+  Rerandomized Switchback Experiments.* arXiv:2604.02489. (Blocked-SRSB cần nhiều đơn vị
+  song song — với 1 stream chuyển thành ràng buộc cân bằng transition trong acceptance.)
 - Xiong, R., Chin, A., & Taylor, S. (2024). *Data-Driven Switchback Experiments.*
   arXiv:2406.06768. (Jitter ranh giới; cân bằng chu kỳ.)
 - Wen, Q., Shi, C., Yang, Y., Tang, W., & Zhu, H. (2024). arXiv:2403.17285.
   (Carryover × tự tương quan → tần suất switch.)
+- Fabijan, A., Dmitriev, P., McFarland, C., Vermeer, L., Holmström Olsson, H., & Bosch, J.
+  (2019). *Diagnosing Sample Ratio Mismatch in Online Controlled Experiments.* KDD.
+  (SRM đợt 1, mục 8.1 — chỉ trên đại lượng độc lập với nhánh.)
+- Alibaba Tianchi, bộ dữ liệu **UserBehavior** #649 (Taobao, 11–12/2017). (Prior phễu
+  pv→giỏ 9,33% × giỏ→mua 24,33% cho MDE đơn hàng, mục 4.2 — PRIOR, không phải số đo.)
+- arXiv:2106.03415 — thương mại điện tử qua livestream. (Hệ số khán giả ×4,9 của nhánh
+  đối tác trong bảng MDE đơn hàng, mục 4.2 — KỊCH BẢN.)

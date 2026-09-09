@@ -44,10 +44,18 @@ BETWEEN blocks INSIDE a session, so:
 
 HARD RULE (plan §1.4): from week 5 the CV fed into this module must be a
 MEASURED within-session value from pilot sessions, not an assumption.
+
+The ORDER-count endpoint (gói Q4, PREREGISTRATION §4.2) reuses this same
+machinery through :func:`order_mde_table`: orders are a rare count, so the CV
+is the Poisson one (:func:`poisson_cv`) and the resulting MDE is a FLOOR, not a
+forecast. Everything that enters it is a prior or an assumption and every row
+of the generated report says so — see that function's docstring, in particular
+the standing prohibition on mapping KuaiLive onto the purchase funnel.
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import numpy as np
@@ -247,4 +255,226 @@ def scenario_table(
                     "mde_relative": round(mde_relative(inp), 4),
                 }
             )
+    return rows
+
+
+# ---------------------------------------------------------------------------
+# Order-count MDE (gói Q4) — the SECONDARY endpoint of PREREGISTRATION §4.2
+# ---------------------------------------------------------------------------
+
+FUNNEL_PV_TO_CART = 0.0933
+"""Prior: share of product page views that reach a cart.
+
+Source: Taobao **UserBehavior** log (Alibaba Tianchi dataset #649, 100M
+user-item interactions, Nov–Dec 2017) — the pv → cart step. This is a PRIOR
+from a different platform and a different year, used to convert clicks into an
+order-count SCENARIO. It is never presented as a LiveLift measurement.
+"""
+
+FUNNEL_CART_TO_BUY = 0.2433
+"""Prior: share of carts that convert to a purchase (same Tianchi #649 log).
+
+``FUNNEL_PV_TO_CART * FUNNEL_CART_TO_BUY`` ≈ 2.27% click → order overall.
+Swept over :data:`Q2_GRID` because this is the step a livestream funnel departs
+from most: the prior value sits between the 0.15 and 0.25 grid points.
+"""
+
+Q2_GRID: tuple[float, ...] = (0.15, 0.25, 0.35, 0.5)
+"""Pre-registered sweep of the cart → buy step (q2) for the order-count table."""
+
+PARTNER_AUDIENCE_MULTIPLIER = 4.9
+"""Audience multiplier of the PARTNER branch, as a scenario (not a measurement).
+
+Source: the live-streaming-e-commerce study arXiv:2106.03415, where sessions
+run with an established seller/host draw an audience about 4.9× a self-run
+session's. Applied to the audience grid only — the funnel and the click rate
+stay identical, because nothing in that source speaks to either.
+"""
+
+FUNNEL_SOURCE_NOTE = (
+    "Prior funnel: Taobao UserBehavior (Tianchi #649) pv→giỏ 9,33% × giỏ→mua 24,33%. "
+    "Nhân khán giả nhánh đối tác ×4,9 (arXiv:2106.03415). "
+    "KHÔNG dùng KuaiLive cho funnel: 'click' của KuaiLive là VÀO PHÒNG, không phải "
+    "nhấp sản phẩm ghim — map sang phễu mua hàng là sai ngữ nghĩa."
+)
+
+
+def _measurement_block_seconds(
+    session_minutes: int, block_min: int, endpoint_double: bool
+) -> list[int]:
+    """Nominal length of every MEASUREMENT block, in seconds.
+
+    Mirrors the layout ``core.assigner.outer._block_lengths_min`` produces with
+    ``washout_min = 0``: ``[2L, L, ..., L, 2L]`` when the doubled-endpoint rule
+    fits, uniform ``L`` otherwise. Boundary jitter is ignored — it is
+    zero-mean and cancels over the session.
+    """
+    n = blocks_in_session(session_minutes, block_min, endpoint_double)
+    if n <= 0:
+        return []
+    length_s = block_min * 60
+    if endpoint_double and n >= 4 and session_minutes >= 6 * block_min:
+        return [2 * length_s] + [length_s] * (n - 2) + [2 * length_s]
+    return [length_s] * n
+
+
+def analysis_window_seconds(
+    session_minutes: int,
+    block_min: int,
+    endpoint_double: bool = True,
+    burn_in_s: int = 60,
+) -> list[float]:
+    """Seconds of each measurement block that actually carry the outcome.
+
+    Same rule as :func:`livelift.core.features.block_frame`: the window starts
+    ``min(burn_in_s, max(duration - 30, 0))`` into the block. The doubled
+    endpoint blocks therefore keep a LARGER share of their minutes than the
+    interior ones — which is exactly why the ON/OFF time split of a schedule is
+    not 0.5 (see ``core.quality.check_telemetry_delivery``).
+    """
+    out: list[float] = []
+    for d in _measurement_block_seconds(session_minutes, block_min, endpoint_double):
+        out.append(float(d - min(burn_in_s, max(d - 30, 0))))
+    return out
+
+
+def poisson_cv(expected_counts: Sequence[float]) -> float:
+    """CV of the block RATE outcome when the block COUNT is pure Poisson.
+
+    For ``y_k = 1000 · n_k / E_k`` with ``n_k ~ Poisson(λ_k)`` and a constant
+    underlying rate ``r = λ_k / E_k``:
+
+        Var_pois = mean_k(1000² · λ_k / E_k²) = 1000² · r · mean_k(1/E_k)
+        mean(y)  = 1000 · r
+        CV       = √Var_pois / mean(y) = √(mean_k(1/λ_k))
+
+    This is the same quantity :func:`poisson_floor` measures on real data, so
+    the two agree by construction — ``poisson_floor`` reads it off observed
+    clicks, this reads it off an assumed λ. Blocks with λ = 0 make the CV
+    infinite (a rate you cannot measure), which is reported as ``inf`` rather
+    than silently dropped.
+    """
+    lams = [float(x) for x in expected_counts]
+    if not lams:
+        return float("nan")
+    if any(x <= 0 for x in lams):
+        return float("inf")
+    return float(np.sqrt(np.mean([1.0 / x for x in lams])))
+
+
+def expected_orders(
+    click_rate_per_1000vs: float,
+    exposure_viewer_s: float,
+    q1_pv_to_cart: float = FUNNEL_PV_TO_CART,
+    q2_cart_to_buy: float = FUNNEL_CART_TO_BUY,
+) -> float:
+    """Expected ORDERS from a click rate and an exposure, through the funnel.
+
+    ``click_rate_per_1000vs`` is the project's primary outcome unit (valid
+    clicks per 1000 viewer-seconds), so this is the one conversion between the
+    measured endpoint and the order endpoint — kept in one place so no report
+    can invent a second one.
+    """
+    clicks = click_rate_per_1000vs * exposure_viewer_s / 1000.0
+    return clicks * q1_pv_to_cart * q2_cart_to_buy
+
+
+def order_mde_table(
+    click_rate_per_1000vs: float,
+    sessions_grid: Sequence[int],
+    audience_grid: Sequence[float],
+    q2_grid: Sequence[float] = Q2_GRID,
+    *,
+    session_minutes: int = 90,
+    block_min: int = 5,
+    endpoint_double: bool = True,
+    burn_in_s: int = 60,
+    q1_pv_to_cart: float = FUNNEL_PV_TO_CART,
+    compliance: float = 0.95,
+    partner_multiplier: float = PARTNER_AUDIENCE_MULTIPLIER,
+    include_partner: bool = True,
+    alpha: float = 0.05,
+    power: float = 0.80,
+) -> list[dict]:
+    """MDE on the ORDER-count endpoint, over sessions × audience × q2.
+
+    **This is a SCENARIO table, not a measurement.** Three inputs are priors or
+    assumptions and every row says so:
+
+    - ``click_rate_per_1000vs`` — the project has no measured product-click
+      rate yet (pilot-only quantity; ``SimParams.base_click_prob_per_min`` is
+      flagged as an assumption in the simulator).
+    - the funnel ``q1 × q2`` — Taobao UserBehavior (Tianchi #649):
+      pv→cart 9.33%, cart→buy 24.33%, ≈2.27% overall. ``q2`` is swept.
+    - ``partner_multiplier`` — ×4.9 audience for the partner branch
+      (arXiv:2106.03415), applied to the audience only.
+
+    **KuaiLive MUST NOT be mapped onto this funnel.** KuaiLive's "click" event
+    is a room ENTRY, not a click on a pinned product; it shares a name with the
+    project's outcome and nothing else. Using it here would produce a
+    conversion rate that measures a different act entirely
+    (docs/benchmarks/kuailive-calibration.md states the same limit for
+    ``base_click_prob_per_min``).
+
+    Method: orders per block are rare, so their variance is dominated by
+    counting noise. Each block's expected order count is
+    ``λ_k = click_rate/1000 · audience · window_k · q1 · q2``; the CV fed to the
+    SAME :func:`mde_relative` machinery is the Poisson one,
+    ``√(mean_k 1/λ_k)`` (:func:`poisson_cv`). The result is therefore a
+    **floor**: real sessions carry systematic variance on top of the arrival
+    noise, so the achievable order MDE can only be LARGER than these numbers.
+    Reported as such — never as "the MDE we will get".
+
+    Audience is treated as a constant concurrent viewer count over the session;
+    the phase curve (ramp-up / wind-down) is not modelled here, so the exposure
+    of a real session with the same peak audience is somewhat lower.
+    """
+    windows = analysis_window_seconds(session_minutes, block_min, endpoint_double, burn_in_s)
+    blocks_per_session = len(windows)
+    branches: list[tuple[str, float]] = [("không đối tác", 1.0)]
+    if include_partner:
+        branches.append((f"có đối tác (×{partner_multiplier:g})", float(partner_multiplier)))
+
+    rows: list[dict] = []
+    for n_sessions in sessions_grid:
+        for audience in audience_grid:
+            for branch_name, mult in branches:
+                eff_audience = float(audience) * mult
+                for q2 in q2_grid:
+                    lams = [
+                        expected_orders(click_rate_per_1000vs, eff_audience * w, q1_pv_to_cart, q2)
+                        for w in windows
+                    ]
+                    total_blocks = blocks_per_session * int(n_sessions)
+                    cv = poisson_cv(lams)
+                    mde = mde_relative(
+                        PowerInputs(
+                            cv=cv,
+                            n_blocks_total=total_blocks,
+                            n_sessions=int(n_sessions),
+                            alpha=alpha,
+                            power=power,
+                            compliance=compliance,
+                        )
+                    )
+                    orders_session = float(sum(lams))
+                    rows.append(
+                        {
+                            "branch": branch_name,
+                            "n_sessions": int(n_sessions),
+                            "audience": float(audience),
+                            "audience_effective": eff_audience,
+                            "q1": q1_pv_to_cart,
+                            "q2": float(q2),
+                            "click_to_order": q1_pv_to_cart * float(q2),
+                            "blocks_per_session": blocks_per_session,
+                            "n_blocks_total": total_blocks,
+                            "orders_per_block": orders_session / max(blocks_per_session, 1),
+                            "orders_per_session": orders_session,
+                            "orders_total": orders_session * int(n_sessions),
+                            "cv_poisson": cv,
+                            "mde_relative": mde,
+                            "mde_orders_per_session": mde * orders_session,
+                        }
+                    )
     return rows

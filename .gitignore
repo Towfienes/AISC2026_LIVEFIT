@@ -25,6 +25,10 @@ data/raw/
 data/sessions/
 *.dump
 *.sql.gz
+# Lô gán nhãn: bình luận THẬT (đã lọc PII) của phiên quan sát — vẫn là dữ liệu
+# người dùng, không vào git. Chỉ README mô tả lô được commit.
+data/labeling/*
+!data/labeling/README.md
 
 # Node / Next.js
 web/node_modules/

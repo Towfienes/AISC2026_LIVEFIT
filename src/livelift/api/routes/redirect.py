@@ -7,6 +7,12 @@ Design constraints:
 - No PII: the dedup hash salts client fingerprint with the session id and a
   per-process salt, and the raw fingerprint is never stored (§11.2 — salt
   rotates per session, so the same viewer in two sessions is unlinkable).
+- Validity (gói Q1): every click is classified at write time by the pure
+  IAB/GIVT-lite rules in :mod:`livelift.core.click_validity` and stored with
+  ``is_valid``/``invalid_reason``/``ua_class`` — flagged, never dropped. The
+  classification is assignment-blind (request attributes only) and lives
+  inside the same try/except as the logging: a bot, a classification error,
+  anything — the 302 goes out regardless.
 """
 
 from __future__ import annotations
@@ -20,6 +26,7 @@ from fastapi.responses import RedirectResponse
 
 from livelift.api import service
 from livelift.api.service import StoreDep
+from livelift.core.click_validity import PriorClick, classify_click
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -52,19 +59,48 @@ def follow_shortlink(code: str, request: Request, store: StoreDep) -> RedirectRe
                 block = service.block_at_offset(store.get_blocks(session_id), elapsed)
                 if block is not None:
                     block_id = block["block_id"]
+        now = service.now_utc()
+        dedup_hash = _dedup_hash(request, session_id)
+        # Validity classification (assignment-blind: request attributes and
+        # same-fingerprint history only — see core/click_validity.py).
+        # Only THIS fingerprint's history on THIS shortlink is needed, and it
+        # is fetched as such: reading every click of the session would make the
+        # redirect cost O(clicks-so-far) — slowest during a bot burst.
+        priors: list[PriorClick] = []
+        if session_id:
+            priors = [
+                PriorClick(
+                    age_s=(now - prior["ts"]).total_seconds(),
+                    counted=prior.get("is_valid") is not False,
+                    same_block=prior.get("block_id") == block_id,
+                )
+                for prior in store.list_clicks_for_fingerprint(session_id, dedup_hash, code)
+            ]
+        is_valid, invalid_reason, ua_class = classify_click(
+            request.headers.get("user-agent"),
+            request.headers,
+            request.method,
+            priors,
+        )
         row = {
             "click_id": service.new_id(),
             "block_id": block_id,
-            "ts": service.now_utc(),
+            "ts": now,
             "product_id": link["product_id"],
             "shortlink_code": code,
-            "dedup_hash": _dedup_hash(request, session_id),
+            "dedup_hash": dedup_hash,
+            "is_valid": is_valid,
+            "invalid_reason": invalid_reason,
+            "ua_class": ua_class,
         }
         store.add_click(session_id, row)
         if session_id:
             store.publish(
                 session_id,
-                {"type": "click", "data": {"product_id": link["product_id"]}},
+                {
+                    "type": "click",
+                    "data": {"product_id": link["product_id"], "is_valid": is_valid},
+                },
             )
     except Exception:  # noqa: BLE001 — the redirect must always go through
         logger.exception("click logging failed for code=%s", code)

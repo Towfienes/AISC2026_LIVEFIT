@@ -19,7 +19,7 @@ from typing import Annotated, Any
 from fastapi import Depends, HTTPException, Request
 
 from livelift.api.store import Store
-from livelift.core.assigner import Block, DesignParams, Schedule, generate_schedule
+from livelift.core.assigner import Block, DesignParams, Schedule, design_hash, generate_schedule
 
 
 class ScheduleMissingError(RuntimeError):
@@ -110,16 +110,46 @@ def schedule_session(
     Returns (updated session, stored block rows). The design (params + seed +
     draw diagnostics) is persisted alongside the blocks so the schedule can be
     reproduced and audited (hard rule 4 / HARNESS §6 seed discipline).
+
+    Two artifacts are written here and nowhere else (gói Q3):
+
+    * ``design_hash`` — the SHA-256 commitment over (params, seed). It goes in
+      the design json, is returned by ``POST /schedule``, and is shown on the
+      desk, so the design that will run is published BEFORE broadcast.
+    * ``assignment_event`` rows — the ENTIRE schedule materialized once, at
+      draw time, into the append-only table. ``experiment_block`` is mutable
+      (override_count, compliance_rate, excluded_reason); these rows are not,
+      which is what lets a reader prove afterwards that the assignments were
+      not touched mid-session. A redraw (allowed while planned/scheduled)
+      appends a second set under its own hash rather than replacing the first.
     """
     schedule = generate_schedule(session["planned_duration_min"], params, seed)
     blocks = store.save_schedule(session["session_id"], schedule.to_rows())
+    d_hash = design_hash(params, schedule.seed)
+    drawn_at = now_utc()
+    store.add_assignment_events(
+        session["session_id"],
+        [
+            {
+                "block_idx": row["block_index"],
+                "assignment": row["assignment"],
+                "block_start_s": row["start_offset_s"],
+                "block_end_s": row["end_offset_s"],
+                "design_hash": d_hash,
+                "created_at": drawn_at,
+            }
+            for row in schedule.to_rows()
+        ],
+    )
     design = {
         "params": asdict(params),
         "seed": schedule.seed,
+        "design_hash": d_hash,
         "n_redraws": schedule.n_redraws,
         "n_on": schedule.n_on,
         "n_off": schedule.n_off,
         "realized_min_per_arm_per_phase": schedule.realized_min_per_arm_per_phase,
+        "realized_transition_pairs": schedule.realized_transition_pairs,
         # The schedule VERBATIM as drawn before broadcast. This is the
         # pre-registration audit trail: the post-session QC gate compares it
         # against the blocks that actually ran, and a judge can verify the
@@ -145,17 +175,37 @@ def start_session(store: Store, session: dict[str, Any], start_ts: datetime) -> 
     return updated
 
 
+def session_design_hash(session: dict[str, Any]) -> str | None:
+    """The commitment hash of the design this session is scheduled under.
+
+    ``None`` for sessions scheduled before gói Q3 (and for replay/observational
+    sessions that never had a schedule) — the honest answer is "no commitment
+    was published", never a hash recomputed after the fact, which would prove
+    nothing about what actually ran.
+    """
+    return (session.get("design") or {}).get("design_hash")
+
+
 def rebuild_design_params(session: dict[str, Any]) -> DesignParams:
     """The :class:`DesignParams` persisted in the session's design json.
 
     Unknown keys are dropped (schema evolution), missing ones fall back to the
     dataclass defaults. Randomization inference MUST redraw with these — the
     session's own p / rerandomization constraint — not with the defaults, or
-    the reference distribution belongs to a design nobody ran."""
+    the reference distribution belongs to a design nobody ran.
+
+    Exception to the default-fallback rule (08/09): a design json persisted
+    BEFORE the transition-balance constraint existed carries no
+    ``min_transition_pairs`` key — that session RAN without the constraint, so
+    the honest reconstruction is 0 (off), not today's default of 3. Falling
+    back to 3 would redraw a design nobody ran."""
     design = session.get("design") or {}
     raw_params = design.get("params") or {}
     allowed = {f.name for f in fields(DesignParams)}
-    return DesignParams(**{k: v for k, v in raw_params.items() if k in allowed})
+    kept = {k: v for k, v in raw_params.items() if k in allowed}
+    if raw_params and "min_transition_pairs" not in raw_params:
+        kept["min_transition_pairs"] = 0
+    return DesignParams(**kept)
 
 
 def rebuild_schedule(session: dict[str, Any], blocks: list[dict[str, Any]]) -> Schedule:

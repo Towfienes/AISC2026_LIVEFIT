@@ -72,3 +72,40 @@ def test_zero_exposure_block_has_zero_outcome():
     schedule = generate_schedule(30, DesignParams(jitter_s=0, endpoint_double=False), seed=3)
     frame = block_frame(schedule, [], burn_in_s=0)
     assert all(r.y == 0.0 and r.exposure_viewer_s == 0.0 for r in frame)
+
+
+def test_invalid_clicks_leave_the_primary_outcome_but_stay_in_raw():
+    """Gói Q1: outcome chính chỉ đếm click hợp lệ; click bị gắn cờ vẫn nằm
+    trong chuỗi raw (flag-don't-drop) và include_invalid=True tái tạo nó."""
+    schedule = generate_schedule(60, DesignParams(jitter_s=0), seed=4)
+    events = [Event("viewer_count", t, value=100.0) for t in range(0, 3600, 30)]
+    events += [Event("click", t + 0.5) for t in range(0, 3600, 10)]  # valid
+    events += [
+        Event("click", t + 0.7, is_valid=False) for t in range(0, 3600, 10)
+    ]  # flagged bots, same tempo
+
+    valid_frame = block_frame(schedule, events, burn_in_s=60)
+    raw_frame = block_frame(schedule, events, burn_in_s=60, include_invalid=True)
+    for rv, rr in zip(valid_frame, raw_frame, strict=True):
+        assert rv.clicks_raw == 2 * rv.clicks  # raw kept alongside, never dropped
+        assert rr.clicks == rv.clicks_raw
+        assert rr.clicks_raw == rv.clicks_raw
+        # uniform valid stream: y ≈ 1.0 like the all-valid case; raw ≈ 2×
+        assert 0.8 <= rv.y <= 1.2
+        assert rr.y == rv.y * 2
+
+
+def test_clicks_before_the_broadcast_never_enter_any_block():
+    """Runbook §1.1: mỗi phiên sinh vài chục click kiểm tra link ở T−24h (offset
+    ÂM so với `start_ts`). Nếu chúng lọt vào khối đầu thì mọi phiên đều có một
+    khối bị thổi phồng có hệ thống — và biến kết quả chính sai từ gốc."""
+    schedule = generate_schedule(60, DesignParams(jitter_s=0), seed=4)
+    events = [Event("viewer_count", t, value=100.0) for t in range(0, 3600, 30)]
+    events += [Event("click", t + 0.5) for t in range(0, 3600, 10)]
+    baseline = block_frame(schedule, events, burn_in_s=60)
+
+    pre_broadcast = [Event("click", -86400.0 + i) for i in range(50)]
+    with_checks = block_frame(schedule, events + pre_broadcast, burn_in_s=60)
+
+    assert [r.clicks for r in with_checks] == [r.clicks for r in baseline]
+    assert [r.clicks_raw for r in with_checks] == [r.clicks_raw for r in baseline]

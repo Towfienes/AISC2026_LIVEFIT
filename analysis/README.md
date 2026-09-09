@@ -5,8 +5,8 @@ notebook chỉ gọi hàm và vẽ. Strip output trước khi commit.
 
 | Thư mục | Nội dung | Khóa theo tiền đăng ký? |
 |---|---|---|
-| `calibration/` | Hiệu chỉnh tuần 3: đo t_mix (impulse response sau bỏ ghim), phân phối thời gian ở lại, ICC cấp phiên, CV thực tế → chốt độ dài khối + burn-in, viết lại bảng lực | Quy trình có trong tiền đăng ký |
-| `power/` | Bảng MDE hai kịch bản (không/có đối tác) từ `livelift.analysis.power` | Có |
+| `calibration/` | Hiệu chỉnh tuần 3: đo t_mix (impulse response sau bỏ ghim), phân phối thời gian ở lại, ICC cấp phiên, CV thực tế → chốt độ dài khối + burn-in, viết lại bảng lực. Kèm `bang_icc_mo_phong.py`: đo ánh xạ hai knob không đồng nhất (`session_click_sigma`, `click_frailty_cv`) → ICC của bộ mô phỏng (gói P1-K2) → `docs/benchmarks/sim-icc-map.md` | Quy trình có trong tiền đăng ký |
+| `power/` | Bảng MDE hai kịch bản (không/có đối tác) và bảng MDE **đơn hàng** (phiên × khán giả × q2, gói Q4 → `docs/benchmarks/order-mde.md`) từ `livelift.analysis.power` | Có |
 | `confirmatory/` | Phân tích khẳng định sau đóng băng dữ liệu — chạy đúng theo PREREGISTRATION.md, ghi `analysis_run` vào DB kèm commit hash | **CÓ — không sửa sau tuần 6** |
 | `exploration/` | Phân tích khám phá hậu nghiệm — mọi kết quả ở đây phải ghi nhãn "khám phá" | Không |
 

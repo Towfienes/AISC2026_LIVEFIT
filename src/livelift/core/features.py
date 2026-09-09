@@ -8,9 +8,14 @@ Two layers:
 
 2. :func:`block_frame` — join ticks/clicks onto the experiment schedule and
    compute the block-level analysis dataset. The primary outcome is
-   **exposure-weighted click rate**: clicks per 1000 viewer-seconds within the
-   block's analysis window. The analysis window drops the first ``burn_in_s``
-   seconds of each block (Hu & Wager, arXiv:2209.00197 — burn-in at analysis
+   **exposure-weighted VALID click rate**: IAB-valid clicks (gói Q1,
+   ``livelift.core.click_validity`` — flagged at write time, never dropped)
+   per 1000 viewer-seconds within the block's analysis window. Raw clicks
+   (including flagged ones) stay available as the mandatory secondary series:
+   every record carries ``clicks_raw``, and ``include_invalid=True`` rebuilds
+   the whole frame on the raw counts for the side-by-side report. The
+   analysis window drops the first ``burn_in_s`` seconds of each block
+   (Hu & Wager, arXiv:2209.00197 — burn-in at analysis
    time instead of design washout). Pre-block covariates (viewers, comment
    rate in the trailing window before the block) are attached for variance
    reduction (CUPED/CUPAC-style).
@@ -37,6 +42,10 @@ class Event:
     ts_offset_s: float
     value: float = 1.0  # viewer_count: the count; others: unused
     product_id: str | None = None
+    # Click validity flag (gói Q1): set from click_event.is_valid. Only valid
+    # clicks enter the primary outcome; flagged ones stay in the raw series.
+    # Non-click events ignore it. Default True keeps legacy rows valid.
+    is_valid: bool = True
 
 
 @dataclass(frozen=True)
@@ -129,9 +138,7 @@ def product_exposure(ticks: list[Tick]) -> dict[str, float]:
     for t in ticks:
         if t.pinned_product_id is None:
             continue
-        exposure[t.pinned_product_id] = (
-            exposure.get(t.pinned_product_id, 0.0) + t.viewers * 30.0
-        )
+        exposure[t.pinned_product_id] = exposure.get(t.pinned_product_id, 0.0) + t.viewers * 30.0
     return exposure
 
 
@@ -147,7 +154,7 @@ class BlockRecord:
     start_offset_s: int
     end_offset_s: int
     exposure_viewer_s: float
-    clicks: int
+    clicks: int  # numerator of y: VALID clicks (raw when include_invalid=True)
     y: float  # clicks per 1000 viewer-seconds in the analysis window
     pre_viewers: float  # mean viewers in the trailing pre-block window
     pre_comment_rate: float  # comments/min in the trailing pre-block window
@@ -156,6 +163,10 @@ class BlockRecord:
     # ONLY as a pre-treatment covariate for variance reduction / heterogeneity
     # exploration — never as an outcome.
     pre_like_rate: float  # likes/min in the trailing pre-block window
+    # Raw click count INCLUDING flagged-invalid clicks (gói Q1) — the mandatory
+    # secondary series reported next to the valid-only primary. Flag-don't-drop:
+    # invalid clicks leave the numerator, never the record.
+    clicks_raw: int = 0
     # Measurability. A block scheduled past the moment the host actually
     # stopped streaming, or one with no viewer telemetry, carries NO outcome —
     # it must be EXCLUDED, never entered as y = 0.0. Feeding fabricated zeros
@@ -171,29 +182,33 @@ def _window_stats(
     end_s: float,
     tick_viewers: list[tuple[float, float]],
     tick_s: int = 30,
-) -> tuple[float, int, int, int]:
-    """(viewer-seconds, clicks, comments, likes) within [start_s, end_s).
+) -> tuple[float, int, int, int, int]:
+    """(viewer-seconds, valid clicks, raw clicks, comments, likes) within
+    [start_s, end_s).
 
     The numerator and the denominator MUST share the same support. Exposure can
     only be integrated where viewer telemetry exists, so the counts are taken
     over that same measured span — counting clicks from before the first
     snapshot while their exposure contributed zero inflated that block's rate
-    by up to 26% (audit 30/08).
+    by up to 26% (audit 30/08). Valid clicks (``Event.is_valid``) feed the
+    primary outcome; raw clicks include the flagged-invalid ones (gói Q1).
     """
     if not tick_viewers:
-        return 0.0, 0, 0, 0
+        return 0.0, 0, 0, 0, 0
 
-    width = (
-        tick_viewers[1][0] - tick_viewers[0][0] if len(tick_viewers) > 1 else float(tick_s)
-    )
+    width = tick_viewers[1][0] - tick_viewers[0][0] if len(tick_viewers) > 1 else float(tick_s)
     measured_lo = max(start_s, tick_viewers[0][0])
     measured_hi = min(end_s, tick_viewers[-1][0] + width)
     if measured_hi <= measured_lo:
-        return 0.0, 0, 0, 0
+        return 0.0, 0, 0, 0, 0
 
-    def count(kind: str) -> int:
+    def count(kind: str, valid_only: bool = False) -> int:
         return sum(
-            1 for e in events if e.kind == kind and measured_lo <= e.ts_offset_s < measured_hi
+            1
+            for e in events
+            if e.kind == kind
+            and measured_lo <= e.ts_offset_s < measured_hi
+            and (e.is_valid or not valid_only)
         )
 
     exposure = 0.0
@@ -202,7 +217,13 @@ def _window_stats(
         lo, hi = max(t0, measured_lo), min(t1, measured_hi)
         if hi > lo:
             exposure += viewers * (hi - lo)
-    return exposure, count("click"), count("comment"), count("like")
+    return (
+        exposure,
+        count("click", valid_only=True),
+        count("click"),
+        count("comment"),
+        count("like"),
+    )
 
 
 MIN_EXPOSURE_VIEWER_S = 60.0
@@ -221,11 +242,18 @@ def block_frame(
     pre_window_s: int = 120,
     tick_s: int = 30,
     live_until_s: float | None = None,
+    include_invalid: bool = False,
 ) -> list[BlockRecord]:
     """Build the block-level analysis dataset from the schedule and events.
 
     ``burn_in_s`` seconds at the start of every measurement block are excluded
     from the outcome window (carryover burn-in).
+
+    ``include_invalid`` (gói Q1): the PRIMARY outcome counts only IAB-valid
+    clicks (``Event.is_valid``, flagged by ``core.click_validity`` at write
+    time — flag-don't-drop). ``include_invalid=True`` is the mandatory
+    secondary raw series: ``clicks``/``y`` are rebuilt on ALL clicks for the
+    side-by-side report. ``clicks_raw`` carries the raw count either way.
 
     ``live_until_s`` is when the broadcast ACTUALLY ended, in seconds from
     start. Sessions routinely end before the planned duration, and the schedule
@@ -250,14 +278,17 @@ def block_frame(
         unmeasurable: str | None = None
         if win_end <= win_start:
             unmeasurable = "khối không phát sóng (phiên kết thúc trước khối này)"
-        exposure, clicks, _, _ = _window_stats(ev_list, win_start, win_end, tick_viewers, tick_s)
+        exposure, valid_clicks, raw_clicks, _, _ = _window_stats(
+            ev_list, win_start, win_end, tick_viewers, tick_s
+        )
+        clicks = raw_clicks if include_invalid else valid_clicks
         if unmeasurable is None and exposure < MIN_EXPOSURE_VIEWER_S:
             unmeasurable = (
                 f"phơi nhiễm {exposure:.0f} giây·người xem < ngưỡng "
                 f"{MIN_EXPOSURE_VIEWER_S:.0f} — tỷ lệ nhấp không đo được"
             )
         pre_start = max(0.0, b.start_offset_s - pre_window_s)
-        pre_exp, _, pre_comments, pre_likes = _window_stats(
+        pre_exp, _, _, pre_comments, pre_likes = _window_stats(
             ev_list, pre_start, b.start_offset_s, tick_viewers, tick_s
         )
         pre_seconds = max(b.start_offset_s - pre_start, 1e-9)
@@ -274,6 +305,7 @@ def block_frame(
                 end_offset_s=b.end_offset_s,
                 exposure_viewer_s=exposure,
                 clicks=clicks,
+                clicks_raw=raw_clicks,
                 y=(clicks / exposure * 1000.0) if exposure > 0 else 0.0,
                 measurable=unmeasurable is None,
                 exclude_reason=unmeasurable,
@@ -295,6 +327,7 @@ def blocks_to_dicts(records: list[BlockRecord]) -> list[dict]:
             "propensity": r.propensity,
             "exposure_viewer_s": r.exposure_viewer_s,
             "clicks": r.clicks,
+            "clicks_raw": r.clicks_raw,
             "y": r.y,
             "pre_viewers": r.pre_viewers,
             "pre_comment_rate": r.pre_comment_rate,

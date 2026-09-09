@@ -59,6 +59,14 @@ Kiểm tra từng link: mở `https://<DOMAIN>/r/{code}` **từ mạng ngoài (4
 **duy nhất** được ghim trong bình luận / overlay trong phiên — tuyệt đối không dán link
 gốc (link gốc không đo được).
 
+Dòng sinh ra khi kiểm tra mang cờ hợp lệ (tiền đăng ký §4.1): bấm lại cùng một link trong
+vòng 10 giây sẽ được ghi với `is_valid=false, invalid_reason='refractory'` — **đúng như
+thiết kế**, không phải lỗi. Kiểm tra bằng `curl` cũng bị gắn cờ (`givt_ua`): muốn xác nhận
+đường redirect thì đọc mã 302, muốn xác nhận click hợp lệ thì bấm bằng trình duyệt thật.
+Mọi dòng kiểm tra T−24h xảy ra trước `start` nên rơi ngoài mọi khối đo và KHÔNG vào biến
+kết quả; chúng vẫn hiện trong tổng vận hành `raw_clicks`/`valid_clicks` — đúng tinh thần
+flag-don't-drop, đừng xóa chúng đi.
+
 ### 1.2 Sinh lịch gán khối (T−1h) — BẮT BUỘC trước phát sóng
 
 ```bash
@@ -167,10 +175,17 @@ Mỗi can thiệp tự động ghi: `block_id`, timestamp server, `source='human
 | Mốc | Việc | Người |
 |---|---|---|
 | T+15' | Chạy tác vụ tổng hợp: sinh `session_tick`, đối soát đơn hàng với báo cáo nền tảng | KS |
-| T+30' | Chạy bộ kiểm tra chất lượng dữ liệu: `livelift-qc --session-id <session_id>` — mọi mục đỏ phải xử lý theo HARNESS §3 (root cause, không sửa số liệu) | KS |
+| T+30' | Chạy bộ kiểm tra chất lượng dữ liệu **kèm đối soát click hợp lệ**: `livelift-qc --session-id <session_id> --recount-clicks` — mọi mục đỏ phải xử lý theo HARNESS §3 (root cause, không sửa số liệu) | KS |
 | T+1h | Ghi nhật ký phiên theo mẫu `ops/templates/nhat-ky-phien.md` (kể cả mục sự cố burn-in và sự cố làm mù) | SP |
 | T+24h | Cập nhật bảng theo dõi tích lũy (kế hoạch §8.4) | TN |
 
 **Nhắc lại quy tắc dữ liệu thí nghiệm:** nếu QC phát hiện lỗi làm hỏng dữ liệu của khối/phiên
 đã chạy → đánh dấu `excluded_reason`, KHÔNG sửa số liệu, ghi quyết định vào phụ lục phân tích
 và `docs/incident-log.md`.
+
+**Về `--recount-clicks` (click hợp lệ, tiền đăng ký §4.1):** bước này chạy lại các quy tắc
+thời gian (refractory τ, trần số lượng) trên toàn bộ click của phiên và **chỉ cập nhật cờ**
+`is_valid`/`invalid_reason` — không bao giờ xóa dòng nào (flag-don't-drop). Nó in kèm bảng
+sensitivity τ ∈ {5, 30, 60} giây: chép cả ba con số vào nhật ký phiên. Số click bị gắn cờ
+tăng đột biến so với các phiên trước là **tín hiệu vận hành** (bot/prefetch), không phải lý
+do để sửa dữ liệu.

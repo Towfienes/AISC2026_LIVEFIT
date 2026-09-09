@@ -165,12 +165,13 @@ def _seed_one_session(
     for i, block in enumerate(store.get_blocks(session_id)):
         if block.get("assignment") != "ON" or block["start_offset_s"] > horizon_s:
             continue
+        pin_ts = start_ts + timedelta(seconds=block["start_offset_s"] + 5)
         store.add_intervention(
             session_id,
             {
                 "action_id": service.new_id(),
                 "block_id": block["block_id"],
-                "ts": start_ts + timedelta(seconds=block["start_offset_s"] + 5),
+                "ts": pin_ts,
                 "client_ts": None,
                 "action_type": "pin",
                 "product_id": products[i % len(products)],
@@ -180,6 +181,20 @@ def _seed_one_session(
                 "executed": True,
                 "override_reason": None,
                 "seconds_since_last_switch": 5.0,
+            },
+        )
+        # The demo stands in for the desk, so it must leave the SAME trail a
+        # real desk leaves (gói Q3) — otherwise demo sessions quietly exercise
+        # the pre-Q3 compliance path and the new one is never seen end to end.
+        store.add_exposure_event(
+            session_id,
+            {
+                "block_idx": block["block_index"],
+                "event_type": "pin",
+                "product_id": products[i % len(products)],
+                "ts_utc": pin_ts,
+                "ack_latency_ms": None,
+                "source": "model",
             },
         )
 

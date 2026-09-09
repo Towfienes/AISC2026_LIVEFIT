@@ -16,7 +16,7 @@ BLOCK    ?= 5
 SESSIONS ?= 30
 EFFECT   ?= 0.15
 
-.PHONY: install test test-fast test-slow lint fmt up down logs qc simulate schedule isolation
+.PHONY: install test test-fast test-slow lint fmt up down logs qc simulate sim-grid sim-icc schedule isolation
 
 install:            ## editable install with dev + server + ml extras
 	pip install -e ".[dev,server,ml]"
@@ -52,6 +52,12 @@ qc:                 ## post-session data quality checks: make qc SESSION=<sessio
 
 simulate:           ## simulate a session series to validate estimators
 	livelift-simulate --sessions $(SESSIONS) --effect $(EFFECT)
+
+sim-grid:           ## SBC skeleton grid -> docs/benchmarks/sim-validation-report.md (~3 min)
+	python -m livelift.sim.cli --grid --grid-reps 100 --effect 0.30 --seed 2026
+
+sim-icc:            ## measured knob -> ICC map -> docs/benchmarks/sim-icc-map.md (~5 min)
+	python analysis/calibration/bang_icc_mo_phong.py
 
 schedule:           ## generate a block assignment schedule BEFORE the session
 	livelift-schedule --duration $(DURATION) --block $(BLOCK) --washout 0 --jitter 30 \

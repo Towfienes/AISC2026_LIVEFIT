@@ -36,6 +36,7 @@ from pathlib import Path
 
 from livelift.console import configure as _configure_console
 from livelift.nlp.intent import classify_keywords
+from livelift.nlp.labels import INTENT_LABELS, TRAINED_LABELS
 
 DATA = Path(__file__).parent / "data" / "intent_dataset.jsonl"
 MODEL_PATH = Path(__file__).parent / "model" / "intent_clf.joblib"
@@ -43,8 +44,20 @@ MODEL_PATH = Path(__file__).parent / "model" / "intent_clf.joblib"
 # it against the running sklearn and warns loudly on mismatch (joblib
 # pipelines are not guaranteed portable across sklearn versions).
 META_PATH = MODEL_PATH.with_suffix(".meta.json")
-LABELS = ["hoi_gia", "hoi_size", "che_dat", "chot_don", "van_chuyen", "khac"]
+LABELS = list(TRAINED_LABELS)  # nguồn duy nhất: livelift.nlp.labels
 SEED = 2026
+
+
+def labels_present(labels: list[str]) -> list[str]:
+    """Các lớp THỰC SỰ có mẫu trong dataset, theo thứ tự chuẩn của bộ nhãn.
+
+    macro-F1 phải tính trên những lớp có dữ liệu: kéo vào một lớp 0 mẫu sẽ cộng
+    thêm một số 0 và bóp méo con số công bố. Hôm nay dataset chỉ có
+    ``TRAINED_LABELS`` nên kết quả trùng khít với trước; khi nhãn thật của các
+    lớp mới về (docs/benchmarks/live-fire-achan.md) script tự mở rộng theo.
+    """
+    have = set(labels)
+    return [lb for lb in INTENT_LABELS if lb in have]
 
 
 def load_dataset() -> tuple[list[str], list[str]]:
@@ -96,13 +109,16 @@ def build_pipeline():
     )
 
 
-def evaluate(y_true: list[str], y_pred: list[str], name: str) -> dict:
+def evaluate(
+    y_true: list[str], y_pred: list[str], name: str, labels: list[str] | None = None
+) -> dict:
     from sklearn.metrics import classification_report, f1_score
 
-    macro = f1_score(y_true, y_pred, average="macro", labels=LABELS, zero_division=0)
+    labels = labels or LABELS
+    macro = f1_score(y_true, y_pred, average="macro", labels=labels, zero_division=0)
     acc = sum(a == b for a, b in zip(y_true, y_pred, strict=True)) / len(y_true)
-    report = classification_report(y_true, y_pred, labels=LABELS, zero_division=0, output_dict=True)
-    per_class = {lb: round(report[lb]["f1-score"], 3) for lb in LABELS}
+    report = classification_report(y_true, y_pred, labels=labels, zero_division=0, output_dict=True)
+    per_class = {lb: round(report[lb]["f1-score"], 3) for lb in labels}
     return {
         "name": name,
         "macro_f1": round(macro, 3),
@@ -121,7 +137,12 @@ def main(argv: list[str] | None = None) -> int:
     from sklearn.model_selection import cross_val_predict, train_test_split
 
     texts, labels = load_dataset()
+    present = labels_present(labels)
     print(f"dataset: {len(texts)} mẫu — {dict(Counter(labels))}")
+    print(f"lớp có dữ liệu: {present}")
+    missing = [lb for lb in INTENT_LABELS if lb not in present]
+    if missing:
+        print(f"lớp trong guideline nhưng CHƯA có nhãn thật: {missing} — model không dự đoán được")
 
     x_tr, x_te, y_tr, y_te = train_test_split(
         texts, labels, test_size=args.test_size, stratify=labels, random_state=SEED
@@ -129,13 +150,13 @@ def main(argv: list[str] | None = None) -> int:
 
     pipe = build_pipeline()
     pipe.fit(x_tr, y_tr)
-    ml_holdout = evaluate(y_te, list(pipe.predict(x_te)), "TF-IDF+LogReg (holdout 30%)")
+    ml_holdout = evaluate(y_te, list(pipe.predict(x_te)), "TF-IDF+LogReg (holdout 30%)", present)
 
     # 5-fold CV on the full set — steadier than one split at this size
     cv_pred = cross_val_predict(build_pipeline(), texts, labels, cv=5)
-    ml_cv = evaluate(labels, list(cv_pred), "TF-IDF+LogReg (5-fold CV)")
+    ml_cv = evaluate(labels, list(cv_pred), "TF-IDF+LogReg (5-fold CV)", present)
 
-    kw = evaluate(labels, [classify_keywords(t) for t in texts], "keyword baseline")
+    kw = evaluate(labels, [classify_keywords(t) for t in texts], "keyword baseline", present)
 
     for r in (kw, ml_holdout, ml_cv):
         print(f"\n== {r['name']} ==")
@@ -156,7 +177,8 @@ def main(argv: list[str] | None = None) -> int:
             "sklearn_version": sklearn.__version__,
             "trained_at_utc": datetime.now(UTC).isoformat(timespec="seconds"),
             "n_samples": len(texts),
-            "labels": LABELS,
+            # đúng những lớp artifact dự đoán được, không phải cả bộ guideline
+            "labels": present,
             "seed": SEED,
         }
         META_PATH.write_text(

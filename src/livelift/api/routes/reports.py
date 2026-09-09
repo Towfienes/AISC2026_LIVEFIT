@@ -14,16 +14,18 @@ from typing import Any
 import numpy as np
 from fastapi import APIRouter
 
-from livelift.analysis.estimators import analyze_outer, diff_in_means
+from livelift.analysis.estimators import analyze_outer, diff_in_means, randomization_test
 from livelift.analysis.power import (
     Scenario,
     poisson_floor,
     scenario_table,
     within_session_cv,
 )
+from livelift.analysis.robust import ics_gate
 from livelift.api import service
 from livelift.api.schemas import (
     ComplianceStats,
+    DenominatorCheck,
     ExperimentSummary,
     SessionReport,
     SignalCoverageOut,
@@ -32,11 +34,27 @@ from livelift.api.service import StoreDep
 from livelift.config import get_settings
 from livelift.core.assigner import DesignParams
 from livelift.core.features import Event, block_frame, blocks_to_dicts
+from livelift.core.quality import derive_compliance
 from livelift.core.signals import assess as assess_signals
 
 router = APIRouter()
 
 BURN_IN_S = 60
+
+ICS_DRAWS = 300
+"""Redraws for the denominator gate (gói P3).
+
+Fewer than the primary test's 1000. This is a flag with a 0.10 threshold, not a
+published p-value, and it is paid for on every call of ``/experiment/summary``;
+300 draws resolve the neighborhood of 0.10 well enough to decide whether a
+caveat prints, and the final analysis re-runs the gate offline at full depth.
+"""
+
+ICS_FROZEN_NOTE = (
+    "Tiền đăng ký §7: cổng mẫu số cũng bị khóa cho tới ngày mở — nó kiểm định "
+    "trên MỘT đại lượng hậu can thiệp (viewer-giây), nên đọc nó sớm vẫn là nhìn "
+    "trộm tác động của can thiệp"
+)
 
 
 def _results_freeze_reason(now: datetime) -> str | None:
@@ -79,7 +97,17 @@ def _events_from_store(session: dict[str, Any], store) -> list[Event]:
         events.append(Event("viewer_count", offset, value=float(t["viewers"])))
     for c in store.list_clicks(session_id):
         offset = (c["ts"] - start).total_seconds()
-        events.append(Event("click", offset, product_id=c.get("product_id")))
+        events.append(
+            Event(
+                "click",
+                offset,
+                product_id=c.get("product_id"),
+                # Migration 0004: flagged-invalid clicks leave the primary
+                # numerator but stay in the row/raw series (flag-don't-drop).
+                # Legacy rows without the flag remain valid.
+                is_valid=c.get("is_valid") is not False,
+            )
+        )
     for c in store.list_comments(session_id):
         offset = (c["ts"] - start).total_seconds()
         events.append(Event("comment", offset))
@@ -107,9 +135,50 @@ def _session_frame(session: dict[str, Any], store) -> list[dict[str, Any]]:
     )
 
 
-def _compliance(session_id: str, store) -> ComplianceStats:
-    blocks = store.get_blocks(session_id)
+def _compliance(session: dict[str, Any], store) -> ComplianceStats:
+    """First-stage compliance for one session.
+
+    Preferred source (gói Q3): the append-only ``assignment_event`` ×
+    ``exposure_event`` join via :func:`derive_compliance` — two immutable tables
+    nobody can edit into agreement. Only the assignment rows of the design that
+    actually ran are used (filtered on ``design_hash``); a session rescheduled
+    before broadcast carries an earlier draw's rows too, and counting both would
+    inflate the denominator.
+
+    Fallback: the pre-Q3 path over ``intervention_log``, for sessions recorded
+    before the event tables existed. Silence would be worse than the old number
+    — but the two must not be mixed, so the fallback is all-or-nothing per
+    session.
+
+    The switch keys on the ASSIGNMENT rows, not on the exposure rows: a session
+    scheduled after gói Q3 whose desk never pinned anything has zero exposure
+    rows and genuinely 0% compliance. Falling back there would answer a
+    different question ("what does the old log say?") for a session whose new
+    trail is complete and simply says nothing happened.
+
+    ``override_count`` / ``n_interventions`` come from ``intervention_log`` in
+    both paths: they describe the decision log, not exposure.
+    """
+    session_id = session["session_id"]
     interventions = store.list_interventions(session_id)
+    overrides = sum(1 for i in interventions if i.get("source") == "human")
+
+    d_hash = service.session_design_hash(session)
+    assignments = [
+        a for a in store.list_assignment_events(session_id) if a.get("design_hash") == d_hash
+    ]
+    if d_hash is not None and assignments:
+        exposures = store.list_exposure_events(session_id)
+        view = derive_compliance(assignments, exposures)
+        return ComplianceStats(
+            on_blocks=view.n_on,
+            on_blocks_with_pin=view.n_on_exposed,
+            compliance_rate=view.compliance_rate,
+            override_count=overrides,
+            n_interventions=len(interventions),
+        )
+
+    blocks = store.get_blocks(session_id)
     on_ids = {b["block_id"] for b in blocks if b.get("assignment") == "ON"}
     pinned_on = {
         i["block_id"]
@@ -119,7 +188,6 @@ def _compliance(session_id: str, store) -> ComplianceStats:
         and i.get("action_type") == "pin"
         and i.get("block_id") in on_ids
     }
-    overrides = sum(1 for i in interventions if i.get("source") == "human")
     return ComplianceStats(
         on_blocks=len(on_ids),
         on_blocks_with_pin=len(pinned_on),
@@ -134,6 +202,49 @@ OBSERVATIONAL_LABEL = "phân tích quan sát — không phải thí nghiệm"
 
 def _is_analysis_only(session: dict[str, Any]) -> bool:
     return bool((session.get("design") or {}).get("analysis_only"))
+
+
+def _denominator_check(
+    exposures: np.ndarray,
+    z: np.ndarray,
+    sids: np.ndarray,
+    phases: list[str],
+    all_phases: list[str],
+    all_session_ids: list[str],
+    keep: list[bool],
+    design_params: dict[str, DesignParams],
+) -> DenominatorCheck:
+    """Run the ICS gate over the SAME design the primary test redraws.
+
+    The gate only means anything if its reference distribution is the design
+    that actually ran, so it is threaded with the full schedule, the analyzed
+    mask and each session's persisted params exactly like ``analyze_outer`` —
+    a gate redrawn under the default design would be testing someone else's
+    experiment (method review 02/09, review 06/09).
+    """
+
+    def redraw_fn(outcome: np.ndarray, arms: np.ndarray) -> tuple[float, np.ndarray]:
+        return randomization_test(
+            outcome,
+            arms,
+            sids,
+            phases,
+            n_draws=ICS_DRAWS,
+            seed=2026,
+            all_phases=all_phases,
+            all_session_ids=np.array(all_session_ids),
+            analyzed_mask=np.array(keep, dtype=bool),
+            design_params=design_params,
+        )
+
+    gate = ics_gate(exposures, z, redraw_fn)
+    return DenominatorCheck(
+        p_value=None if not np.isfinite(gate.p_value) else float(gate.p_value),
+        flagged=gate.flagged,
+        n_draws=gate.n_draws,
+        estimate=None if not np.isfinite(gate.estimate) else float(gate.estimate),
+        note=gate.message,
+    )
 
 
 @router.get("/sessions/{session_id}/report", response_model=SessionReport)
@@ -152,7 +263,7 @@ def session_report(session_id: str, store: StoreDep) -> SessionReport:
             n_off=0,
             diff_in_means=None,
             blocks=[],
-            compliance=_compliance(session_id, store),
+            compliance=_compliance(session, store),
         )
     # Report only the blocks that carry an outcome; the excluded ones keep
     # their reason in the frame for the QC gate, not for the reader.
@@ -167,7 +278,7 @@ def session_report(session_id: str, store: StoreDep) -> SessionReport:
         n_off=int(len(zs) - zs.sum()) if len(frame) else 0,
         diff_in_means=None if diff is None or np.isnan(diff) else float(diff),
         blocks=frame,
-        compliance=_compliance(session_id, store),
+        compliance=_compliance(session, store),
     )
 
 
@@ -189,10 +300,18 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
     compliance_rates: list[float] = []
 
     ended = [
-        s
-        for s in store.list_sessions()
-        if s.get("status") == "ended" and not _is_analysis_only(s)
+        s for s in store.list_sessions() if s.get("status") == "ended" and not _is_analysis_only(s)
     ]
+    # Operational click totals (gói Q1): raw = every logged click, valid = the
+    # IAB-valid subset that feeds the primary outcome. Counts, not inference —
+    # they are served on every path, freeze included.
+    raw_clicks = 0
+    valid_clicks = 0
+    for session in ended:
+        for c in store.list_clicks(session["session_id"]):
+            raw_clicks += 1
+            if c.get("is_valid") is not False:
+                valid_clicks += 1
     # Keep the FULL schedule alongside the analyzed subset: the reference
     # distribution has to be redrawn over the design that actually ran, then
     # masked to the analyzed blocks (method review 02/09).
@@ -219,7 +338,7 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
                 phases.append(r["phase"])
                 clicks.append(int(r.get("clicks", 0)))
                 exposures.append(float(r.get("exposure_viewer_s", 0.0)))
-        comp = _compliance(session["session_id"], store)
+        comp = _compliance(session, store)
         if comp.compliance_rate is not None:
             compliance_rates.append(comp.compliance_rate)
 
@@ -231,6 +350,8 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
             n_blocks=n_blocks,
             n_on=sum(zs),
             n_off=n_blocks - sum(zs),
+            raw_clicks=raw_clicks,
+            valid_clicks=valid_clicks,
             message=(
                 "Chưa đủ dữ liệu cho phân tích gộp (cần ≥ 2 phiên đã kết thúc và "
                 "≥ 8 khối). Kết quả sẽ xuất hiện khi chuỗi thí nghiệm tích lũy thêm."
@@ -245,13 +366,29 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
     # even COMPUTED here — the weekly view is operational numbers only.
     freeze_reason = _results_freeze_reason(service.now_utc())
     res = None
+    denominator = DenominatorCheck(note=ICS_FROZEN_NOTE)
     if freeze_reason is None:
         res = analyze_outer(
-            y, z, sids, phases, n_draws=1000, seed=2026,
+            y,
+            z,
+            sids,
+            phases,
+            n_draws=1000,
+            seed=2026,
             all_phases=all_phases,
             all_session_ids=np.array(all_session_ids),
             analyzed_mask=np.array(keep, dtype=bool),
             design_params=design_params,
+        )
+        denominator = _denominator_check(
+            np.array(exposures, dtype=float),
+            z,
+            sids,
+            phases,
+            all_phases,
+            all_session_ids,
+            keep,
+            design_params,
         )
 
     # WITHIN-session CV, not the pooled one: the primary analysis differences
@@ -274,9 +411,7 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
     # used a literal 0.95 was indefensible (audit 30/08). No CUPED R² is
     # estimated anywhere in this path, so none is claimed: assuming R²=0.3
     # would shave 16% off the MDE on the strength of nothing.
-    measured_comp = (
-        float(np.mean(compliance_rates)) if compliance_rates else None
-    )
+    measured_comp = float(np.mean(compliance_rates)) if compliance_rates else None
     comp_auto = measured_comp if measured_comp is not None else 0.95
     comp_partner = min(comp_auto, 0.85)
 
@@ -301,6 +436,8 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
             n_blocks=n_blocks,
             n_on=int(sum(zs)),
             n_off=int(n_blocks - sum(zs)),
+            raw_clicks=raw_clicks,
+            valid_clicks=valid_clicks,
             estimable=False,
             message=freeze_reason,
             measured_cv=cv,
@@ -308,6 +445,7 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
             reducible_share=float(reducible) if np.isfinite(reducible) else None,
             measured_compliance=(float(np.mean(compliance_rates)) if compliance_rates else None),
             power_table=power_rows,
+            denominator_check=denominator,
         )
 
     return ExperimentSummary(
@@ -315,6 +453,8 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
         n_blocks=res.n_blocks,
         n_on=res.n_on,
         n_off=res.n_off,
+        raw_clicks=raw_clicks,
+        valid_clicks=valid_clicks,
         estimable=res.estimable,
         message=res.reason,
         # Never publish inference fields for a design that cannot be tested.
@@ -332,7 +472,9 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
         reducible_share=float(reducible) if np.isfinite(reducible) else None,
         measured_compliance=(float(np.mean(compliance_rates)) if compliance_rates else None),
         power_table=power_rows,
+        denominator_check=denominator,
     )
+
 
 @router.get("/sessions/{session_id}/signals", response_model=SignalCoverageOut)
 def session_signals(session_id: str, store: StoreDep) -> SignalCoverageOut:

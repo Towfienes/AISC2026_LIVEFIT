@@ -129,8 +129,15 @@ class ScheduleOut(BaseModel):
     n_on: int
     n_off: int
     blocks: list[BlockOut]
+    design_hash: str
+    """SHA-256 over (DesignParams, seed) — the design commitment, published
+    BEFORE broadcast (gói Q3). Recomputable from `live_session.design`, so a
+    reader can verify the design that ran is the design that was announced."""
     realized_min_per_arm_per_phase: int = 0
     """Balance guarantee the layout could actually deliver (see `warning`)."""
+    realized_transition_pairs: int = 0
+    """Same-arm adjacent-pair guarantee the chain could deliver — 0 means the
+    transition constraint was not enforced at all (see `warning`)."""
     warning: str | None = None
     """Vietnamese warning when the schedule cannot meet the design guarantee —
     short sessions silently degrade it, and an operator must be told BEFORE
@@ -168,6 +175,10 @@ class OperatorState(BaseModel):
     current_block: OperatorBlockState | None = None
     pinned_product: PinnedProduct | None = None
     cards: list[ActionCard] = Field(default_factory=list)
+    design_hash: str | None = None
+    """Design commitment of this session's schedule; None for sessions with no
+    schedule or scheduled before gói Q3. OPERATOR ONLY — never on HostState
+    (rule L6: it is a fingerprint of the assignment mechanism)."""
 
 
 class HostState(BaseModel):
@@ -369,6 +380,28 @@ class SessionReport(BaseModel):
     compliance: ComplianceStats
 
 
+class DenominatorCheck(BaseModel):
+    """Cổng ICS — mẫu số (viewer-giây) có chịu tác động của can thiệp không?
+
+    Biến kết quả chính là click/1.000 viewer-giây. Phép chia đó chỉ vô hại nếu
+    viewer-giây KHÔNG đổi theo nhánh gán. Cổng này chạy đúng kiểm định ngẫu
+    nhiên hóa đã tiền đăng ký nhưng lấy MẪU SỐ làm biến kết quả
+    (`analysis.robust.ics_gate`).
+
+    Đây là ghi chú PHƯƠNG PHÁP, không phải kiểm tra toàn vẹn dữ liệu: nó KHÔNG
+    thuộc bộ SRM §8.1 (§8.1 cấm chạy SRM trên đại lượng hậu can thiệp, và
+    viewer-giây đúng là hậu can thiệp). Cờ ĐỎ ở đây không loại khối, không đổi
+    con số chính — nó chỉ nói người đọc phải xem kèm estimand mẫu-số-cố-định.
+    """
+
+    p_value: float | None = None
+    flagged: bool = False
+    n_draws: int = 0
+    estimate: float | None = None
+    """Chênh lệch viewer-giây trung bình BẬT − TẮT (số vận hành, có dấu)."""
+    note: str
+
+
 class ExperimentSummary(BaseModel):
     label: str = "kết quả thí nghiệm"
     source: Literal["experiment"] = "experiment"
@@ -376,6 +409,12 @@ class ExperimentSummary(BaseModel):
     n_blocks: int
     n_on: int
     n_off: int
+    raw_clicks: int | None = None
+    """Tổng click ĐÃ GHI của các phiên trong phân tích gộp — số vận hành, kể cả
+    click bị gắn cờ không hợp lệ (flag-don't-drop, gói Q1)."""
+    valid_clicks: int | None = None
+    """Tổng click HỢP LỆ theo bộ quy tắc IAB/GIVT-lite (click_validity) — tập
+    con của raw_clicks; chính là nguồn tử số của biến kết quả chính."""
     estimate: float | None = None
     # No estimate_ht field: at the outer tier's constant p=0.5 the Hájek/IPW
     # estimate is algebraically identical to `estimate` — publishing both as
@@ -394,6 +433,9 @@ class ExperimentSummary(BaseModel):
     ceiling on any covariate-adjustment R². Near zero means variance reduction
     cannot help and only a design change (longer blocks, more viewers) can."""
     power_table: list[dict[str, Any]] = Field(default_factory=list)
+    denominator_check: DenominatorCheck | None = None
+    """Cờ vận hành gói P3: mẫu số của biến kết quả có dấu hiệu chịu can thiệp
+    không. Không phải suy diễn chính — xem :class:`DenominatorCheck`."""
     message: str | None = None  # Vietnamese, set when data is insufficient
     estimable: bool = True
     """False when the design cannot be tested at all (an arm below the minimum

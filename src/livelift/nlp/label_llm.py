@@ -7,6 +7,9 @@ kết quả theo quy tắc đồng thuận 2 model + người duyệt bất đ�
 
     python -m livelift.nlp.label_llm export --out-dir lot1 --limit 500 \
         --uncertain-first                     # -> batch.jsonl + prompt.txt
+    # ... hoặc theo PROTOCOL HAI TẦNG (khuyến nghị, xem prepare_batch):
+    python -m livelift.nlp.label_llm export --out-dir lot1 --session <id> \
+        --limit 1500 --random-fraction 0.10 --seed 2026 --uncertain-first
     # ... nhóm gửi batch.jsonl + prompt.txt đi 2 LLM, nhận về 2 file {id, label}
     python -m livelift.nlp.label_llm merge --model-a a.jsonl --model-b b.jsonl \
         --batch lot1/batch.jsonl --out-dir lot1
@@ -27,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
 import sys
 from collections import Counter
 from dataclasses import dataclass, field
@@ -34,8 +38,12 @@ from pathlib import Path
 from typing import Any
 
 from livelift.console import configure as _configure_console
-from livelift.nlp.intent import INTENT_LABELS
+from livelift.nlp.labels import INTENT_LABELS, LABEL_EXAMPLES_REAL, LABEL_GUIDELINE
 from livelift.nlp.train_intent import DATA as DATASET_PATH
+
+# Hai tầng lấy mẫu của một lô gán nhãn (ghi vào strata.jsonl để phân tích sau)
+STRATUM_RANDOM = "random"
+STRATUM_UNCERTAIN = "uncertain"
 
 
 class LabelPipelineError(ValueError):
@@ -81,15 +89,25 @@ def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
 # ---------------------------------------------------------------------------
 
 
-def collect_from_store(store: Any) -> list[dict[str, Any]]:
-    """Pull every stored comment (all sessions) into export items.
+def collect_from_store(store: Any, session_id: str | None = None) -> list[dict[str, Any]]:
+    """Pull stored comments into export items — one session, or all of them.
 
     Comments are already scrubbed at ingest (hard rule 1) — ``text_scrubbed``
     is the only text the store has, so the export can never leak PII.
+
+    ``session_id`` scopes the lot to a single observed session, which is what a
+    labeling lot must do: prevalence estimated from a mix of sessions belongs
+    to no session in particular.
     """
+    if session_id is not None:
+        if store.get_session(session_id) is None:
+            raise LabelPipelineError(f"Không tìm thấy phiên: {session_id}")
+        session_ids = [session_id]
+    else:
+        session_ids = [s["session_id"] for s in store.list_sessions()]
     items: list[dict[str, Any]] = []
-    for session in store.list_sessions():
-        for c in store.list_comments(session["session_id"]):
+    for sid in session_ids:
+        for c in store.list_comments(sid):
             items.append(
                 {
                     "id": str(c["comment_id"]),
@@ -121,6 +139,11 @@ class BatchStats:
     n_empty: int = 0
     n_duplicate: int = 0
     n_exported: int = 0
+    n_random: int = 0
+    n_uncertain: int = 0
+    strata: dict[str, str] = field(default_factory=dict)
+    """id -> ``STRATUM_RANDOM`` / ``STRATUM_UNCERTAIN``. Không đi kèm batch gửi
+    LLM (tránh gợi ý cho model), ghi riêng ra ``strata.jsonl``."""
 
 
 def prepare_batch(
@@ -128,14 +151,36 @@ def prepare_batch(
     *,
     uncertain_first: bool = False,
     limit: int | None = None,
+    random_fraction: float = 0.0,
+    seed: int | None = None,
 ) -> tuple[list[dict[str, Any]], BatchStats]:
-    """Filter empty texts, drop duplicates (same id or same stripped text),
-    optionally order least-confident first, and cap at ``limit``.
+    """Filter empty texts, drop duplicates (same id or same stripped text), then
+    pick the lot in TWO STRATA and cap at ``limit``.
 
     Uncertain-first ordering: rows with confidence ``None`` (keyword baseline
     — the model never scored them) come FIRST, then ascending confidence —
     the classic active-learning priority (least information first).
+
+    WHY TWO STRATA (live-fire 08/09/2026, docs/benchmarks/live-fire-achan.md).
+    A pure uncertain-first lot is the right way to *teach* the model but the
+    wrong way to *measure* it: it over-samples exactly the comments the model
+    is worst at, so the label mix it produces cannot estimate how common each
+    intent really is. ``random_fraction`` carves out a simple random sample of
+    ALL de-duplicated comments — an unbiased prevalence estimator — while the
+    rest stays uncertain-first for learning value. Both strata are recorded in
+    ``stats.strata`` so the analysis can use the right subset for the right
+    question and never silently pool them.
+
+    Draws use ``random.Random(seed)`` only — an explicit seed is required
+    whenever ``random_fraction > 0`` (HARNESS.md §6: mọi RNG nhận seed tường
+    minh). With ``random_fraction == 0`` the function is byte-identical to its
+    pre-live-fire behaviour, including the deterministic uncertain-first order.
     """
+    if not 0.0 <= random_fraction <= 1.0:
+        raise LabelPipelineError("--random-fraction phải nằm trong khoảng 0.0–1.0")
+    if random_fraction > 0 and seed is None:
+        raise LabelPipelineError("Lấy mẫu ngẫu nhiên bắt buộc có --seed để tái lập được")
+
     stats = BatchStats(n_input=len(items))
     seen_ids: set[str] = set()
     seen_texts: set[str] = set()
@@ -152,12 +197,32 @@ def prepare_batch(
         seen_ids.add(rid)
         seen_texts.add(text)
         kept.append({"id": rid, "text": text, "confidence": item.get("confidence")})
+
+    target = len(kept) if limit is None else min(limit, len(kept))
+    rng = random.Random(seed)
+    n_random = round(target * random_fraction)
+    random_rows = rng.sample(kept, n_random) if n_random else []
+    drawn = {r["id"] for r in random_rows}
+
+    rest = [r for r in kept if r["id"] not in drawn]
     if uncertain_first:
-        kept.sort(key=lambda r: (r["confidence"] is not None, r["confidence"] or 0.0))
-    if limit is not None:
-        kept = kept[:limit]
-    stats.n_exported = len(kept)
-    batch = [{"id": r["id"], "text": r["text"]} for r in kept]
+        rest.sort(key=lambda r: (r["confidence"] is not None, r["confidence"] or 0.0))
+    uncertain_rows = rest[: target - n_random]
+
+    chosen = random_rows + uncertain_rows
+    if n_random:
+        # Trộn lại để thứ tự dòng trong batch không tiết lộ tầng nào cho LLM
+        # (tầng ngẫu nhiên phần lớn là "khac" — xếp thành khối dễ gây mỏ neo).
+        rng.shuffle(chosen)
+
+    for row in random_rows:
+        stats.strata[row["id"]] = STRATUM_RANDOM
+    for row in uncertain_rows:
+        stats.strata[row["id"]] = STRATUM_UNCERTAIN
+    stats.n_random = len(random_rows)
+    stats.n_uncertain = len(uncertain_rows)
+    stats.n_exported = len(chosen)
+    batch = [{"id": r["id"], "text": r["text"]} for r in chosen]
     return batch, stats
 
 
@@ -165,24 +230,28 @@ def prepare_batch(
 # export — prompt template (guideline + examples from the authored dataset)
 # ---------------------------------------------------------------------------
 
-# One-line Vietnamese definition per label, condensed from the labeling
-# guideline in docs/benchmarks/intent-classifier.md and the keyword semantics
-# in livelift.nlp.intent.
-LABEL_GUIDELINE: dict[str, str] = {
-    "hoi_gia": "hỏi giá sản phẩm (giá bao nhiêu, nhiêu tiền, bn, combo giá sao...)",
-    "hoi_size": "hỏi size / cân nặng / chiều cao / form dáng để chọn cỡ",
-    "che_dat": "chê giá đắt / mắc / cao (phàn nàn về giá, KHÔNG phải hỏi giá)",
-    "chot_don": "chốt đơn, đặt mua, order (hành động mua: 'chốt', 'lấy 1', 'đặt hàng'...)",
-    "van_chuyen": "hỏi giao hàng / phí ship / COD / thời gian nhận hàng",
-    "khac": "mọi bình luận không thuộc 5 ý định trên (chào hỏi, khen chê chung, spam...)",
-}
-
 
 def load_seed_examples(
     dataset_path: Path | None = None, per_class: int = 8
 ) -> dict[str, list[str]]:
-    """First ``per_class`` examples per label from the authored 320-sample
-    dataset (deterministic — the prompt is reproducible run-to-run)."""
+    """Up to ``per_class`` examples per label, deterministic run-to-run.
+
+    Default source is the authored bootstrap dataset (in file order). Any class
+    listed in ``labels.LABEL_EXAMPLES_REAL`` OVERRIDES that with verbatim real
+    comments — not merely fills a gap.
+
+    The override matters for ``khac`` specifically. Its 60 authored rows were
+    written when ``khac`` still absorbed greetings, praise and product
+    questions, so today they contradict ``chao_hoi`` / ``cam_on_khen`` /
+    ``hoi_sanpham`` ("chào shop buổi tối" carries label ``khac`` in that file).
+    Feeding them to an annotator LLM alongside the new guideline would teach it
+    the exact confusion the new classes exist to remove. The dataset itself
+    still needs re-labeling before any retrain — see
+    docs/benchmarks/live-fire-achan.md.
+
+    A class may end up with fewer than ``per_class`` examples; that is honest
+    and fine, the prompt simply shows what actually exists.
+    """
     path = dataset_path or DATASET_PATH
     examples: dict[str, list[str]] = {label: [] for label in INTENT_LABELS}
     with open(path, encoding="utf-8") as f:
@@ -193,11 +262,18 @@ def load_seed_examples(
             label, text = row.get("label"), row.get("text")
             if label in examples and text and len(examples[label]) < per_class:
                 examples[label].append(text)
+    for label, real in LABEL_EXAMPLES_REAL.items():
+        if label in examples:
+            examples[label] = list(real[:per_class])
     return examples
 
 
 def build_prompt(examples_per_class: int = 8, dataset_path: Path | None = None) -> str:
-    """System prompt for the two annotator LLMs: 6-class guideline + examples.
+    """System prompt for the two annotator LLMs: guideline + examples per class.
+
+    The class list, the one-line definitions and the fallback examples all come
+    from :mod:`livelift.nlp.labels` — adding a class there is the ONLY edit
+    needed for it to appear here, in the validator and in the docs.
 
     ``examples_per_class`` must be 5..10 — fewer under-specifies the open
     ``khac`` class, more bloats every batch request for no measured gain.
@@ -205,9 +281,10 @@ def build_prompt(examples_per_class: int = 8, dataset_path: Path | None = None) 
     if not 5 <= examples_per_class <= 10:
         raise LabelPipelineError("Số ví dụ mỗi lớp phải nằm trong khoảng 5–10")
     examples = load_seed_examples(dataset_path, per_class=examples_per_class)
+    n = len(INTENT_LABELS)
     lines = [
         "Bạn là bộ gán nhãn Ý ĐỊNH cho bình luận livestream bán hàng TIẾNG VIỆT.",
-        "Gán đúng MỘT nhãn cho mỗi bình luận, thuộc đúng 6 lớp sau",
+        f"Gán đúng MỘT nhãn cho mỗi bình luận, thuộc đúng {n} lớp sau",
         "(guideline gốc: docs/benchmarks/intent-classifier.md):",
         "",
     ]
@@ -217,11 +294,16 @@ def build_prompt(examples_per_class: int = 8, dataset_path: Path | None = None) 
             "",
             "Quy ước câu đa ý định (ví dụ 'size M giá nhiêu'): lấy ý định *hành động",
             "gần nhất với chốt đơn* làm nhãn chính.",
-            "Bình luận đã qua lọc PII — các placeholder như [SĐT], [ĐỊA CHỈ], [EMAIL]",
+            "AI ĐANG NÓI cũng quyết định nhãn: shop/mod dán bảng giá là bao_gia_shop,",
+            "shop hô 'cả nhà chốt đơn nha' là khac — chỉ ý định của KHÁCH mới tính.",
+            "Chào hỏi, cảm ơn, khen, cổ vũ KHÔNG phải ý định mua: dùng chao_hoi /",
+            "cam_on_khen, tuyệt đối không gán chot_don cho một lời chào.",
+            "Bình luận đã qua lọc PII — các placeholder như [SĐT], [ĐỊA CHỈ], [TÊN]",
             "là bình thường, không ảnh hưởng đến nhãn.",
             "Văn bản có thể mất dấu / teencode / viết tắt / emoji — vẫn gán như thường.",
             "",
-            f"VÍ DỤ THEO LỚP ({examples_per_class} ví dụ/lớp, trích từ bộ dữ liệu biên soạn):",
+            f"VÍ DỤ THEO LỚP (tối đa {examples_per_class} ví dụ/lớp; lớp mới lấy ví dụ",
+            "nguyên văn từ phiên live thật, xem docs/benchmarks/live-fire-achan.md):",
         ]
     )
     for label in INTENT_LABELS:
@@ -232,7 +314,7 @@ def build_prompt(examples_per_class: int = 8, dataset_path: Path | None = None) 
             "",
             'ĐẦU VÀO: mỗi dòng một JSON {"id": ..., "text": ...}.',
             'ĐẦU RA: mỗi dòng một JSON {"id": ..., "label": ...} — label phải thuộc',
-            "đúng 6 lớp trên, không thêm trường khác, không giải thích.",
+            f"đúng {n} lớp trên, không thêm trường khác, không giải thích.",
         ]
     )
     return "\n".join(lines) + "\n"
@@ -244,13 +326,17 @@ def build_prompt(examples_per_class: int = 8, dataset_path: Path | None = None) 
 
 
 def validate_labels(rows: list[dict[str, Any]], source_name: str) -> None:
-    """Reject any row whose label is outside the 6 pre-registered classes."""
+    """Reject any row whose label is outside the declared class set.
+
+    The set (and its size) comes from :data:`livelift.nlp.labels.INTENT_LABELS`
+    — never spelled out here, so adding a class needs no edit in this function.
+    """
     bad = [(str(r.get("id")), r.get("label")) for r in rows if r.get("label") not in INTENT_LABELS]
     if bad:
         shown = ", ".join(f"id={i}: {label!r}" for i, label in bad[:5])
         more = f" (+{len(bad) - 5} dòng nữa)" if len(bad) > 5 else ""
         raise LabelPipelineError(
-            f"{source_name}: {len(bad)} nhãn không thuộc 6 lớp "
+            f"{source_name}: {len(bad)} nhãn không thuộc {len(INTENT_LABELS)} lớp "
             f"{list(INTENT_LABELS)} — bị từ chối: {shown}{more}"
         )
 
@@ -335,6 +421,8 @@ def finalize_rows(
 
 def _cmd_export(args: argparse.Namespace) -> int:
     if args.input:
+        if args.session:
+            raise LabelPipelineError("--session chỉ dùng khi đọc từ store, không đi cùng --input")
         items = normalize_input_rows(read_jsonl(Path(args.input)))
         origin = args.input
     else:
@@ -342,19 +430,40 @@ def _cmd_export(args: argparse.Namespace) -> int:
 
         store = build_store()
         try:
-            items = collect_from_store(store)
+            items = collect_from_store(store, session_id=args.session)
         finally:
             store.close()
         origin = f"store ({store.backend})"
-    batch, stats = prepare_batch(items, uncertain_first=args.uncertain_first, limit=args.limit)
+        if args.session:
+            origin += f", phiên {args.session}"
+    batch, stats = prepare_batch(
+        items,
+        uncertain_first=args.uncertain_first,
+        limit=args.limit,
+        random_fraction=args.random_fraction,
+        seed=args.seed,
+    )
     out_dir = Path(args.out_dir)
     write_jsonl(out_dir / "batch.jsonl", batch)
+    write_jsonl(
+        out_dir / "strata.jsonl",
+        [{"id": r["id"], "stratum": stats.strata[r["id"]]} for r in batch],
+    )
     prompt = build_prompt(args.examples_per_class)
     (out_dir / "prompt.txt").write_text(prompt, encoding="utf-8")
     print(f"nguồn: {origin} — {stats.n_input} bình luận vào")
     print(f"đã lọc: {stats.n_empty} rỗng, {stats.n_duplicate} trùng")
     print(f"đã xuất: {stats.n_exported} bình luận -> {out_dir / 'batch.jsonl'}")
-    print(f"prompt ({args.examples_per_class} ví dụ/lớp) -> {out_dir / 'prompt.txt'}")
+    print(
+        f"  tầng ngẫu nhiên (ước lượng prevalence không chệch): {stats.n_random}"
+        f" · tầng bất định (giá trị học): {stats.n_uncertain}"
+        f" · seed {args.seed}"
+    )
+    print(f"tầng của từng id -> {out_dir / 'strata.jsonl'}")
+    print(
+        f"prompt ({len(INTENT_LABELS)} lớp, {args.examples_per_class} ví dụ/lớp) "
+        f"-> {out_dir / 'prompt.txt'}"
+    )
     if not batch:
         print("CHÚ Ý: không có bình luận nào để gán nhãn — kiểm tra lại nguồn dữ liệu.")
     return 0
@@ -401,12 +510,25 @@ def main(argv: list[str] | None = None) -> int:
 
     p_export = sub.add_parser("export", help="xuất batch JSONL + prompt template cho 2 LLM")
     p_export.add_argument("--input", default=None, help="file JSONL vào (mặc định: đọc từ store)")
+    p_export.add_argument(
+        "--session", default=None, help="chỉ lấy bình luận của MỘT phiên (session_id)"
+    )
     p_export.add_argument("--out-dir", required=True)
     p_export.add_argument("--limit", type=int, default=None)
     p_export.add_argument(
         "--uncertain-first",
         action="store_true",
         help="sắp theo confidence tăng dần (None = bất định nhất, đứng đầu)",
+    )
+    p_export.add_argument(
+        "--random-fraction",
+        type=float,
+        default=0.0,
+        help="tỷ lệ lô dành cho mẫu ngẫu nhiên đơn giản (vd 0.10) để ước lượng "
+        "prevalence không chệch; phần còn lại theo --uncertain-first",
+    )
+    p_export.add_argument(
+        "--seed", type=int, default=2026, help="seed RNG cho tầng ngẫu nhiên (tái lập được)"
     )
     p_export.add_argument("--examples-per-class", type=int, default=8, help="5–10 ví dụ/lớp")
 

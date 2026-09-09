@@ -14,6 +14,12 @@ matches wins, otherwise ``khac``.
 
 Only scrubbed text should ever reach this function in the ingest path — the
 classifier itself never stores or logs its input.
+
+Both classifiers here emit only :data:`~livelift.nlp.labels.TRAINED_LABELS`
+(the six pre-registered classes). The five classes added to the ANNOTATION set
+after the 08/09 live-fire (``chao_hoi``, ``cam_on_khen``, ``hoi_sanpham``,
+``hoi_daily``, ``bao_gia_shop``) have no training data yet, so no model here
+can produce them — see docs/benchmarks/live-fire-achan.md.
 """
 
 from __future__ import annotations
@@ -21,7 +27,17 @@ from __future__ import annotations
 import re
 import unicodedata
 
-INTENT_LABELS = ("hoi_gia", "hoi_size", "che_dat", "chot_don", "van_chuyen", "khac")
+from livelift.nlp.labels import INTENT_LABELS, TRAINED_LABELS
+
+__all__ = [
+    "INTENT_LABELS",
+    "TRAINED_LABELS",
+    "classifier_info",
+    "classify",
+    "classify_keywords",
+    "classify_with_confidence",
+    "strip_diacritics",
+]
 
 
 def strip_diacritics(text: str) -> str:

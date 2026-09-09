@@ -78,6 +78,22 @@ def test_schedule_locked_once_live(client):
     assert r.status_code == 409
 
 
+def test_schedule_warns_before_broadcast_when_transition_balance_degraded(client):
+    """Research 08/09: a 30' session cannot hold 3 same-arm adjacent pairs of
+    each kind — the operator must be told BEFORE going live (flag-don't-drop),
+    and a 90' session must stay warning-free."""
+    short = make_session(client, duration=30)
+    r = schedule(client, short["session_id"])
+    assert r["realized_transition_pairs"] == 1
+    assert r["warning"] is not None
+    assert "cặp khối liền kề" in r["warning"]
+
+    full = make_session(client, duration=90)
+    r = schedule(client, full["session_id"])
+    assert r["realized_transition_pairs"] == 3
+    assert r["warning"] is None
+
+
 def test_full_flow(client):
     make_product(client, "P1")
     make_product(client, "P2")
@@ -400,6 +416,23 @@ def test_summary_redraws_use_each_sessions_saved_design(client, monkeypatch):
     )
 
 
+def test_rebuild_design_params_keeps_legacy_sessions_unconstrained():
+    """Research 08/09: a design json persisted BEFORE the transition-balance
+    constraint has no `min_transition_pairs` key — that session ran without the
+    constraint, so RI redraws must reconstruct 0 (off), never today's default
+    of 3 (a design nobody ran). New sessions persist the key and are honored."""
+    from livelift.api.service import rebuild_design_params
+
+    legacy = {"design": {"params": {"block_min": 5, "p": 0.5, "min_per_arm_per_phase": 2}}}
+    assert rebuild_design_params(legacy).min_transition_pairs == 0
+
+    current = {"design": {"params": {"block_min": 5, "min_transition_pairs": 3}}}
+    assert rebuild_design_params(current).min_transition_pairs == 3
+
+    # no persisted design at all -> plain defaults (documented fallback)
+    assert rebuild_design_params({"design": None}).min_transition_pairs == 3
+
+
 def test_demo_seed_is_repeatable(client):
     """Regression (incident 27/08): the user clicks "Xem thử ngay" more than
     once — the second seed must succeed, not 500 on a duplicate shortlink code."""
@@ -415,3 +448,242 @@ def test_demo_seed_is_repeatable(client):
     # Both runs must leave usable sessions behind for the replay screen.
     sessions = client.get("/sessions").json()
     assert sum(1 for s in sessions if s["status"] == "ended") >= 2
+
+
+# ---------------------------------------------------------------------------
+# Gói Q3 — assignment_event / exposure_event + design_hash commitment
+# ---------------------------------------------------------------------------
+
+
+def first_measurement_seed(client, sid, arm="ON"):
+    """Seed whose FIRST measurement block carries `arm` (schedules are cheap to
+    redraw before broadcast, so this stays a plain search)."""
+    for seed in range(60):
+        blocks = client.post(f"/sessions/{sid}/schedule", json={"seed": seed}).json()["blocks"]
+        first = next(b for b in blocks if not b["is_washout"])
+        if first["assignment"] == arm:
+            return seed
+    raise AssertionError(f"không tìm được seed có khối đo đầu tiên {arm}")
+
+
+def test_schedule_materializes_every_block_as_an_assignment_event(client):
+    """POST /schedule vẽ lịch TRƯỚC phát sóng và materialize TOÀN BỘ lịch vào
+    bảng chỉ-ghi-thêm: mỗi khối (kể cả washout) đúng một dòng, khớp offset và
+    nhánh gán. Đây là bản gốc để đối chiếu về sau — experiment_block còn sửa
+    được (override_count, excluded_reason), bảng này thì không."""
+    session = make_session(client)
+    sid = session["session_id"]
+    body = schedule(client, sid, seed=11)
+
+    store = client.app.state.store
+    events = store.list_assignment_events(sid)
+    assert len(events) == len(body["blocks"]), "thiếu/thừa sự kiện gán so với lịch"
+    assert [e["block_idx"] for e in events] == [b["block_index"] for b in body["blocks"]]
+    assert [e["assignment"] for e in events] == [b["assignment"] for b in body["blocks"]]
+    assert [e["block_start_s"] for e in events] == [b["start_offset_s"] for b in body["blocks"]]
+    assert [e["block_end_s"] for e in events] == [b["end_offset_s"] for b in body["blocks"]]
+    assert {e["design_hash"] for e in events} == {body["design_hash"]}
+
+
+def test_redraw_appends_a_second_committed_schedule(client):
+    """Sinh lại lịch khi phiên chưa phát là hợp lệ — và KHÔNG được xóa lượt rút
+    trước: cả hai lượt còn nguyên, mỗi lượt gắn design_hash của chính nó."""
+    session = make_session(client)
+    sid = session["session_id"]
+    first = schedule(client, sid, seed=11)
+    second = schedule(client, sid, seed=12)
+    assert first["design_hash"] != second["design_hash"]
+
+    store = client.app.state.store
+    events = store.list_assignment_events(sid)
+    assert {e["design_hash"] for e in events} == {first["design_hash"], second["design_hash"]}
+    assert len(events) == len(first["blocks"]) + len(second["blocks"])
+    # phiên hiện chạy dưới lượt rút SAU — trạng thái operator phải nói đúng thế
+    state = client.get(f"/sessions/{sid}/state").json()
+    assert state["design_hash"] == second["design_hash"]
+
+
+def test_design_hash_is_published_before_broadcast_and_operator_only(client):
+    """Hash cam kết thiết kế đi kèm phản hồi lịch, lưu vào phiên, hiện ở state
+    vai operator — và TUYỆT ĐỐI không lọt vào payload vai host (quy tắc L6:
+    nó là vân tay của cơ chế gán)."""
+    make_product(client, "P1")
+    session = make_session(client)
+    sid = session["session_id"]
+    body = schedule(client, sid, seed=11)
+    assert len(body["design_hash"]) == 64
+    assert set(body["design_hash"]) <= set("0123456789abcdef")
+
+    detail = client.get(f"/sessions/{sid}").json()
+    assert detail["design"]["design_hash"] == body["design_hash"]
+
+    client.post(f"/sessions/{sid}/start")
+    operator = client.get(f"/sessions/{sid}/state").json()
+    assert operator["design_hash"] == body["design_hash"]
+
+    host = client.get(f"/sessions/{sid}/state", params={"role": "host"}).json()
+    assert "design_hash" not in host
+    assert "seed" not in host
+
+
+def test_session_without_schedule_has_no_design_hash(client):
+    """Không có lịch thì không có cam kết — câu trả lời trung thực là None,
+    không phải hash tính lại sau khi phiên đã xong (nó không chứng minh gì)."""
+    session = make_session(client)
+    state = client.get(f"/sessions/{session['session_id']}/state").json()
+    assert state["design_hash"] is None
+
+
+def test_execute_and_override_write_exposure_events(client):
+    """Mỗi hành động của bàn để lại một dòng phơi nhiễm chỉ-ghi-thêm, kèm nguồn
+    ('model' cho hệ thống, 'human' cho can thiệp tay), sản phẩm và chỉ số khối —
+    tách khỏi intervention_log (bảng còn sửa được)."""
+    make_product(client, "P1")
+    session = make_session(client)
+    sid = session["session_id"]
+    seed_on = first_measurement_seed(client, sid, "ON")
+    client.post(f"/sessions/{sid}/schedule", json={"seed": seed_on})
+    client.post(f"/sessions/{sid}/start")
+
+    assert client.post(f"/sessions/{sid}/actions/execute", json={}).status_code == 200
+    r = client.post(
+        f"/sessions/{sid}/actions/override",
+        json={"product_id": "P1", "reason": "hết hàng"},
+    )
+    assert r.status_code == 200, r.text
+    r = client.post(f"/sessions/{sid}/actions/override", json={"reason": "sai giá"})
+    assert r.status_code == 200, r.text
+
+    store = client.app.state.store
+    events = store.list_exposure_events(sid)
+    assert [e["event_type"] for e in events] == ["pin", "pin", "unpin"]
+    assert [e["source"] for e in events] == ["model", "human", "human"]
+    assert events[0]["product_id"] == "P1"
+    assert events[2]["product_id"] is None
+    assert all(e["block_idx"] == 0 for e in events), "cả ba hành động rơi trong khối đầu"
+    # ack_latency_ms chưa đo được (bàn chưa gửi client_ts) — NULL, không phải 0
+    assert all(e["ack_latency_ms"] is None for e in events)
+
+
+def test_override_outside_any_block_is_still_recorded(client):
+    """Can thiệp tay khi phiên chưa phát rơi ngoài mọi khối: dòng phơi nhiễm
+    vẫn được ghi với block_idx = None (flag-don't-drop), không bị bỏ im lặng."""
+    make_product(client, "P1")
+    session = make_session(client)
+    sid = session["session_id"]
+    schedule(client, sid, seed=11)
+    r = client.post(
+        f"/sessions/{sid}/actions/override",
+        json={"product_id": "P1", "reason": "hết hàng"},
+    )
+    assert r.status_code == 200, r.text
+
+    events = client.app.state.store.list_exposure_events(sid)
+    assert len(events) == 1
+    assert events[0]["block_idx"] is None
+    assert events[0]["source"] == "human"
+
+
+def test_report_compliance_reads_the_event_tables(client):
+    """Tỷ lệ tuân thủ trong báo cáo lấy từ hai bảng sự kiện khi có dữ liệu.
+    Ghim của hệ thống trong khối BẬT tính là tuân thủ; ghim tay thì không —
+    đó chính là phần bất tuân mà LATE dùng công cụ để xử lý."""
+    make_product(client, "P1")
+    session = make_session(client)
+    sid = session["session_id"]
+    seed_on = first_measurement_seed(client, sid, "ON")
+    client.post(f"/sessions/{sid}/schedule", json={"seed": seed_on})
+    client.post(f"/sessions/{sid}/start")
+    assert client.post(f"/sessions/{sid}/actions/execute", json={}).status_code == 200
+
+    store = client.app.state.store
+    n_on = sum(1 for b in store.get_blocks(sid) if b["assignment"] == "ON")
+    comp = client.get(f"/sessions/{sid}/report").json()["compliance"]
+    assert comp["on_blocks"] == n_on
+    assert comp["on_blocks_with_pin"] == 1
+    assert comp["compliance_rate"] == pytest.approx(1 / n_on)
+
+
+def test_report_compliance_falls_back_for_pre_q3_sessions(client):
+    """Phiên cũ (không có dòng nào trong hai bảng sự kiện) vẫn phải ra số: rơi
+    về đường intervention_log. Im lặng còn tệ hơn số cũ — nhưng hai nguồn không
+    được TRỘN, nên fallback là toàn-bộ-hoặc-không cho mỗi phiên."""
+    make_product(client, "P1")
+    session = make_session(client)
+    sid = session["session_id"]
+    seed_on = first_measurement_seed(client, sid, "ON")
+    client.post(f"/sessions/{sid}/schedule", json={"seed": seed_on})
+    client.post(f"/sessions/{sid}/start")
+    assert client.post(f"/sessions/{sid}/actions/execute", json={}).status_code == 200
+
+    # mô phỏng phiên tiền-Q3: hai bảng sự kiện trống, intervention_log còn nguyên
+    store = client.app.state.store
+    store._assignment_events.pop(sid, None)
+    store._exposure_events.pop(sid, None)
+
+    n_on = sum(1 for b in store.get_blocks(sid) if b["assignment"] == "ON")
+    comp = client.get(f"/sessions/{sid}/report").json()["compliance"]
+    assert comp["on_blocks"] == n_on
+    assert comp["on_blocks_with_pin"] == 1
+    assert comp["compliance_rate"] == pytest.approx(1 / n_on)
+
+
+def test_q3_session_with_no_exposure_reports_zero_not_the_legacy_number(client):
+    """Phiên sinh lịch sau gói Q3 mà bàn không ghim gì có dấu vết ĐẦY ĐỦ và nói
+    'không có phơi nhiễm nào' — tuân thủ 0%, không rơi về intervention_log. Nếu
+    chuyển nguồn theo 'bảng phơi nhiễm rỗng' thì một dòng lạ trong log cũ sẽ
+    lấn át dấu vết mới, tức là trả lời một câu hỏi khác."""
+    make_product(client, "P1")
+    session = make_session(client)
+    sid = session["session_id"]
+    seed_on = first_measurement_seed(client, sid, "ON")
+    client.post(f"/sessions/{sid}/schedule", json={"seed": seed_on})
+    client.post(f"/sessions/{sid}/start")
+
+    store = client.app.state.store
+    blocks = store.get_blocks(sid)
+    on_block = next(b for b in blocks if b["assignment"] == "ON")
+    # một dòng CHỈ có trong log cũ — đường Q3 phải bỏ qua nó
+    store.add_intervention(
+        sid,
+        {
+            "action_id": "legacy-1",
+            "block_id": on_block["block_id"],
+            "ts": on_block["start_ts"],
+            "client_ts": None,
+            "action_type": "pin",
+            "product_id": "P1",
+            "source": "model",
+            "inner_propensity": 0.5,
+            "candidates_json": None,
+            "executed": True,
+            "override_reason": None,
+            "seconds_since_last_switch": 1.0,
+        },
+    )
+
+    comp = client.get(f"/sessions/{sid}/report").json()["compliance"]
+    assert comp["on_blocks_with_pin"] == 0
+    assert comp["compliance_rate"] == 0.0
+    assert comp["n_interventions"] == 1, (
+        "log cũ vẫn được báo cáo, chỉ không dùng để suy ra tuân thủ"
+    )
+
+
+def test_demo_sessions_leave_the_same_event_trail_as_the_desk(client):
+    """Bộ seed demo đóng vai bàn điều khiển nên phải để lại đúng dấu vết ấy:
+    có sự kiện gán và sự kiện phơi nhiễm. Nếu không, demo âm thầm chạy đường
+    tiền-Q3 và đường mới không bao giờ được thấy đầu-cuối."""
+    r = client.post("/demo/seed", json={"n_sessions": 1})
+    assert r.status_code == 200, r.text
+    sid = r.json()["session_ids"][0]
+
+    store = client.app.state.store
+    assert store.list_assignment_events(sid), "demo thiếu sự kiện gán"
+    exposures = store.list_exposure_events(sid)
+    assert exposures, "demo thiếu sự kiện phơi nhiễm"
+    assert all(e["source"] == "model" for e in exposures)
+    assert all(e["event_type"] == "pin" for e in exposures)
+    # khối được ghim phải là khối BẬT — demo không được làm nhiễm nhánh đối chứng
+    on_idx = {b["block_index"] for b in store.get_blocks(sid) if b["assignment"] == "ON"}
+    assert {e["block_idx"] for e in exposures} <= on_idx

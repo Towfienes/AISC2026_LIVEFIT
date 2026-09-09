@@ -19,9 +19,29 @@ Pre-registered analysis pipeline (docs/research/2026-08-24-estimators.md):
   constant additive effects (Fisher CI).
 - LATE under partial compliance: Wald / IV estimator with assignment as the
   instrument, delta-method SE, first-stage compliance reported.
-- CUPED-style covariate adjustment using pre-block covariates.
+- CUPED-style covariate adjustment. The covariates must be fixed at
+  schedule-draw time (PREREGISTRATION.md §5c); the previous-block ``pre_*``
+  metrics are explicitly NOT admissible, whatever the wording of an older
+  revision of this line suggested.
+- Two OPT-IN sensitivity switches on :func:`analyze_outer` (gói P3+P4, 09/09):
+  ``outcome_mode='linearized'`` for a ratio metric whose denominator may itself
+  be treated, and ``adjust='cuped_mv'`` for multivariate CUPED over the
+  deterministic schedule/clock covariates. Both default to OFF; the primary
+  path is unchanged and a test asserts it bit-for-bit.
 
 All functions are pure NumPy — no I/O, explicit seeds everywhere.
+
+MODULE SPLIT (2026-09-08, gói P5a — mechanical, no behavior change): the
+covariate-adjustment and robust-variance blocks moved out to
+:mod:`livelift.analysis.adjust` and :mod:`livelift.analysis.robust`, and the
+empty :mod:`livelift.analysis.carryover` was created, so the queued work of the
+2026-09-07 programme (CUPED-mv / linearization, wild cluster bootstrap / ICS,
+lag-1 carryover) stops converging on this one file — three proposals editing
+the same module days before the week-6 pre-registration freeze is how a
+mechanical merge turns into a silent change to the primary test. The primary
+test itself (:func:`randomization_test`, :func:`randomization_ci`,
+:func:`analyze_outer`) deliberately did NOT move. Every public name is
+re-exported below, so no import site changed.
 """
 
 from __future__ import annotations
@@ -32,6 +52,25 @@ from dataclasses import dataclass
 import numpy as np
 
 from livelift.core.assigner.outer import ON, DesignParams, draw_assignments
+
+from .adjust import cuped_adjust, cuped_adjust_mv, linearize_ratio, observed_ratio
+from .robust import OLSResult, ols_fe_lin
+
+__all__ = [
+    "MIN_BLOCKS_PER_ARM",
+    "LATEResult",
+    "OLSResult",
+    "RandomizationResult",
+    "analyze_outer",
+    "cuped_adjust",
+    "diff_in_means",
+    "ht_effect",
+    "late_wald",
+    "ols_fe_lin",
+    "randomization_ci",
+    "randomization_test",
+    "studentized_stat",
+]
 
 # ---------------------------------------------------------------------------
 # Point estimators
@@ -138,6 +177,14 @@ class RandomizationResult:
     n_draws: int
     estimable: bool = True
     reason: str | None = None  # Vietnamese, user-facing, set when not estimable
+    # Which SENSITIVITY path produced these numbers (gói P3+P4, 09/09). Both
+    # default to the pre-registered primary path, so an untouched call site
+    # keeps describing itself correctly. A result carrying anything else is a
+    # sensitivity run and must be LABELLED as one wherever it is printed — in
+    # particular `estimate` is in linearized-click units, not clicks per 1000
+    # viewer-seconds, when outcome_mode == "linearized".
+    outcome_mode: str = "ratio"
+    adjust: str = "none"
 
     @property
     def significant(self) -> bool:
@@ -198,6 +245,7 @@ def _redraw_matrix(
                 p=params.p,
                 min_per_arm_per_phase=params.min_per_arm_per_phase,
                 max_redraws=params.max_redraws,
+                min_transition_pairs=params.min_transition_pairs,
             )
             for i, arm in zip(idx, arms, strict=True):
                 out[d, i] = 1 if arm == ON else 0
@@ -278,9 +326,7 @@ def _build_zmat(
     """
     if all_phases is not None and analyzed_mask is not None:
         sids = np.asarray(all_session_ids if all_session_ids is not None else session_ids)
-        return _redraw_matrix(
-            sids, list(all_phases), n_draws, seed, analyzed_mask, design_params
-        )
+        return _redraw_matrix(sids, list(all_phases), n_draws, seed, analyzed_mask, design_params)
     return _redraw_matrix(
         np.asarray(session_ids), list(phases), n_draws, seed, design_params=design_params
     )
@@ -308,8 +354,14 @@ def randomization_test(
     z = np.asarray(z, int)
     if zmat is None:
         zmat = _build_zmat(
-            session_ids, phases, n_draws, seed, all_phases, all_session_ids,
-            analyzed_mask, design_params,
+            session_ids,
+            phases,
+            n_draws,
+            seed,
+            all_phases,
+            all_session_ids,
+            analyzed_mask,
+            design_params,
         )
     p = _p_from_stats(studentized_stat(y, z), _batch_studentized(y, zmat))
     return p, zmat
@@ -339,8 +391,14 @@ def randomization_ci(
     z = np.asarray(z, int)
     if zmat is None:
         zmat = _build_zmat(
-            session_ids, phases, n_draws, seed, all_phases, all_session_ids,
-            analyzed_mask, design_params,
+            session_ids,
+            phases,
+            n_draws,
+            seed,
+            all_phases,
+            all_session_ids,
+            analyzed_mask,
+            design_params,
         )
 
     # Undefined statistic -> no interval. Returning [tau_hat, tau_hat] here
@@ -392,6 +450,65 @@ def randomization_ci(
     return search(-1), search(+1)
 
 
+_OUTCOME_MODES = ("ratio", "linearized")
+_ADJUST_MODES = ("none", "cuped_mv")
+
+
+def _analysis_outcome(
+    y: np.ndarray,
+    session_ids: np.ndarray,
+    outcome_mode: str,
+    clicks: np.ndarray | None,
+    exposures: np.ndarray | None,
+    adjust: str,
+    covariates: np.ndarray | None,
+) -> np.ndarray:
+    """Build the vector the randomization test actually runs on.
+
+    Two OPTIONAL, off-by-default transforms, applied in this order:
+
+    1. ``outcome_mode="linearized"`` replaces the per-block rate with Deng's
+       linearized ratio L_b = clicks_b − r0·exposures_b, r0 being the pooled
+       ratio of the OBSERVED sample (pinned once — see
+       :func:`livelift.analysis.adjust.linearize_ratio`).
+    2. ``adjust="cuped_mv"`` subtracts the fit of the deterministic covariate
+       matrix (multivariate CUPED).
+
+    Both produce a vector that is FIXED before any assignment is redrawn — r0
+    comes from the recorded sample, the covariates are functions of the schedule
+    and the clock, and theta is fitted on the recorded outcome. That is the
+    whole reason they are admissible: randomization inference stays exact
+    because only z moves between draws.
+    """
+    if outcome_mode not in _OUTCOME_MODES:
+        raise ValueError(f"outcome_mode phải thuộc {_OUTCOME_MODES} (nhận {outcome_mode!r})")
+    if adjust not in _ADJUST_MODES:
+        raise ValueError(f"adjust phải thuộc {_ADJUST_MODES} (nhận {adjust!r})")
+
+    out = y
+    if outcome_mode == "linearized":
+        if clicks is None or exposures is None:
+            raise ValueError(
+                "outcome_mode='linearized' cần cả clicks và exposures theo khối — "
+                "tuyến tính hóa tỷ lệ không suy ra được từ y đã chia sẵn"
+            )
+        clicks_arr = np.asarray(clicks, float)
+        exposures_arr = np.asarray(exposures, float)
+        r0 = observed_ratio(clicks_arr, exposures_arr)
+        if not np.isfinite(r0):
+            raise ValueError("tổng exposure bằng 0 — không có tỷ lệ quan sát r0 để tuyến tính hóa")
+        out = linearize_ratio(clicks_arr, exposures_arr, r0)
+
+    if adjust == "cuped_mv":
+        if covariates is None:
+            raise ValueError(
+                "adjust='cuped_mv' cần covariates — ma trận hiệp biến TẤT ĐỊNH "
+                "(build_deterministic_covariates); lag trong-phiên bị cấm (§5c)"
+            )
+        out = cuped_adjust_mv(out, np.asarray(covariates, float), session_ids).y_adj
+    return np.asarray(out, float)
+
+
 def analyze_outer(
     y: np.ndarray,
     z: np.ndarray,
@@ -404,6 +521,11 @@ def analyze_outer(
     all_session_ids: np.ndarray | None = None,
     analyzed_mask: np.ndarray | None = None,
     design_params: dict[str, DesignParams] | None = None,
+    outcome_mode: str = "ratio",
+    clicks: np.ndarray | None = None,
+    exposures: np.ndarray | None = None,
+    adjust: str = "none",
+    covariates: np.ndarray | None = None,
 ) -> RandomizationResult:
     """Full primary analysis: point estimates, p-value, Fisher CI.
 
@@ -416,16 +538,42 @@ def analyze_outer(
     ``design_params`` maps session_id → the session's PERSISTED
     :class:`DesignParams` (``livelift.api.service.rebuild_design_params``).
     Pass it whenever any session ran a non-default design: the redraws then
-    honor that session's own p / ``min_per_arm_per_phase`` / ``max_redraws``
-    instead of silently rerandomizing the default design.
+    honor that session's own p / ``min_per_arm_per_phase`` /
+    ``min_transition_pairs`` / ``max_redraws`` instead of silently
+    rerandomizing the default design.
 
     When either arm holds fewer than ``MIN_BLOCKS_PER_ARM`` blocks the design
     cannot be tested at all; the result is returned with ``estimable=False``,
     NaN inference fields and a Vietnamese ``reason``. Publishing anything else
     in that case would present pure noise as a significant finding.
+
+    SENSITIVITY PATHS (gói P3+P4, 09/09 — added before the week-6 freeze, both
+    OFF by default so the pre-registered primary analysis is bit-for-bit what
+    it was):
+
+    - ``outcome_mode='linearized'`` (needs ``clicks`` and ``exposures``): runs
+      the ENTIRE pipeline — redraws, studentized statistic, Fisher CI — on
+      Deng's linearized ratio instead of the per-block rate, which is the
+      honest estimand if the intervention moves viewer-seconds
+      (:func:`livelift.analysis.robust.ics_gate` is the test for that). The
+      returned ``estimate``/``ci_*`` are then in LINEARIZED CLICK units and must
+      not be printed next to the primary number.
+    - ``adjust='cuped_mv'`` (needs ``covariates``): multivariate CUPED over the
+      deterministic schedule/clock matrix before testing. Turning this on for
+      the confirmatory result is a PRE-REGISTRATION decision for the team, not
+      a default a caller may flip.
+
+    ``covariates`` must satisfy PREREGISTRATION §5c (fixed at schedule-draw
+    time); pass
+    :func:`livelift.analysis.adjust.build_deterministic_covariates`. Both
+    transforms leave the outcome vector fixed across redraws, so the test stays
+    exact.
     """
     y = np.asarray(y, float)
     z = np.asarray(z, int)
+    y = _analysis_outcome(
+        y, np.asarray(session_ids), outcome_mode, clicks, exposures, adjust, covariates
+    )
     n_on, n_off = int(z.sum()), int(len(z) - z.sum())
     if min(n_on, n_off) < MIN_BLOCKS_PER_ARM:
         return RandomizationResult(
@@ -443,10 +591,19 @@ def analyze_outer(
                 f"Mỗi nhánh cần ít nhất {MIN_BLOCKS_PER_ARM} khối để kiểm định "
                 f"(hiện có BẬT {n_on} / TẮT {n_off}) — chưa ước lượng được"
             ),
+            outcome_mode=outcome_mode,
+            adjust=adjust,
         )
     p, zmat = randomization_test(
-        y, z, session_ids, phases, n_draws, seed,
-        all_phases=all_phases, all_session_ids=all_session_ids, analyzed_mask=analyzed_mask,
+        y,
+        z,
+        session_ids,
+        phases,
+        n_draws,
+        seed,
+        all_phases=all_phases,
+        all_session_ids=all_session_ids,
+        analyzed_mask=analyzed_mask,
         design_params=design_params,
     )
     lo, hi = randomization_ci(y, z, session_ids, phases, alpha, n_draws, seed, zmat=zmat)
@@ -460,83 +617,8 @@ def analyze_outer(
         n_on=int(z.sum()),
         n_off=int(len(z) - z.sum()),
         n_draws=zmat.shape[0],
-    )
-
-
-# ---------------------------------------------------------------------------
-# OLS with session fixed effects + Lin (2013) covariate interaction
-# ---------------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class OLSResult:
-    estimate: float
-    se_cluster: float
-    n_blocks: int
-    n_clusters: int
-
-
-def ols_fe_lin(
-    y: np.ndarray,
-    z: np.ndarray,
-    session_ids: np.ndarray,
-    covariates: np.ndarray | None = None,
-) -> OLSResult:
-    """OLS of y on z with session fixed effects and Lin-interacted covariates,
-    cluster-robust (CR1) standard errors by session.
-
-    ``covariates``: (n, k) pre-treatment covariates (e.g. pre-block viewers,
-    pre-block comment rate). They are globally centered, then included both as
-    main effects and interacted with the centered treatment (Lin 2013), which
-    cannot hurt asymptotic precision.
-    """
-    y = np.asarray(y, float)
-    z = np.asarray(z, float)
-    sess = np.asarray(session_ids)
-    n = len(y)
-
-    # within-session demeaning absorbs the session fixed effect
-    def demean(v: np.ndarray) -> np.ndarray:
-        out = v.astype(float).copy()
-        for s in np.unique(sess):
-            m = sess == s
-            out[m] -= out[m].mean()
-        return out
-
-    y_t = demean(y)
-    z_t = demean(z)
-    cols = [z_t]
-    if covariates is not None:
-        x = np.asarray(covariates, float)
-        if x.ndim == 1:
-            x = x[:, None]
-        x_c = x - x.mean(axis=0)
-        x_t = np.column_stack([demean(x_c[:, j]) for j in range(x_c.shape[1])])
-        zx = z_t[:, None] * x_c  # Lin interaction
-        cols.extend([x_t, zx])
-    design = np.column_stack(cols)
-
-    beta, *_ = np.linalg.lstsq(design, y_t, rcond=None)
-    resid = y_t - design @ beta
-    bread = np.linalg.pinv(design.T @ design)
-
-    clusters = np.unique(sess)
-    meat = np.zeros((design.shape[1], design.shape[1]))
-    for s in clusters:
-        m = sess == s
-        xg = design[m]
-        ug = resid[m]
-        v = xg.T @ ug
-        meat += np.outer(v, v)
-    g = len(clusters)
-    k = design.shape[1]
-    dof_correction = (g / max(g - 1, 1)) * ((n - 1) / max(n - k, 1))
-    vcov = dof_correction * bread @ meat @ bread
-    return OLSResult(
-        estimate=float(beta[0]),
-        se_cluster=float(np.sqrt(max(vcov[0, 0], 0.0))),
-        n_blocks=n,
-        n_clusters=g,
+        outcome_mode=outcome_mode,
+        adjust=adjust,
     )
 
 
@@ -580,29 +662,16 @@ def late_wald(y: np.ndarray, z: np.ndarray, d: np.ndarray) -> LATEResult:
 
 
 # ---------------------------------------------------------------------------
-# CUPED
+# Moved out (gói P5a, 2026-09-08) — re-exported at the top of this module so
+# ``from livelift.analysis.estimators import ...`` keeps working unchanged:
+#   OLSResult, ols_fe_lin  -> livelift.analysis.robust
+#   cuped_adjust           -> livelift.analysis.adjust
+# New work on those two families goes to the new modules, not here.
+#
+# Gói P3+P4 (2026-09-09) kept that rule: `linearize_ratio`, `observed_ratio`,
+# `cuped_adjust_mv` and `build_deterministic_covariates` were written in
+# `adjust.py`, `ics_gate` in `robust.py`, and this file only gained the two
+# opt-in switches of `analyze_outer` that route the outcome through them. They
+# are imported, NOT re-exported: `__all__` above is the pre-split public API and
+# stays frozen, so the P5a guard tests keep meaning what they meant.
 # ---------------------------------------------------------------------------
-
-
-def cuped_adjust(y: np.ndarray, x: np.ndarray) -> tuple[np.ndarray, float]:
-    """Classic CUPED: y_adj = y - theta*(x - mean(x)).
-
-    Returns (adjusted outcome, variance reduction share). ``x`` must be fixed
-    at schedule-draw time (PREREGISTRATION.md §5c): valid covariates are
-    pre-SESSION history — viewers at room open, host / platform / weekday /
-    time-slot features — or deterministic schedule covariates (block index,
-    normalized position t/T, phase, block length). Previous-block metrics
-    (``pre_viewers``, ``pre_comment_rate``, ``pre_like_rate``) are NOT valid:
-    block k-1 was itself randomized and rerandomization correlates adjacent
-    assignments (measured −0.169), so they are post-treatment and would bias
-    the estimate.
-    """
-    y = np.asarray(y, float)
-    x = np.asarray(x, float)
-    vx = x.var(ddof=1)
-    if vx == 0:
-        return y.copy(), 0.0
-    theta = np.cov(y, x, ddof=1)[0, 1] / vx
-    y_adj = y - theta * (x - x.mean())
-    vr = 1.0 - y_adj.var(ddof=1) / y.var(ddof=1) if y.var(ddof=1) > 0 else 0.0
-    return y_adj, float(vr)

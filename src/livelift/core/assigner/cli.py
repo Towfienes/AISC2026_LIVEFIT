@@ -57,6 +57,7 @@ def main(argv: list[str] | None = None) -> int:
             "jitter_s": params.jitter_s,
             "p": params.p,
             "min_per_arm_per_phase": params.min_per_arm_per_phase,
+            "min_transition_pairs": params.min_transition_pairs,
         },
         "seed": schedule.seed,
         "n_redraws": schedule.n_redraws,

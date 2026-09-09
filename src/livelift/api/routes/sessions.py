@@ -113,14 +113,22 @@ def create_schedule(session_id: str, body: ScheduleRequest, store: StoreDep) -> 
     updated, blocks = service.schedule_session(store, session, params, seed)
     design = updated["design"]
     realized = int(design.get("realized_min_per_arm_per_phase", 0))
-    warning = None
+    realized_trans = int(design.get("realized_transition_pairs", 0))
+    n_meas = len([b for b in blocks if not b.get("is_washout")])
+    warnings: list[str] = []
     if realized < params.min_per_arm_per_phase:
-        n_meas = len([b for b in blocks if not b.get("is_washout")])
-        warning = (
+        warnings.append(
             f"Phiên {session['planned_duration_min']} phút chỉ cho {n_meas} khối, nên mỗi "
             f"giai đoạn chỉ đảm bảo được {realized} khối/nhánh (thiết kế yêu cầu "
             f"{params.min_per_arm_per_phase}). Kết quả sẽ kém tin cậy hơn — cân nhắc "
             f"phiên dài hơn (từ 90 phút) hoặc khối ngắn hơn."
+        )
+    if realized_trans < params.min_transition_pairs:
+        warnings.append(
+            f"Chuỗi {n_meas} khối chỉ ràng buộc được {realized_trans} cặp khối liền kề "
+            f"cùng nhánh mỗi loại (thiết kế yêu cầu ≥ {params.min_transition_pairs} cặp "
+            f"(BẬT,BẬT) và (TẮT,TẮT)). Các ước lượng nhạy carryover (τ̂ cặp liền kề, CRT) "
+            f"sẽ kém tin cậy — cân nhắc phiên dài hơn (từ 90 phút)."
         )
     return ScheduleOut(
         session_id=session_id,
@@ -130,8 +138,10 @@ def create_schedule(session_id: str, body: ScheduleRequest, store: StoreDep) -> 
         n_on=design["n_on"],
         n_off=design["n_off"],
         blocks=[BlockOut(**b) for b in blocks],
+        design_hash=design["design_hash"],
         realized_min_per_arm_per_phase=realized,
-        warning=warning,
+        realized_transition_pairs=realized_trans,
+        warning=" ".join(warnings) if warnings else None,
     )
 
 
@@ -233,4 +243,5 @@ def get_state(
             else None
         ),
         cards=cards,
+        design_hash=service.session_design_hash(session),
     )

@@ -4,7 +4,9 @@ Fast checks here; full Monte-Carlo calibration lives in test_sim_validation.py
 (marked slow).
 """
 
+import ast
 import random
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -189,9 +191,15 @@ def test_significant_is_false_when_a_bound_is_unbounded():
     from livelift.analysis.estimators import RandomizationResult
 
     res = RandomizationResult(
-        estimate=0.5, estimate_ht=0.5, p_value=0.2,
-        ci_low=0.1, ci_high=float("inf"),
-        n_blocks=10, n_on=5, n_off=5, n_draws=100,
+        estimate=0.5,
+        estimate_ht=0.5,
+        p_value=0.2,
+        ci_low=0.1,
+        ci_high=float("inf"),
+        n_blocks=10,
+        n_on=5,
+        n_off=5,
+        n_draws=100,
     )
     assert not res.significant
 
@@ -267,14 +275,53 @@ def test_redraws_respect_saved_min_per_arm_per_phase():
     assert violates, "thiết kế mặc định lẽ ra phải vi phạm ≥3 — test mất khả năng phân biệt"
 
 
+def test_redraws_enforce_transition_balance_of_saved_design():
+    """Research 08/09: the default design now carries the transition-balance
+    acceptance rule, so every RI redraw must satisfy it too — and a session
+    persisted with min_transition_pairs=0 (pre-08/09 design) must be redrawn
+    WITHOUT it, or the reference distribution belongs to a design nobody ran."""
+    from livelift.analysis.estimators import _redraw_matrix
+
+    phases = ["early"] * 6 + ["mid"] * 6 + ["late"] * 6
+    sids = np.array(["s0"] * len(phases))
+
+    def pair_counts(row):
+        n_on_on = sum(1 for a, b in zip(row, row[1:], strict=False) if a == b == 1)
+        n_off_off = sum(1 for a, b in zip(row, row[1:], strict=False) if a == b == 0)
+        return n_on_on, n_off_off
+
+    zmat = _redraw_matrix(sids, phases, n_draws=200, seed=21)
+    for row in zmat:
+        n_on_on, n_off_off = pair_counts(row.tolist())
+        assert n_on_on >= 3, "redraw vi phạm ràng buộc cặp (BẬT,BẬT)"
+        assert n_off_off >= 3, "redraw vi phạm ràng buộc cặp (TẮT,TẮT)"
+        assert abs(n_on_on - n_off_off) <= 1
+
+    # Control: the pre-08/09 design (no transition constraint) does violate it
+    # in some redraws, so the assertion above genuinely distinguishes the two.
+    params = {"s0": DesignParams(min_transition_pairs=0)}
+    zmat_old = _redraw_matrix(sids, phases, n_draws=200, seed=21, design_params=params)
+    violates = any(
+        (lambda c: c[0] < 3 or c[1] < 3 or abs(c[0] - c[1]) > 1)(pair_counts(row.tolist()))
+        for row in zmat_old
+    )
+    assert violates, "thiết kế cũ lẽ ra phải vi phạm — test mất khả năng phân biệt"
+
+
 def test_randomization_test_threads_design_params_over_full_schedule():
     """The reports path (full schedule + analyzed mask) must also redraw under
     the saved per-session design."""
     y, z, sids, phases = _make_data(n_sessions=1, blocks_per=18, tau=0.0, seed=12)
     params = {"s0": DesignParams(min_per_arm_per_phase=3)}
     _, zmat = randomization_test(
-        y, z, sids, phases, n_draws=100, seed=12,
-        all_phases=phases, all_session_ids=sids,
+        y,
+        z,
+        sids,
+        phases,
+        n_draws=100,
+        seed=12,
+        all_phases=phases,
+        all_session_ids=sids,
         analyzed_mask=np.ones(len(y), dtype=bool),
         design_params=params,
     )
@@ -301,8 +348,12 @@ def test_null_false_positive_rate_is_nominal_on_short_sessions():
         y = np.array([r.y for r in frame])
         z = np.array([r.z for r in frame])
         res = analyze_outer(
-            y, z, np.array(["s0"] * len(y)), [r.phase for r in frame],
-            n_draws=299, seed=seed,
+            y,
+            z,
+            np.array(["s0"] * len(y)),
+            [r.phase for r in frame],
+            n_draws=299,
+            seed=seed,
         )
         if not res.estimable:
             continue
@@ -311,3 +362,130 @@ def test_null_false_positive_rate_is_nominal_on_short_sessions():
     assert tested >= 30, f"quá ít phiên kiểm định được ({tested})"
     rate = sig / tested
     assert rate <= 0.20, f"tỷ lệ dương tính giả {rate:.1%} — kiểm định sai hiệu chỉnh"
+
+
+# ---------------------------------------------------------------------------
+# Gói P5a (08/09) — tách module: refactor CƠ HỌC, API công khai phải còn nguyên
+# ---------------------------------------------------------------------------
+
+
+def test_moved_symbols_are_the_same_object_from_both_paths():
+    """`estimators` chỉ RE-EXPORT, không giữ bản sao.
+
+    Nếu tách nhầm thành hai bản định nghĩa song song thì mọi test hiện có vẫn
+    xanh, nhưng sửa một bên sẽ không tới bên kia — kiểu hỏng âm thầm đắt nhất
+    của một lần refactor. So sánh danh tính (`is`) bắt đúng chuyện đó.
+    """
+    from livelift.analysis import adjust, estimators, robust
+
+    assert estimators.cuped_adjust is adjust.cuped_adjust
+    assert estimators.ols_fe_lin is robust.ols_fe_lin
+    assert estimators.OLSResult is robust.OLSResult
+
+
+def test_public_api_of_estimators_survives_the_split():
+    """Mọi tên công khai trước khi tách vẫn import được từ `estimators`."""
+    from livelift.analysis import estimators
+
+    expected = {
+        "MIN_BLOCKS_PER_ARM",
+        "LATEResult",
+        "OLSResult",
+        "RandomizationResult",
+        "analyze_outer",
+        "cuped_adjust",
+        "diff_in_means",
+        "ht_effect",
+        "late_wald",
+        "ols_fe_lin",
+        "randomization_ci",
+        "randomization_test",
+        "studentized_stat",
+    }
+    missing = expected - set(dir(estimators))
+    assert not missing, f"API công khai bị mất sau khi tách: {sorted(missing)}"
+    assert set(estimators.__all__) == expected
+
+
+def test_split_moved_only_the_intended_families():
+    """Kiểm định chính Ở NGUYÊN `estimators` (giảm rủi ro trước khóa prereg);
+    chỉ hiệu chỉnh hiệp biến và phương sai robust được dời đi."""
+    from livelift.analysis import estimators
+
+    for fn in (
+        estimators.diff_in_means,
+        estimators.ht_effect,
+        estimators.studentized_stat,
+        estimators.randomization_test,
+        estimators.randomization_ci,
+        estimators.analyze_outer,
+        estimators.late_wald,
+    ):
+        assert fn.__module__ == "livelift.analysis.estimators", (
+            f"{fn.__name__} đã bị dời khỏi estimators — P5a chỉ được tách CUPED/OLS"
+        )
+    assert estimators.cuped_adjust.__module__ == "livelift.analysis.adjust"
+    assert estimators.ols_fe_lin.__module__ == "livelift.analysis.robust"
+    assert estimators.OLSResult.__module__ == "livelift.analysis.robust"
+
+
+def test_moved_functions_behave_identically_through_either_path():
+    """Refactor cơ học: gọi qua tên cũ và tên mới cho ra CÙNG con số."""
+    from livelift.analysis import adjust, estimators, robust
+
+    y, z, sids, _ = _make_data(tau=1.2, seed=31)
+    x = np.arange(len(y), dtype=float)  # hiệp biến tất định theo lịch (§5c)
+
+    y_old, vr_old = estimators.cuped_adjust(y, x)
+    y_new, vr_new = adjust.cuped_adjust(y, x)
+    assert np.array_equal(y_old, y_new)
+    assert vr_old == vr_new
+
+    old = estimators.ols_fe_lin(y, z, sids)
+    new = robust.ols_fe_lin(y, z, sids)
+    assert old == new
+
+
+def test_carryover_module_is_a_placeholder_only():
+    """`carryover.py` mới chỉ là CHỖ ĐẶT cho API dự kiến — chưa cài gì.
+
+    Một hàm carryover xuất hiện ở đây phải đi kèm nghiên cứu + test riêng
+    (HARNESS §4), không được lọt vào nhờ một lần refactor.
+    """
+    from livelift.analysis import carryover
+
+    assert carryover.__all__ == []
+    doc = carryover.__doc__ or ""
+    for name in ("ht_lag1", "carryover_gate", "impulse_response"):
+        assert not hasattr(carryover, name), (
+            f"{name} đã được cài đặt — cần nghiên cứu + test riêng, không thuộc P5a"
+        )
+        assert name in doc, f"docstring phải nêu API dự kiến {name}"
+
+
+def test_new_modules_never_import_back_from_estimators():
+    """Cạnh phụ thuộc chỉ đi MỘT CHIỀU: estimators → {adjust, robust, carryover}.
+
+    Đây đúng là thứ P5a mua được: việc sắp tới (P3 CUPED-mv, P4 wild bootstrap /
+    ICS, C2/C3 carryover) sửa module mới mà KHÔNG phải mở lại file chứa kiểm
+    định chính. Một `from .estimators import ...` lọt vào ba file này thì vừa
+    tạo import vòng, vừa xóa sạch tính cách ly đó — và nó sẽ lọt êm vì mọi test
+    khác vẫn xanh. Quét tĩnh bằng `ast` nên bắt được cả import đặt trong thân
+    hàm, chỗ mà việc thử `import` lúc chạy test không nhìn thấy.
+    """
+    src = Path(__file__).resolve().parents[1] / "src" / "livelift" / "analysis"
+    for name in ("adjust", "robust", "carryover"):
+        path = src / f"{name}.py"
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            targets: list[str] = []
+            if isinstance(node, ast.ImportFrom):
+                # `from .estimators import x` và `from . import estimators`
+                targets.append(node.module or "")
+                targets.extend(a.name for a in node.names)
+            elif isinstance(node, ast.Import):
+                targets.extend(a.name for a in node.names)
+            for target in targets:
+                assert target.split(".")[-1] != "estimators", (
+                    f"{name}.py import ngược về estimators — P5a tách ra chính là "
+                    f"để module mới không phụ thuộc file kiểm định chính"
+                )

@@ -75,7 +75,8 @@ def assess(
     elif analysis_only:
         signals.append(
             SignalState(
-                "schedule", "missing",
+                "schedule",
+                "missing",
                 "video ngoài — không có ngẫu nhiên hóa (không thể can thiệp ngược thời gian)",
             )
         )
@@ -87,7 +88,8 @@ def assess(
     elif tick_coverage_share < 0.8:
         signals.append(
             SignalState(
-                "ticks", "degraded",
+                "ticks",
+                "degraded",
                 f"telemetry chỉ phủ {tick_coverage_share:.0%} thời gian phát — "
                 "các khoảng trống bị loại khỏi phân tích",
             )
@@ -98,18 +100,29 @@ def assess(
         )
 
     signals.append(
-        SignalState("comments", "ok" if n_comments > 0 else "missing",
-                    f"{n_comments} bình luận (đã lọc PII)" if n_comments else "không có bình luận")
+        SignalState(
+            "comments",
+            "ok" if n_comments > 0 else "missing",
+            f"{n_comments} bình luận (đã lọc PII)" if n_comments else "không có bình luận",
+        )
     )
     signals.append(
-        SignalState("clicks", "ok" if n_clicks > 0 else "missing",
-                    f"{n_clicks} lượt nhấp qua link đo" if n_clicks
-                    else "không có link đo — nhấp sản phẩm không quan sát được")
+        SignalState(
+            "clicks",
+            "ok" if n_clicks > 0 else "missing",
+            f"{n_clicks} lượt nhấp qua link đo"
+            if n_clicks
+            else "không có link đo — nhấp sản phẩm không quan sát được",
+        )
     )
     signals.append(
-        SignalState("orders", "ok" if n_orders > 0 else "missing",
-                    f"{n_orders} đơn ghi nhận" if n_orders
-                    else "chưa ghi nhận đơn — không đối soát được doanh thu")
+        SignalState(
+            "orders",
+            "ok" if n_orders > 0 else "missing",
+            f"{n_orders} đơn ghi nhận"
+            if n_orders
+            else "chưa ghi nhận đơn — không đối soát được doanh thu",
+        )
     )
 
     by = {s.name: s for s in signals}
@@ -128,10 +141,16 @@ def assess(
 
     cap("radar ý định bình luận", ["comments"])
     cap("nhịp phiên (người xem theo thời gian)", ["ticks"])
-    cap("tỷ lệ nhấp sản phẩm", ["clicks", "ticks"],
-        "cần link đo tự phục vụ VÀ telemetry người xem trên cùng khoảng thời gian")
-    cap("thí nghiệm nhân quả (BẬT/TẮT)", ["schedule", "clicks", "ticks"],
-        "chỉ khả thi trên phiên do mình vận hành")
+    cap(
+        "tỷ lệ nhấp sản phẩm",
+        ["clicks", "ticks"],
+        "cần link đo tự phục vụ VÀ telemetry người xem trên cùng khoảng thời gian",
+    )
+    cap(
+        "thí nghiệm nhân quả (BẬT/TẮT)",
+        ["schedule", "clicks", "ticks"],
+        "chỉ khả thi trên phiên do mình vận hành",
+    )
     cap("đối soát doanh thu", ["orders"])
 
     return SignalCoverage(signals=tuple(signals), capabilities=tuple(caps))

@@ -54,14 +54,23 @@ def _setup_live_session(client, mode="auto", minutes=60):
     ):
         r = client.post(
             "/products",
-            json={"product_id": f"J{i}", "name": name, "cost": price // 2,
-                  "price": price, "stock": 40},
+            json={
+                "product_id": f"J{i}",
+                "name": name,
+                "cost": price // 2,
+                "price": price,
+                "stock": 40,
+            },
         )
         assert r.status_code == 200
     sid = client.post(
         "/sessions",
-        json={"platform": "youtube", "mode": mode, "planned_duration_min": minutes,
-              "title": "Phiên hành trình người dùng"},
+        json={
+            "platform": "youtube",
+            "mode": mode,
+            "planned_duration_min": minutes,
+            "title": "Phiên hành trình người dùng",
+        },
     ).json()["session_id"]
     sched = client.post(f"/sessions/{sid}/schedule", json={"seed": 99}).json()
     assert client.post(f"/sessions/{sid}/start").status_code == 200
@@ -83,8 +92,13 @@ def test_journey_operator_runs_a_full_experiment_session(client):
 
     # KHÔNG một mảnh PII nào được sống sót trong dữ liệu lưu
     joined = " ".join(stored_texts)
-    for fragment in ("0901234567", "0901", "Nguyễn Trãi", "hoa123@gmail.com",
-                     "không chín không tám"):
+    for fragment in (
+        "0901234567",
+        "0901",
+        "Nguyễn Trãi",
+        "hoa123@gmail.com",
+        "không chín không tám",
+    ):
         assert fragment not in joined, f"PII lọt: {fragment!r}"
     n_scrubbed = sum(1 for t in stored_texts if "[" in t)
     expected_pii = sum(1 for _, has in TRAFFIC if has)
@@ -93,8 +107,7 @@ def test_journey_operator_runs_a_full_experiment_session(client):
     # link đo click — định nghĩa vận hành của biến kết quả
     code = client.post(
         "/shortlinks",
-        json={"product_id": "J0", "session_id": sid,
-              "target_url": "https://shop.example/ao-thun"},
+        json={"product_id": "J0", "session_id": sid, "target_url": "https://shop.example/ao-thun"},
     ).json()["code"]
     for _ in range(4):
         r = client.get(f"/r/{code}", follow_redirects=False)
@@ -140,8 +153,17 @@ def test_journey_host_screen_never_leaks_through_a_whole_session(client):
     trong từng khối, sau khi kết thúc — payload không bao giờ chứa thứ gì
     về BẬT/TẮT hay ranh giới khối."""
     sid, sched = _setup_live_session(client)
-    forbidden = ("assignment", "block", "seconds_remaining", "phase",
-                 "propensity", "seed", "ON", "OFF", "cards")
+    forbidden = (
+        "assignment",
+        "block",
+        "seconds_remaining",
+        "phase",
+        "propensity",
+        "seed",
+        "ON",
+        "OFF",
+        "cards",
+    )
 
     for moment in range(6):  # nhìn đi nhìn lại như người thật
         r = client.get(f"/sessions/{sid}/state?role=host")
@@ -181,8 +203,12 @@ def test_journey_newcomer_analyzes_comment_only_source(client):
     # phiên "phân tích" tối thiểu: tạo qua store trực tiếp như replay pipeline
     sid = client.post(
         "/sessions",
-        json={"platform": "replay", "mode": "auto", "planned_duration_min": 30,
-              "title": "Phân tích: video ngoài"},
+        json={
+            "platform": "replay",
+            "mode": "auto",
+            "planned_duration_min": 30,
+            "title": "Phân tích: video ngoài",
+        },
     ).json()["session_id"]
     # không schedule, không start -> không có block nào
 

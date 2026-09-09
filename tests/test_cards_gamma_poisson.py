@@ -99,9 +99,7 @@ def test_prior_tames_huge_raw_rate_on_tiny_exposure():
 def test_separated_intervals_yield_deterministic_choice():
     products = [product("A"), product("B")]
     # 90_000 viewer-seconds pinned on each product
-    ticks = [tick(i, 1000.0, "A") for i in range(3)] + [
-        tick(i + 3, 1000.0, "B") for i in range(3)
-    ]
+    ticks = [tick(i, 1000.0, "A") for i in range(3)] + [tick(i + 3, 1000.0, "B") for i in range(3)]
     cands = build_candidates(products, {"A": 200, "B": 50}, ticks)
     a = next(c for c in cands if c.product_id == "A")
     b = next(c for c in cands if c.product_id == "B")

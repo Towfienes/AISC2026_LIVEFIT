@@ -3,10 +3,25 @@
 /**
  * Zone 1 "Nhịp phiên" — session rhythm.
  *
- * Two vertically stacked panels sharing one x-axis (small multiples, never a
- * dual-axis chart): viewers on top, click rate per minute below. Each panel
- * carries its dashed forecast baseline ("đường dự báo baseline") — dashing is
- * reserved for projections. Tooltips are synced via Recharts `syncId`.
+ * Vertically stacked panels sharing one x-axis (small multiples, never a
+ * dual-axis chart): comment tempo, viewers, click rate per minute. Each chart
+ * panel carries its dashed forecast baseline ("đường dự báo baseline") —
+ * dashing is reserved for projections. Tooltips are synced via `syncId`.
+ *
+ * ---------------------------------------------------------------------------
+ * KHÔNG VẼ ĐƯỜNG CHO NGUỒN KHÔNG TỒN TẠI (gói UI-KOL)
+ * ---------------------------------------------------------------------------
+ * Trước gói này biểu đồ luôn vẽ đủ hai đường "người xem" và "lượt bấm/phút".
+ * Trên 13/13 phiên replay thật, cả hai nguồn đều KHÔNG tồn tại: `viewers` và
+ * `click_count` trong tick chỉ là chỗ trống. Kết quả là khung lớn nhất của bàn
+ * vẽ hai đường phẳng ở mức 0 — mâu thuẫn thẳng với ô "THIẾU nguồn" ngay phía
+ * trên, và đúng là loại số bịa mà dự án cấm.
+ *
+ * Nay mỗi panel do MA TRẬN TÍN HIỆU của máy chủ quyết định:
+ *   - đo được  → vẽ đường;
+ *   - thiếu    → một dải "THIẾU nguồn" kèm nguyên văn lý do, KHÔNG vẽ gì.
+ * Nhịp bình luận (tín hiệu luôn có thật khi có chat) lên panel đầu, nên phiên
+ * replay vẫn có một đường đáng đọc thay vì hai đường phẳng vô nghĩa.
  *
  * ---------------------------------------------------------------------------
  * KHÔNG VẼ LẠI CÓ HIỆU ỨNG (gói UI-3)
@@ -40,6 +55,7 @@ import Term from "./Term";
 
 interface MinutePoint {
   offset_s: number;
+  comments: number | null;
   viewers: number | null;
   baselineViewers: number | null;
   clicksPerMin: number | null;
@@ -48,15 +64,19 @@ interface MinutePoint {
 
 /** Aggregate 30-second ticks into per-minute points for a calm, readable line. */
 function toMinutePoints(ticks: Tick[]): MinutePoint[] {
-  const byMin = new Map<number, { v: number[]; bv: number[]; c: number; bc: number[] }>();
+  const byMin = new Map<
+    number,
+    { v: number[]; bv: number[]; c: number; bc: number[]; cm: number[] }
+  >();
   for (const t of ticks) {
     const m = Math.floor(t.offset_s / 60);
     let e = byMin.get(m);
     if (!e) {
-      e = { v: [], bv: [], c: 0, bc: [] };
+      e = { v: [], bv: [], c: 0, bc: [], cm: [] };
       byMin.set(m, e);
     }
     e.v.push(t.viewers);
+    e.cm.push(t.comment_rate);
     if (t.baseline_viewers != null) e.bv.push(t.baseline_viewers);
     if (t.baseline_clicks_per_min != null) e.bc.push(t.baseline_clicks_per_min);
     e.c += t.click_count;
@@ -66,6 +86,7 @@ function toMinutePoints(ticks: Tick[]): MinutePoint[] {
     .sort((a, b) => a[0] - b[0])
     .map(([m, e]) => ({
       offset_s: m * 60,
+      comments: avg(e.cm),
       viewers: avg(e.v),
       baselineViewers: avg(e.bv),
       clicksPerMin: e.c,
@@ -102,7 +123,106 @@ function RhythmTooltip({ active, payload, label }: TooltipProps<number, string>)
 const AXIS_TICK = { fill: CHART.dim, fontSize: 13 } as const;
 const MARGIN = { top: 4, right: 12, left: 0, bottom: 0 } as const;
 
-export default function RhythmChart({ ticks }: { ticks: Tick[] }) {
+/**
+ * Dải thay cho một panel không có nguồn. Cùng ngôn ngữ với thẻ tín hiệu
+ * ("THIẾU nguồn" + lý do nguyên văn của máy chủ) để hai chỗ không mâu thuẫn
+ * nhau trên cùng một màn hình.
+ */
+function MissingRow({ label, reason }: { label: string; reason: string }) {
+  return (
+    <div className="flex shrink-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 rounded-md border border-hairline bg-raised px-2.5 py-1.5">
+      <span className="shrink-0 text-label uppercase text-dim">{label}</span>
+      <span className="shrink-0 text-meta font-bold tracking-wide text-dim">THIẾU nguồn</span>
+      <span className="min-w-0 flex-1 truncate text-meta leading-snug text-dim" title={reason}>
+        {reason}
+      </span>
+    </div>
+  );
+}
+
+interface SeriesSpec {
+  key: keyof MinutePoint;
+  name: string;
+  color: string;
+  dashed?: boolean;
+}
+
+/** Một panel biểu đồ: trục y riêng, trục x chung (chỉ panel cuối in nhãn). */
+function Panel({
+  data,
+  series,
+  showAxis,
+  className,
+}: {
+  data: MinutePoint[];
+  series: SeriesSpec[];
+  showAxis: boolean;
+  className: string;
+}) {
+  return (
+    <div className={className}>
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data} syncId="rhythm" margin={MARGIN}>
+          <CartesianGrid stroke={CHART.grid} strokeWidth={1} vertical={false} />
+          {showAxis ? (
+            <XAxis
+              dataKey="offset_s"
+              tickFormatter={fmtMinuteTick}
+              tick={AXIS_TICK}
+              axisLine={{ stroke: CHART.axis }}
+              tickLine={false}
+              interval="preserveStartEnd"
+              minTickGap={40}
+            />
+          ) : (
+            <XAxis dataKey="offset_s" hide />
+          )}
+          <YAxis
+            width={44}
+            tick={AXIS_TICK}
+            axisLine={false}
+            tickLine={false}
+            domain={[0, "auto"]}
+            allowDecimals={false}
+          />
+          <Tooltip
+            content={<RhythmTooltip />}
+            cursor={{ stroke: CHART.axis, strokeWidth: 1 }}
+            isAnimationActive={false}
+          />
+          {series.map((s) => (
+            <Line
+              key={String(s.key)}
+              name={s.name}
+              type="monotone"
+              dataKey={s.key}
+              stroke={s.color}
+              strokeWidth={2}
+              strokeDasharray={s.dashed ? "5 4" : undefined}
+              dot={false}
+              activeDot={s.dashed ? false : { r: 4, stroke: CHART.surface, strokeWidth: 2 }}
+              isAnimationActive={false}
+              connectNulls
+            />
+          ))}
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+interface Props {
+  ticks: Tick[];
+  /**
+   * Lý do tiếng Việt từ MA TRẬN TÍN HIỆU của máy chủ khi nguồn không đo được
+   * (`GET /sessions/{id}/signals`). `null`/bỏ trống = nguồn đo được, vẽ đường.
+   * Không bao giờ suy đoán theo nền tảng — đó là việc của máy chủ.
+   */
+  viewersMissing?: string | null;
+  clicksMissing?: string | null;
+}
+
+export default function RhythmChart({ ticks, viewersMissing, clicksMissing }: Props) {
   const data = useMemo(() => toMinutePoints(ticks), [ticks]);
 
   // Một điểm không vẽ thành đường: Recharts sẽ trả về khung trống có trục,
@@ -122,136 +242,99 @@ export default function RhythmChart({ ticks }: { ticks: Tick[] }) {
     );
   }
 
+  // Chỉ chú giải đường dự báo khi panel MANG nó thật sự được vẽ — chú giải cho
+  // một đường không có trên hình là một lời nói dối nhỏ nhưng vẫn là nói dối.
+  const hasBaseline =
+    (!viewersMissing && data.some((d) => d.baselineViewers != null)) ||
+    (!clicksMissing && data.some((d) => d.baselineClicks != null));
+  // Panel cuối CÙNG CÓ VẼ mới in nhãn phút — nếu trục x rơi vào một dải THIẾU
+  // thì cả biểu đồ mất thang thời gian.
+  const drawn: ("comments" | "viewers" | "clicks")[] = ["comments"];
+  if (!viewersMissing) drawn.push("viewers");
+  if (!clicksMissing) drawn.push("clicks");
+  const last = drawn[drawn.length - 1];
+
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      {/* legend — identity never by color alone */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 px-1 pb-1 text-meta text-sec">
+    <div className="flex h-full min-h-0 flex-col gap-1.5">
+      {/* legend — identity never by color alone, và chỉ liệt kê đường CÓ VẼ */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 px-1 text-meta text-sec">
         <span className="flex items-center gap-1.5">
-          <span className="inline-block h-0.5 w-4 rounded" style={{ background: CHART.s1 }} />
-          <Term tip="Số người đang xem phiên live tại mỗi phút.">Người xem</Term>
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-0.5 w-4 rounded" style={{ background: CHART.s2 }} />
-          <Term tip="Số lần người xem bấm vào link sản phẩm trong mỗi phút — chỉ số chính để so khối BẬT với khối TẮT.">
-            Lượt bấm link / phút
+          <span className="inline-block h-0.5 w-4 rounded" style={{ background: CHART.s3 }} />
+          <Term tip="Số bình luận mỗi phút — tín hiệu nhịp duy nhất luôn đo được khi phòng chat có người.">
+            Bình luận / phút
           </Term>
         </span>
-        <span className="flex items-center gap-1.5">
-          <svg width="18" height="4" aria-hidden>
-            <line
-              x1="0"
-              y1="2"
-              x2="18"
-              y2="2"
-              stroke={CHART.mut}
-              strokeWidth="2"
-              strokeDasharray="4 3"
-            />
-          </svg>
-          <Term tip="Con số từ mô hình dự báo — chưa qua thí nghiệm nên không có khoảng tin cậy.">
-            Đường dự báo baseline
-          </Term>
-        </span>
+        {!viewersMissing && (
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-0.5 w-4 rounded" style={{ background: CHART.s1 }} />
+            <Term tip="Số người đang xem phiên live tại mỗi phút.">Người xem</Term>
+          </span>
+        )}
+        {!clicksMissing && (
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-0.5 w-4 rounded" style={{ background: CHART.s2 }} />
+            <Term tip="Số lần người xem bấm vào link sản phẩm trong mỗi phút — chỉ số chính để so khối BẬT với khối TẮT.">
+              Lượt bấm link / phút
+            </Term>
+          </span>
+        )}
+        {hasBaseline && (
+          <span className="flex items-center gap-1.5">
+            <svg width="18" height="4" aria-hidden>
+              <line
+                x1="0"
+                y1="2"
+                x2="18"
+                y2="2"
+                stroke={CHART.mut}
+                strokeWidth="2"
+                strokeDasharray="4 3"
+              />
+            </svg>
+            <Term tip="Con số từ mô hình dự báo — chưa qua thí nghiệm nên không có khoảng tin cậy.">
+              Đường dự báo baseline
+            </Term>
+          </span>
+        )}
       </div>
 
-      {/* panel 1: viewers + forecast baseline */}
-      <div className="min-h-0 flex-[3]">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} syncId="rhythm" margin={MARGIN}>
-            <CartesianGrid stroke={CHART.grid} strokeWidth={1} vertical={false} />
-            <XAxis dataKey="offset_s" hide />
-            <YAxis
-              width={44}
-              tick={AXIS_TICK}
-              axisLine={false}
-              tickLine={false}
-              domain={[0, "auto"]}
-            />
-            <Tooltip
-              content={<RhythmTooltip />}
-              cursor={{ stroke: CHART.axis, strokeWidth: 1 }}
-              isAnimationActive={false}
-            />
-            <Line
-              name="Dự báo baseline"
-              type="monotone"
-              dataKey="baselineViewers"
-              stroke={CHART.mut}
-              strokeWidth={2}
-              strokeDasharray="5 4"
-              dot={false}
-              activeDot={false}
-              isAnimationActive={false}
-              connectNulls
-            />
-            <Line
-              name="Người xem"
-              type="monotone"
-              dataKey="viewers"
-              stroke={CHART.s1}
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 4, stroke: CHART.surface, strokeWidth: 2 }}
-              isAnimationActive={false}
-              connectNulls
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+      {/* panel 1: nhịp bình luận — nguồn thật của MỌI phiên có chat */}
+      <Panel
+        data={data}
+        series={[{ key: "comments", name: "Bình luận / phút", color: CHART.s3 }]}
+        showAxis={last === "comments"}
+        className="min-h-0 flex-[3]"
+      />
 
-      {/* panel 2: click rate per minute (own y-axis, same x) */}
-      <div className="min-h-0 flex-[2]">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} syncId="rhythm" margin={MARGIN}>
-            <CartesianGrid stroke={CHART.grid} strokeWidth={1} vertical={false} />
-            <XAxis
-              dataKey="offset_s"
-              tickFormatter={fmtMinuteTick}
-              tick={AXIS_TICK}
-              axisLine={{ stroke: CHART.axis }}
-              tickLine={false}
-              interval="preserveStartEnd"
-              minTickGap={40}
-            />
-            <YAxis
-              width={44}
-              tick={AXIS_TICK}
-              axisLine={false}
-              tickLine={false}
-              domain={[0, "auto"]}
-              allowDecimals={false}
-            />
-            <Tooltip
-              content={<RhythmTooltip />}
-              cursor={{ stroke: CHART.axis, strokeWidth: 1 }}
-              isAnimationActive={false}
-            />
-            <Line
-              name="Baseline bấm link"
-              type="monotone"
-              dataKey="baselineClicks"
-              stroke={CHART.mut}
-              strokeWidth={2}
-              strokeDasharray="5 4"
-              dot={false}
-              activeDot={false}
-              isAnimationActive={false}
-              connectNulls
-            />
-            <Line
-              name="Lượt bấm link / phút"
-              type="monotone"
-              dataKey="clicksPerMin"
-              stroke={CHART.s2}
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 4, stroke: CHART.surface, strokeWidth: 2 }}
-              isAnimationActive={false}
-              connectNulls
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+      {/* panel 2: người xem + baseline dự báo — hoặc dải THIẾU nguồn */}
+      {viewersMissing ? (
+        <MissingRow label="Người xem" reason={viewersMissing} />
+      ) : (
+        <Panel
+          data={data}
+          series={[
+            { key: "baselineViewers", name: "Dự báo baseline", color: CHART.mut, dashed: true },
+            { key: "viewers", name: "Người xem", color: CHART.s1 },
+          ]}
+          showAxis={last === "viewers"}
+          className="min-h-0 flex-[3]"
+        />
+      )}
+
+      {/* panel 3: lượt bấm link / phút — hoặc dải THIẾU nguồn */}
+      {clicksMissing ? (
+        <MissingRow label="Lượt bấm / phút" reason={clicksMissing} />
+      ) : (
+        <Panel
+          data={data}
+          series={[
+            { key: "baselineClicks", name: "Baseline bấm link", color: CHART.mut, dashed: true },
+            { key: "clicksPerMin", name: "Lượt bấm link / phút", color: CHART.s2 },
+          ]}
+          showAxis={last === "clicks"}
+          className="min-h-0 flex-[2]"
+        />
+      )}
     </div>
   );
 }

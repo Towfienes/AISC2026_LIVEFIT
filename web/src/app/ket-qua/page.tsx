@@ -22,14 +22,15 @@ import { useCallback, useEffect, useState } from "react";
 
 import TopNav from "@/components/TopNav";
 import Badge from "@/components/ui/Badge";
+import { buttonCls } from "@/components/ui/Button";
 import Callout from "@/components/ui/Callout";
 import Card from "@/components/ui/Card";
 import SectionTitle from "@/components/ui/SectionTitle";
 import Skeleton from "@/components/ui/Skeleton";
 import StatTile from "@/components/ui/StatTile";
-import { getExperimentSummary } from "@/lib/api";
-import { fmtPct } from "@/lib/format";
-import type { ExperimentSummary } from "@/lib/types";
+import { getExperimentSummary, listSessions } from "@/lib/api";
+import { fmtDateHCM, fmtPct } from "@/lib/format";
+import type { ExperimentSummary, SessionSummary } from "@/lib/types";
 
 /**
  * A permutation test cannot report a p below 1/(draws+1); print that floor
@@ -78,6 +79,8 @@ export default function KetQuaPage() {
   const [data, setData] = useState<ExperimentSummary | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  /** Phiên đã kết thúc — mỗi phiên có một trang báo cáo riêng (/bao-cao/[id]). */
+  const [endedSessions, setEndedSessions] = useState<SessionSummary[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -88,6 +91,14 @@ export default function KetQuaPage() {
       setErr("Không đọc được kết quả — kiểm tra máy chủ đã chạy chưa (docker compose up -d).");
     } finally {
       setLoading(false);
+    }
+    // Danh sách báo cáo phiên là phần phụ: hỏng thì chỉ vắng mục đó,
+    // không kéo đổ phần kết quả gộp phía trên.
+    try {
+      const sessions = await listSessions();
+      setEndedSessions(sessions.filter((s) => s.status === "ended").reverse());
+    } catch {
+      setEndedSessions([]);
     }
   }, []);
 
@@ -279,6 +290,33 @@ export default function KetQuaPage() {
               báo cáo riêng như kết quả khám phá; không đánh đồng hai loại.
             </p>
           </>
+        ) : null}
+
+        {/* Báo cáo từng phiên (gói UI-KOL): kết quả gộp ở trên là số khoa học
+            chung; mỗi phiên còn có một trang báo cáo đọc được cho người bán —
+            tổng quan, khoảnh khắc, phân bố ý định kèm caveat, ma trận tín hiệu. */}
+        {endedSessions.length > 0 ? (
+          <section className="mt-8">
+            <SectionTitle meta={`${endedSessions.length} phiên đã kết thúc`}>
+              Báo cáo từng phiên
+            </SectionTitle>
+            <Card padding="none" className="divide-y divide-white/10">
+              {endedSessions.slice(0, 15).map((s) => (
+                <div key={s.session_id} className="flex flex-wrap items-center gap-x-3 gap-y-1 p-3">
+                  <span className="min-w-0 flex-1 truncate text-body text-ink">
+                    {s.title ?? s.session_id}
+                  </span>
+                  <span className="shrink-0 text-meta text-dim">
+                    {s.platform}
+                    {s.start_ts ? ` · ${fmtDateHCM(s.start_ts)}` : ""}
+                  </span>
+                  <Link href={`/bao-cao/${s.session_id}`} className={buttonCls("ghost", "sm")}>
+                    Báo cáo phiên
+                  </Link>
+                </div>
+              ))}
+            </Card>
+          </section>
         ) : null}
       </main>
     </div>

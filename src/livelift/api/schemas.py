@@ -279,6 +279,43 @@ class TickOut(BaseModel):
     pinned_product_id: str | None = None
 
 
+ReactionKind = Literal["superchat", "gift", "sticker", "membership", "like"]
+
+
+class ReactionIn(BaseModel):
+    """One paid/visible audience event (migration 0007).
+
+    ``amount``/``currency`` are the PUBLIC purchase string the platform prints
+    for every viewer (e.g. Super Chat "50.000 ₫") — not PII. There is NO
+    author field on this model by design (hard rule 1): who sent the money is
+    never ingested. ``(platform, ext_id)`` is the idempotency key, exactly as
+    for comments.
+    """
+
+    kind: ReactionKind
+    ts_utc: datetime | None = None
+    amount: float | None = Field(default=None, ge=0)
+    currency: str | None = Field(default=None, min_length=1, max_length=16)
+    platform: Platform | None = None
+    ext_id: str | None = Field(default=None, min_length=1, max_length=128)
+
+    @field_validator("ts_utc")
+    @classmethod
+    def _ts_utc_aware(cls, v: datetime | None) -> datetime | None:
+        return _require_aware(v)
+
+
+class ReactionOut(BaseModel):
+    reaction_id: str
+    session_id: str
+    ts_utc: datetime
+    kind: ReactionKind
+    amount: float | None = None
+    currency: str | None = None
+    platform: str | None = None
+    ext_id: str | None = None
+
+
 # ---------------------------------------------------------------------------
 # Action cards (E2-04) and interventions
 # ---------------------------------------------------------------------------
@@ -468,6 +505,113 @@ class SignalCoverageOut(BaseModel):
     session_id: str
     signals: list[SignalStateOut]
     capabilities: list[CapabilityOut]
+
+
+# ---------------------------------------------------------------------------
+# Báo cáo sau phiên (post-live report)
+# ---------------------------------------------------------------------------
+
+
+class DinhBinhLuan(BaseModel):
+    """Đỉnh nhịp bình luận: giá trị + thời điểm (kiểu Feigua timeline)."""
+
+    gia_tri_per_phut: float
+    offset_s: float | None = None
+    ts: datetime
+
+
+class NguoiXemTomTat(BaseModel):
+    """Chỉ tồn tại khi có điểm đo mang SỐ NGƯỜI XEM THẬT (không đếm tick
+    placeholder của phiên replay)."""
+
+    dinh: float
+    trung_binh: float
+    n_diem_do: int
+
+
+class ReactionTomTat(BaseModel):
+    tong: int
+    theo_loai: dict[str, int]
+    tong_tien: dict[str, float] = Field(default_factory=dict)
+    """currency -> tổng tiền CÔNG KHAI của các sự kiện có amount; sự kiện
+    không mang số tiền (membership/gift) không đóng góp — không quy đổi,
+    không ước tính."""
+
+
+class BaoCaoTongQuan(BaseModel):
+    """Thẻ số tổng quan. QUY TẮC KHÔNG-BỊA-SỐ: mỗi ô hoặc có giá trị, hoặc
+    là None VÀ có lý do tiếng Việt trong ``thieu`` — không bao giờ 0 giả."""
+
+    thoi_luong_s: float | None = None
+    tong_binh_luan: int
+    dinh_binh_luan: DinhBinhLuan | None = None
+    nguoi_xem: NguoiXemTomTat | None = None
+    luot_nhap_hop_le: int | None = None
+    reactions: ReactionTomTat | None = None
+    thieu: dict[str, str] = Field(default_factory=dict)
+
+
+class KhoanhKhacOut(BaseModel):
+    """Một spike bình luận/phút trên dòng thời gian — mô tả là câu QUAN SÁT
+    có dán nhãn, không bao giờ là câu nhân quả."""
+
+    offset_s: float
+    ts: datetime | None = None
+    binh_luan_per_phut: float
+    nen_per_phut: float
+    ty_le: float | None = None
+    san_pham_dang_ghim: str | None = None
+    mo_ta: str
+
+
+class PhanBoYDinh(BaseModel):
+    tong: int
+    dem_theo_nhan: dict[str, int]
+    caveat: str
+    """BẮT BUỘC: precision của nhãn tự động phụ thuộc tỷ lệ nền từng lớp —
+    xem docs/benchmarks/live-fire-da-nguon.md. Client phải hiển thị kèm."""
+
+
+class KetQuaThiNghiem(BaseModel):
+    """Phần nhân quả của báo cáo — CHỈ cho phiên có lịch gán ngẫu nhiên, chạy
+    đúng đường analyze_outer đã tiền đăng ký và tôn trọng khóa §7."""
+
+    source: Literal["experiment"] = "experiment"
+    khoa: bool = False
+    ly_do_khoa: str | None = None
+    estimable: bool = False
+    n_blocks: int = 0
+    n_on: int = 0
+    n_off: int = 0
+    estimate: float | None = None
+    ci_low: float | None = None
+    ci_high: float | None = None
+    p_value: float | None = None
+    n_draws: int | None = None
+    message: str | None = None
+
+
+class BaoCaoOut(BaseModel):
+    """Báo cáo sau phiên — mọi con số mang nguồn, mọi khoảng trống được tuyên
+    bố qua ma trận tín hiệu, và phiên quan sát không bao giờ mang số nhân quả."""
+
+    session_id: str
+    tieu_de: str | None = None
+    platform: str
+    loai_phien: Literal["thi_nghiem", "quan_sat"]
+    nhan: str
+    tong_quan: BaoCaoTongQuan
+    tin_hieu: list[SignalStateOut]
+    nang_luc: list[CapabilityOut]
+    khoanh_khac: list[KhoanhKhacOut] = Field(default_factory=list)
+    khoanh_khac_ghi_chu: str | None = None
+    phan_bo_y_dinh: PhanBoYDinh
+    pii_da_che: dict[str, int] = Field(default_factory=dict)
+    ket_qua_thi_nghiem: KetQuaThiNghiem | None = None
+    """None cho phiên quan sát — nhãn ``nhan`` nói rõ vì sao."""
+    goi_y_chien_thuat: list[str] = Field(default_factory=list)
+    """Câu QUAN SÁT có dán nhãn ('— quan sát, chưa kiểm chứng nhân quả');
+    tuyệt đối không câu nhân quả cho phiên quan sát."""
 
 
 # ---------------------------------------------------------------------------

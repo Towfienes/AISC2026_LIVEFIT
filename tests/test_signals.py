@@ -23,6 +23,7 @@ def test_own_full_session_unlocks_everything_but_orders():
         n_comments=50,
         n_clicks=20,
         n_orders=0,
+        n_reactions=0,
     )
     assert cap(cov, "thí nghiệm").status == "ok"
     assert cap(cov, "tỷ lệ nhấp").status == "ok"
@@ -40,6 +41,7 @@ def test_external_vod_gets_observational_capabilities_only():
         n_comments=500,
         n_clicks=0,
         n_orders=0,
+        n_reactions=0,
         analysis_only=True,
     )
     assert cap(cov, "radar").status == "ok"
@@ -57,6 +59,7 @@ def test_degraded_telemetry_degrades_dependent_capabilities():
         n_comments=10,
         n_clicks=5,
         n_orders=0,
+        n_reactions=0,
     )
     assert cap(cov, "nhịp phiên").status == "degraded"
     assert cap(cov, "thí nghiệm").status == "degraded"
@@ -71,6 +74,7 @@ def test_no_shortlinks_means_ctr_is_declared_unmeasurable():
         n_comments=10,
         n_clicks=0,
         n_orders=0,
+        n_reactions=0,
     )
     assert cap(cov, "tỷ lệ nhấp").status == "missing"
     assert "link đo" in next(s for s in cov.signals if s.name == "clicks").detail
@@ -94,6 +98,7 @@ def test_comment_tempo_ticks_are_not_counted_as_viewer_telemetry():
         n_comments=23,
         n_clicks=0,
         n_orders=0,
+        n_reactions=0,
         analysis_only=True,
     )
     ticks = next(s for s in cov.signals if s.name == "ticks")
@@ -114,6 +119,7 @@ def test_partially_missing_viewer_numbers_degrade_the_ticks_signal():
         n_comments=10,
         n_clicks=5,
         n_orders=0,
+        n_reactions=0,
     )
     ticks = next(s for s in cov.signals if s.name == "ticks")
     assert ticks.status == "degraded"
@@ -145,7 +151,7 @@ def test_signals_endpoint_end_to_end(client):
     assert res.status_code == 200
     body = res.json()
     names = {s["name"] for s in body["signals"]}
-    assert names == {"schedule", "ticks", "comments", "clicks", "orders"}
+    assert names == {"schedule", "ticks", "comments", "clicks", "orders", "reactions"}
     schedule = next(s for s in body["signals"] if s["name"] == "schedule")
     assert schedule["status"] == "ok"
     exp = next(c for c in body["capabilities"] if "thí nghiệm" in c["name"])

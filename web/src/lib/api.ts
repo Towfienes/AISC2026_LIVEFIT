@@ -8,6 +8,7 @@
 
 import type {
   ActionCardData,
+  BaoCao,
   BlockInfo,
   CommentItem,
   DemoSeedResult,
@@ -15,10 +16,13 @@ import type {
   HostState,
   OverrideReason,
   Product,
+  ReactionItem,
   ReplayJob,
+  SessionDetail,
   SessionMode,
   SessionState,
   SessionSummary,
+  SignalCoverage,
   Tick,
 } from "./types";
 import { OVERRIDE_REASONS } from "./types";
@@ -307,6 +311,65 @@ export function getSchedule(sessionId: string): Promise<BlockInfo[]> {
 
 export function getReport(sessionId: string): Promise<unknown> {
   return request(`/sessions/${sessionId}/report`);
+}
+
+// ---------------------------------------------------------------------------
+// Gói UI-KOL: session detail (video embed), signal matrix, reactions, báo cáo
+// ---------------------------------------------------------------------------
+
+/** Full session row incl. the design blob (`video_id` for replay analyses). */
+export function getSessionDetail(sessionId: string): Promise<SessionDetail> {
+  return request<SessionDetail>(`/sessions/${sessionId}`);
+}
+
+/**
+ * Ma trận tín hiệu: what this session's data can honestly support. The desk
+ * renders signal tiles FROM this matrix — a missing source becomes a labeled
+ * "THIẾU nguồn" tile with the server's Vietnamese reason, never a fake 0.
+ */
+export function getSignalCoverage(sessionId: string): Promise<SignalCoverage> {
+  return request<SignalCoverage>(`/sessions/${sessionId}/signals`);
+}
+
+/** Paid/visible audience events (Super Chat/gift/sticker/membership). */
+export function getReactions(sessionId: string): Promise<ReactionItem[]> {
+  return request<ReactionItem[]>(`/sessions/${sessionId}/reactions`);
+}
+
+/** Báo cáo sau phiên — mọi con số mang nguồn, mọi khoảng trống được tuyên bố. */
+export function getBaoCao(sessionId: string): Promise<BaoCao> {
+  return request<BaoCao>(`/sessions/${sessionId}/bao-cao`, { timeoutMs: 15000 });
+}
+
+/**
+ * YouTube video id of a session, for the desk's embed frame.
+ *
+ * Source of truth is `design.video_id` (stored by the replay ingest since gói
+ * UI-KOL); older sessions fall back to parsing `design.source_url` with the
+ * same strict 11-char rule as the backend (`ingest.youtube_replay
+ * .extract_video_id`). Returns null when neither knows — the caller must show
+ * the gap, not a black frame.
+ */
+const YT_ID_RE = /^[A-Za-z0-9_-]{11}$/;
+const YT_URL_RES = [
+  /[?&]v=([A-Za-z0-9_-]{11})(?:[&#]|$)/,
+  /youtu\.be\/([A-Za-z0-9_-]{11})(?:[?&#]|$)/,
+  /\/(?:live|shorts|embed)\/([A-Za-z0-9_-]{11})(?:[?&#]|$)/,
+];
+
+export function youtubeVideoId(detail: SessionDetail | null): string | null {
+  const design = detail?.design;
+  if (!design) return null;
+  const stored = design.video_id;
+  if (typeof stored === "string" && YT_ID_RE.test(stored)) return stored;
+  const url = design.source_url;
+  if (typeof url === "string") {
+    for (const re of YT_URL_RES) {
+      const m = re.exec(url);
+      if (m) return m[1];
+    }
+  }
+  return null;
 }
 
 export function seedDemo(nSessions = 3): Promise<DemoSeedResult> {

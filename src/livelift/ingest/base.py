@@ -119,6 +119,28 @@ class RawTick:
             raise ValueError("RawTick.ts_utc must be timezone-aware (UTC)")
 
 
+@dataclass(frozen=True)
+class RawReaction:
+    """A paid/visible audience event: Super Chat, gift, sticker, membership,
+    like (schema value reserved — no current source provides likes).
+
+    ``amount``/``currency`` are the PUBLIC purchase string the platform prints
+    for everyone (e.g. "50.000 ₫") — not PII. There is deliberately NO author
+    field on this type: parsers never read who sent the money (hard rule 1).
+    """
+
+    platform: str
+    ext_id: str
+    ts_utc: datetime
+    kind: str  # superchat | gift | sticker | membership | like
+    amount: float | None = None
+    currency: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.ts_utc.tzinfo is None:
+            raise ValueError("RawReaction.ts_utc must be timezone-aware (UTC)")
+
+
 class IngestSink(Protocol):
     """Destination for normalized ingest events. Implementations must never
     raise out of ``post_*`` — a sink failure must not kill the read loop."""

@@ -8,7 +8,7 @@ never diverge."""
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any
 
 import numpy as np
@@ -24,9 +24,17 @@ from livelift.analysis.power import (
 from livelift.analysis.robust import ics_gate
 from livelift.api import service
 from livelift.api.schemas import (
+    BaoCaoOut,
+    BaoCaoTongQuan,
     ComplianceStats,
     DenominatorCheck,
+    DinhBinhLuan,
     ExperimentSummary,
+    KetQuaThiNghiem,
+    KhoanhKhacOut,
+    NguoiXemTomTat,
+    PhanBoYDinh,
+    ReactionTomTat,
     SessionReport,
     SignalCoverageOut,
 )
@@ -34,8 +42,11 @@ from livelift.api.service import StoreDep
 from livelift.config import get_settings
 from livelift.core.assigner import DesignParams
 from livelift.core.features import Event, block_frame, blocks_to_dicts
+from livelift.core.moments import DEFAULT_WINDOW, detect_comment_spikes
 from livelift.core.quality import derive_compliance
+from livelift.core.signals import SignalCoverage
 from livelift.core.signals import assess as assess_signals
+from livelift.nlp.labels import LABEL_DISPLAY
 
 router = APIRouter()
 
@@ -476,10 +487,9 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
     )
 
 
-@router.get("/sessions/{session_id}/signals", response_model=SignalCoverageOut)
-def session_signals(session_id: str, store: StoreDep) -> SignalCoverageOut:
-    """Signal coverage matrix: what this session's data can honestly support."""
-    session = service.require_session(store, session_id)
+def _signal_coverage(session: dict[str, Any], store) -> SignalCoverage:
+    """Coverage matrix for one session — shared by /signals and /bao-cao."""
+    session_id = session["session_id"]
     ticks = store.list_ticks(session_id)
     start, end = session.get("start_ts"), session.get("end_ts")
     coverage_share = 0.0
@@ -494,7 +504,7 @@ def session_signals(session_id: str, store: StoreDep) -> SignalCoverageOut:
     # counted separately — otherwise the matrix claims "nhịp phiên (người xem
     # theo thời gian)" on a session with no viewer number at all.
     n_with_viewers = sum(1 for t in ticks if float(t.get("viewers") or 0.0) > 0.0)
-    cov = assess_signals(
+    return assess_signals(
         has_schedule=bool(store.get_blocks(session_id)),
         n_ticks=len(ticks),
         n_ticks_with_viewers=n_with_viewers,
@@ -502,7 +512,327 @@ def session_signals(session_id: str, store: StoreDep) -> SignalCoverageOut:
         n_comments=len(store.list_comments(session_id)),
         n_clicks=len(store.list_clicks(session_id)),
         n_orders=len(getattr(store, "list_orders", lambda _sid: [])(session_id)),
+        n_reactions=len(store.list_reactions(session_id)),
+        platform=session.get("platform"),
         analysis_only=_is_analysis_only(session),
     )
-    d = cov.to_dict()
+
+
+@router.get("/sessions/{session_id}/signals", response_model=SignalCoverageOut)
+def session_signals(session_id: str, store: StoreDep) -> SignalCoverageOut:
+    """Signal coverage matrix: what this session's data can honestly support."""
+    session = service.require_session(store, session_id)
+    d = _signal_coverage(session, store).to_dict()
     return SignalCoverageOut(session_id=session_id, **d)
+
+
+# ---------------------------------------------------------------------------
+# Báo cáo sau phiên (post-live report)
+# ---------------------------------------------------------------------------
+
+OBS_SUFFIX = " — quan sát, chưa kiểm chứng nhân quả"
+
+INTENT_CAVEAT = (
+    "LƯU Ý BẮT BUỘC: nhãn ý định do bộ phân loại tự động gán; precision thực tế "
+    "phụ thuộc TỶ LỆ NỀN của từng lớp trong phiên (đối chiếu live-fire 19.126 "
+    "bình luận thật — docs/benchmarks/live-fire-da-nguon.md). Phân bố này chỉ "
+    "mô tả, không dùng để suy diễn nhân quả."
+)
+
+#: analyze_outer cần ≥ MIN_BLOCKS_PER_ARM (2) khối MỖI nhánh; dưới 4 khối đo
+#: được thì tuyên bố thiếu ngay thay vì gọi estimator với mảng gần rỗng.
+MIN_BAO_CAO_BLOCKS = 4
+
+BAO_CAO_FREEZE_NOTE = (
+    "Chỉ số vận hành (số khối, số bình luận, khoảnh khắc) vẫn hiển thị; "
+    "ước lượng hiệu ứng bị khóa theo tiền đăng ký §7."
+)
+
+
+def _finite(x: Any) -> float | None:
+    """None cho NaN/inf/None — không bao giờ serialize một số không tồn tại."""
+    if x is None:
+        return None
+    v = float(x)
+    return v if np.isfinite(v) else None
+
+
+def _signal_detail(cov: SignalCoverage, name: str) -> str:
+    return next(s.detail for s in cov.signals if s.name == name)
+
+
+def _bao_cao_tong_quan(
+    session: dict[str, Any], store, cov: SignalCoverage
+) -> tuple[BaoCaoTongQuan, dict[str, Any]]:
+    """Thẻ số tổng quan + dữ liệu trung gian cho các phần sau của báo cáo.
+
+    Không-bịa-số: mỗi ô hoặc mang giá trị đo được, hoặc là None kèm lý do
+    trong ``thieu`` lấy từ chính ma trận tín hiệu — cùng một câu chữ ở mọi nơi.
+    """
+    session_id = session["session_id"]
+    ticks = store.list_ticks(session_id)
+    comments = store.list_comments(session_id)
+    clicks = store.list_clicks(session_id)
+    reactions = store.list_reactions(session_id)
+    start, end = session.get("start_ts"), session.get("end_ts")
+
+    thieu: dict[str, str] = {}
+
+    if start is not None and end is not None:
+        thoi_luong_s: float | None = (end - start).total_seconds()
+    else:
+        thoi_luong_s = None
+        thieu["thoi_luong"] = "phiên chưa có đủ mốc bắt đầu/kết thúc"
+
+    dinh: DinhBinhLuan | None = None
+    rated = [t for t in ticks if float(t.get("comment_rate") or 0.0) > 0.0]
+    if rated:
+        peak = max(rated, key=lambda t: float(t["comment_rate"]))
+        offset = (peak["ts_bucket"] - start).total_seconds() if start is not None else None
+        dinh = DinhBinhLuan(
+            gia_tri_per_phut=float(peak["comment_rate"]),
+            offset_s=offset,
+            ts=peak["ts_bucket"],
+        )
+    else:
+        thieu["dinh_binh_luan"] = (
+            "không có điểm đo nhịp bình luận nào mang giá trị — chưa xác định được đỉnh"
+        )
+
+    viewer_vals = [float(t["viewers"]) for t in ticks if float(t.get("viewers") or 0.0) > 0.0]
+    nguoi_xem: NguoiXemTomTat | None = None
+    if viewer_vals:
+        nguoi_xem = NguoiXemTomTat(
+            dinh=max(viewer_vals),
+            trung_binh=float(sum(viewer_vals) / len(viewer_vals)),
+            n_diem_do=len(viewer_vals),
+        )
+    else:
+        thieu["nguoi_xem"] = _signal_detail(cov, "ticks")
+
+    if clicks:
+        luot_nhap: int | None = sum(1 for c in clicks if c.get("is_valid") is not False)
+    else:
+        luot_nhap = None
+        thieu["luot_nhap"] = _signal_detail(cov, "clicks")
+
+    reactions_out: ReactionTomTat | None = None
+    if reactions:
+        theo_loai: dict[str, int] = {}
+        tong_tien: dict[str, float] = {}
+        for r in reactions:
+            theo_loai[r["kind"]] = theo_loai.get(r["kind"], 0) + 1
+            amount = r.get("amount")
+            if amount is not None:
+                key = r.get("currency") or "khong_ro"
+                tong_tien[key] = tong_tien.get(key, 0.0) + float(amount)
+        reactions_out = ReactionTomTat(
+            tong=len(reactions), theo_loai=theo_loai, tong_tien=tong_tien
+        )
+    else:
+        thieu["reactions"] = _signal_detail(cov, "reactions")
+
+    tong_quan = BaoCaoTongQuan(
+        thoi_luong_s=thoi_luong_s,
+        tong_binh_luan=len(comments),
+        dinh_binh_luan=dinh,
+        nguoi_xem=nguoi_xem,
+        luot_nhap_hop_le=luot_nhap,
+        reactions=reactions_out,
+        thieu=thieu,
+    )
+    return tong_quan, {"ticks": ticks, "comments": comments}
+
+
+def _bao_cao_khoanh_khac(
+    session: dict[str, Any], ticks: list[dict[str, Any]], store
+) -> tuple[list[KhoanhKhacOut], str | None]:
+    """Spike bình luận/phút trên rolling window (core.moments — thuần, có test).
+
+    Chuỗi quá ngắn → TUYÊN BỐ ngắn qua ghi chú, không hạ ngưỡng để nặn ra
+    khoảnh khắc từ nhiễu.
+    """
+    if len(ticks) <= DEFAULT_WINDOW:
+        return [], (
+            f"Chuỗi quá ngắn để phát hiện khoảnh khắc: cần hơn {DEFAULT_WINDOW} "
+            f"điểm đo 30 giây làm nền, hiện có {len(ticks)} — không suy diễn từ chuỗi ngắn."
+        )
+    base = session.get("start_ts") or ticks[0]["ts_bucket"]
+    buckets = [
+        ((t["ts_bucket"] - base).total_seconds(), float(t.get("comment_rate") or 0.0))
+        for t in ticks
+    ]
+    moments = detect_comment_spikes(buckets)
+    if not moments:
+        return [], "Không có spike bình luận vượt ngưỡng trong phiên — nhịp chat tương đối đều."
+
+    by_offset = {round((t["ts_bucket"] - base).total_seconds()): t for t in ticks}
+    out: list[KhoanhKhacOut] = []
+    for m in sorted(moments, key=lambda m: m.offset_s):
+        tick = by_offset.get(round(m.offset_s))
+        pinned_name: str | None = None
+        if tick is not None and tick.get("pinned_product_id"):
+            product = store.get_product(tick["pinned_product_id"])
+            if product is not None:
+                pinned_name = product.get("name")
+        phut = int(m.offset_s // 60)
+        mo_ta = (
+            f"Phút {phut}: nhịp bình luận đạt {m.rate:.0f} tin/phút "
+            f"(nền 5 phút trước đó: {m.baseline:.0f})"
+        )
+        if pinned_name:
+            mo_ta += f" khi đang ghim '{pinned_name}'"
+        mo_ta += OBS_SUFFIX
+        out.append(
+            KhoanhKhacOut(
+                offset_s=m.offset_s,
+                ts=base + timedelta(seconds=m.offset_s),
+                binh_luan_per_phut=m.rate,
+                nen_per_phut=m.baseline,
+                ty_le=m.ratio,
+                san_pham_dang_ghim=pinned_name,
+                mo_ta=mo_ta,
+            )
+        )
+    return out, None
+
+
+def _bao_cao_ket_qua(session: dict[str, Any], store) -> KetQuaThiNghiem:
+    """Phần nhân quả — đúng đường analyze_outer tiền đăng ký, tôn trọng §7.
+
+    Freeze được kiểm TRƯỚC KHI ước lượng được tính: trong thời gian khóa,
+    estimator không chạy — không tồn tại con số nào để rò rỉ.
+    """
+    frame_all = _session_frame(session, store)
+    frame = [r for r in frame_all if r.get("measurable", True)]
+    zs = [int(r["z"]) for r in frame]
+    n_on, n_off = sum(zs), len(zs) - sum(zs)
+
+    freeze_reason = _results_freeze_reason(service.now_utc())
+    if freeze_reason is not None:
+        return KetQuaThiNghiem(
+            khoa=True,
+            ly_do_khoa=freeze_reason,
+            estimable=False,
+            n_blocks=len(frame),
+            n_on=n_on,
+            n_off=n_off,
+            message=BAO_CAO_FREEZE_NOTE,
+        )
+    if len(frame) < MIN_BAO_CAO_BLOCKS:
+        return KetQuaThiNghiem(
+            estimable=False,
+            n_blocks=len(frame),
+            n_on=n_on,
+            n_off=n_off,
+            message=(
+                f"Chưa đủ khối đo được để ước lượng ({len(frame)} khối, cần ≥ "
+                f"{MIN_BAO_CAO_BLOCKS}) — tuyên bố thiếu, không trả số."
+            ),
+        )
+
+    sid = session["session_id"]
+    res = analyze_outer(
+        np.array([r["y"] for r in frame], dtype=float),
+        np.array(zs, dtype=int),
+        np.array([sid] * len(frame)),
+        [r["phase"] for r in frame],
+        n_draws=1000,
+        seed=2026,
+        all_phases=[r["phase"] for r in frame_all],
+        all_session_ids=np.array([sid] * len(frame_all)),
+        analyzed_mask=np.array([bool(r.get("measurable", True)) for r in frame_all], dtype=bool),
+        design_params={sid: service.rebuild_design_params(session)},
+    )
+    return KetQuaThiNghiem(
+        estimable=res.estimable,
+        n_blocks=res.n_blocks,
+        n_on=res.n_on,
+        n_off=res.n_off,
+        estimate=_finite(res.estimate) if res.estimable else None,
+        ci_low=_finite(res.ci_low) if res.estimable else None,
+        ci_high=_finite(res.ci_high) if res.estimable else None,
+        p_value=_finite(res.p_value) if res.estimable else None,
+        n_draws=res.n_draws if res.estimable else None,
+        message=res.reason,
+    )
+
+
+def _bao_cao_goi_y(
+    khoanh_khac: list[KhoanhKhacOut], dem_theo_nhan: dict[str, int], tong_binh_luan: int
+) -> list[str]:
+    """Gợi ý chiến thuật: CHỈ câu quan sát, mỗi câu dán nhãn tường minh.
+
+    Không câu nào ở dạng nhân quả ("vì ghim X nên Y") — kể cả cho phiên thí
+    nghiệm, phần nhân quả duy nhất nằm ở ``ket_qua_thi_nghiem``.
+    """
+    out: list[str] = []
+    for kk in khoanh_khac:
+        phut = int(kk.offset_s // 60)
+        cau = f"Đỉnh bình luận rơi vào phút {phut} ({kk.binh_luan_per_phut:.0f} tin/phút)"
+        if kk.san_pham_dang_ghim:
+            cau += f" khi đang ghim '{kk.san_pham_dang_ghim}'"
+        cau += "; xem lại lời thoại đoạn này khi soạn kịch bản phiên sau" + OBS_SUFFIX
+        out.append(cau)
+    dang_chu_y = {k: v for k, v in dem_theo_nhan.items() if k not in ("khac", "khong_ro") and v > 0}
+    if dang_chu_y and tong_binh_luan > 0:
+        label, count = max(dang_chu_y.items(), key=lambda kv: kv[1])
+        # Tên hiển thị tiếng Việt, không lộ khóa snake_case ('chot_don') ra câu
+        # hướng người dùng — bắt gặp trên báo cáo buổi Achan 11/09.
+        ten_nhan = LABEL_DISPLAY.get(label, label)
+        out.append(
+            f"Ý định xuất hiện nhiều nhất trong chat là '{ten_nhan}' "
+            f"({count}/{tong_binh_luan} bình luận, nhãn tự động)" + OBS_SUFFIX
+        )
+    return out
+
+
+NHAN_QUAN_SAT = (
+    "báo cáo sau phiên — phiên QUAN SÁT: chỉ số mô tả, KHÔNG có số nhân quả "
+    "(không có lịch gán ngẫu nhiên để suy diễn)"
+)
+NHAN_THI_NGHIEM = (
+    "báo cáo sau phiên — phiên thí nghiệm: phần nhân quả chạy đúng đường phân tích tiền đăng ký"
+)
+
+
+@router.get("/sessions/{session_id}/bao-cao", response_model=BaoCaoOut)
+def session_bao_cao(session_id: str, store: StoreDep) -> BaoCaoOut:
+    """Báo cáo tổng hợp sau phiên: tổng quan, ma trận tín hiệu, khoảnh khắc,
+    phân bố ý định (kèm caveat bắt buộc), PII đã che, và — chỉ với phiên có
+    lịch gán — kết quả nhân quả qua đường analyze_outer, tôn trọng khóa §7."""
+    session = service.require_session(store, session_id)
+    observational = _is_analysis_only(session) or not store.get_blocks(session_id)
+
+    cov = _signal_coverage(session, store)
+    tong_quan, mid = _bao_cao_tong_quan(session, store, cov)
+    khoanh_khac, kk_ghi_chu = _bao_cao_khoanh_khac(session, mid["ticks"], store)
+
+    comments = mid["comments"]
+    dem_theo_nhan: dict[str, int] = {}
+    pii_da_che: dict[str, int] = {}
+    for c in comments:
+        label = c.get("intent_label") or "khong_ro"
+        dem_theo_nhan[label] = dem_theo_nhan.get(label, 0) + 1
+        for kind in c.get("pii_kinds") or []:
+            pii_da_che[kind] = pii_da_che.get(kind, 0) + 1
+
+    cov_dict = cov.to_dict()
+    return BaoCaoOut(
+        session_id=session_id,
+        tieu_de=session.get("title"),
+        platform=session.get("platform") or "khong_ro",
+        loai_phien="quan_sat" if observational else "thi_nghiem",
+        nhan=NHAN_QUAN_SAT if observational else NHAN_THI_NGHIEM,
+        tong_quan=tong_quan,
+        tin_hieu=cov_dict["signals"],
+        nang_luc=cov_dict["capabilities"],
+        khoanh_khac=khoanh_khac,
+        khoanh_khac_ghi_chu=kk_ghi_chu,
+        phan_bo_y_dinh=PhanBoYDinh(
+            tong=len(comments), dem_theo_nhan=dem_theo_nhan, caveat=INTENT_CAVEAT
+        ),
+        pii_da_che=pii_da_che,
+        ket_qua_thi_nghiem=None if observational else _bao_cao_ket_qua(session, store),
+        goi_y_chien_thuat=_bao_cao_goi_y(khoanh_khac, dem_theo_nhan, len(comments)),
+    )

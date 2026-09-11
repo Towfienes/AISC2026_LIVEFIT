@@ -69,6 +69,17 @@ Mọi truy cập đi qua **Caddy** (cổng 80/443) — cổng vào công khai du
 | <http://localhost/ket-qua> | Kết quả gộp: tác động, KTC 95%, p-value, bảng MDE |
 | <http://localhost/docs> | Toàn bộ API (OpenAPI, thử trực tiếp; REST đi qua tiền tố `/api`) |
 
+### 🧭 Chưa từng dùng? Đọc hướng dẫn từng nút bấm
+
+**[docs/HUONG-DAN-SU-DUNG.md](docs/HUONG-DAN-SU-DUNG.md)** — hướng dẫn cho
+**người dùng**, không cần biết kỹ thuật: LiveLift là web app mở bằng trình duyệt
+(không phải app điện thoại), mỗi bước ghi rõ *bấm nút nào · ở góc nào của màn
+hình · chuyện gì sẽ xảy ra · lỗi thì làm sao*, kèm **ảnh chụp thật từng bước**
+của 4 luồng: xem thử 30 giây → phân tích một buổi live YouTube có sẵn → chạy một
+phiên thí nghiệm thật (bàn điều khiển + màn hình host làm mù) → đọc kết quả.
+Có riêng mục **ai dùng màn nào** và mục **giới hạn hiện tại** nói thẳng những gì
+chưa làm được.
+
 > **Lên môi trường thật:** đặt `DOMAIN=<tên-miền>` trong `.env` (kèm
 > `NEXT_PUBLIC_API_URL=https://<tên-miền>/api`, rồi `docker compose build web`)
 > — Caddy tự xin chứng chỉ HTTPS, người xem bấm được shortlink đo click
@@ -217,7 +228,11 @@ flowchart LR
 ├── ops/                     # runbook phiên live, mẫu nhật ký, thư đối tác
 ├── docs/
 │   ├── TONG-KET-DU-AN.md    # ĐÃ ĐẠT · CẦN LÀM · TẦM NHÌN   ← đọc thứ hai
+│   ├── HUONG-DAN-SU-DUNG.md # hướng dẫn bấm từng nút cho người dùng (có ảnh)
 │   ├── HUONG-DAN-TEST.md    # kiểm thử từng khả năng
+│   ├── img/                 # ảnh chụp màn hình thật dùng trong hướng dẫn
+│   ├── nen-tang-ho-tro.md   # "test buổi live X thì làm sao" — bảng khả năng 8 nền tảng
+│   ├── huong-dan-facebook-token.md  # lấy Page token (~25 phút, không cần App Review)
 │   ├── benchmarks/          # số sinh lại được (intent, KuaiLive)
 │   ├── research/            # 7 báo cáo nghiên cứu đa nguồn
 │   └── incident-log.md      # 18 sự cố: root cause + gate chặn tái diễn

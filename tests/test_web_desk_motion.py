@@ -41,6 +41,7 @@ RHYTHM_CHART = SRC / "components" / "RhythmChart.tsx"
 COMMENT_RADAR = SRC / "components" / "CommentRadar.tsx"
 
 # Mọi thành phần /desk thực sự dựng (giống danh sách của gate bố cục).
+# Gói UI-KOL thêm LiveVideo + SignalTiles vào đường render — quét cùng luật.
 DESK_COMPONENTS = [
     "BlockClock.tsx",
     "StatusBar.tsx",
@@ -49,6 +50,8 @@ DESK_COMPONENTS = [
     "CommentFeed.tsx",
     "CommentRadar.tsx",
     "RhythmChart.tsx",
+    "LiveVideo.tsx",
+    "SignalTiles.tsx",
     "TopNav.tsx",
     "Term.tsx",
 ]

@@ -86,11 +86,12 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from livelift.config import get_settings
-from livelift.ingest.base import Backoff, RawComment, RawTick
+from livelift.ingest.base import Backoff, RawComment, RawReaction, RawTick
 
-# Deliberate intra-package reuse: emoji/custom-emoji handling must stay
-# identical between the VOD replay path and this live path.
-from livelift.ingest.youtube_replay import ERR_BOT_CHECK
+# Deliberate intra-package reuse: emoji/custom-emoji handling and the
+# renderer→reaction mapping must stay identical between the VOD replay path
+# and this live path.
+from livelift.ingest.youtube_replay import ERR_BOT_CHECK, REACTION_RENDERERS, parse_purchase_amount
 from livelift.ingest.youtube_replay import _runs_to_text as runs_to_text
 
 logger = logging.getLogger(__name__)
@@ -227,6 +228,75 @@ def parse_live_chat_actions(line: str) -> list[RawComment]:
                 author_ext_id=None,  # dropped at normalization — never transmitted
             )
         )
+    return out
+
+
+def parse_live_chat_reaction_actions(line: str) -> list[RawReaction]:
+    """Parse ONE ``.live_chat.json`` line into paid/reaction events.
+
+    Same line shapes as :func:`parse_live_chat_actions`; recognizes the
+    renderers in :data:`livelift.ingest.youtube_replay.REACTION_RENDERERS`
+    (Super Chat, paid sticker, membership, gift purchase) via their absolute
+    ``timestampUsec`` + ``id``. Gift REDEMPTIONS are excluded there — one
+    purchase, many recipient announcements — and likes never appear in the
+    chat stream at all: that absence is declared in the signal matrix, never
+    written as 0.
+
+    NOTE: the live runner does not pump this parser yet — the ingest loop
+    still delivers comments and ticks only, so the reactions signal for a live
+    YouTube session honestly reads THIẾU until the pump is wired (followup).
+
+    PRIVACY: only ``id``, ``timestampUsec`` and ``purchaseAmountText`` are
+    read; author name/channel fields are never touched.
+    """
+    line = line.strip()
+    if not line:
+        return []
+    try:
+        obj = loads(line)
+    except (JSONDecodeError, UnicodeDecodeError):
+        return []
+    if not isinstance(obj, dict):
+        return []
+
+    replay = obj.get("replayChatItemAction")
+    actions = replay.get("actions") if isinstance(replay, dict) else None
+    if not isinstance(actions, list):
+        return []
+
+    out: list[RawReaction] = []
+    for action in actions:
+        if not isinstance(action, dict):
+            continue
+        item = (action.get("addChatItemAction") or {}).get("item")
+        if not isinstance(item, dict):
+            continue
+        for renderer_key, kind in REACTION_RENDERERS.items():
+            renderer = item.get(renderer_key)
+            if not isinstance(renderer, dict):
+                continue
+            ext_id = renderer.get("id")
+            ts_usec = renderer.get("timestampUsec")
+            if not ext_id or ts_usec is None:
+                continue
+            try:
+                ts = datetime.fromtimestamp(int(ts_usec) / 1_000_000, UTC)
+            except (TypeError, ValueError, OSError, OverflowError):
+                continue
+            amount, currency = parse_purchase_amount(
+                (renderer.get("purchaseAmountText") or {}).get("simpleText")
+            )
+            out.append(
+                RawReaction(
+                    platform="youtube",
+                    ext_id=str(ext_id),
+                    ts_utc=ts,
+                    kind=kind,
+                    amount=amount,
+                    currency=currency,
+                )
+            )
+            break
     return out
 
 

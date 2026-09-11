@@ -143,6 +143,12 @@ class Store(Protocol):
     def add_comment(self, session_id: str, row: dict[str, Any]) -> dict[str, Any]: ...
     def list_comments(self, session_id: str) -> list[dict[str, Any]]: ...
 
+    # reactions (migration 0007): paid/visible audience events — superchat,
+    # gift, sticker, membership, like. amount/currency carry the PUBLIC money
+    # string YouTube prints in the chat frame; no author field exists here.
+    def add_reaction(self, session_id: str, row: dict[str, Any]) -> dict[str, Any]: ...
+    def list_reactions(self, session_id: str) -> list[dict[str, Any]]: ...
+
     # clicks
     def add_click(self, session_id: str | None, row: dict[str, Any]) -> dict[str, Any]: ...
     def list_clicks(self, session_id: str) -> list[dict[str, Any]]: ...
@@ -204,6 +210,10 @@ class InMemoryStore:
         # (platform, ext_id) -> stored row, per session: comment idempotency
         # (mirrors the partial unique index in migration 0002).
         self._comment_keys: dict[str, dict[tuple[str, str], dict[str, Any]]] = {}
+        self._reactions: dict[str, list[dict[str, Any]]] = {}
+        # (platform, ext_id) -> stored row, per session — same idempotency
+        # contract as comments (mirrors the partial unique index in 0007).
+        self._reaction_keys: dict[str, dict[tuple[str, str], dict[str, Any]]] = {}
         self._clicks: dict[str, list[dict[str, Any]]] = {}
         self._interventions: dict[str, list[dict[str, Any]]] = {}
         self._orders: dict[str, list[dict[str, Any]]] = {}
@@ -324,6 +334,25 @@ class InMemoryStore:
 
     def list_comments(self, session_id: str) -> list[dict[str, Any]]:
         return sorted((dict(c) for c in self._comments.get(session_id, [])), key=_by_ts("ts"))
+
+    # -- reactions (migration 0007) ----------------------------------------
+    def add_reaction(self, session_id: str, row: dict[str, Any]) -> dict[str, Any]:
+        # Idempotency on (platform, ext_id) when both are present — a
+        # duplicate delivery returns the EXISTING row, same contract as the
+        # partial unique index + ON CONFLICT DO NOTHING in Postgres.
+        platform, ext_id = row.get("platform"), row.get("ext_id")
+        stored = {"amount": None, "currency": None, **row}
+        if platform and ext_id:
+            keys = self._reaction_keys.setdefault(session_id, {})
+            existing = keys.get((platform, ext_id))
+            if existing is not None:
+                return dict(existing)
+            keys[(platform, ext_id)] = stored
+        self._reactions.setdefault(session_id, []).append(stored)
+        return dict(stored)
+
+    def list_reactions(self, session_id: str) -> list[dict[str, Any]]:
+        return sorted((dict(r) for r in self._reactions.get(session_id, [])), key=_by_ts("ts_utc"))
 
     # -- clicks ------------------------------------------------------------
     def add_click(self, session_id: str | None, row: dict[str, Any]) -> dict[str, Any]:
@@ -723,6 +752,48 @@ class PostgresStore:
     def list_comments(self, session_id: str) -> list[dict[str, Any]]:
         return self._all(
             "SELECT * FROM comment_event WHERE session_id = %s ORDER BY ts",
+            (session_id,),
+        )
+
+    # -- reactions (migration 0007) ----------------------------------------
+    def add_reaction(self, session_id: str, row: dict[str, Any]) -> dict[str, Any]:
+        # Same idempotency contract as comments: the partial unique index on
+        # (session_id, platform, ext_id) WHERE ext_id IS NOT NULL turns a
+        # duplicate delivery into DO NOTHING; the existing row is returned.
+        out = self._one(
+            """
+            INSERT INTO reaction_event
+                (reaction_id, session_id, ts_utc, kind, amount, currency, platform, ext_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (session_id, platform, ext_id) WHERE ext_id IS NOT NULL
+                DO NOTHING
+            RETURNING *
+            """,
+            (
+                row["reaction_id"],
+                session_id,
+                row["ts_utc"],
+                row["kind"],
+                row.get("amount"),
+                row.get("currency"),
+                row.get("platform"),
+                row.get("ext_id"),
+            ),
+        )
+        if out is None:  # duplicate — fetch the row that won
+            out = self._one(
+                """
+                SELECT * FROM reaction_event
+                WHERE session_id = %s AND platform = %s AND ext_id = %s
+                """,
+                (session_id, row.get("platform"), row.get("ext_id")),
+            )
+        assert out is not None
+        return out
+
+    def list_reactions(self, session_id: str) -> list[dict[str, Any]]:
+        return self._all(
+            "SELECT * FROM reaction_event WHERE session_id = %s ORDER BY ts_utc",
             (session_id,),
         )
 

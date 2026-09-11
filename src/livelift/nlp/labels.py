@@ -49,6 +49,25 @@ TRAINED_LABELS: tuple[str, ...] = (
 """Lớp của artifact đang đóng gói — phải khớp ``intent_clf.meta.json['labels']``."""
 
 
+LABEL_DISPLAY: dict[str, str] = {
+    "hoi_gia": "Hỏi giá",
+    "hoi_size": "Hỏi size",
+    "che_dat": "Chê đắt",
+    "chot_don": "Chốt đơn",
+    "van_chuyen": "Vận chuyển",
+    "chao_hoi": "Chào hỏi",
+    "cam_on_khen": "Cảm ơn / khen",
+    "hoi_sanpham": "Hỏi sản phẩm",
+    "hoi_daily": "Hỏi mở đại lý",
+    "bao_gia_shop": "Shop tự báo giá",
+    "khac": "Khác",
+}
+"""Tên hiển thị tiếng Việt CÓ DẤU cho từng nhãn — dùng ở mọi chuỗi hướng người
+dùng (báo cáo sau phiên, gợi ý chiến thuật). Khóa nhãn dạng snake_case là mã
+nội bộ, không được lộ nguyên văn ra câu tiếng Việt (quy tắc chuỗi hiển thị).
+Khớp với ``INTENT_META``/``INTENT_LABEL_EXT`` phía web."""
+
+
 # ---------------------------------------------------------------------------
 # Guideline một dòng mỗi lớp — nguồn cho prompt LLM và cho tài liệu
 # ---------------------------------------------------------------------------

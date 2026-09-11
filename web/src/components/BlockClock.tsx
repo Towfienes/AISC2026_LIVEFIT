@@ -170,11 +170,24 @@ interface Props {
   currentBlock: CurrentBlock | null;
   elapsedS: number;
   durationS: number;
-  viewers: number;
+  /**
+   * Người xem đồng thời — `null` khi phiên KHÔNG có nguồn đo (phiên replay:
+   * video đã kết thúc không còn lộ CCU, số 0 trong tick là chỗ trống chứ
+   * không phải phép đo). Vital hiện "—" cho null; không bao giờ in 0 giả.
+   */
+  viewers: number | null;
   /** Clicks in the last 60 s; null while no tick has landed yet. */
   clicksPerMin: number | null;
   /** Name of the product pinned right now, for the header's meta slot. */
   pinnedName: string | null;
+  /**
+   * Phiên QUAN SÁT — ma trận tín hiệu của máy chủ nói `schedule` là missing
+   * (gói UI-KOL). Khác hẳn "chưa tải xong lịch": ở đây lịch KHÔNG TỒN TẠI, nên
+   * "NGOÀI KHỐI · chưa tới khối đầu hoặc đã qua khối cuối" là một câu sai —
+   * nó ngụ ý có khối để ở ngoài. Mặc định `false`: chưa biết thì giữ nguyên
+   * cách nói cũ, không đoán.
+   */
+  observational?: boolean;
 }
 
 export default function BlockClock({
@@ -185,6 +198,7 @@ export default function BlockClock({
   viewers,
   clicksPerMin,
   pinnedName,
+  observational = false,
 }: Props) {
   const view = deriveCurrentBlock(blocks, currentBlock, elapsedS);
   const shape = view ? blockShape(view) : null;
@@ -194,12 +208,18 @@ export default function BlockClock({
 
   // Washout keeps its own word in caps: "trôi" set at 56px next to BẬT/TẮT
   // would read as a different KIND of label rather than a third state.
-  const chipWord = !view || !shape ? "NGOÀI KHỐI" : view.washout ? "TRÔI" : STATUS_TEXT[shape];
+  /** Không có lịch VÀ máy chủ đã xác nhận là phiên quan sát — không phải đang tải. */
+  const noSchedule = observational && !view;
+  const chipWord = view && shape ? (view.washout ? "TRÔI" : STATUS_TEXT[shape]) : "NGOÀI KHỐI";
   const chipSub = view
     ? view.washout
       ? "Khoảng chuyển tiếp — không tính vào kết quả"
       : `Khối #${view.index + 1}${view.phase ? ` · ${PHASE_LABEL[view.phase]}` : ""}`
     : "Chưa tới khối đầu hoặc đã qua khối cuối";
+  const heroWord = noSchedule ? "QUAN SÁT" : chipWord;
+  const heroSub = noSchedule
+    ? "Buổi live gốc không có lịch gán ngẫu nhiên — số liệu chỉ mô tả, không có tác động nhân quả"
+    : chipSub;
 
   /**
    * Danh tính của trạng thái hiện tại. Đổi khoá ⇒ (a) chữ trạng thái được gắn
@@ -214,7 +234,9 @@ export default function BlockClock({
       ? view.washout
         ? `Đã vào khoảng trôi trước khối ${view.index + 2}.`
         : `Khối ${view.index + 1} bắt đầu, trạng thái ${chipWord}.`
-      : "Phiên đã ra ngoài khung khối thí nghiệm.",
+      : noSchedule
+        ? "Phiên quan sát — không có lịch khối thí nghiệm."
+        : "Phiên đã ra ngoài khung khối thí nghiệm.",
   );
 
   return (
@@ -239,7 +261,9 @@ export default function BlockClock({
                 ? `, còn ${fmtMinSec(view.remainingS)} đến ranh giới khối kế`
                 : ""
             }.`
-          : "Phiên đang ở ngoài khung khối thí nghiệm."}
+          : noSchedule
+            ? "Phiên quan sát — không có lịch khối thí nghiệm."
+            : "Phiên đang ở ngoài khung khối thí nghiệm."}
       </p>
 
       {/* Vùng thông báo LỊCH SỰ — mỗi lần chuyển khối phát đúng một câu. Câu
@@ -261,16 +285,20 @@ export default function BlockClock({
             {shape ? <StatusMark shape={shape} size={26} inherit /> : null}
             <span className="min-w-0">
               <span className="block text-num-m leading-none tracking-tight xl:text-num-l">
-                {chipWord}
+                {heroWord}
               </span>
-              <span className="mt-1.5 block text-body text-sec">{chipSub}</span>
+              <span className="mt-1.5 block max-w-[36rem] text-body leading-snug text-sec">
+                {heroSub}
+              </span>
             </span>
           </span>
         </div>
 
         {/* đếm ngược tới ranh giới — con số vận hành liếc nhiều nhất.
-            KHÔNG transition, KHÔNG animation: chỉ đổi mực khi sắp tới ranh giới. */}
-        <div className="min-w-[9rem]">
+            KHÔNG transition, KHÔNG animation: chỉ đổi mực khi sắp tới ranh giới.
+            Phiên quan sát không có ranh giới nào để đếm: in "—" ở cỡ 72px chỉ
+            làm loãng màn hình, nên cả cụm rút đi (gói UI-KOL). */}
+        <div className={`min-w-[9rem] ${noSchedule ? "hidden" : ""}`}>
           <div className="text-label uppercase text-dim">Còn đến ranh giới khối</div>
           <div
             role="timer"
@@ -302,7 +330,7 @@ export default function BlockClock({
       </div>
 
       {/* tiến trình trong khối: cùng một thông tin với đếm ngược, dạng hình */}
-      <div className="mt-3 flex items-center gap-3">
+      <div className={`mt-3 flex items-center gap-3 ${noSchedule ? "hidden" : ""}`}>
         <div
           role="progressbar"
           aria-label="Tiến trình khối hiện tại"
@@ -326,9 +354,13 @@ export default function BlockClock({
         </span>
       </div>
 
-      <div className="mt-3">
-        <BlockStrip blocks={blocks} durationS={durationS} positionS={elapsedS} />
-      </div>
+      {/* Dải khối: phiên quan sát không có khối nào để vẽ, và chip ở trên đã
+          nói rõ lý do — dải rỗng chỉ lặp lại cùng một câu lần thứ hai. */}
+      {noSchedule ? null : (
+        <div className="mt-3">
+          <BlockStrip blocks={blocks} durationS={durationS} positionS={elapsedS} />
+        </div>
+      )}
     </Card>
   );
 }

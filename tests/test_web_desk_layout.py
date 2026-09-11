@@ -36,6 +36,8 @@ ACTION_CARD = SRC / "components" / "ActionCard.tsx"
 
 # Every component the /desk route actually renders (plus the shared primitives
 # it renders them with). Used by the sweeping gates below.
+# Gói UI-KOL (09/2026) added LiveVideo (khung xem live) and SignalTiles (dải
+# thẻ tín hiệu) to the render path — they are swept by the same gates.
 DESK_COMPONENTS = [
     "BlockClock.tsx",
     "StatusBar.tsx",
@@ -44,6 +46,8 @@ DESK_COMPONENTS = [
     "CommentFeed.tsx",
     "CommentRadar.tsx",
     "RhythmChart.tsx",
+    "LiveVideo.tsx",
+    "SignalTiles.tsx",
     "TopNav.tsx",
     "Term.tsx",
 ]

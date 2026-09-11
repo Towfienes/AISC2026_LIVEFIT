@@ -62,6 +62,19 @@ class Settings(BaseSettings):
     # cookies (nothing leaves the machine except the normal YouTube request).
     ytdlp_cookies_from_browser: str = ""
 
+    # Shopee Open Platform v2 (OFFICIAL API — hợp ToS). partner_id/partner_key
+    # đến từ tài khoản Open Platform của nhóm; shop_id/access_token đến từ luồng
+    # ủy quyền OAuth của CHÍNH shop mình. access_token chỉ sống 4 giờ và phải
+    # làm mới bằng refresh_token — xem docs/nen-tang-ho-tro.md §4.
+    shopee_partner_id: str = ""
+    shopee_partner_key: str = ""
+    shopee_shop_id: str = ""
+    shopee_access_token: str = ""
+    shopee_refresh_token: str = ""
+    # Cổng API theo vùng: "global" (gồm Việt Nam), "china", "brazil", "sandbox".
+    # Shopee KHÔNG có host riêng cho .vn — VN đi qua partner.shopeemobile.com.
+    shopee_region: str = "global"
+
 
 def _prefer_ipv4_loopback(url: str) -> str:
     """Rewrite a ``localhost`` host to ``127.0.0.1``.

@@ -40,7 +40,9 @@ from livelift.api.store import Store
 from livelift.ingest.pii import scrub
 from livelift.ingest.youtube_replay import (
     download_chat_replay,
+    extract_video_id,
     parse_live_chat_file,
+    parse_live_chat_reactions_file,
     synth_ticks_from_comments,
 )
 from livelift.nlp.intent import classify_with_confidence
@@ -129,6 +131,10 @@ def _run_job(job_id: str, url: str, store: Store) -> None:
 
         job.status = "ingesting"
         comments = parse_live_chat_file(result.chat_path)
+        # Paid events (Super Chat / gift / sticker / membership) come from the
+        # SAME file and must be read before it is deleted. The parser reads
+        # only offset, kind, public amount and event id — never the author.
+        reactions = parse_live_chat_reactions_file(result.chat_path)
         # Data hygiene: the raw file contains author names — delete it the
         # moment parsing is done; only (offset, text) pairs remain in memory.
         result.chat_path.unlink(missing_ok=True)
@@ -169,7 +175,16 @@ def _run_job(job_id: str, url: str, store: Store) -> None:
                 "status": "ended",
                 "start_ts": start_ts,
                 "end_ts": now,
-                "design": {"analysis_only": True, "source_url": url},
+                "design": {
+                    "analysis_only": True,
+                    "source_url": url,
+                    # Gói UI-KOL: the desk embeds the original video next to
+                    # the analysis. Prefer the canonical id from yt-dlp
+                    # metadata; fall back to parsing the submitted URL. None
+                    # when neither knows — the UI then states the gap instead
+                    # of showing a black frame.
+                    "video_id": result.video_id or extract_video_id(url),
+                },
             },
         )
 
@@ -188,6 +203,25 @@ def _run_job(job_id: str, url: str, store: Store) -> None:
                     "intent_label": intent,
                     "intent_confidence": intent_confidence,
                     "sentiment": None,
+                },
+            )
+
+        # Paid events (migration 0007): most VN sales streams have NONE
+        # (measured 0 Super Chat across the 11-replay live-fire corpus) — an
+        # empty list here is a legitimate outcome that the signal matrix
+        # declares as missing-with-reason, never as a fake 0.
+        for reaction in reactions:
+            store.add_reaction(
+                session_id,
+                {
+                    "reaction_id": service.new_id(),
+                    "session_id": session_id,
+                    "ts_utc": start_ts + timedelta(seconds=reaction.offset_s),
+                    "kind": reaction.kind,
+                    "amount": reaction.amount,
+                    "currency": reaction.currency,
+                    "platform": "youtube",
+                    "ext_id": reaction.ext_id,
                 },
             )
 

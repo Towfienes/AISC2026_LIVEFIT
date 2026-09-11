@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -46,12 +47,17 @@ class DownloadResult:
 
     ``chat_path`` is None exactly when ``error`` is set. ``error`` is a
     Vietnamese, user-facing message (surfaced verbatim in the job detail).
+    ``video_id`` is YouTube's canonical id from the metadata (gói UI-KOL): the
+    desk embeds the original video next to the analysis, and the id has to be
+    stored with the session — parsing it back out of an arbitrary URL later is
+    the fallback, not the source of truth.
     """
 
     chat_path: Path | None
     video_title: str
     duration_s: float
     error: str | None = None
+    video_id: str | None = None
 
 
 def _runs_to_text(message: dict[str, Any]) -> str:
@@ -73,6 +79,31 @@ def _runs_to_text(message: dict[str, Any]) -> str:
             elif emoji.get("emojiId"):
                 parts.append(str(emoji["emojiId"]))
     return "".join(parts)
+
+
+#: YouTube video ids: exactly 11 chars of [A-Za-z0-9_-] (stable since 2009).
+_VIDEO_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
+_VIDEO_ID_URL_RES = (
+    re.compile(r"[?&]v=([A-Za-z0-9_-]{11})(?:[&#]|$)"),
+    re.compile(r"youtu\.be/([A-Za-z0-9_-]{11})(?:[?&#]|$)"),
+    re.compile(r"/(?:live|shorts|embed)/([A-Za-z0-9_-]{11})(?:[?&#]|$)"),
+)
+
+
+def extract_video_id(url: str) -> str | None:
+    """Video id from a YouTube URL, or None when it cannot be determined.
+
+    Fallback for sessions whose ingest predates ``DownloadResult.video_id``
+    (and for tests that stub the download): handles ``watch?v=``, ``youtu.be/``,
+    ``/live/``, ``/shorts/`` and ``/embed/`` forms. Pure — no network. None,
+    never a guess: an embed built from a wrong id would show someone else's
+    video next to the session's numbers.
+    """
+    for pattern in _VIDEO_ID_URL_RES:
+        m = pattern.search(url)
+        if m is not None:
+            return m.group(1)
+    return None
 
 
 def parse_live_chat_line(line: str) -> tuple[float, str] | None:
@@ -129,6 +160,145 @@ def parse_live_chat_file(path: str | Path) -> list[tuple[float, str]]:
             if parsed is not None:
                 out.append(parsed)
     out.sort(key=lambda pair: pair[0])
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Paid / reaction events (Super Chat, gifts, stickers, memberships)
+# ---------------------------------------------------------------------------
+
+#: Renderer → reaction kind. Measured on the 11-replay live-fire corpus
+#: (11/09/2026), counting at the addChatItemAction level: 0 Super Chat,
+#: 0 paid sticker, 7 membership, 4 gift-purchase events. (A raw grep of the
+#: files says 10/8 — inflated by ``addLiveChatTickerItemAction`` embedding a
+#: full COPY of the same renderer in its showItemEndpoint; this parser reads
+#: only addChatItemAction items, so each event counts once.)
+#: ``liveChatSponsorshipsGiftRedemptionAnnouncementRenderer`` is deliberately
+#: ABSENT: a redemption is the recipient side of one gift purchase (measured
+#: 4 purchases vs 40 redemptions on the same streams — 4 × 10 gifts) —
+#: counting both would multiply one economic event by its recipient count.
+#: "like" never appears here: YouTube does not put hearts/likes in the chat
+#: replay at all — that gap is declared in the signal matrix, never faked.
+REACTION_RENDERERS: dict[str, str] = {
+    "liveChatPaidMessageRenderer": "superchat",
+    "liveChatPaidStickerRenderer": "sticker",
+    "liveChatMembershipItemRenderer": "membership",
+    "liveChatSponsorshipsGiftPurchaseAnnouncementRenderer": "gift",
+}
+
+
+@dataclass(frozen=True)
+class ReplayReaction:
+    """One paid/visible audience event from a VOD chat replay.
+
+    ``amount``/``currency`` come from YouTube's PUBLIC ``purchaseAmountText``
+    (the string printed in the chat frame, e.g. "50.000 ₫") — Super Chat and
+    paid stickers only; memberships and gift purchases carry no money string,
+    so both stay None there (never a fake 0). No author field exists on this
+    type by design (hard rule 1).
+    """
+
+    offset_s: float
+    kind: str  # superchat | sticker | membership | gift
+    amount: float | None
+    currency: str | None
+    ext_id: str | None
+
+
+_AMOUNT_NUM_RE = re.compile(r"\d[\d.,\s]*")
+
+
+def parse_purchase_amount(text: str | None) -> tuple[float | None, str | None]:
+    """Split a public purchase string into ``(amount, currency_token)``.
+
+    Handles the formats YouTube actually renders: "50.000 ₫" (dot as thousands
+    separator), "$5.00" / "SGD 10.50" (two decimal digits), "¥1,000". The rule:
+    a final separator group of exactly two digits is the decimal part; every
+    other separator is a thousands separator. The currency token is whatever
+    non-numeric text remains ("₫", "$", "SGD"), kept verbatim — no exchange
+    rate, no normalization, no guessing. Unparseable → (None, None): a missing
+    amount is declared missing, never written as 0.
+    """
+    if not text:
+        return (None, None)
+    m = _AMOUNT_NUM_RE.search(text)
+    if m is None:
+        return (None, None)
+    # \s via re.sub (not str.replace) — YouTube separates digit groups
+    # with NBSP / narrow NBSP as well as plain spaces.
+    num = re.sub(r"\s", "", m.group(0)).strip(".,")
+    currency = (text[: m.start()] + text[m.end() :]).strip() or None
+    parts = re.split(r"[.,]", num)
+    try:
+        if len(parts) > 1 and len(parts[-1]) == 2:
+            value = float("".join(parts[:-1]) + "." + parts[-1])
+        else:
+            value = float("".join(parts))
+    except ValueError:
+        return (None, None)
+    return (value, currency)
+
+
+def parse_live_chat_reaction_line(line: str) -> ReplayReaction | None:
+    """Parse ONE ``.live_chat.json`` line into a :class:`ReplayReaction`.
+
+    Returns None for text chat, placeholders, redemption announcements and
+    malformed lines. PRIVACY (hard rule 1): only the video offset, the
+    renderer ``id`` and ``purchaseAmountText`` are read — author name/channel
+    fields present in every one of these renderers are never touched.
+    """
+    line = line.strip()
+    if not line:
+        return None
+    try:
+        obj = json.loads(line)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    if not isinstance(obj, dict):
+        return None
+
+    replay = obj.get("replayChatItemAction") or {}
+    offset_raw = replay.get("videoOffsetTimeMsec", obj.get("videoOffsetTimeMsec"))
+    if offset_raw is None:
+        return None
+    try:
+        offset_s = float(offset_raw) / 1000.0
+    except (TypeError, ValueError):
+        return None
+
+    actions = replay.get("actions") or []
+    if not actions:
+        return None
+    item = ((actions[0].get("addChatItemAction") or {}).get("item")) or {}
+    if not isinstance(item, dict):
+        return None
+    for renderer_key, kind in REACTION_RENDERERS.items():
+        renderer = item.get(renderer_key)
+        if not isinstance(renderer, dict):
+            continue
+        amount, currency = parse_purchase_amount(
+            (renderer.get("purchaseAmountText") or {}).get("simpleText")
+        )
+        ext_id = renderer.get("id")
+        return ReplayReaction(
+            offset_s=offset_s,
+            kind=kind,
+            amount=amount,
+            currency=currency,
+            ext_id=str(ext_id) if ext_id else None,
+        )
+    return None
+
+
+def parse_live_chat_reactions_file(path: str | Path) -> list[ReplayReaction]:
+    """All reaction events of a ``.live_chat.json`` file, sorted by offset."""
+    out: list[ReplayReaction] = []
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            parsed = parse_live_chat_reaction_line(line)
+            if parsed is not None:
+                out.append(parsed)
+    out.sort(key=lambda r: r.offset_s)
     return out
 
 
@@ -207,13 +377,25 @@ def download_chat_replay(
     info = info or {}
     title = str(info.get("title") or "")
     duration_s = float(info.get("duration") or 0.0)
+    raw_id = str(info.get("id") or "")
+    video_id = raw_id if _VIDEO_ID_RE.match(raw_id) else None
     chat_path = out_dir / f"{info.get('id')}.live_chat.json"
     if not chat_path.exists():
         # Video exists but has no chat replay track (disabled or expired).
         return DownloadResult(
-            chat_path=None, video_title=title, duration_s=duration_s, error=ERR_NO_CHAT
+            chat_path=None,
+            video_title=title,
+            duration_s=duration_s,
+            error=ERR_NO_CHAT,
+            video_id=video_id,
         )
-    return DownloadResult(chat_path=chat_path, video_title=title, duration_s=duration_s, error=None)
+    return DownloadResult(
+        chat_path=chat_path,
+        video_title=title,
+        duration_s=duration_s,
+        error=None,
+        video_id=video_id,
+    )
 
 
 def synth_ticks_from_comments(

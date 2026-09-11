@@ -113,6 +113,15 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
   const [degraded, setDegraded] = useState<string | null>(null);
   /** Session start, used to turn API timestamps into seconds-since-start. */
   const sessionStartIso = useRef<string | null>(null);
+  /**
+   * Mốc nước cao nhất của bình luận đã nhận — poll chỉ lấy phần MỚI hơn mốc
+   * này. Là ref theo PHIÊN: phải trả về 0 mỗi lần đổi phiên (xem effect reset
+   * ngay dưới), nếu không phiên ngắn hơn phiên trước sẽ không có bình luận nào
+   * vượt mốc và feed đứng im ở "Chưa có bình luận nào" — một câu SAI trên một
+   * buổi có hàng nghìn bình luận (bắt gặp trên bàn buổi Achan 11/09: chọn buổi
+   * Trang sức 138 phút rồi đổi sang Achan 117 phút ⇒ 6.586 bình luận biến mất).
+   */
+  const lastCommentOffset = useRef(0);
 
   const session = useMemo(
     () => sessions.find((s) => s.session_id === sessionId) ?? null,
@@ -159,6 +168,7 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
     setManualPin(null);
     setTicks([]);
     setComments([]);
+    lastCommentOffset.current = 0;
     setCards([]);
     // Lịch khối là dữ liệu theo phiên: không được hiển thị lịch của phiên cũ
     // trên trục thời gian của phiên mới trong lúc chờ poll đầu tiên.
@@ -210,7 +220,6 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
   // -------------------------------------------------------------------------
   // LIVE mode: initial load + 5 s polling.
   // -------------------------------------------------------------------------
-  const lastCommentOffset = useRef(0);
   useEffect(() => {
     if (connection !== "live" || !sessionId) return;
     let cancelled = false;

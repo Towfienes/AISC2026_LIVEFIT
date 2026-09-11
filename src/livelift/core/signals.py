@@ -12,6 +12,16 @@ Signals:
   comments    chat messages, PII-scrubbed            (any source incl. VODs)
   clicks      self-hosted redirect hits              (only links we serve)
   orders      order records                          (manual/platform import)
+  reactions   paid/visible audience events           (Super Chat/gift/sticker/
+              membership from YouTube chat replay; like has NO source today)
+
+``reactions`` is graded per SOURCE, not per wish: a YouTube chat replay only
+carries Super Chat/sticker/membership/gift events IF the stream had any
+(measured 11/09/2026 on the 11-replay live-fire corpus: 0 Super Chat, 11 paid
+events total — 7 memberships + 4 gift purchases — and 8 of 11 streams had
+none); hearts/likes are never in the replay; the live YouTube ingest does not
+pump reactions yet; the TikTok source is not operational. Each of those
+absences is DECLARED with its reason — the tile shows THIẾU, never a fake 0.
 
 ``ticks`` means VIEWER telemetry, so a tick row only counts when it actually
 carries a viewer number. A replay analysis writes one tick per 30 s to carry
@@ -76,6 +86,8 @@ def assess(
     n_comments: int,
     n_clicks: int,
     n_orders: int,
+    n_reactions: int,
+    platform: str | None = None,
     analysis_only: bool = False,
 ) -> SignalCoverage:
     """Grade every signal and derive the capability ladder.
@@ -84,6 +96,13 @@ def assess(
     subset that carries a real concurrent-viewer number. They differ on replay
     analyses, where every row is comment tempo with a placeholder viewer count
     — such a session has NO viewer telemetry and must be graded that way.
+
+    ``n_reactions`` counts stored reaction events (Super Chat/gift/sticker/
+    membership/like). It is required, not defaulted, for the same reason as
+    ``n_ticks_with_viewers``: every caller has to say what it actually
+    measured. ``platform`` picks the honest per-source reason when the count
+    is zero — a replay with no paid events, a live ingest that does not pump
+    them yet, and a dead TikTok source are three different truths.
     """
     signals: list[SignalState] = []
 
@@ -162,6 +181,7 @@ def assess(
             else "chưa ghi nhận đơn — không đối soát được doanh thu",
         )
     )
+    signals.append(_reactions_state(n_reactions, platform, analysis_only))
 
     by = {s.name: s for s in signals}
     caps: list[Capability] = []
@@ -192,3 +212,38 @@ def assess(
     cap("đối soát doanh thu", ["orders"])
 
     return SignalCoverage(signals=tuple(signals), capabilities=tuple(caps))
+
+
+def _reactions_state(n_reactions: int, platform: str | None, analysis_only: bool) -> SignalState:
+    """Grade the reactions signal honestly PER SOURCE.
+
+    When events exist they are counted; when none exist the reason depends on
+    which source this session ran on — the number 0 alone would hide whether
+    the audience sent nothing or the pipeline cannot see it.
+    """
+    if n_reactions > 0:
+        return SignalState(
+            "reactions",
+            "ok",
+            f"{n_reactions} sự kiện Super Chat/quà/hội viên "
+            "(tim/like KHÔNG nằm trong nguồn chat — vắng mặt là thiếu nguồn, không phải 0)",
+        )
+    if platform == "replay" or analysis_only:
+        detail = (
+            "chat replay của buổi này không chứa sự kiện Super Chat/quà/hội viên nào — "
+            "và YouTube không lưu tim/like vào chat replay; ô trống là THIẾU nguồn, "
+            "không phải phép đo bằng 0"
+        )
+    elif platform == "youtube":
+        detail = (
+            "đường thu YouTube trực tiếp chưa bơm sự kiện tim/quà/Super Chat "
+            "(parser đã có, vòng ingest chưa nối) — hiển thị THIẾU, không hiển thị 0"
+        )
+    elif platform == "tiktok":
+        detail = (
+            "nguồn TikTok đang không hoạt động — chưa thu được tim/quà; "
+            "schema dùng chung đã sẵn sàng khi nguồn hồi phục"
+        )
+    else:
+        detail = "chưa có nguồn sự kiện tim/quà/Super Chat cho phiên này"
+    return SignalState("reactions", "missing", detail)

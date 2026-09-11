@@ -29,6 +29,20 @@ export interface SessionSummary {
   end_ts: string | null;
 }
 
+/**
+ * `GET /sessions/{id}` — SessionSummary plus the design blob. For a replay
+ * analysis the blob carries `analysis_only`, `source_url` and (gói UI-KOL)
+ * `video_id` — the YouTube id the desk embeds next to the numbers.
+ */
+export interface SessionDetail extends SessionSummary {
+  design: {
+    analysis_only?: boolean;
+    source_url?: string;
+    video_id?: string | null;
+    [key: string]: unknown;
+  } | null;
+}
+
 /** One switchback block — OPERATOR view only, never shipped to the host screen. */
 export interface BlockInfo {
   block_index: number;
@@ -278,6 +292,127 @@ export interface ReplayJob {
   video_title: string | null;
 }
 
+// ---------------------------------------------------------------------------
+// Signal coverage + báo cáo sau phiên (gói UI-KOL) — SHARED API CONTRACT
+//
+// The no-fabricated-numbers rule lives HERE for the UI: a signal the source
+// cannot provide arrives as status="missing" WITH a Vietnamese reason, and the
+// client renders the gap ("THIẾU nguồn") — never a fake 0.
+// ---------------------------------------------------------------------------
+
+export type SignalStatus = "ok" | "degraded" | "missing";
+
+/** One row of `GET /sessions/{id}/signals` — what this session can measure. */
+export interface SignalStateItem {
+  name: string;
+  status: SignalStatus;
+  detail: string; // Vietnamese reason, shown verbatim
+}
+
+export interface CapabilityItem {
+  name: string;
+  status: SignalStatus;
+  reason: string;
+}
+
+export interface SignalCoverage {
+  session_id: string;
+  signals: SignalStateItem[];
+  capabilities: CapabilityItem[];
+}
+
+/** One paid/visible audience event (`GET /sessions/{id}/reactions`).
+ * No author field exists anywhere on this path (hard rule 1). */
+export interface ReactionItem {
+  reaction_id: string;
+  ts_utc: string;
+  kind: "superchat" | "gift" | "sticker" | "membership" | "like";
+  amount: number | null;
+  currency: string | null;
+}
+
+/** `GET /sessions/{id}/bao-cao` — post-session report. Field names mirror
+ * `BaoCaoOut` in src/livelift/api/schemas.py exactly. */
+export interface BaoCaoDinhBinhLuan {
+  gia_tri_per_phut: number;
+  offset_s: number | null;
+  ts: string;
+}
+
+export interface BaoCaoNguoiXem {
+  dinh: number;
+  trung_binh: number;
+  n_diem_do: number;
+}
+
+export interface BaoCaoReactions {
+  tong: number;
+  theo_loai: Record<string, number>;
+  tong_tien: Record<string, number>;
+}
+
+/** Mỗi ô hoặc có giá trị, hoặc null VÀ có lý do trong `thieu` — không 0 giả. */
+export interface BaoCaoTongQuan {
+  thoi_luong_s: number | null;
+  tong_binh_luan: number;
+  dinh_binh_luan: BaoCaoDinhBinhLuan | null;
+  nguoi_xem: BaoCaoNguoiXem | null;
+  luot_nhap_hop_le: number | null;
+  reactions: BaoCaoReactions | null;
+  thieu: Record<string, string>;
+}
+
+export interface BaoCaoKhoanhKhac {
+  offset_s: number;
+  ts: string | null;
+  binh_luan_per_phut: number;
+  nen_per_phut: number;
+  ty_le: number | null;
+  san_pham_dang_ghim: string | null;
+  mo_ta: string; // câu quan sát đã dán nhãn — hiển thị nguyên văn
+}
+
+export interface BaoCaoYDinh {
+  tong: number;
+  dem_theo_nhan: Record<string, number>;
+  /** BẮT BUỘC hiển thị kèm phân bố — precision phụ thuộc tỷ lệ nền từng lớp. */
+  caveat: string;
+}
+
+export interface BaoCaoKetQuaThiNghiem {
+  source: "experiment";
+  khoa: boolean;
+  ly_do_khoa: string | null;
+  estimable: boolean;
+  n_blocks: number;
+  n_on: number;
+  n_off: number;
+  estimate: number | null;
+  ci_low: number | null;
+  ci_high: number | null;
+  p_value: number | null;
+  n_draws: number | null;
+  message: string | null;
+}
+
+export interface BaoCao {
+  session_id: string;
+  tieu_de: string | null;
+  platform: string;
+  loai_phien: "thi_nghiem" | "quan_sat";
+  nhan: string;
+  tong_quan: BaoCaoTongQuan;
+  tin_hieu: SignalStateItem[];
+  nang_luc: CapabilityItem[];
+  khoanh_khac: BaoCaoKhoanhKhac[];
+  khoanh_khac_ghi_chu: string | null;
+  phan_bo_y_dinh: BaoCaoYDinh;
+  pii_da_che: Record<string, number>;
+  /** null cho phiên quan sát — `nhan` nói rõ vì sao không có số nhân quả. */
+  ket_qua_thi_nghiem: BaoCaoKetQuaThiNghiem | null;
+  goi_y_chien_thuat: string[];
+}
+
 /** POST /demo/seed response. */
 export interface DemoSeedResult {
   session_ids: string[];
@@ -297,5 +432,6 @@ export const CHART = {
   ink: "#ffffff",
   s1: "#3987e5",
   s2: "#d95926",
+  s3: "#199e70", // nhịp bình luận — slot 3 (aqua) của bảng màu đã kiểm định
   on: "#9085e9", // block strip ON (slot 7 violet — not used by any chart series)
 } as const;

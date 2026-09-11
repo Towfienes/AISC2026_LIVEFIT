@@ -361,6 +361,48 @@ def test_event_tables_expose_no_mutation_method(name, store):
         assert callable(getattr(store, attr)), f"thiếu {attr}"
 
 
+def _reaction_row(kind: str = "superchat", ext_id: str | None = "sc-1", **extra) -> dict:
+    return {
+        "reaction_id": str(uuid.uuid4()),
+        "ts_utc": NOW,
+        "kind": kind,
+        "platform": "youtube" if ext_id else None,
+        "ext_id": ext_id,
+        **extra,
+    }
+
+
+@pytest.mark.parametrize(("name", "store"), list(_stores()), ids=lambda v: getattr(v, "backend", v))
+def test_reaction_roundtrip_and_idempotency_in_every_backend(name, store):
+    """Migration 0007 contract: reaction rows round-trip with amount/currency,
+    default them to NULL when absent (một sự kiện không mang tiền là None,
+    không phải 0 giả), and dedup on (platform, ext_id) like comments."""
+    if name == "postgres":
+        pytest.importorskip("psycopg")
+    sid = store.create_session(_session_row())["session_id"]
+
+    paid = store.add_reaction(sid, _reaction_row(amount=50000.0, currency="₫"))
+    assert paid["kind"] == "superchat"
+    assert paid["amount"] == 50000.0
+    assert paid["currency"] == "₫"
+
+    membership = store.add_reaction(sid, _reaction_row(kind="membership", ext_id="mb-1"))
+    assert membership["amount"] is None
+    assert membership["currency"] is None
+
+    # duplicate delivery returns the EXISTING row, không nhân đôi
+    dup = store.add_reaction(sid, _reaction_row(amount=50000.0, currency="₫"))
+    assert dup["reaction_id"] == paid["reaction_id"]
+    rows = store.list_reactions(sid)
+    assert len(rows) == 2
+    assert {r["kind"] for r in rows} == {"superchat", "membership"}
+
+    # no ext_id -> no dedup key -> both rows insert (manual/tiktok-future path)
+    store.add_reaction(sid, _reaction_row(kind="like", ext_id=None))
+    store.add_reaction(sid, _reaction_row(kind="like", ext_id=None))
+    assert len(store.list_reactions(sid)) == 4
+
+
 @pytest.mark.parametrize(("name", "store"), list(_stores()), ids=lambda v: getattr(v, "backend", v))
 def test_tick_bucket_upserts_in_every_backend(name, store):
     """Re-sending a tick for an existing (session, ts_bucket) must UPDATE the

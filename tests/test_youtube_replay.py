@@ -23,6 +23,7 @@ from livelift.api.store import InMemoryStore
 from livelift.ingest.youtube_replay import (
     ERR_NO_CHAT,
     DownloadResult,
+    extract_video_id,
     parse_live_chat_file,
     parse_live_chat_line,
     synth_ticks_from_comments,
@@ -212,6 +213,59 @@ def test_replay_route_end_to_end(client, monkeypatch):
     # the pooled experiment summary must not count the analysis session
     summary = client.get("/experiment/summary").json()
     assert summary["n_sessions"] == 0
+
+
+def test_extract_video_id_handles_the_real_url_forms():
+    """Gói UI-KOL: the desk embed needs the id, parsed strictly (11 chars)."""
+    for url in (
+        "https://www.youtube.com/watch?v=ZU_0QJzsR6w",
+        "https://www.youtube.com/watch?v=ZU_0QJzsR6w&t=120s",
+        "https://youtu.be/ZU_0QJzsR6w",
+        "https://youtu.be/ZU_0QJzsR6w?si=xxyy",
+        "https://www.youtube.com/live/ZU_0QJzsR6w",
+        "https://www.youtube.com/embed/ZU_0QJzsR6w#top",
+    ):
+        assert extract_video_id(url) == "ZU_0QJzsR6w", url
+    # Not an id: wrong length, wrong shape, or no video reference at all.
+    for url in (
+        "https://www.youtube.com/watch?v=vid123",
+        "https://www.youtube.com/@kenh/streams",
+        "https://vidu.vn/xem?v=ZU_0QJzsR6w!",
+    ):
+        assert extract_video_id(url) is None, url
+
+
+def test_replay_route_stores_the_video_id_for_the_desk_embed(client, monkeypatch):
+    """Gói UI-KOL: design.video_id — from yt-dlp metadata when the download
+    reports it, else parsed from the submitted URL, else honestly None."""
+    # (a) metadata id wins verbatim
+    fake = _fake_download()
+
+    def with_meta_id(url, out_dir, **kwargs):
+        base = fake(url, out_dir, **kwargs)
+        return DownloadResult(
+            chat_path=base.chat_path,
+            video_title=base.video_title,
+            duration_s=base.duration_s,
+            video_id="ZU_0QJzsR6w",
+        )
+
+    monkeypatch.setattr(replays, "download_chat_replay", with_meta_id)
+    r = client.post("/replays/youtube", json={"url": "https://youtu.be/ZU_0QJzsR6w"})
+    sid = client.get(f"/replays/jobs/{r.json()['job_id']}").json()["session_id"]
+    assert client.get(f"/sessions/{sid}").json()["design"]["video_id"] == "ZU_0QJzsR6w"
+
+    # (b) no metadata id -> fallback parses the URL
+    monkeypatch.setattr(replays, "download_chat_replay", _fake_download())
+    r = client.post("/replays/youtube", json={"url": "https://youtu.be/abcDEF12-45"})
+    sid = client.get(f"/replays/jobs/{r.json()['job_id']}").json()["session_id"]
+    assert client.get(f"/sessions/{sid}").json()["design"]["video_id"] == "abcDEF12-45"
+
+    # (c) neither knows -> None, never a guess (the UI states the gap)
+    monkeypatch.setattr(replays, "download_chat_replay", _fake_download())
+    r = client.post("/replays/youtube", json={"url": "https://www.youtube.com/watch?v=vid123"})
+    sid = client.get(f"/replays/jobs/{r.json()['job_id']}").json()["session_id"]
+    assert client.get(f"/sessions/{sid}").json()["design"]["video_id"] is None
 
 
 def test_replay_route_truncation_cap(client, monkeypatch):

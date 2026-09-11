@@ -23,7 +23,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Header, HTTPException
 
 from livelift.api import service
-from livelift.api.schemas import CommentIn, CommentOut, TickIn, TickOut
+from livelift.api.schemas import CommentIn, CommentOut, ReactionIn, ReactionOut, TickIn, TickOut
 from livelift.api.service import StoreDep
 from livelift.config import get_settings
 from livelift.ingest.pii import scrub
@@ -167,3 +167,62 @@ def post_tick(session_id: str, body: TickIn, store: StoreDep) -> TickOut:
 def list_ticks(session_id: str, store: StoreDep) -> list[TickOut]:
     service.require_session(store, session_id)
     return [TickOut(**{**t, "session_id": session_id}) for t in store.list_ticks(session_id)]
+
+
+@router.post(
+    "/sessions/{session_id}/reactions",
+    response_model=ReactionOut,
+    dependencies=[IngestAuth],
+)
+def post_reaction(session_id: str, body: ReactionIn, store: StoreDep) -> ReactionOut:
+    """Store one paid/visible audience event (Super Chat, gift, sticker,
+    membership, like — migration 0007).
+
+    No author data exists on this path (hard rule 1): the model has no field
+    for who sent the money, only the public amount string. Idempotent on
+    (platform, ext_id), like comments — the runner may re-deliver freely.
+    """
+    service.require_session(store, session_id)
+    row = {
+        "reaction_id": service.new_id(),
+        "session_id": session_id,
+        "ts_utc": body.ts_utc or service.now_utc(),
+        "kind": body.kind,
+        "amount": body.amount,
+        "currency": body.currency,
+        "platform": body.platform,
+        "ext_id": body.ext_id,
+    }
+    stored = store.add_reaction(session_id, row)
+    is_duplicate = stored["reaction_id"] != row["reaction_id"]
+    out = ReactionOut(
+        reaction_id=stored["reaction_id"],
+        session_id=session_id,
+        ts_utc=stored["ts_utc"],
+        kind=stored["kind"],
+        amount=stored.get("amount"),
+        currency=stored.get("currency"),
+        platform=stored.get("platform"),
+        ext_id=stored.get("ext_id"),
+    )
+    if not is_duplicate:
+        store.publish(session_id, {"type": "reaction", "data": out.model_dump(mode="json")})
+    return out
+
+
+@router.get("/sessions/{session_id}/reactions", response_model=list[ReactionOut])
+def list_reactions(session_id: str, store: StoreDep) -> list[ReactionOut]:
+    service.require_session(store, session_id)
+    return [
+        ReactionOut(
+            reaction_id=r["reaction_id"],
+            session_id=session_id,
+            ts_utc=r["ts_utc"],
+            kind=r["kind"],
+            amount=r.get("amount"),
+            currency=r.get("currency"),
+            platform=r.get("platform"),
+            ext_id=r.get("ext_id"),
+        )
+        for r in store.list_reactions(session_id)
+    ]

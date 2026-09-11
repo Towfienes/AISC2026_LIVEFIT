@@ -16,12 +16,17 @@
  * same rigid split left ~141 px of dead space under the cards.
  *
  * The desk is now a flowing document with a priority order, not a fitted
- * dashboard:
+ * dashboard (gói UI-KOL adds the media row — video + signal tiles — WITHOUT
+ * touching priority 1: the block clock stays the desk's scientific identity,
+ * the video is auxiliary context and is the FIRST thing to give way):
  *
  *   1. đồng hồ khối  — sticky at the top, never scrolls away;
  *   2. thẻ hành động — own column from `xl` up, first panel below `xl`;
- *   3. biểu đồ nhịp  — `min-h` floors so it can never collapse again;
- *   4. radar + feed  — the panel that gives way first.
+ *   3. dải thẻ tín hiệu + khung video — tiles are honest (a source that
+ *      cannot measure renders "THIẾU nguồn" with the matrix reason, never 0);
+ *      the video defaults to a collapsed button below `xl`;
+ *   4. biểu đồ nhịp  — `min-h` floors so it can never collapse again;
+ *   5. radar + feed  — the data panel that gives way first (video gives first).
  *
  * When the content no longer fits, the page SCROLLS (the browser scrollbar is
  * the indicator, and the card list adds its own "cuộn để xem hết" line) instead
@@ -38,7 +43,9 @@ import ActionCard from "@/components/ActionCard";
 import BlockClock from "@/components/BlockClock";
 import CommentFeed from "@/components/CommentFeed";
 import CommentRadar from "@/components/CommentRadar";
+import LiveVideo from "@/components/LiveVideo";
 import RhythmChart from "@/components/RhythmChart";
+import SignalTiles, { buildSignalTiles } from "@/components/SignalTiles";
 import StatusBar from "@/components/StatusBar";
 import TopNav from "@/components/TopNav";
 import Button, { buttonCls } from "@/components/ui/Button";
@@ -47,7 +54,8 @@ import Card from "@/components/ui/Card";
 import EmptyState from "@/components/ui/EmptyState";
 import SectionTitle from "@/components/ui/SectionTitle";
 import Skeleton from "@/components/ui/Skeleton";
-import type { ActionCardData } from "@/lib/types";
+import { getReactions, getSessionDetail, getSignalCoverage, youtubeVideoId } from "@/lib/api";
+import type { ActionCardData, SessionDetail, SignalCoverage } from "@/lib/types";
 import { useDesk } from "@/lib/useDesk";
 
 /** Clicks landed in the last 60 s — ticks are 30 s buckets, so this is the tail. */
@@ -108,26 +116,37 @@ function DeskSkeleton() {
           <Skeleton className="h-9 w-full" />
         </Card>
       </div>
-      <div className="grid flex-1 grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,30rem)] xl:grid-rows-[minmax(20rem,3fr)_minmax(16rem,2fr)]">
+      <div className="grid flex-1 grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,30rem)] xl:grid-rows-[auto_minmax(20rem,3fr)_minmax(16rem,2fr)]">
         <Card
           padding="sm"
-          className="flex min-h-[16rem] flex-col gap-2 xl:col-start-2 xl:row-span-2 xl:row-start-1"
+          className="flex min-h-[16rem] flex-col gap-2 xl:col-start-2 xl:row-span-3 xl:row-start-1"
         >
           <Skeleton className="h-4 w-32" />
           <Skeleton className="h-24" />
           <Skeleton className="h-24" />
           <Skeleton className="h-24" />
         </Card>
+        {/* dải media: khung video + 4 thẻ tín hiệu (gói UI-KOL) */}
+        <div className="flex flex-col gap-3 lg:flex-row xl:col-start-1 xl:row-start-1">
+          <Skeleton className="h-40 rounded-lg lg:basis-[24rem] lg:shrink-0" />
+          {/* hai cột minmax — không dùng grid-cols-2 cứng (gate bố cục UI-2) */}
+          <div className="grid flex-1 grid-cols-[repeat(2,minmax(0,1fr))] gap-2">
+            <Skeleton className="h-[4.5rem]" />
+            <Skeleton className="h-[4.5rem]" />
+            <Skeleton className="h-[4.5rem]" />
+            <Skeleton className="h-[4.5rem]" />
+          </div>
+        </div>
         <Card
           padding="sm"
-          className="flex min-h-[20rem] flex-col gap-2 xl:col-start-1 xl:row-start-1"
+          className="flex min-h-[20rem] flex-col gap-2 xl:col-start-1 xl:row-start-2"
         >
           <Skeleton className="h-4 w-24" />
           <Skeleton className="min-h-[14rem] flex-1" />
         </Card>
         <Card
           padding="sm"
-          className="flex min-h-[16rem] flex-col gap-2 xl:col-start-1 xl:row-start-2"
+          className="flex min-h-[16rem] flex-col gap-2 xl:col-start-1 xl:row-start-3"
         >
           <Skeleton className="h-4 w-40" />
           <Skeleton className="min-h-[6rem] flex-[2]" />
@@ -197,6 +216,103 @@ export default function DeskPage() {
     [desk.ticks, desk.elapsedS],
   );
   const cardList = useIsOverflowing(desk.cards.length);
+
+  /**
+   * Gói UI-KOL: session detail (video id for the embed), the signal matrix
+   * (what this session can honestly measure) and the paid-event count. The
+   * matrix is the AUTHORITY for the signal tiles: a tile whose source is
+   * missing renders "THIẾU nguồn" with the server's reason — never a fake 0.
+   */
+  const [videoDetail, setVideoDetail] = useState<SessionDetail | null>(null);
+  const [signalCov, setSignalCov] = useState<SignalCoverage | null>(null);
+  const [reactionsTotal, setReactionsTotal] = useState<number | null>(null);
+
+  useEffect(() => {
+    setVideoDetail(null);
+    setSignalCov(null);
+    setReactionsTotal(null);
+    if (desk.connection !== "live" || !desk.sessionId) return;
+    const sid = desk.sessionId;
+    let cancelled = false;
+    getSessionDetail(sid)
+      .then((d) => {
+        if (!cancelled) setVideoDetail(d);
+      })
+      .catch(() => {
+        // không tải được chi tiết phiên: khung video hiện trạng thái thiếu
+      });
+    const pullMatrix = () => {
+      getSignalCoverage(sid)
+        .then((c) => {
+          if (!cancelled) setSignalCov(c);
+        })
+        .catch(() => {
+          // ma trận chưa tải được: ô tín hiệu giữ trạng thái "—", không đoán
+        });
+      getReactions(sid)
+        .then((rs) => {
+          if (!cancelled) setReactionsTotal(rs.length);
+        })
+        .catch(() => {
+          // thiếu số đếm thì ô Tim & quà hiện "—" thay vì một số bịa
+        });
+    };
+    pullMatrix();
+    // Ma trận đổi chậm (nguồn xuất hiện/mất theo phút) — 30 giây là đủ tươi.
+    const timer = setInterval(pullMatrix, 30000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [desk.connection, desk.sessionId]);
+
+  const tiles = useMemo(
+    () =>
+      buildSignalTiles({
+        signals: signalCov,
+        connection: desk.connection,
+        viewers: desk.viewers,
+        ticks: desk.ticks,
+        clicksPerMin,
+        reactionsTotal,
+      }),
+    [signalCov, desk.connection, desk.viewers, desk.ticks, clicksPerMin, reactionsTotal],
+  );
+
+  /** Phiên replay không còn lộ CCU quá khứ — số 0 trong tick là chỗ trống,
+   * KHÔNG phải phép đo (signals.py), nên đồng hồ khối hiện "—" thay vì 0. */
+  const isReplaySession = desk.session?.platform === "replay";
+
+  /**
+   * Cùng luật cho lượt bấm: khi ma trận tín hiệu nói phiên KHÔNG có link đo
+   * (clicks = missing), tổng click_count của các tick chỉ là chỗ trống — đồng
+   * hồ khối phải hiện "—" như ô THIẾU bên dưới, không phải một số 0 giả.
+   * Chưa có ma trận (mock/đang tải) thì giữ số đo hiện có.
+   */
+  const clicksUnmeasured =
+    signalCov?.signals.some((s) => s.name === "clicks" && s.status === "missing") ?? false;
+  const honestClicksPerMin = clicksUnmeasured ? null : clicksPerMin;
+
+  /**
+   * Cùng ma trận, cùng luật, áp cho BIỂU ĐỒ NHỊP PHIÊN — khung lớn nhất của
+   * bàn. Trước gói UI-KOL nó luôn vẽ hai đường "người xem" và "lượt bấm/phút";
+   * trên phiên replay cả hai nguồn đều không tồn tại nên biểu đồ vẽ hai đường
+   * phẳng ở mức 0, mâu thuẫn thẳng với ô "THIẾU nguồn" ngay phía trên. Nay
+   * panel nào không có nguồn thì hiện dải THIẾU kèm lý do của máy chủ.
+   */
+  const missingReason = (name: string): string | null => {
+    const s = signalCov?.signals.find((x) => x.name === name);
+    return s && s.status === "missing" ? s.detail : null;
+  };
+  const viewersMissingReason = missingReason("ticks");
+  const clicksMissingReason = missingReason("clicks");
+  /**
+   * Phiên QUAN SÁT: máy chủ nói không có lịch gán ngẫu nhiên. Hai chỗ trên bàn
+   * phải nói thật thay vì hứa hão — đồng hồ khối (không có khối nào để ở
+   * "ngoài") và cột thẻ hành động (sẽ KHÔNG BAO GIỜ có thẻ, nên câu "thẻ mới
+   * sẽ tự hiện trong vài phút đầu phiên" là một lời hứa sai).
+   */
+  const observational = missingReason("schedule") != null;
 
   /**
    * `useDesk.execute` THROWS when the API refuses the command (and rolls the
@@ -289,21 +405,24 @@ export default function DeskPage() {
               currentBlock={desk.currentBlock}
               elapsedS={desk.elapsedS}
               durationS={desk.durationS}
-              viewers={desk.viewers}
-              clicksPerMin={clicksPerMin}
+              viewers={isReplaySession ? null : desk.viewers}
+              clicksPerMin={honestClicksPerMin}
               pinnedName={desk.pinned?.name ?? null}
+              observational={observational}
             />
           </div>
 
           {/* Cột phải giữ nguyên bề rộng thẻ hành động ở mọi màn ≥ xl; cột trái
               co giãn. Các `minmax(...)` là sàn chiều cao — lý do biểu đồ không
-              còn sập được về 4px. */}
-          <div className="grid flex-1 grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,30rem)] xl:grid-rows-[minmax(20rem,3fr)_minmax(16rem,2fr)]">
+              còn sập được về 4px. Hàng đầu (`auto`) là dải media của gói
+              UI-KOL: video + thẻ tín hiệu — không có sàn vì video là vùng
+              NHƯỜNG CHỖ ĐẦU TIÊN khi màn chật (ưu tiên G của spec). */}
+          <div className="grid flex-1 grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,30rem)] xl:grid-rows-[auto_minmax(20rem,3fr)_minmax(16rem,2fr)]">
             {/* Ưu tiên 2 — thẻ hành động */}
             <Card
               as="section"
               padding="sm"
-              className="flex min-h-[16rem] min-w-0 flex-col xl:col-start-2 xl:row-span-2 xl:row-start-1"
+              className="flex min-h-[16rem] min-w-0 flex-col xl:col-start-2 xl:row-span-3 xl:row-start-1"
             >
               <SectionTitle
                 className="mb-1.5"
@@ -322,11 +441,20 @@ export default function DeskPage() {
                 >
                   {desk.cards.length === 0 ? (
                     <div className="px-2 py-4">
-                      <p className="text-body text-sec">Chưa có gợi ý cho thời điểm này.</p>
+                      <p className="text-body text-sec">
+                        {observational
+                          ? "Phiên quan sát — không có thẻ hành động."
+                          : "Chưa có gợi ý cho thời điểm này."}
+                      </p>
                       <p className="mt-1 text-body leading-snug text-dim">
-                        Thẻ mới sẽ tự hiện khi hệ thống đủ số liệu — thường trong vài phút đầu
-                        phiên. Trong lúc đó cứ vận hành như thường lệ; bạn không cần chờ thẻ để ghim
-                        sản phẩm.
+                        {observational
+                          ? "Đây là buổi live của người khác, nạp lại để phân tích: hệ thống không " +
+                            "ghim được sản phẩm nào và cũng không có link đo để xếp hạng, nên sẽ " +
+                            "không có thẻ nào xuất hiện. Dải tín hiệu và nhịp bình luận bên trái " +
+                            "vẫn là số liệu thật của buổi đó."
+                          : "Thẻ mới sẽ tự hiện khi hệ thống đủ số liệu — thường trong vài phút " +
+                            "đầu phiên. Trong lúc đó cứ vận hành như thường lệ; bạn không cần chờ " +
+                            "thẻ để ghim sản phẩm."}
                       </p>
                     </div>
                   ) : (
@@ -355,11 +483,37 @@ export default function DeskPage() {
               </p>
             </Card>
 
-            {/* Ưu tiên 3 — nhịp phiên (chỉ số đầu ra chính của thí nghiệm) */}
+            {/* Ưu tiên 3 (gói UI-KOL) — dải media: khung video (bối cảnh, thu
+                gọn được và mặc định thu gọn dưới xl) + 4 thẻ tín hiệu trung
+                thực. Dưới lg các thẻ tín hiệu đứng TRƯỚC video (thứ tự nhường
+                chỗ G: dữ liệu là nhiệm vụ, video là tiện nghi). */}
+            <div className="flex min-w-0 flex-col gap-3 lg:flex-row xl:col-start-1 xl:row-start-1">
+              <LiveVideo
+                videoId={youtubeVideoId(videoDetail)}
+                platform={desk.session?.platform ?? null}
+                className="order-2 min-w-0 lg:order-1 lg:basis-[24rem] lg:shrink-0 2xl:basis-[34rem]"
+              />
+              <SignalTiles
+                tiles={tiles}
+                className="order-1 min-w-0 flex-1 lg:order-2"
+                meta={
+                  desk.sessionId ? (
+                    <Link
+                      href={`/bao-cao/${desk.sessionId}`}
+                      className="focus-ring rounded underline decoration-dotted underline-offset-2 transition-colors duration-short2 ease-emphasized hover:text-ink"
+                    >
+                      Báo cáo phiên →
+                    </Link>
+                  ) : undefined
+                }
+              />
+            </div>
+
+            {/* Ưu tiên 4 — nhịp phiên (chỉ số đầu ra chính của thí nghiệm) */}
             <Card
               as="section"
               padding="sm"
-              className="flex min-h-[20rem] min-w-0 flex-col xl:col-start-1 xl:row-start-1"
+              className="flex min-h-[20rem] min-w-0 flex-col xl:col-start-1 xl:row-start-2"
             >
               <SectionTitle className="mb-1.5" meta="gộp theo phút">
                 Nhịp phiên
@@ -367,15 +521,19 @@ export default function DeskPage() {
               {/* Trạng thái rỗng nằm TRONG RhythmChart: nó biết cần mấy phút
                   số liệu mới vẽ được đường, trang thì không. */}
               <div className="min-h-[14rem] flex-1">
-                <RhythmChart ticks={desk.ticks} />
+                <RhythmChart
+                  ticks={desk.ticks}
+                  viewersMissing={viewersMissingReason}
+                  clicksMissing={clicksMissingReason}
+                />
               </div>
             </Card>
 
-            {/* Ưu tiên 4 — radar bình luận + feed */}
+            {/* Ưu tiên 5 — radar bình luận + feed */}
             <Card
               as="section"
               padding="sm"
-              className="flex min-h-[16rem] min-w-0 flex-col xl:col-start-1 xl:row-start-2"
+              className="flex min-h-[16rem] min-w-0 flex-col xl:col-start-1 xl:row-start-3"
             >
               <SectionTitle className="mb-1.5" meta="5 phút gần nhất">
                 Radar bình luận

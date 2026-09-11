@@ -27,6 +27,7 @@ import httpx
 from livelift.config import get_settings
 from livelift.ingest.base import ApiSink, IngestSink
 from livelift.ingest.facebook import FacebookLiveClient
+from livelift.ingest.shopee import ShopeeLiveClient
 from livelift.ingest.youtube import YouTubeLiveChatClient
 from livelift.ingest.youtube_ytdlp import YouTubeYtdlpClient
 
@@ -34,7 +35,7 @@ logger = logging.getLogger("livelift.ingest.runner")
 
 HEARTBEAT_EVERY_S = 60.0
 
-PlatformClient = YouTubeLiveChatClient | FacebookLiveClient | YouTubeYtdlpClient
+PlatformClient = YouTubeLiveChatClient | FacebookLiveClient | YouTubeYtdlpClient | ShopeeLiveClient
 
 YOUTUBE_BACKENDS = ("api", "ytdlp")
 
@@ -132,6 +133,16 @@ def _build_client(platform: str) -> PlatformClient:
         return YouTubeLiveChatClient()
     if platform == "facebook":
         return FacebookLiveClient()
+    if platform == "shopee":
+        # Đường CHÍNH THỨC duy nhất trong repo vừa cho bình luận vừa cho
+        # tín hiệu chuyển đổi (gmv/orders/atc) — xem
+        # docs/nen-tang-ho-tro.md §4. Chỉ đọc được shop ĐÃ ủy quyền.
+        logger.info(
+            "Shopee Live: API chính thức (Open Platform v2), hợp Điều khoản dịch vụ. "
+            "Chỉ đọc được phiên của shop đã ủy quyền cho app này. Nhịp poll bình luận "
+            "PHẢI < 10s vì get_latest_comment_list chỉ trả cửa sổ 10 giây gần nhất."
+        )
+        return ShopeeLiveClient()
     raise ValueError(f"unsupported platform: {platform}")
 
 
@@ -175,11 +186,11 @@ def build_parser() -> argparse.ArgumentParser:
         prog="python -m livelift.ingest.runner",
         description="Stream one platform's live comments/viewers into the LiveLift API.",
     )
-    parser.add_argument("--platform", required=True, choices=["youtube", "facebook"])
+    parser.add_argument("--platform", required=True, choices=["youtube", "facebook", "shopee"])
     parser.add_argument(
         "--source-id",
         required=True,
-        help="YouTube video id or Facebook live-video id",
+        help="YouTube video id, Facebook live-video id, hoặc Shopee Live session_id",
     )
     parser.add_argument("--session-id", required=True, help="LiveLift session uuid")
     parser.add_argument("--api-url", default="http://localhost:8000")

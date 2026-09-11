@@ -32,16 +32,36 @@ def test_migrations_have_up_and_down_pairs():
     for m in migrations:
         assert m.up_sql.strip()
         assert m.down_sql.strip()
-    # every table created in up has a matching drop in down (E1-02 discipline)
-    first = migrations[0]
-    created = {
-        line.split()[2].strip("(").lower()
-        for line in first.up_sql.splitlines()
-        if line.strip().upper().startswith("CREATE TABLE")
-    }
-    dropped = {
-        line.split()[4].strip(";").lower()
-        for line in first.down_sql.splitlines()
-        if line.strip().upper().startswith("DROP TABLE IF EXISTS")
-    }
-    assert created <= dropped, f"missing drops for: {created - dropped}"
+    # EVERY migration's created tables have a matching drop in ITS OWN down
+    # (E1-02 discipline — generalized from first-only when 0007 landed).
+    for m in migrations:
+        created = {
+            line.split()[2].strip("(").lower()
+            for line in m.up_sql.splitlines()
+            if line.strip().upper().startswith("CREATE TABLE")
+        }
+        dropped = {
+            line.split()[4].strip(";").lower()
+            for line in m.down_sql.splitlines()
+            if line.strip().upper().startswith("DROP TABLE IF EXISTS")
+        }
+        missing = created - dropped
+        assert created <= dropped, f"{m.version:04d}_{m.name}: missing drops for {missing}"
+
+
+def test_migration_0007_reaction_event_discipline():
+    """Bảng reaction_event: đúng schema đã chốt (kind check 5 giá trị, amount/
+    currency NULL-able, dedup ext_id) và down gỡ sạch index + bảng."""
+    m = next(m for m in load_migrations() if m.version == 7)
+    assert m.name == "reaction_event"
+    up = m.up_sql
+    assert "CREATE TABLE reaction_event" in up
+    for kind in ("superchat", "gift", "sticker", "membership", "like"):
+        assert f"'{kind}'" in up
+    assert "amount" in up
+    assert "currency" in up
+    assert "WHERE ext_id IS NOT NULL" in up  # idempotency như comment_event
+    down = m.down_sql
+    assert "DROP TABLE IF EXISTS reaction_event" in down
+    assert "DROP INDEX IF EXISTS idx_reaction_platform_ext_id" in down
+    assert "DROP INDEX IF EXISTS idx_reaction_event_session_ts" in down

@@ -19,6 +19,7 @@ import CommentRadar from "@/components/CommentRadar";
 import ReplayControls from "@/components/ReplayControls";
 import RhythmChart from "@/components/RhythmChart";
 import { DemoBadge } from "@/components/StatusBar";
+import { buttonCls } from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import SectionTitle from "@/components/ui/SectionTitle";
 import Skeleton from "@/components/ui/Skeleton";
@@ -50,6 +51,18 @@ export default function ReplayPage() {
             PHÁT LẠI DỮ LIỆU THẬT — ghi ngày {recordedOn}
           </span>
         </div>
+        {/* Gói UI-KOL: người bán đang xem lại buổi live thường muốn biết
+            "cả buổi ra sao" chứ không chỉ phút đang tua — nút này mở thẳng
+            báo cáo sau phiên của ĐÚNG phiên đang phát lại. Tắt khi chưa chọn
+            được phiên nào (mock/đang tải) thay vì dẫn tới trang 404. */}
+        {rp.sessionId && rp.connection !== "mock" ? (
+          <Link
+            href={`/bao-cao/${rp.sessionId}`}
+            className={`${buttonCls("ghost", "sm")} shrink-0`}
+          >
+            Báo cáo phiên →
+          </Link>
+        ) : null}
       </header>
 
       <ReplayControls

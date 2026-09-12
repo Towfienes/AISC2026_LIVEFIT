@@ -34,7 +34,16 @@ Design decisions (docs/research/2026-08-24-switchback-design.md, synthesis §3.1
   al., SRSB, arXiv:2604.02489, Algorithm 3), which needs parallel units and
   cannot apply to one stream. Short sessions degrade the requirement
   gracefully (``realized_transition_pairs`` / ``constraint_met`` + a
-  pre-broadcast warning at the API layer) instead of looping forever.
+  pre-broadcast warning at the API layer) instead of looping forever — the
+  degradation level is computed by an EXACT feasibility search
+  (:func:`_transition_requirement`), never by an approximate bound: a bound
+  that over-promises by one pair makes the joint acceptance set empty and the
+  redraw loop grind to ``max_redraws`` (incident 12/09, HTTP 500 on every
+  layout of exactly 5 measurement blocks).
+- **Infeasible configurations never crash**: a session shorter than one block
+  raises :class:`ScheduleInfeasibleError` with a Vietnamese explanation and a
+  concrete alternative, which the API turns into a 400. An empty 500 is never
+  an acceptable answer to a configuration question.
 - **Boundary jitter**: interior block boundaries are shifted by ±``jitter_s``
   seconds so switches never sync with the show's script rhythm (Xiong, Chin &
   Taylor, arXiv:2406.06768).
@@ -54,12 +63,38 @@ import random
 import warnings
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field
+from functools import lru_cache
 from typing import Any
 
 PHASES = ("early", "mid", "late")
 
 ON = "ON"
 OFF = "OFF"
+
+
+class ScheduleInfeasibleError(ValueError):
+    """The requested design cannot produce a schedule at all.
+
+    Carries a Vietnamese, operator-readable explanation AND a concrete
+    alternative configuration. Subclasses :class:`ValueError` so callers that
+    already guard ``generate_schedule`` with ``except ValueError`` keep
+    working; the API layer catches it by name and answers 400, never 500 —
+    a configuration the operator can fix is a client answer, not a server
+    fault (incident 12/09).
+    """
+
+
+class RerandomizationExhaustedError(RuntimeError):
+    """``max_redraws`` draws went by without hitting the acceptance set.
+
+    Since 12/09 the requirement level is computed by exact feasibility search,
+    so the acceptance set is provably non-empty whenever this function is
+    reached — this exception therefore means "acceptable but astronomically
+    rare under the requested p", not "impossible". Kept as a loud backstop
+    rather than a silent relaxation: relaxing the constraint here would change
+    the assignment mechanism mid-flight and poison the randomization-test
+    reference distribution, which redraws through this very function.
+    """
 
 
 @dataclass(frozen=True)
@@ -210,7 +245,16 @@ def _block_lengths_min(duration_min: int, params: DesignParams) -> list[int]:
     """
     length, washout = params.block_min, params.washout_min
     if duration_min < length:
-        raise ValueError("session shorter than one block")
+        # A real, operator-fixable configuration mistake ("phiên 5 phút, khối
+        # 10 phút"). Say what is wrong AND what to type instead — before
+        # 12/09 this surfaced as an empty HTTP 500.
+        suggested = max(1, duration_min // 4)
+        raise ScheduleInfeasibleError(
+            f"Phiên {duration_min} phút ngắn hơn một khối {length} phút nên không sinh "
+            f"được lịch gán nào. Hãy chọn khối ≤ {duration_min} phút (gợi ý: "
+            f"{suggested} phút, cho khoảng 4 khối) hoặc kéo dài phiên lên ít nhất "
+            f"{length} phút."
+        )
 
     if params.endpoint_double:
         # total(n) = 4L + (n-2)L + (n-1)w  for n >= 2 doubled-endpoint layout
@@ -229,33 +273,145 @@ def _phase_of(midpoint_s: float, session_s: float) -> str:
     return PHASES[idx]
 
 
+_FEASIBILITY_STATE_BUDGET = 200_000
+"""Hard ceiling on the search frontier of :func:`_acceptance_set_nonempty`.
+
+Hitting it answers "not feasible", i.e. the requirement degrades one step
+further. The search may therefore be conservative, never optimistic — an
+optimistic answer is exactly what produced the 12/09 outage.
+"""
+
+
+def _acceptance_set_nonempty(
+    phases: tuple[str, ...],
+    min_per_arm_per_phase: int,
+    k: int,
+) -> bool:
+    """Does ANY assignment vector satisfy arm balance AND k transition pairs?
+
+    Constructive (a dynamic program that builds a witness), so a ``True``
+    answer means the acceptance set of :func:`draw_assignments` is non-empty —
+    which is the property the redraw loop needs and the old closed-form bound
+    did not deliver.
+
+    Acceptance is: every phase stratum holds ≥ ``required[ph]`` blocks of each
+    arm, and over the whole chain #(ON,ON) ≥ k, #(OFF,OFF) ≥ k,
+    |#(ON,ON) − #(OFF,OFF)| ≤ 1.
+
+    State per position: the still-open strata counters (each capped at its own
+    requirement — counting past it carries no information), the two same-arm
+    pair counts, and the previous arm. Two prunings keep it small and keep it
+    SOUND:
+
+    * a stratum's counters are dropped, after checking its requirement, once
+      its last block has been placed — for the contiguous strata this module
+      produces that leaves exactly one open stratum at a time;
+    * witnesses are searched with #(ON,ON) ≤ k+1 and #(OFF,OFF) ≤ k+1. Both
+      counts are non-decreasing along the chain, so this is not a mid-path
+      cut: it restricts the search to witnesses whose FINAL counts are that
+      small. Adding same-arm pairs is never forced by the arm-balance rule (a
+      strictly alternating chain has zero of them and satisfies every stratum
+      requirement ≤ size//2), so a minimal witness is expected to exist; if it
+      did not, the answer would be a needless extra degradation, never a
+      false promise. Checked against exhaustive enumeration for every
+      contiguous 3-stratum layout up to 13 blocks — 3.432 cases, zero
+      disagreement (``test_transition_requirement_matches_exhaustive_search``).
+    """
+    if k <= 0:
+        # No transition requirement. Arm balance alone is always satisfiable:
+        # required[ph] ≤ size//2 by construction, so half-and-half works.
+        return True
+    n = len(phases)
+    if n < 2:
+        return False
+
+    sizes: dict[str, int] = {}
+    for ph in phases:
+        sizes[ph] = sizes.get(ph, 0) + 1
+    required = {ph: min(min_per_arm_per_phase, size // 2) for ph, size in sizes.items()}
+    last_at = {ph: i for i, ph in enumerate(phases)}
+    cap = k + 1
+
+    # (open stratum counters, #(ON,ON), #(OFF,OFF), previous arm)
+    states: set[tuple[tuple[tuple[str, int, int], ...], int, int, str | None]] = {((), 0, 0, None)}
+    for i, ph in enumerate(phases):
+        req = required[ph]
+        counter_cap = req + 1
+        nxt: set[tuple[tuple[tuple[str, int, int], ...], int, int, str | None]] = set()
+        for counters, n_on_on, n_off_off, last in states:
+            open_counters = {c[0]: (c[1], c[2]) for c in counters}
+            on_seen, off_seen = open_counters.get(ph, (0, 0))
+            for arm in (ON, OFF):
+                a, b = n_on_on, n_off_off
+                if last == arm:
+                    if arm == ON:
+                        a += 1
+                    else:
+                        b += 1
+                if a > cap or b > cap:
+                    continue
+                new_on = min(on_seen + (1 if arm == ON else 0), counter_cap)
+                new_off = min(off_seen + (1 if arm == OFF else 0), counter_cap)
+                if i == last_at[ph]:
+                    if new_on < req or new_off < req:
+                        continue  # this stratum can never be repaired later
+                    kept = {p: v for p, v in open_counters.items() if p != ph}
+                else:
+                    kept = dict(open_counters)
+                    kept[ph] = (new_on, new_off)
+                nxt.add((tuple(sorted((p, u, v) for p, (u, v) in kept.items())), a, b, arm))
+        states = nxt
+        if not states:
+            return False
+        if len(states) > _FEASIBILITY_STATE_BUDGET:
+            return False  # bail out conservatively — never over-promise
+    return any(a >= k and b >= k and abs(a - b) <= 1 for _, a, b, _ in states)
+
+
+@lru_cache(maxsize=1024)
+def _transition_requirement_cached(
+    phases: tuple[str, ...],
+    min_per_arm_per_phase: int,
+    min_transition_pairs: int,
+) -> int:
+    if min_transition_pairs <= 0 or len(phases) < 2:
+        return 0
+    for k in range(min_transition_pairs, 0, -1):
+        if _acceptance_set_nonempty(phases, min_per_arm_per_phase, k):
+            return k
+    return 0
+
+
 def _transition_requirement(
-    phases: list[str],
+    phases: list[str] | tuple[str, ...],
     min_per_arm_per_phase: int,
     min_transition_pairs: int,
 ) -> int:
     """Same-arm adjacent-pair requirement the chain can actually support.
 
-    ``min_transition_pairs`` is a request; the feasibility cap keeps short
-    sessions from making the joint acceptance set empty (and the redraw loop
-    from spinning to ``max_redraws``): a chain of n blocks has n−1 adjacent
-    pairs, k pairs of each kind consume 2k of them, and every stratum with an
-    active arm-balance requirement forces at least one switch pair inside its
-    span (strata are contiguous by the midpoint definition), as does the mere
-    presence of both arms — so k ≤ (n_pairs − forced_switches) / 2. The cap is
-    a necessary bound, not a sufficiency proof; the ``max_redraws`` guard in
-    :func:`draw_assignments` stays as the loud backstop. Measured acceptance
-    rates for the standard 30–90-minute layouts are all comfortably nonzero
-    (research log 08/09).
+    ``min_transition_pairs`` is a request; short chains cannot hold it and the
+    requirement degrades to the largest level whose JOINT acceptance set (arm
+    balance ∧ transition balance) is provably non-empty — found by exact
+    search, high level first (:func:`_acceptance_set_nonempty`).
+
+    Until 12/09 this was a closed-form necessary bound
+    (``k ≤ (n_pairs − forced_switches) / 2``) that ignored how the forced
+    switches interact with the run structure. It over-promised on 8 of the
+    layouts reachable from the API — most visibly EVERY layout of exactly 5
+    measurement blocks, phases ``[early, early, mid, late, late]``: arm
+    balance forces a switch inside the early pair and inside the late pair, so
+    the only candidate same-arm pairs are (1,2) and (2,3), which share block 2
+    and therefore cannot be one (ON,ON) and one (OFF,OFF) at the same time.
+    The acceptance set was EMPTY, so ``POST /schedule`` burned 10.000 draws and
+    answered an empty HTTP 500 for every seed — deterministically, for
+    "phiên 50 phút, khối 10 phút" among others.
+
+    Cached: randomization inference redraws through :func:`draw_assignments`
+    hundreds of times per session with the very same phase vector.
     """
-    if min_transition_pairs <= 0 or len(phases) < 2:
-        return 0
-    strata_sizes: dict[str, int] = {}
-    for ph in phases:
-        strata_sizes[ph] = strata_sizes.get(ph, 0) + 1
-    active = sum(1 for size in strata_sizes.values() if min(min_per_arm_per_phase, size // 2) >= 1)
-    n_pairs = len(phases) - 1
-    return min(min_transition_pairs, max(0, (n_pairs - max(1, active)) // 2))
+    return _transition_requirement_cached(
+        tuple(phases), min_per_arm_per_phase, min_transition_pairs
+    )
 
 
 def draw_assignments(
@@ -334,7 +490,12 @@ def draw_assignments(
             )
         if ok:
             return arms, redraw
-    raise RuntimeError(f"rerandomization failed to satisfy constraints in {max_redraws} draws")
+    raise RerandomizationExhaustedError(
+        f"Không bốc được lịch gán thỏa ràng buộc sau {max_redraws} lần vẽ lại "
+        f"(chuỗi {len(phases)} khối, p={p}, ≥{min_per_arm_per_phase} khối/nhánh/giai đoạn, "
+        f"≥{required_trans} cặp khối liền kề cùng nhánh). Tập chấp nhận không rỗng nhưng "
+        f"quá hiếm với p ≠ 0,5 — hãy dùng p = 0,5 hoặc nới ràng buộc thiết kế."
+    )
 
 
 def generate_schedule(

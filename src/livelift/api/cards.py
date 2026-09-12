@@ -9,7 +9,9 @@ the E2-04 rule:
   displayed.
 - :func:`build_cards` — the ``ActionCard`` payloads shown on the desk. They
   are ``source='forecast'`` and therefore carry NO interval fields (the
-  schema validator would reject them anyway).
+  schema validator would reject them anyway). Whether a session may be shown
+  cards at all is a separate question, answered by
+  :func:`pin_cards_blocked_reason`.
 
 Scoring model (adversarial method review, 09/2026): a Gamma-Poisson conjugate
 click rate per product, in the SAME units as the primary outcome — clicks per
@@ -34,6 +36,7 @@ from livelift.core.features import Tick, product_exposure
 
 MAX_CARDS = 3
 
+
 UNIT_VIEWER_S = 1000.0
 """One exposure unit = 1000 viewer-seconds (the primary-outcome denominator)."""
 
@@ -47,6 +50,41 @@ INTERVAL_K = 1.0
 """Candidate intervals are ``mu ± K*sd``. The width is tunable from pilot
 logs; K=1 keeps healthy overlap early (more inner-tier exploration) without
 letting clearly separated products keep randomizing."""
+
+
+def pin_cards_blocked_reason(status: str | None, analysis_only: bool) -> str | None:
+    """Vietnamese reason why this session must NOT be offered pin cards, or None.
+
+    A card is an INVITATION TO ACT, so it may only appear where the action it
+    invites can actually succeed: ``POST /actions/execute`` accepts nothing but
+    a live session, and an analysis of somebody else's finished video can never
+    be intervened in at all. Until 12/09 ``GET /state`` built cards from the
+    product catalogue regardless — a perfume replay that ended long ago came
+    back with three cards offering to pin a thermos, a towel set and a car
+    air-freshener (``docs/benchmarks/kiem-chung-van-hanh.md`` §1.5). The report
+    for that same session was scrupulous about saying it had no causal claim;
+    the desk beside it invited a meaningless click.
+
+    Pure and side-effect free so both the route and its tests can state the
+    rule once. The assignment of the current block is deliberately NOT an
+    input: hiding cards during OFF blocks would make the card list a channel
+    that leaks the arm.
+    """
+    if analysis_only:
+        return (
+            "phiên PHÂN TÍCH video của người khác — buổi live đã phát xong và không "
+            "thuộc quyền vận hành của bạn, nên không có gì để ghim"
+        )
+    if status == "ended":
+        return "phiên đã kết thúc — không còn khối nào đang phát để ghim hàng"
+    if status == "cancelled":
+        return "phiên đã huỷ — không phát sóng nên không có thao tác nào để mời"
+    if status != "live":
+        return (
+            "phiên chưa phát sóng — ghim hàng chỉ có hiệu lực trong khối BẬT của "
+            "một phiên đang phát; thẻ sẽ hiện ngay khi bấm bắt đầu"
+        )
+    return None
 
 
 def _as_ticks(ticks: Sequence[Tick | Mapping[str, Any]] | None) -> list[Tick]:

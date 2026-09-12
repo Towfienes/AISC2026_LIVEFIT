@@ -281,10 +281,14 @@ def test_execute_scopes_to_the_clicked_card(client):
     assert r.status_code == 200, r.text
     assert "P1" in r.json()["overlap_set"]
 
-    # thẻ trỏ sản phẩm không còn là ứng viên -> 409, tuyệt đối không ghim bừa
+    # thẻ trỏ sản phẩm không còn là ứng viên -> 409, tuyệt đối không ghim bừa.
+    # P3 tồn kho 0, nên thông báo phải nói ĐÚNG lý do đó (sự cố 12/09: một câu
+    # chung chung "hết hàng hoặc danh sách vừa đổi" dùng cho mọi trường hợp).
     r = client.post(f"/sessions/{sid}/actions/execute", json={"product_id": "P3"})
     assert r.status_code == 409
-    assert "không còn hợp lệ" in r.json()["detail"]
+    detail = r.json()["detail"]
+    assert "HẾT HÀNG" in detail
+    assert "tồn kho 0" in detail
 
     # không chỉ định thẻ: giữ hành vi cũ (chọn trên toàn bộ tập ứng viên)
     r = client.post(f"/sessions/{sid}/actions/execute", json={})

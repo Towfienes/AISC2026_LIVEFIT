@@ -481,6 +481,144 @@ lỗi** (kịch bản 2 lần đầu).
 
 ---
 
+## 7. Sau khi sửa (12/09) — đóng vai người dùng lại từ đầu
+
+*Đo ngày **12/09/2026, 14:45–15:00 ICT**. Tám lỗi ở mục 5 đã được vá trong ba gói
+A/B/C; mục này **không đọc lại mã nguồn**, mà bấm lại đúng những thao tác đã làm
+hỏng hôm 11/09 rồi ghi cái nhận được.*
+
+> **Chạy ở đâu:** trên một tiến trình API **mới** (kho `memory` rỗng, cùng mã
+> nguồn của cây làm việc), chứ không phải tiến trình cổng 8000. Lý do và hệ quả:
+> mục 7.3.
+
+### 7.1 Bảng đối chiếu từng lỗi
+
+| # | Thao tác của người dùng | Trước (11/09) | Sau (12/09) |
+|---|---|---|---|
+| **a** | `POST /sessions/{id}/schedule` cho **phiên 50 phút, khối 10 phút** | **HTTP 500**, thân rỗng, tất định | **HTTP 200**, 5 khối đo, **50/50 seed đều thành công** |
+| **b** | Quét dải cấu hình thời lượng × độ dài khối | 36/1.080 tổ hợp ném `RuntimeError` → 500; thêm 30 tổ hợp `ValueError` trần → 500 | Hàm thuần: **1.061 sinh được lịch, 19 báo `ScheduleInfeasibleError` tiếng Việt, 0 cạn lượt vẽ, 0 ngoại lệ khác**. Qua HTTP (176 thời lượng × 6 độ dài khối = 1.056 lượt): **1.051 × 200, 5 × 400, 0 × 5xx** |
+| **c** | Phiên `mode:"auto"` chạy trọn 5 phút qua 4 biên khối | `compliance_rate = 0,0`; không khối BẬT nào được can thiệp; không cảnh báo | `actions_taken = 2`, `on_blocks_done = 2/2`, `missed_on_blocks = []`, **`compliance_rate = 1,0`**, `n_interventions = 2` |
+| **d** | Ghi dữ liệu → **giết cứng** tiến trình → bật lại | Mất sạch (13 phiên + 17.535 bình luận, 11/09) | `postgres`: **phiên CÒN, 25 bình luận, 1 tick**. `memory` + ảnh chụp 3 s: **phiên CÒN, 25 bình luận, 1 tick**. Đối chứng âm `--no-snapshot`: **mất đúng như dự đoán** (phép thử có răng) |
+| **e** | `/signals` và `/bao-cao` trên **cùng một phiên** | `/signals`: *"clicks ok — 93 lượt nhấp"* + *"thí nghiệm nhân quả: ok"*; `/report`: `clicks = 0` mọi khối, `diff_in_means = null` | Tái hiện đúng 93 cú nhấp bot: `/signals` → **`missing`** *"0 lượt nhấp HỢP LỆ trên 93 lượt đã ghi…"*, năng lực nhân quả → **`missing`**, `bao-cao` → `luot_nhap_hop_le = 0`, `luot_nhap_tho = 93`, `report.diff_in_means = null`. Phiên pha trộn: **12 hợp lệ / 37 thô**, cả ba màn hình cùng một cặp số |
+| **f** | Ghim một sản phẩm **còn hàng** nằm ngoài 3 thẻ gợi ý | 409 *"sản phẩm đã hết hàng hoặc danh sách gợi ý vừa thay đổi. Chờ thẻ mới rồi thử lại."* — cả hai lý do đều sai | 409 nói **đúng chỗ đứng và đúng đường ra**: *"«Áo khoác gió» còn 80 trong kho và vẫn đủ điều kiện lên thẻ, nhưng bàn chỉ gợi ý 3 sản phẩm xếp đầu…; sản phẩm này đang đứng thứ 6/6 … Muốn ghim ĐÚNG sản phẩm này: bấm `POST /actions/override` kèm một trong ba lý do…"*. Ba tình huống khác nhau, ba câu trả lời khác nhau: không có trong kho → **404**; hết hàng → **409 "đang HẾT HÀNG (tồn kho 0)"**; bấm thẻ hệ thống gợi ý → **200** |
+| **g** | Phiên quan sát chưa từng `start` → `POST /end` | **409** *"Phiên không ở trạng thái đang phát"*, kẹt `planned` vĩnh viễn | **200 → `status = cancelled`**, `start_ts` vẫn `null`, `end_ts` có thật. `POST /cancel` tường minh và **idempotent** (200 hai lần); phát lại sau khi huỷ → **409** *"Phiên đã huỷ — không phát lại được"* |
+| **h** | Chạy thử một phiên cho quen tay | Lọt **vĩnh viễn** vào `/experiment/summary`, không có nút gỡ | Hai phiên **giống hệt nhau**, chỉ khác cờ `dry_run`: phiên chạy thử **không thêm một cú nhấp nào** vào tổng gộp (`raw_clicks` 0 → 0), phiên thật thì có (0 → 6). `sessions_excluded` công bố: *"phiên CHẠY THỬ, khai báo lúc tạo phiên (tiền đăng ký §8.2)": 1*. Báo cáo **riêng** của phiên chạy thử vẫn mở được (200) — bị loại khỏi mẫu gộp, không bị xoá |
+| **i** | Mở bàn điều khiển của phiên replay đã kết thúc | 3 thẻ mời ghim sản phẩm demo không liên quan | **`cards: []`** kèm `cards_note`: *"phiên PHÂN TÍCH video của người khác — buổi live đã phát xong và không thuộc quyền vận hành của bạn, nên không có gì để ghim"*. `POST /actions/execute` từ chối bằng **đúng câu đó** (409) — bàn điều khiển và lớp từ chối không còn kể hai câu chuyện |
+
+Chín trên chín đạt. Không điểm nào phải nới tiêu chí để đạt.
+
+### 7.2 Lệnh tái lập
+
+```bash
+cd d:/AISC2026/livelift
+
+# Cổng chất lượng (nền: 838 test nhanh + 13 gate chậm)
+.venv/Scripts/python -m pytest -m "not slow"      # 838 passed, 13 deselected
+.venv/Scripts/python -m pytest -m slow            # 13 passed
+.venv/Scripts/python -m ruff check src tests scripts
+.venv/Scripts/python -m ruff format --check src tests
+.venv/Scripts/python scripts/check_isolation.py
+cd web && npx tsc --noEmit
+
+# (a)(b) lỗi 500 khi sinh lịch — gate chặn tái diễn
+.venv/Scripts/python -m pytest tests/test_schedule_config_matrix.py
+.venv/Scripts/python -m pytest tests/test_case_nguoi_dung_that.py -k case_3
+
+# (c) chế độ auto tự ghim hàng
+.venv/Scripts/python -m pytest tests/test_autopilot.py
+.venv/Scripts/python -m pytest tests/test_case_nguoi_dung_that.py -k case_7
+
+# (d) dữ liệu sống sót qua một lần tiến trình CHẾT CỨNG (mở cổng 8099 riêng,
+#     không đụng API 8000)
+.venv/Scripts/python scripts/bat_postgres.py
+.venv/Scripts/python scripts/kiem_chung_ben_vung.py --backend postgres \
+  --database-url 'postgresql://livelift:<mật khẩu>@127.0.0.1:5432/livelift'
+.venv/Scripts/python scripts/kiem_chung_ben_vung.py --backend memory --interval 3
+.venv/Scripts/python scripts/kiem_chung_ben_vung.py --backend memory --no-snapshot  # đối chứng ÂM
+
+# (e) hai màn hình một sự thật
+.venv/Scripts/python -m pytest tests/test_signals.py
+.venv/Scripts/python -m pytest tests/test_case_nguoi_dung_that.py -k case_2
+
+# (f)(g)(h)(i) vòng đời phiên, thẻ ghim, mẫu phân tích
+.venv/Scripts/python -m pytest tests/test_vong_doi_phien.py
+.venv/Scripts/python -m pytest tests/test_case_nguoi_dung_that.py -k "case_1 or case_4 or case_5 or case_9"
+```
+
+Kiểm tra nhanh bằng tay, đúng thao tác đã làm hỏng hôm 11/09:
+
+```bash
+# bật một API sạch trên cổng RIÊNG (đừng dùng 8000 — xem 7.3)
+.venv/Scripts/python -m uvicorn livelift.api.main:app --port 8098
+
+curl -s http://127.0.0.1:8098/health
+# → có thêm storage_mode / durable / storage_warning: hệ thống tự nói ra
+#   "chết bây giờ thì mất gì"
+
+SID=$(curl -s -X POST http://127.0.0.1:8098/sessions -H 'Content-Type: application/json' \
+  -d '{"platform":"youtube","title":"Phiên 50 phút","mode":"auto","planned_duration_min":50}' \
+  | python -c "import sys,json;print(json.load(sys.stdin)['session_id'])")
+curl -s -o /dev/null -w '%{http_code}\n' -X POST "http://127.0.0.1:8098/sessions/$SID/schedule" \
+  -H 'Content-Type: application/json' -d '{"block_min":10,"washout_min":0,"jitter_s":0,"seed":4242}'
+# → 200   (11/09: 500)
+
+curl -s -X POST "http://127.0.0.1:8098/sessions/$SID/end"
+# → 200, status=cancelled   (11/09: 409, kẹt 'planned')
+```
+
+### 7.3 Một điều phải nói thẳng: tiến trình cổng 8000 vẫn chạy mã CŨ
+
+Bản vá nằm trong cây làm việc, **chưa được nạp vào tiến trình đang phục vụ cổng
+8000** — tiến trình ấy khởi động từ trước khi sửa. Đo lúc 14:51 ICT ngày
+12/09, trên chính API 8000 (chỉ THÊM một phiên, không xoá gì):
+
+```bash
+curl -s http://127.0.0.1:8000/health
+# {"status":"ok","store_backend":"memory","intent_backend":"tfidf_logreg"}
+#  ↑ không có storage_mode/durable → đây là mã trước 12/09
+
+# phiên 272e9c8f-c281-4042-bd24-3f18b79afb0e, 50 phút, khối 10 phút:
+# POST /sessions/{id}/schedule → HTTP 500
+```
+
+Đây **không phải** một lỗi còn sót: đúng cái cấu hình ấy trả 200 trên tiến trình
+chạy mã mới (mục 7.1a). Nó là một sự thật vận hành, và nó kẹt đúng vào cái bẫy mà
+gói B vừa vá:
+
+- tiến trình 8000 đang giữ **23 phiên trong RAM** với `store_backend: memory`;
+- khởi động lại để nạp mã mới là **mất sạch 23 phiên đó** — đúng kịch bản
+  13:05:53 ngày 11/09;
+- mã cũ đang chạy nên **không có ảnh chụp nào** để khôi phục.
+
+Cách thoát an toàn, và là việc nên làm trước buổi live thật kế tiếp:
+
+```bash
+.venv/Scripts/python scripts/bat_postgres.py      # đã chạy 12/09: db healthy, migrate up-to-date
+$env:STORE_BACKEND = "postgres"
+$env:DATABASE_URL  = "postgresql://livelift:<mật khẩu>@127.0.0.1:5432/livelift"
+.venv/Scripts/python -m uvicorn livelift.api.main:app --port 8000
+curl -s http://127.0.0.1:8000/health   # phải thấy storage_mode=postgres, durable=true
+```
+
+Lần khởi động lại đó vẫn mất 23 phiên RAM hiện có (không có đường nào khác trên
+mã cũ) — nhưng là **lần cuối cùng** mất dữ liệu vì lý do này. Quyết định thời
+điểm là của chủ dự án, nên gói thẩm định này **không tự khởi động lại cổng
+8000**.
+
+### 7.4 Bẫy cấu hình im lặng: đã có tiếng nói
+
+Đặt `DATABASE_URL` mà quên `STORE_BACKEND` (vector của sự cố 25/08/2026) nay ghi
+một dòng cảnh báo tiếng Việt lúc dựng kho, và `/health` nói thẳng dữ liệu đang
+nằm trong RAM:
+
+```
+WARNING livelift.store: Đã cấu hình DATABASE_URL nhưng CHƯA đặt STORE_BACKEND —
+API chạy kho 'memory', dữ liệu nằm trong RAM và mất khi khởi động lại.
+Muốn dùng cơ sở dữ liệu thì đặt STORE_BACKEND=postgres (xem docs/luu-tru-du-lieu.md).
+```
+
+---
+
 ## Phụ lục — session_id để tự mở xem
 
 | Kịch bản | `session_id` | Trạng thái |
@@ -501,3 +639,10 @@ trích dẫn như một kết quả thí nghiệm.
 *Script tái lập nằm ngoài repo, trong thư mục scratchpad của phiên làm việc:
 `kc_kb1.py`, `kc_poll1.py`, `kc_kb2.py`, `kc_kb2b.py`, `kc_kb3.py`,
 `kc_probe_schedule.py`, `kc_probe409.py`, `kc_probe_pin.py`.*
+
+**Phiên của gói thẩm định 12/09 (mục 7) KHÔNG mở xem lại được**, và đó là chủ ý:
+chúng sinh ra trong một tiến trình API dùng một lần với kho `memory` rỗng, đã tắt
+sau khi đo xong. Cái đáng giữ lại không phải `session_id` mà là **lệnh** ở mục
+7.2 — chạy lại là có phiên mới với cùng kết luận. Riêng phiên dò trên API 8000
+(`272e9c8f-c281-4042-bd24-3f18b79afb0e`, 50 phút, kẹt `planned` vì mã cũ vẫn trả
+500) thì còn đó, và là bằng chứng sống của mục 7.3.

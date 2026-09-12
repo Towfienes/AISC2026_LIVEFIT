@@ -179,8 +179,27 @@ export default function HomePage() {
         </header>
 
         <div className="flex flex-col gap-4">
-          {/* Card 1 — one-click demo */}
+          {/* Card 1 — gói WIZARD: câu hỏi đầu tiên ai cũng hỏi.
+              Đứng TRƯỚC cả bản xem thử: người mở trang chủ lần đầu không muốn
+              xem một bản demo, họ muốn biết buổi live CỦA HỌ dùng được gì. */}
           <CardShell step="1">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-strong text-ink">🧭 Tôi có một buổi live, dùng được gì?</h2>
+                <p className="mt-1 text-body leading-relaxed text-sec">
+                  Ba câu hỏi, bấm là xong — nền tảng nào, của ai, đang phát hay đã kết thúc. Nhận
+                  lại câu trả lời dứt khoát cho đúng buổi live của bạn, kèm cả thứ không làm được
+                  và vì sao.
+                </p>
+              </div>
+              <Link href="/bat-dau" className={`${buttonCls("primary")} shrink-0`}>
+                Trả lời 3 câu hỏi
+              </Link>
+            </div>
+          </CardShell>
+
+          {/* Card 2 — one-click demo */}
+          <CardShell step="2">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-strong text-ink">🔬 Xem thử ngay (30 giây)</h2>
@@ -205,8 +224,8 @@ export default function HomePage() {
             {demoErr && <p className="mt-2 text-meta text-crit-ink">{demoErr}</p>}
           </CardShell>
 
-          {/* Card 2 — analyze an existing YouTube live */}
-          <CardShell step="2" dimmed={api === "down"}>
+          {/* Card 3 — analyze an existing YouTube live */}
+          <CardShell step="3" dimmed={api === "down"}>
             <h2 className="text-strong text-ink">
               🎬 Phân tích một video live có sẵn
             </h2>
@@ -270,8 +289,8 @@ export default function HomePage() {
             )}
           </CardShell>
 
-          {/* Card 3 — run your own live session */}
-          <CardShell step="3">
+          {/* Card 4 — run your own live session */}
+          <CardShell step="4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-strong text-ink">
@@ -294,7 +313,7 @@ export default function HomePage() {
                   <strong className="text-ink">1. Tạo sản phẩm</strong> — thêm từng sản phẩm sẽ
                   lên sóng bằng lệnh{" "}
                   <code className="rounded bg-raised px-1 py-0.5 text-meta">POST /products</code>{" "}
-                  (hoặc bấm &quot;Bắt đầu xem thử&quot; ở bước 1 để có sẵn dữ liệu mẫu).
+                  (hoặc bấm &quot;Bắt đầu xem thử&quot; ở bước 2 để có sẵn dữ liệu mẫu).
                 </li>
                 <li>
                   <strong className="text-ink">2. Tạo phiên</strong> — đặt tên, nền tảng và thời

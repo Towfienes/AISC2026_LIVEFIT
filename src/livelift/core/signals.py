@@ -10,7 +10,7 @@ Signals:
   schedule    pre-registered randomized block plan   (only our own sessions)
   ticks       viewer telemetry over time             (live API / simulator)
   comments    chat messages, PII-scrubbed            (any source incl. VODs)
-  clicks      self-hosted redirect hits              (only links we serve)
+  clicks      VALID self-hosted redirect hits        (only links we serve)
   orders      order records                          (manual/platform import)
   reactions   paid/visible audience events           (Super Chat/gift/sticker/
               membership from YouTube chat replay; like has NO source today)
@@ -22,6 +22,19 @@ events total — 7 memberships + 4 gift purchases — and 8 of 11 streams had
 none); hearts/likes are never in the replay; the live YouTube ingest does not
 pump reactions yet; the TikTok source is not operational. Each of those
 absences is DECLARED with its reason — the tile shows THIẾU, never a fake 0.
+
+``clicks`` means VALID clicks, the pre-registered primary numerator
+(PREREGISTRATION §4.1: a click counts only when
+``core.click_validity.classify_click`` left it ``is_valid``). Grading the
+signal on the RAW row count made the matrix announce "clicks: ok — 93 lượt
+nhấp" and "thí nghiệm nhân quả: ok — đủ tín hiệu" for a session whose report
+showed ``clicks: 0`` in every block and ``diff_in_means: null`` — all 93 hits
+were flagged bot traffic (measured 11/09/2026,
+``docs/benchmarks/kiem-chung-van-hanh.md`` §2.4a). Two screens, two truths,
+no explanation. Hence ``n_clicks_valid`` AND ``n_clicks_raw``: the matrix
+grades on the same quantity the analysis uses, and carries the raw total
+beside it as a LABELLED secondary (``SignalState.secondary``) — §4.1 requires
+raw clicks to be reported alongside, never instead.
 
 ``ticks`` means VIEWER telemetry, so a tick row only counts when it actually
 carries a viewer number. A replay analysis writes one tick per 30 s to carry
@@ -56,6 +69,14 @@ class SignalState:
     name: str
     status: Status
     detail: str  # Vietnamese, user-facing
+    secondary: str | None = None
+    """A second, LABELLED number shown beside ``detail`` — never instead of it.
+
+    Today only ``clicks`` uses it, to carry the raw click total next to the
+    valid one (PREREGISTRATION §4.1 makes raw clicks a mandatory companion
+    series). The label says which quantity it is, so a reader can never
+    mistake the bigger number for the one the analysis ran on.
+    """
 
 
 @dataclass(frozen=True)
@@ -84,7 +105,8 @@ def assess(
     n_ticks_with_viewers: int,
     tick_coverage_share: float,  # share of the live window covered by telemetry
     n_comments: int,
-    n_clicks: int,
+    n_clicks_valid: int,
+    n_clicks_raw: int,
     n_orders: int,
     n_reactions: int,
     platform: str | None = None,
@@ -96,6 +118,12 @@ def assess(
     subset that carries a real concurrent-viewer number. They differ on replay
     analyses, where every row is comment tempo with a placeholder viewer count
     — such a session has NO viewer telemetry and must be graded that way.
+
+    ``n_clicks_valid`` / ``n_clicks_raw`` are the same split, and required for
+    the same reason: the capability ladder must be graded on the quantity the
+    ANALYSIS uses (valid clicks, PREREGISTRATION §4.1), while the raw total is
+    still shown as a labelled secondary. A caller that can only supply one
+    number has not decided which one it means.
 
     ``n_reactions`` counts stored reaction events (Super Chat/gift/sticker/
     membership/like). It is required, not defaulted, for the same reason as
@@ -163,15 +191,7 @@ def assess(
             f"{n_comments} bình luận (đã lọc PII)" if n_comments else "không có bình luận",
         )
     )
-    signals.append(
-        SignalState(
-            "clicks",
-            "ok" if n_clicks > 0 else "missing",
-            f"{n_clicks} lượt nhấp qua link đo"
-            if n_clicks
-            else "không có link đo — nhấp sản phẩm không quan sát được",
-        )
-    )
+    signals.append(_clicks_state(n_clicks_valid, n_clicks_raw))
     signals.append(
         SignalState(
             "orders",
@@ -212,6 +232,63 @@ def assess(
     cap("đối soát doanh thu", ["orders"])
 
     return SignalCoverage(signals=tuple(signals), capabilities=tuple(caps))
+
+
+MAX_INVALID_SHARE = 0.5
+"""Above this share of flagged clicks the signal is DEGRADED, not ok.
+
+Not a filtering rule — nothing is ever dropped (flag-don't-drop, §4.1). It is
+a statement about what is left: when most of the traffic on a link is robot
+traffic, the handful of surviving clicks is a thin numerator and the reader
+should be told before they read an effect off it.
+"""
+
+
+def _clicks_state(n_valid: int, n_raw: int) -> SignalState:
+    """Grade clicks on the PRE-REGISTERED primary definition (§4.1).
+
+    ``n_valid`` is the only number the outcome is built from, so it is the
+    only number that may drive the status — a matrix that says "ok" on raw
+    hits promises an experiment the report then cannot deliver. ``n_raw`` is
+    never hidden: it rides along in ``secondary`` with its own label, because
+    §4.1 requires the raw series to be reported next to the valid one.
+    """
+    n_invalid = max(0, n_raw - n_valid)
+    secondary = (
+        f"số thô: {n_raw} lượt nhấp đã ghi, trong đó {n_invalid} bị gắn cờ KHÔNG hợp lệ "
+        "(bot/prefetch/bấm dồn — GIVT-lite). Đây là số phụ bắt buộc báo cáo kèm "
+        "(tiền đăng ký §4.1), KHÔNG phải tử số của biến kết quả chính"
+        if n_raw
+        else None
+    )
+    if n_raw == 0:
+        return SignalState(
+            "clicks", "missing", "không có link đo — nhấp sản phẩm không quan sát được"
+        )
+    if n_valid == 0:
+        return SignalState(
+            "clicks",
+            "missing",
+            f"0 lượt nhấp HỢP LỆ trên {n_raw} lượt đã ghi — bộ lọc GIVT-lite gắn cờ toàn bộ "
+            "(tiền đăng ký §4.1), nên biến kết quả chính không có tử số nào. "
+            "Link đo đang nhận traffic tự động, không phải người xem",
+            secondary,
+        )
+    invalid_share = n_invalid / n_raw
+    if invalid_share > MAX_INVALID_SHARE:
+        return SignalState(
+            "clicks",
+            "degraded",
+            f"{n_valid} lượt nhấp HỢP LỆ trên {n_raw} lượt đã ghi — "
+            f"{invalid_share:.0%} bị gắn cờ không hợp lệ, phần còn lại là một tử số mỏng",
+            secondary,
+        )
+    return SignalState(
+        "clicks",
+        "ok",
+        f"{n_valid} lượt nhấp HỢP LỆ qua link đo (đúng con số biến kết quả chính dùng)",
+        secondary,
+    )
 
 
 def _reactions_state(n_reactions: int, platform: str | None, analysis_only: bool) -> SignalState:

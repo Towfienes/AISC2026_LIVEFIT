@@ -22,6 +22,20 @@ class Settings(BaseSettings):
     database_url: str = "postgresql://livelift:livelift@127.0.0.1:5432/livelift"
     redis_url: str = "redis://127.0.0.1:6379/0"
 
+    # --- Chống mất dữ liệu ở chế độ kho 'memory' (sự cố 11/09/2026) -------
+    # Ngày 11/09/2026 tiến trình API khởi động lại lúc 13:05:53 và 13 phiên
+    # live thật + 17.535 bình luận biến mất vĩnh viễn, vì kho chỉ nằm trong
+    # RAM. Ảnh chụp định kỳ là lưới an toàn cho chế độ đó; nó KHÔNG thay thế
+    # STORE_BACKEND=postgres cho phiên live thật.
+    #
+    # Mặc định BẬT: một cơ chế an toàn phải mặc định bảo vệ, người dùng phải
+    # chủ động tắt mới mất. Chỉ áp dụng cho kho 'memory'.
+    store_snapshot_enabled: bool = True
+    store_snapshot_path: str = "data/snapshot/livelift-store.json"
+    # 30 giây = mức mất tối đa khi tiến trình chết đột ngột. Tắt máy có trật
+    # tự luôn chụp lần cuối nên không mất gì.
+    store_snapshot_interval_s: float = 30.0
+
     # Shared secret for the write endpoints POST /sessions/{id}/comments and
     # /ticks. Empty (default) = auth disabled (dev/demo). When set, ApiSink
     # attaches "Authorization: Bearer <token>" automatically.

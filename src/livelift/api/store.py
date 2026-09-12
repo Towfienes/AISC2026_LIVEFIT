@@ -24,16 +24,40 @@ Append-only note (migration 0006): ``assignment_event`` and ``exposure_event``
 are the experiment's audit trail. Neither backend exposes an update or delete
 method for them, and none may ever be added — enforcement of the same rule at
 the database role level belongs to deploy.
+
+Durability (incident 11/09/2026): ``InMemoryStore`` lost 13 real sessions and
+17.535 comments when the API process restarted — RAM is not storage. Two
+answers live in this module and both are needed:
+
+* ``PostgresStore`` — the real answer. Survives anything the process does.
+* ``SnapshotManager`` — the fallback for memory mode (demo, competition
+  laptop, no Docker): every ``store_snapshot_interval_s`` seconds the WHOLE
+  in-memory state is serialized and written atomically to one JSON file, and
+  read back at startup. It costs a bounded window (at most one interval of
+  the newest events), never a whole session. It is not a substitute for
+  Postgres and ``durability_info`` says so out loud on ``/health``.
+
+Why serialization is safe here: ``export_json`` never awaits, so — like every
+other store method — it is atomic with respect to request handlers; only the
+disk write is pushed to a thread.
 """
 
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import itertools
+import json
+import logging
 import os
+import threading
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
 from typing import Any, Protocol
+
+log = logging.getLogger("livelift.store")
 
 
 def _new_id() -> str:
@@ -95,6 +119,18 @@ class Broadcaster:
 # ---------------------------------------------------------------------------
 # Protocol
 # ---------------------------------------------------------------------------
+
+
+_SESSION_WRITE_ONCE: frozenset[str] = frozenset({"session_id", "platform", "dry_run"})
+"""Session columns fixed at creation — ``update_session`` silently ignores them.
+
+``dry_run`` is the load-bearing one: it decides whether a session counts in the
+pooled result, so it has to be a decision taken BEFORE the session runs
+(PREREGISTRATION §8.2). A column that can be flipped later is not a
+pre-registration rule, it is a switch for dropping sessions whose numbers you
+did not like. The SQL store gets the same guarantee from the fixed ``allowed``
+tuple in its own ``update_session``.
+"""
 
 
 class ShortlinkCodeTakenError(Exception):
@@ -190,17 +226,131 @@ class Store(Protocol):
 
 
 # ---------------------------------------------------------------------------
+# Snapshot codec + atomic file writer
+# ---------------------------------------------------------------------------
+
+SNAPSHOT_FORMAT = 1
+"""Bumped whenever the on-disk layout changes. import_json REFUSES any other
+value rather than guessing — a snapshot half-understood is worse than none."""
+
+_DT_TAG = "__dt__"
+_DEC_TAG = "__dec__"
+
+# Temp files are unique per process AND per write, so two writers (should one
+# ever exist) can never hand each other a half-written file to rename.
+_tmp_counter = itertools.count()
+
+
+class SnapshotError(Exception):
+    """A snapshot file could not be read, parsed, or trusted."""
+
+
+def _snapshot_default(obj: Any) -> Any:
+    """JSON encoder for the two non-JSON types the store actually holds."""
+    if isinstance(obj, datetime):
+        return {_DT_TAG: obj.isoformat()}
+    if isinstance(obj, Decimal):
+        return {_DEC_TAG: str(obj)}
+    raise TypeError(f"không tuần tự hoá được kiểu {type(obj).__name__} trong ảnh chụp kho")
+
+
+def _snapshot_hook(d: dict[str, Any]) -> Any:
+    """Inverse of :func:`_snapshot_default` — restores real datetime/Decimal."""
+    if len(d) == 1:
+        if _DT_TAG in d:
+            return datetime.fromisoformat(d[_DT_TAG])
+        if _DEC_TAG in d:
+            return Decimal(d[_DEC_TAG])
+    return d
+
+
+def _rebuild_dedup_index(
+    rows_by_session: dict[str, list[dict[str, Any]]],
+) -> dict[str, dict[tuple[str, str], dict[str, Any]]]:
+    """Rebuild a (platform, ext_id) -> row index from the rows themselves.
+
+    First row wins, matching the live insert path: ``add_comment`` keeps the
+    row that arrived first and returns it for every duplicate after.
+    """
+    index: dict[str, dict[tuple[str, str], dict[str, Any]]] = {}
+    for session_id, rows in rows_by_session.items():
+        keys: dict[tuple[str, str], dict[str, Any]] = {}
+        for row in rows:
+            platform, ext_id = row.get("platform"), row.get("ext_id")
+            if platform and ext_id:
+                keys.setdefault((platform, ext_id), row)
+        if keys:
+            index[session_id] = keys
+    return index
+
+
+def write_snapshot_atomic(path: Path, payload: str) -> None:
+    """Write ``payload`` so that ``path`` is either the OLD file or the NEW
+    one — never a truncated mix.
+
+    The sequence matters: write the whole document to a temp file in the same
+    directory, flush + fsync it, then ``os.replace``. ``os.replace`` is atomic
+    on POSIX and on Windows (MoveFileEx/REPLACE_EXISTING), and same-directory
+    keeps it on one volume where that guarantee holds. A crash at any point
+    leaves the previous good snapshot in place.
+
+    On failure the temp file is removed: a data-safety mechanism that fills the
+    data directory with rubbish on every failed attempt is its own outage.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f".{path.name}.tmp-{os.getpid()}-{next(_tmp_counter)}")
+    try:
+        with open(tmp, "w", encoding="utf-8") as fh:
+            fh.write(payload)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            tmp.unlink()
+        raise
+
+
+def quarantine_snapshot(path: Path) -> Path | None:
+    """Move an unreadable snapshot aside instead of deleting or overwriting it.
+
+    Keeps the evidence for a post-mortem (HARNESS §3 wants a root cause, and
+    the broken file is the only witness) and stops the next dump from silently
+    erasing it.
+    """
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
+    spoiled = path.with_name(f"{path.name}.hong-{stamp}")
+    try:
+        os.replace(path, spoiled)
+    except OSError:  # pragma: no cover - filesystem-dependent
+        return None
+    return spoiled
+
+
+# ---------------------------------------------------------------------------
 # In-memory backend
 # ---------------------------------------------------------------------------
 
 
 class InMemoryStore:
     """Complete dict-backed store. Safe for a single asyncio loop: methods
-    never await, so each call is atomic w.r.t. request handlers."""
+    never await, so each call is atomic w.r.t. request handlers.
+
+    RAM is not storage (incident 11/09/2026). Attach a :class:`SnapshotManager`
+    — ``attach_snapshot(store)`` does it from config — to get periodic atomic
+    dumps and restore-on-startup. Without one, a restart loses everything.
+    """
 
     backend = "memory"
 
     def __init__(self) -> None:
+        # Bumped by every method that CHANGES state. The snapshot loop dumps
+        # only when this moved, so an idle session costs zero disk writes and
+        # a duplicate delivery (which returns the existing row) costs none
+        # either.
+        self._rev = 0
+        # Set by attach_snapshot(); read by durability_info() for /health.
+        self.snapshot: SnapshotManager | None = None
         self._products: dict[str, dict[str, Any]] = {}
         self._shortlinks: dict[str, dict[str, Any]] = {}
         self._sessions: dict[str, dict[str, Any]] = {}
@@ -227,6 +377,7 @@ class InMemoryStore:
         stored = dict(row)
         stored["margin"] = float(row["price"]) - float(row["cost"])
         self._products[row["product_id"]] = stored
+        self._rev += 1
         return dict(stored)
 
     def list_products(self) -> list[dict[str, Any]]:
@@ -241,6 +392,7 @@ class InMemoryStore:
         if row["code"] in self._shortlinks:
             raise ShortlinkCodeTakenError(row["code"])
         self._shortlinks[row["code"]] = dict(row)
+        self._rev += 1
         return dict(row)
 
     def get_shortlink(self, code: str) -> dict[str, Any] | None:
@@ -250,6 +402,7 @@ class InMemoryStore:
     # -- sessions ----------------------------------------------------------
     def create_session(self, row: dict[str, Any]) -> dict[str, Any]:
         self._sessions[row["session_id"]] = dict(row)
+        self._rev += 1
         return dict(row)
 
     def list_sessions(self) -> list[dict[str, Any]]:
@@ -261,7 +414,11 @@ class InMemoryStore:
 
     def update_session(self, session_id: str, fields: dict[str, Any]) -> dict[str, Any]:
         row = self._sessions[session_id]
-        row.update(fields)
+        # Same write-once columns as the SQL store's `allowed` tuple: the
+        # sample-inclusion flag is fixed at creation (PREREGISTRATION §8.2) and
+        # the two backends must not disagree about that (lesson of 27/08).
+        row.update({k: v for k, v in fields.items() if k not in _SESSION_WRITE_ONCE})
+        self._rev += 1
         return dict(row)
 
     # -- blocks ------------------------------------------------------------
@@ -283,6 +440,7 @@ class InMemoryStore:
                 }
             )
         self._blocks[session_id] = stored
+        self._rev += 1
         return [dict(b) for b in stored]
 
     def get_blocks(self, session_id: str) -> list[dict[str, Any]]:
@@ -292,12 +450,14 @@ class InMemoryStore:
         for b in self._blocks.get(session_id, []):
             b["start_ts"] = start_ts + timedelta(seconds=b["start_offset_s"])
             b["end_ts"] = start_ts + timedelta(seconds=b["end_offset_s"])
+        self._rev += 1
 
     def increment_override(self, block_id: str) -> None:
         for blocks in self._blocks.values():
             for b in blocks:
                 if b["block_id"] == block_id:
                     b["override_count"] += 1
+                    self._rev += 1
                     return
 
     # -- ticks -------------------------------------------------------------
@@ -309,8 +469,10 @@ class InMemoryStore:
         for existing in rows:
             if existing["ts_bucket"] == row["ts_bucket"]:
                 existing.update(row)
+                self._rev += 1
                 return dict(existing)
         rows.append(dict(row))
+        self._rev += 1
         return dict(row)
 
     def list_ticks(self, session_id: str) -> list[dict[str, Any]]:
@@ -330,6 +492,7 @@ class InMemoryStore:
                 return dict(existing)
             keys[(platform, ext_id)] = stored
         self._comments.setdefault(session_id, []).append(stored)
+        self._rev += 1
         return dict(stored)
 
     def list_comments(self, session_id: str) -> list[dict[str, Any]]:
@@ -349,6 +512,7 @@ class InMemoryStore:
                 return dict(existing)
             keys[(platform, ext_id)] = stored
         self._reactions.setdefault(session_id, []).append(stored)
+        self._rev += 1
         return dict(stored)
 
     def list_reactions(self, session_id: str) -> list[dict[str, Any]]:
@@ -361,6 +525,7 @@ class InMemoryStore:
         # predates classification stores a VALID click in both backends.
         stored = {"is_valid": True, "invalid_reason": None, "ua_class": None, **row}
         self._clicks.setdefault(session_id or "", []).append(stored)
+        self._rev += 1
         return dict(stored)
 
     def list_clicks(self, session_id: str) -> list[dict[str, Any]]:
@@ -389,6 +554,7 @@ class InMemoryStore:
     # -- interventions -----------------------------------------------------
     def add_intervention(self, session_id: str, row: dict[str, Any]) -> dict[str, Any]:
         self._interventions.setdefault(session_id, []).append(dict(row))
+        self._rev += 1
         return dict(row)
 
     def list_interventions(self, session_id: str) -> list[dict[str, Any]]:
@@ -415,6 +581,7 @@ class InMemoryStore:
             for r in rows
         ]
         self._assignment_events.setdefault(session_id, []).extend(stored)
+        self._rev += 1
         return [dict(r) for r in stored]
 
     def list_assignment_events(self, session_id: str) -> list[dict[str, Any]]:
@@ -435,6 +602,7 @@ class InMemoryStore:
             "source": row["source"],
         }
         self._exposure_events.setdefault(session_id, []).append(stored)
+        self._rev += 1
         return dict(stored)
 
     def list_exposure_events(self, session_id: str) -> list[dict[str, Any]]:
@@ -445,6 +613,7 @@ class InMemoryStore:
     # -- orders ------------------------------------------------------------
     def add_order(self, session_id: str | None, row: dict[str, Any]) -> dict[str, Any]:
         self._orders.setdefault(session_id or "", []).append(dict(row))
+        self._rev += 1
         return dict(row)
 
     def list_orders(self, session_id: str) -> list[dict[str, Any]]:
@@ -459,6 +628,107 @@ class InMemoryStore:
 
     def publish(self, session_id: str, message: dict[str, Any]) -> None:
         self._broadcaster.publish(session_id, message)
+
+    # -- snapshot (durability, incident 11/09/2026) ------------------------
+    #
+    # export_json / import_json are the whole persistence contract of the
+    # memory backend. They are deliberately SYNCHRONOUS and never await, so
+    # like every other method here they are atomic with respect to request
+    # handlers: nothing can mutate a dict half-way through serialization.
+    def export_json(self) -> str:
+        """Serialize the ENTIRE store to one JSON document.
+
+        Datetimes and Decimals are tagged (``{"__dt__": ...}``) so they come
+        back as the same Python types — a restore that turned timestamps into
+        strings would break every block-attribution and report calculation
+        downstream, i.e. it would look like it worked and silently lie.
+
+        The dedup key maps (``_comment_keys``/``_reaction_keys``) are NOT
+        written: they are rebuilt on import from the rows themselves, which
+        also restores the object identity they rely on.
+        """
+        state = {
+            "format": SNAPSHOT_FORMAT,
+            "backend": self.backend,
+            "saved_at": datetime.now(UTC),
+            "rev": self._rev,
+            "products": self._products,
+            "shortlinks": self._shortlinks,
+            "sessions": self._sessions,
+            "blocks": self._blocks,
+            "ticks": self._ticks,
+            "comments": self._comments,
+            "reactions": self._reactions,
+            "clicks": self._clicks,
+            "interventions": self._interventions,
+            "orders": self._orders,
+            "assignment_events": self._assignment_events,
+            "exposure_events": self._exposure_events,
+        }
+        return json.dumps(state, default=_snapshot_default, ensure_ascii=False)
+
+    def import_json(self, text: str) -> dict[str, int]:
+        """Replace the whole state with a snapshot document.
+
+        Returns a count per table so the caller can log what was recovered.
+        Raises :class:`SnapshotError` on anything it does not recognize —
+        a half-understood snapshot must never be loaded as if it were whole.
+        """
+        try:
+            state = json.loads(text, object_hook=_snapshot_hook)
+        except (ValueError, TypeError) as exc:
+            raise SnapshotError(f"ảnh chụp không đọc được: {exc}") from exc
+        if not isinstance(state, dict):
+            raise SnapshotError("ảnh chụp không phải một đối tượng JSON")
+        fmt = state.get("format")
+        if fmt != SNAPSHOT_FORMAT:
+            raise SnapshotError(
+                f"ảnh chụp định dạng {fmt!r}, mã này chỉ đọc định dạng {SNAPSHOT_FORMAT}"
+            )
+
+        def _table(key: str) -> dict[str, Any]:
+            value = state.get(key, {})
+            if not isinstance(value, dict):
+                raise SnapshotError(f"bảng {key!r} trong ảnh chụp không phải đối tượng")
+            return value
+
+        self._products = _table("products")
+        self._shortlinks = _table("shortlinks")
+        self._sessions = _table("sessions")
+        self._blocks = _table("blocks")
+        self._ticks = _table("ticks")
+        self._comments = _table("comments")
+        self._reactions = _table("reactions")
+        self._clicks = _table("clicks")
+        self._interventions = _table("interventions")
+        self._orders = _table("orders")
+        self._assignment_events = _table("assignment_events")
+        self._exposure_events = _table("exposure_events")
+
+        # Rebuild the idempotency indexes by identity: the value must be the
+        # SAME dict that sits in the rows list, or a duplicate delivery after
+        # a restart would return a detached copy.
+        self._comment_keys = _rebuild_dedup_index(self._comments)
+        self._reaction_keys = _rebuild_dedup_index(self._reactions)
+
+        self._rev += 1
+        return self.counts()
+
+    def counts(self) -> dict[str, int]:
+        """Row counts per table — what a recovery log line reports."""
+        return {
+            "sessions": len(self._sessions),
+            "products": len(self._products),
+            "shortlinks": len(self._shortlinks),
+            "comments": sum(len(v) for v in self._comments.values()),
+            "ticks": sum(len(v) for v in self._ticks.values()),
+            "clicks": sum(len(v) for v in self._clicks.values()),
+            "reactions": sum(len(v) for v in self._reactions.values()),
+            "orders": sum(len(v) for v in self._orders.values()),
+            "interventions": sum(len(v) for v in self._interventions.values()),
+            "assignment_events": sum(len(v) for v in self._assignment_events.values()),
+            "exposure_events": sum(len(v) for v in self._exposure_events.values()),
+        }
 
     def close(self) -> None:  # nothing to release
         return
@@ -582,8 +852,8 @@ class PostgresStore:
             """
             INSERT INTO live_session
                 (session_id, platform, title, mode, status, planned_duration_min,
-                 host_id, created_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING *
+                 host_id, created_at, dry_run)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *
             """,
             (
                 row["session_id"],
@@ -594,6 +864,10 @@ class PostgresStore:
                 row["planned_duration_min"],
                 row.get("host_id"),
                 row["created_at"],
+                # Write-once (migration 0008): `dry_run` is NOT in
+                # update_session's allowed columns, so the sample-inclusion rule
+                # is fixed at creation and no later call can flip it.
+                bool(row.get("dry_run", False)),
             ),
         )
         assert out is not None
@@ -990,6 +1264,281 @@ class PostgresStore:
 
 
 # ---------------------------------------------------------------------------
+# Snapshot manager: restore at startup, dump periodically, dump on shutdown
+# ---------------------------------------------------------------------------
+
+
+class SnapshotManager:
+    """Keeps one :class:`InMemoryStore` mirrored to one file on disk.
+
+    Three moments, and all three are needed:
+
+    * **startup** — ``restore()`` loads the file if it is there. This is the
+      moment the incident of 11/09/2026 had no answer for.
+    * **every ``interval_s``** — ``_loop()`` dumps, but ONLY if the store
+      changed since the last dump (``_rev``). Writing happens in a worker
+      thread so a slow disk never stalls the event loop, and the hot write
+      path (``POST /comments``) touches no file at all.
+    * **shutdown** — ``stop()`` dumps one last time, synchronously, so an
+      orderly restart loses nothing at all.
+
+    A dump that fails is logged and retried on the next tick; it never
+    propagates into a request or kills the process. Durability machinery that
+    can take the API down has made things worse, not better.
+    """
+
+    def __init__(self, store: InMemoryStore, path: Path, interval_s: float) -> None:
+        self.store = store
+        self.path = Path(path)
+        # A sub-second cadence would dump continuously under live traffic and
+        # buy nothing — one second is the floor.
+        self.interval_s = max(1.0, float(interval_s))
+        self._task: asyncio.Task[None] | None = None
+        # Revision that is currently ON DISK (None = nothing written yet).
+        self._last_rev: int | None = None
+        self._last_saved_at: datetime | None = None
+        self._last_error: str | None = None
+        self._restored: dict[str, int] | None = None
+        # Guards the file itself: the periodic writer lives in a worker thread
+        # while stop() writes from the caller's thread. See _commit().
+        self._write_lock = threading.Lock()
+
+    # -- startup -----------------------------------------------------------
+    def restore(self) -> dict[str, int] | None:
+        """Load the snapshot into the store. Returns row counts, or None."""
+        if not self.path.exists():
+            log.info(
+                "Chưa có ảnh chụp kho tại %s — bắt đầu với kho rỗng (đây là lần chạy đầu).",
+                self.path,
+            )
+            return None
+        try:
+            counts = self.store.import_json(self.path.read_text(encoding="utf-8"))
+        except (OSError, SnapshotError) as exc:
+            spoiled = quarantine_snapshot(self.path)
+            self._last_error = str(exc)
+            log.error(
+                "Ảnh chụp kho tại %s KHÔNG đọc được (%s). Đã chuyển tệp hỏng sang %s và "
+                "bắt đầu với kho rỗng — dữ liệu cũ chưa mất, hãy kiểm tra tệp đó trước "
+                "khi phát sóng tiếp.",
+                self.path,
+                exc,
+                spoiled or "(không đổi tên được)",
+            )
+            return None
+        self._restored = counts
+        # Nothing new to write yet: the file already matches this state.
+        self._last_rev = self.store._rev
+        log.warning(
+            "Đã KHÔI PHỤC kho từ ảnh chụp %s: %d phiên, %d bình luận, %d tick, %d lượt nhấp.",
+            self.path,
+            counts["sessions"],
+            counts["comments"],
+            counts["ticks"],
+            counts["clicks"],
+        )
+        return counts
+
+    # -- dumping -----------------------------------------------------------
+    def _commit(self, rev: int, payload: str, *, force: bool) -> bool:
+        """Put ``payload`` on disk, but NEVER behind a newer snapshot.
+
+        Two writers can be in flight at once: the periodic task (its disk write
+        runs in a worker thread) and ``stop()``'s final synchronous dump. If the
+        older of the two happened to land last, the file would silently go
+        BACKWARDS and lose the very events shutdown was trying to save — a
+        data-loss bug hiding inside the data-loss fix. The lock serializes the
+        two, and the revision check makes the outcome independent of who wins
+        the race: an older payload is dropped, not written.
+        """
+        with self._write_lock:
+            if not force and self._last_rev is not None and rev <= self._last_rev:
+                return False
+            write_snapshot_atomic(self.path, payload)
+            self._last_rev = rev
+            self._last_saved_at = datetime.now(UTC)
+            self._last_error = None
+            return True
+
+    def dump_now(self, *, force: bool = False) -> bool:
+        """Serialize + write synchronously. Returns True if a file was written."""
+        rev = self.store._rev
+        if not force and rev == self._last_rev:
+            return False
+        return self._commit(rev, self.store.export_json(), force=force)
+
+    async def _dump_async(self) -> bool:
+        rev = self.store._rev
+        if rev == self._last_rev:
+            return False
+        # export_json never awaits => the state cannot change under it.
+        payload = self.store.export_json()
+        # The disk write goes to a worker thread so a slow disk never stalls
+        # the event loop (measured 135 ms of the 242 ms total at 17.535 comments).
+        return await asyncio.to_thread(self._commit, rev, payload, force=False)
+
+    async def _loop(self) -> None:
+        while True:
+            await asyncio.sleep(self.interval_s)
+            try:
+                await self._dump_async()
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:  # noqa: BLE001 - never let a dump kill the API
+                self._last_error = str(exc)
+                log.error(
+                    "Ghi ảnh chụp kho vào %s thất bại (%s) — sẽ thử lại sau %.0f giây. "
+                    "Ảnh chụp trước đó vẫn còn nguyên.",
+                    self.path,
+                    exc,
+                    self.interval_s,
+                )
+
+    # -- lifecycle ---------------------------------------------------------
+    def start(self) -> None:
+        """Start the periodic dump task (requires a running event loop)."""
+        if self._task is not None:
+            return
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            log.warning(
+                "Không có vòng lặp asyncio đang chạy — ảnh chụp kho chỉ được ghi khi gọi tay "
+                "hoặc lúc tắt, KHÔNG ghi định kỳ."
+            )
+            return
+        self._task = loop.create_task(self._loop(), name="livelift-snapshot")
+        log.info(
+            "Ảnh chụp kho ĐANG BẬT: ghi %s mỗi %.0f giây (chỉ ghi khi có thay đổi).",
+            self.path,
+            self.interval_s,
+        )
+
+    def stop(self) -> None:
+        """Cancel the loop and take one final snapshot."""
+        task, self._task = self._task, None
+        if task is not None:
+            task.cancel()
+        try:
+            wrote = self.dump_now()
+        except Exception as exc:  # noqa: BLE001 - shutdown must not raise
+            self._last_error = str(exc)
+            log.error(
+                "Không ghi được ảnh chụp cuối vào %s (%s) — ảnh chụp gần nhất (%s) vẫn dùng được.",
+                self.path,
+                exc,
+                self._last_saved_at or "chưa có",
+            )
+            return
+        if wrote:
+            log.info("Đã ghi ảnh chụp kho lần cuối trước khi tắt: %s", self.path)
+
+    # -- reporting ---------------------------------------------------------
+    def status(self) -> dict[str, Any]:
+        return {
+            "path": str(self.path),
+            "interval_s": self.interval_s,
+            "running": self._task is not None and not self._task.done(),
+            "last_saved_at": self._last_saved_at.isoformat() if self._last_saved_at else None,
+            "restored_at_startup": self._restored,
+            "last_error": self._last_error,
+        }
+
+
+def attach_snapshot(
+    store: Store,
+    *,
+    enabled: bool | None = None,
+    path: str | Path | None = None,
+    interval_s: float | None = None,
+) -> SnapshotManager | None:
+    """Wire snapshotting onto ``store`` according to config. Returns the
+    manager, or None when it does not apply (Postgres) or is switched off.
+
+    Only the memory backend gets one: Postgres already survives a restart, and
+    dumping a copy of it to a JSON file would be a second source of truth.
+    The check is ``isinstance`` rather than ``backend == "memory"`` because
+    snapshotting reads that class's own state directly — a different store that
+    merely called itself "memory" would have nothing to serialize.
+    """
+    if not isinstance(store, InMemoryStore):
+        return None
+    if enabled is None or path is None or interval_s is None:
+        from livelift.config import get_settings  # lazy: needs pydantic-settings
+
+        settings = get_settings()
+        enabled = settings.store_snapshot_enabled if enabled is None else enabled
+        path = settings.store_snapshot_path if path is None else path
+        interval_s = settings.store_snapshot_interval_s if interval_s is None else interval_s
+    if not enabled:
+        log.warning("%s", MEMORY_NO_SNAPSHOT_WARNING)
+        return None
+    manager = SnapshotManager(store, Path(path), interval_s)
+    manager.restore()
+    manager.start()
+    store.snapshot = manager
+    return manager
+
+
+# ---------------------------------------------------------------------------
+# What /health must say about data safety
+# ---------------------------------------------------------------------------
+
+MEMORY_NO_SNAPSHOT_WARNING = (
+    "NGUY HIỂM — dữ liệu chỉ nằm trong RAM và KHÔNG có ảnh chụp: khởi động lại tiến "
+    "trình là mất sạch mọi phiên. Ngày 11/09/2026 hệ thống đã mất 13 phiên live thật "
+    "và 17.535 bình luận đúng theo cách này, không khôi phục được. Trước khi lên sóng "
+    "thật hãy bật Postgres (STORE_BACKEND=postgres), hoặc ít nhất bật lại ảnh chụp "
+    "(STORE_SNAPSHOT_ENABLED=true)."
+)
+
+POSTGRES_NOTE = (
+    "Dữ liệu nằm trong PostgreSQL — khởi động lại tiến trình API không mất gì. "
+    "Đây là chế độ dành cho phiên live thật."
+)
+
+
+def durability_info(store: Store) -> dict[str, Any]:
+    """Answer the only question an operator needs before going live: *if this
+    process dies right now, what do I lose?*
+
+    ``/health`` merges this, so the answer is one HTTP call away instead of
+    being folklore — the incident of 11/09/2026 was invisible until someone
+    counted rows by hand.
+    """
+    backend = getattr(store, "backend", "unknown")
+    if backend == "postgres":
+        return {
+            "storage_mode": "postgres",
+            "durable": True,
+            "storage_warning": None,
+            "snapshot": None,
+            "storage_note": POSTGRES_NOTE,
+        }
+    manager: SnapshotManager | None = getattr(store, "snapshot", None)
+    if manager is None:
+        return {
+            "storage_mode": "memory",
+            "durable": False,
+            "storage_warning": MEMORY_NO_SNAPSHOT_WARNING,
+            "snapshot": None,
+            "storage_note": None,
+        }
+    return {
+        "storage_mode": "memory+snapshot",
+        "durable": False,
+        "storage_warning": (
+            f"Dữ liệu nằm trong RAM, có ảnh chụp mỗi {manager.interval_s:.0f} giây tại "
+            f"{manager.path}. Khởi động lại chỉ mất tối đa {manager.interval_s:.0f} giây "
+            "sự kiện cuối cùng, không mất cả phiên. Đủ cho demo và thi đấu; phiên live "
+            "thật vẫn nên chạy STORE_BACKEND=postgres."
+        ),
+        "snapshot": manager.status(),
+        "storage_note": None,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Factory
 # ---------------------------------------------------------------------------
 
@@ -997,11 +1546,44 @@ class PostgresStore:
 def build_store(backend: str | None = None) -> Store:
     """Build the store selected by ``backend`` or the STORE_BACKEND env var
     ("memory" default | "postgres")."""
-    name = (backend or os.environ.get("STORE_BACKEND", "memory")).strip().lower()
+    raw = backend if backend is not None else os.environ.get("STORE_BACKEND")
+    name = (raw or "memory").strip().lower()
     if name == "postgres":
         from livelift.config import get_settings  # lazy: needs pydantic-settings
 
         return PostgresStore(get_settings().database_url)
     if name != "memory":
         raise ValueError(f"unknown STORE_BACKEND: {name!r} (expected 'memory' or 'postgres')")
+    if raw is None and _database_url_is_configured():
+        # The exact trap of incident 25/08/2026: a database is configured, it
+        # is probably even running, and the API quietly keeps everything in RAM
+        # because the backend is chosen by a DIFFERENT variable. One WARNING
+        # line per process start is cheap next to what silence cost on
+        # 11/09/2026.
+        log.warning(
+            "Đã cấu hình DATABASE_URL nhưng CHƯA đặt STORE_BACKEND — API chạy kho "
+            "'memory', dữ liệu nằm trong RAM và mất khi khởi động lại. Muốn dùng cơ sở "
+            "dữ liệu thì đặt STORE_BACKEND=postgres (xem docs/luu-tru-du-lieu.md)."
+        )
     return InMemoryStore()
+
+
+def _database_url_is_configured() -> bool:
+    """True when someone DELIBERATELY pointed this deployment at a database.
+
+    Checking only ``os.environ`` would miss the most common local setup — and
+    it is exactly the one that bit us: ``.env`` carries DATABASE_URL, nobody
+    sets STORE_BACKEND, and the API runs on RAM without a word. But
+    ``Settings.database_url`` has a non-empty built-in default, so "non-empty"
+    alone would be true always and the warning would mean nothing. Compare
+    against that default instead: different value ⇒ somebody configured it.
+    """
+    if os.environ.get("DATABASE_URL"):
+        return True
+    try:
+        from livelift.config import Settings, get_settings
+
+        default = Settings.model_fields["database_url"].default
+        return get_settings().database_url != default
+    except Exception:  # noqa: BLE001 - a config problem must not break startup
+        return False

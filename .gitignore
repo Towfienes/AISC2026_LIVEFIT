@@ -23,6 +23,9 @@ secrets/
 # Data — raw data never enters git (PII policy: only scrubbed data in DB, none in repo)
 data/raw/
 data/sessions/
+# Ảnh chụp kho memory: bản sao đầy đủ của dữ liệu phiên thật (đã lọc PII nhưng
+# vẫn là dữ liệu người dùng) — không bao giờ vào git.
+data/snapshot/
 *.dump
 *.sql.gz
 # Lô gán nhãn: bình luận THẬT (đã lọc PII) của phiên quan sát — vẫn là dữ liệu

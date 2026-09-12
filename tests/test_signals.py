@@ -21,7 +21,8 @@ def test_own_full_session_unlocks_everything_but_orders():
         n_ticks_with_viewers=100,
         tick_coverage_share=0.95,
         n_comments=50,
-        n_clicks=20,
+        n_clicks_valid=20,
+        n_clicks_raw=20,
         n_orders=0,
         n_reactions=0,
     )
@@ -39,7 +40,8 @@ def test_external_vod_gets_observational_capabilities_only():
         n_ticks_with_viewers=0,
         tick_coverage_share=0.0,
         n_comments=500,
-        n_clicks=0,
+        n_clicks_valid=0,
+        n_clicks_raw=0,
         n_orders=0,
         n_reactions=0,
         analysis_only=True,
@@ -57,7 +59,8 @@ def test_degraded_telemetry_degrades_dependent_capabilities():
         n_ticks_with_viewers=20,
         tick_coverage_share=0.5,
         n_comments=10,
-        n_clicks=5,
+        n_clicks_valid=5,
+        n_clicks_raw=5,
         n_orders=0,
         n_reactions=0,
     )
@@ -72,7 +75,8 @@ def test_no_shortlinks_means_ctr_is_declared_unmeasurable():
         n_ticks_with_viewers=100,
         tick_coverage_share=1.0,
         n_comments=10,
-        n_clicks=0,
+        n_clicks_valid=0,
+        n_clicks_raw=0,
         n_orders=0,
         n_reactions=0,
     )
@@ -96,7 +100,8 @@ def test_comment_tempo_ticks_are_not_counted_as_viewer_telemetry():
         n_ticks_with_viewers=0,  # ...none of which knows how many people watched
         tick_coverage_share=1.0,
         n_comments=23,
-        n_clicks=0,
+        n_clicks_valid=0,
+        n_clicks_raw=0,
         n_orders=0,
         n_reactions=0,
         analysis_only=True,
@@ -117,7 +122,8 @@ def test_partially_missing_viewer_numbers_degrade_the_ticks_signal():
         n_ticks_with_viewers=50,
         tick_coverage_share=1.0,
         n_comments=10,
-        n_clicks=5,
+        n_clicks_valid=5,
+        n_clicks_raw=5,
         n_orders=0,
         n_reactions=0,
     )
@@ -190,3 +196,144 @@ def test_signals_endpoint_refuses_to_claim_viewers_from_tempo_only_ticks(client)
     assert rhythm["status"] == "missing"
     ctr = next(c for c in body["capabilities"] if c["name"].startswith("tỷ lệ nhấp"))
     assert ctr["status"] == "missing"
+
+
+# ---------------------------------------------------------------------------
+# Click: MỘT định nghĩa cho mọi màn hình (tiền đăng ký §4.1)
+# ---------------------------------------------------------------------------
+#
+# Sự cố 12/09 (kiem-chung-van-hanh.md §2.4a): `/signals` chấm tín hiệu bằng SỐ
+# DÒNG click, còn báo cáo và ước lượng viên dùng click HỢP LỆ. Một phiên có 93
+# cú bấm bot được báo "clicks: ok — 93 lượt nhấp" và "thí nghiệm nhân quả: ok —
+# đủ tín hiệu", trong khi `/report` cùng phiên cho clicks = 0 ở mọi khối và
+# diff_in_means = null. Hai màn hình, hai sự thật, không một lời giải thích.
+
+
+def sig(cov, name):
+    return next(s for s in cov.signals if s.name == name)
+
+
+def test_all_clicks_flagged_invalid_is_a_missing_signal_not_an_ok_one():
+    cov = assess(
+        has_schedule=True,
+        n_ticks=60,
+        n_ticks_with_viewers=60,
+        tick_coverage_share=1.0,
+        n_comments=62,
+        n_clicks_valid=0,  # bộ lọc GIVT gắn cờ toàn bộ
+        n_clicks_raw=93,
+        n_orders=0,
+        n_reactions=0,
+    )
+    clicks = sig(cov, "clicks")
+    assert clicks.status == "missing"
+    assert clicks.detail.startswith("0 ")
+    assert "93" in clicks.detail
+    # ...và năng lực phụ thuộc nó KHÔNG được khoe là đủ tín hiệu.
+    assert cap(cov, "thí nghiệm").status == "missing"
+    assert cap(cov, "tỷ lệ nhấp").status == "missing"
+
+
+def test_click_signal_leads_with_the_valid_number_and_labels_the_raw_one():
+    """Số ĐẦU TIÊN trong detail là con số phân tích dùng; số thô đi kèm, có nhãn."""
+    cov = assess(
+        has_schedule=True,
+        n_ticks=60,
+        n_ticks_with_viewers=60,
+        tick_coverage_share=1.0,
+        n_comments=86,
+        n_clicks_valid=210,
+        n_clicks_raw=212,
+        n_orders=0,
+        n_reactions=0,
+    )
+    clicks = sig(cov, "clicks")
+    assert clicks.status == "ok"
+    assert clicks.detail.startswith("210 ")
+    assert "212" not in clicks.detail, "số thô không được trộn vào câu chính"
+    assert clicks.secondary is not None
+    assert "212" in clicks.secondary
+    assert "2" in clicks.secondary  # số bị gắn cờ
+    assert cap(cov, "thí nghiệm").status == "ok"
+
+
+def test_mostly_flagged_traffic_degrades_instead_of_passing_silently():
+    cov = assess(
+        has_schedule=True,
+        n_ticks=60,
+        n_ticks_with_viewers=60,
+        tick_coverage_share=1.0,
+        n_comments=30,
+        n_clicks_valid=4,
+        n_clicks_raw=40,
+        n_orders=0,
+        n_reactions=0,
+    )
+    clicks = sig(cov, "clicks")
+    assert clicks.status == "degraded"
+    assert clicks.detail.startswith("4 ")
+    assert cap(cov, "thí nghiệm").status == "degraded"
+
+
+def test_no_link_at_all_is_still_told_apart_from_zero_valid():
+    """ "Chưa có link đo" và "có link, 0 cú hợp lệ" là hai sự thật khác nhau."""
+    khong_link = assess(
+        has_schedule=True,
+        n_ticks=60,
+        n_ticks_with_viewers=60,
+        tick_coverage_share=1.0,
+        n_comments=10,
+        n_clicks_valid=0,
+        n_clicks_raw=0,
+        n_orders=0,
+        n_reactions=0,
+    )
+    assert sig(khong_link, "clicks").secondary is None
+    assert "link đo" in sig(khong_link, "clicks").detail
+    assert "hợp lệ" not in sig(khong_link, "clicks").detail
+
+
+def test_signals_endpoint_reports_the_same_click_number_as_bao_cao(client):
+    """Chốt chặn end-to-end: hai màn hình phải nói cùng một con số.
+
+    Bốn người xem thật + ba cú bấm bot trên cùng link đo. `/signals` và
+    `/bao-cao` được hỏi độc lập; con số phải khớp, và số thô phải hiện ra
+    ở cả hai chỗ với nhãn riêng.
+    """
+    client.post(
+        "/products",
+        json={"product_id": "NH1", "name": "Nước hoa mini", "cost": 1, "price": 2, "stock": 9},
+    )
+    sid = client.post(
+        "/sessions",
+        json={"platform": "youtube", "mode": "auto", "planned_duration_min": 30},
+    ).json()["session_id"]
+    client.post(f"/sessions/{sid}/schedule", json={"seed": 7})
+    client.post(f"/sessions/{sid}/start")
+    code = client.post(
+        "/shortlinks",
+        json={"product_id": "NH1", "session_id": sid, "target_url": "https://shop.example/nh"},
+    ).json()["code"]
+
+    for i in range(4):
+        client.get(
+            f"/r/{code}",
+            follow_redirects=False,
+            headers={"user-agent": f"Mozilla/5.0 (Linux; Android 13; Khach-{i}) Mobile"},
+        )
+    for i in range(3):
+        client.get(
+            f"/r/{code}",
+            follow_redirects=False,
+            headers={"user-agent": f"python-urllib/3.12 bot-{i}"},
+        )
+
+    clicks_signal = next(
+        s for s in client.get(f"/sessions/{sid}/signals").json()["signals"] if s["name"] == "clicks"
+    )
+    tong_quan = client.get(f"/sessions/{sid}/bao-cao").json()["tong_quan"]
+
+    assert tong_quan["luot_nhap_hop_le"] == 4
+    assert tong_quan["luot_nhap_tho"] == 7
+    assert clicks_signal["detail"].startswith("4 ")
+    assert "7" in clicks_signal["secondary"]

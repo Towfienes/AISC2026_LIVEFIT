@@ -37,6 +37,14 @@ services:
       context: .
       dockerfile: docker/api.Dockerfile
     command: ["livelift-migrate", "up"]
+    # STORE_BACKEND: postgres là dòng quyết định dữ liệu có sống sót hay không.
+    # DATABASE_URL chỉ nói cơ sở dữ liệu ở ĐÂU; thiếu STORE_BACKEND thì API vẫn
+    # chạy ngon lành và giữ mọi thứ trong RAM (sự cố 25/08/2026), và một lần
+    # restart là mất sạch (sự cố 11/09/2026: 13 phiên live thật, 17.535 bình
+    # luận). Kiểm tra sau khi dựng: curl -s .../health → "durable": true.
+    # Ba lớp bảo vệ của ngăn xếp này: db (volume pgdata) → backup (dump ngày,
+    # đã xác minh, giữ 14 ngày) → docs/luu-tru-du-lieu.md giải thích khi nào
+    # dùng chế độ nào.
     environment: &app_env
       DATABASE_URL: postgresql://${POSTGRES_USER:-livelift}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-livelift}
       REDIS_URL: redis://redis:6379/0

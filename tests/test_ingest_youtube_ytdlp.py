@@ -516,7 +516,8 @@ def test_hidden_viewer_count_yields_no_tick_and_declares_the_signal_missing(tmp_
         n_ticks_with_viewers=len(ticks),
         tick_coverage_share=0.0,
         n_comments=42,
-        n_clicks=0,
+        n_clicks_valid=0,
+        n_clicks_raw=0,
         n_orders=0,
         # the live ytdlp path does not pump reactions yet — declared, not faked
         n_reactions=0,

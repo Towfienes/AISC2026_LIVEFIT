@@ -175,6 +175,18 @@ def start_session(store: Store, session: dict[str, Any], start_ts: datetime) -> 
     return updated
 
 
+def is_analysis_only(session: dict[str, Any]) -> bool:
+    """True for an observational analysis of someone else's finished video.
+
+    Such a session has no assignment schedule and never will (you cannot
+    randomize the past), so no experiment quantity may be displayed for it and
+    no action may be offered on it. The flag lives in ``design`` because that
+    is what :func:`livelift.api.routes.replays` persists; this is the ONE
+    reader, so route modules never re-spell the lookup and drift apart.
+    """
+    return bool((session.get("design") or {}).get("analysis_only"))
+
+
 def session_design_hash(session: dict[str, Any]) -> str | None:
     """The commitment hash of the design this session is scheduled under.
 

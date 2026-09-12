@@ -12,6 +12,10 @@ import { usePathname } from "next/navigation";
 
 const LINKS = [
   { href: "/", label: "Trang chính" },
+  // Gói WIZARD: lối vào cho câu hỏi đầu tiên của mọi người dùng mới — "tôi có
+  // một buổi live, dùng được gì?". Đứng ngay sau trang chính vì đó là bước
+  // trước cả việc chạy phiên.
+  { href: "/bat-dau", label: "Tôi có buổi live" },
   { href: "/chay-phien", label: "Chạy phiên" },
   { href: "/desk", label: "Bàn điều khiển" },
   { href: "/host", label: "Màn hình host" },

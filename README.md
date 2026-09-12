@@ -231,6 +231,7 @@ flowchart LR
 │   ├── HUONG-DAN-SU-DUNG.md # hướng dẫn bấm từng nút cho người dùng (có ảnh)
 │   ├── HUONG-DAN-TEST.md    # kiểm thử từng khả năng
 │   ├── img/                 # ảnh chụp màn hình thật dùng trong hướng dẫn
+│   ├── luu-tru-du-lieu.md   # ba chế độ kho + cách bật Postgres  ← ĐỌC TRƯỚC KHI LIVE THẬT
 │   ├── nen-tang-ho-tro.md   # "test buổi live X thì làm sao" — bảng khả năng 8 nền tảng
 │   ├── huong-dan-facebook-token.md  # lấy Page token (~25 phút, không cần App Review)
 │   ├── benchmarks/          # số sinh lại được (intent, KuaiLive)

@@ -45,7 +45,7 @@
 import { useRef } from "react";
 
 import { fmtClock } from "@/lib/format";
-import type { ConnectionKind, SessionMode, SessionSummary } from "@/lib/types";
+import type { ConnectionKind, SessionMode, SessionStatus, SessionSummary } from "@/lib/types";
 import type { SocketStatus } from "@/lib/useLiveSocket";
 
 import Badge from "./ui/Badge";
@@ -87,6 +87,22 @@ export function ConnectionBadge({
     </span>
   );
 }
+
+/**
+ * Nhãn tiếng Việt cho TỪNG trạng thái phiên.
+ *
+ * Trước đây chỉ `live`/`ended` có nhãn, còn lại rơi thẳng ra mã tiếng Anh
+ * ("planned") trong ô chọn phiên. Từ migration 0008 còn thêm `cancelled` —
+ * "đã đóng mà chưa từng lên sóng", khác hẳn "đã kết thúc" — nên bảng nhãn
+ * phải đủ, không để trạng thái nào lọt ra ngoài bằng tên máy.
+ */
+const STATUS_VI: Record<SessionStatus, string> = {
+  planned: "mới lập",
+  scheduled: "đã có lịch gán",
+  live: "đang live",
+  ended: "đã kết thúc",
+  cancelled: "đã huỷ (chưa phát sóng)",
+};
 
 /** Hai chế độ vận hành — nhãn và giải thích đi liền nhau, một nguồn duy nhất. */
 const MODES = [
@@ -266,8 +282,7 @@ export default function StatusBar({
         >
           {sessions.map((s) => (
             <option key={s.session_id} value={s.session_id}>
-              {s.title ?? s.session_id} · {s.platform} ·{" "}
-              {s.status === "live" ? "đang live" : s.status === "ended" ? "đã kết thúc" : s.status}
+              {s.title ?? s.session_id} · {s.platform} · {STATUS_VI[s.status] ?? s.status}
             </option>
           ))}
         </select>

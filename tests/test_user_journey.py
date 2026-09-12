@@ -109,8 +109,17 @@ def test_journey_operator_runs_a_full_experiment_session(client):
         "/shortlinks",
         json={"product_id": "J0", "session_id": sid, "target_url": "https://shop.example/ao-thun"},
     ).json()["code"]
-    for _ in range(4):
-        r = client.get(f"/r/{code}", follow_redirects=False)
+    # BỐN người xem khác nhau, mỗi người một trình duyệt — không phải một
+    # người bấm bốn lần. Bốn cú bấm cùng dấu vân tay trong 10 giây thì ba cú
+    # sau bị quy tắc refractory (§4.1) gắn cờ, và một phiên "khoẻ mạnh" trong
+    # test lại chỉ có 1/4 cú nhấp hợp lệ — đúng nhưng không phải kịch bản
+    # câu chuyện này muốn kể.
+    for i in range(4):
+        r = client.get(
+            f"/r/{code}",
+            follow_redirects=False,
+            headers={"user-agent": f"Mozilla/5.0 (Linux; Android 13; Nguoi-xem-{i}) Mobile"},
+        )
         assert r.status_code == 302
 
     # trạng thái operator có thẻ hành động với đủ đồ nghề khoa học

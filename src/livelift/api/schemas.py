@@ -28,7 +28,14 @@ OverrideReason = Literal["hết hàng", "sai giá", "sự cố kỹ thuật"]
 
 Platform = Literal["youtube", "facebook", "tiktok", "replay", "sim"]
 SessionMode = Literal["auto", "suggest"]
-SessionStatus = Literal["planned", "scheduled", "live", "ended"]
+SessionStatus = Literal["planned", "scheduled", "live", "ended", "cancelled"]
+"""Vòng đời phiên. ``cancelled`` = ĐÓNG mà KHÔNG phát sóng (migration 0008).
+
+Nó tồn tại vì ``ended`` có nghĩa "buổi phát đã diễn ra và đã kết thúc". Một
+phiên quan sát gõ tay, hay một phiên tạo nhầm, chưa từng lên sóng: gọi nó là
+``ended`` sẽ nói dối đúng cái trường mà bộ lọc mẫu phân tích đọc. Trước
+migration 0008 những phiên đó không có trạng thái cuối nào và kẹt ở
+``planned`` vĩnh viễn (kiem-chung-van-hanh.md §3.3)."""
 
 
 # ---------------------------------------------------------------------------
@@ -82,6 +89,14 @@ class SessionCreate(BaseModel):
     mode: SessionMode = "auto"
     planned_duration_min: int = Field(ge=5, le=480)
     host_id: str | None = None
+    dry_run: bool = False
+    """Phiên CHẠY THỬ / tập dượt — bị loại khỏi mẫu phân tích gộp.
+
+    Khai báo ở ĐÂY, lúc tạo phiên, là điều kiện làm nó hợp lệ về liêm chính:
+    quyết định trước khi bốc lịch gán và trước khi thấy bất kỳ con số nào.
+    Không endpoint nào sửa được cờ này sau đó — một nút "loại phiên này khỏi
+    kết quả" bấm được sau khi đọc kết quả không phải quy tắc tiền đăng ký, nó
+    là chọn lọc kết quả. Quy tắc đầy đủ: PREREGISTRATION §8.2."""
 
 
 class SessionOut(BaseModel):
@@ -95,6 +110,10 @@ class SessionOut(BaseModel):
     start_ts: datetime | None = None
     end_ts: datetime | None = None
     created_at: datetime
+    dry_run: bool = False
+    """Xem :class:`SessionCreate`. Mặc định False cho phiên tạo trước gói
+    C-NHẤT-QUÁN — chúng là phiên thật, và mặc định phải là "tính vào kết quả"
+    để không có phiên nào biến mất âm thầm khỏi mẫu."""
 
 
 class SessionDetail(SessionOut):
@@ -164,6 +183,31 @@ class OperatorBlockState(BaseModel):
     seconds_remaining: float
 
 
+class AutopilotState(BaseModel):
+    """Is the server actually running this auto session, and is it working?
+
+    OPERATOR ONLY — it names block indices and would break host blinding
+    (rule L6) if it ever reached :class:`HostState`.
+    """
+
+    enabled: bool = False
+    """Whether the server-side executor is switched on (LIVELIFT_AUTOPILOT)."""
+    last_run_ts: datetime | None = None
+    """Heartbeat: when the executor last looked at this session. None = it has
+    not run yet for this session (which is itself information)."""
+    actions_taken: int = 0
+    on_blocks_total: int = 0
+    on_blocks_done: int = 0
+    """ON blocks that already carry an exposure (system pin or human action)."""
+    missed_on_blocks: list[int] = Field(default_factory=list)
+    """ON blocks that ended with no action at all — cannot be repaired."""
+    last_error: str | None = None
+    alarm: str | None = None
+    """Vietnamese alarm when a live auto session is producing no treatment.
+    Computed from stored exposures, NOT from the heartbeat, so it fires even
+    when the executor never started (incident 12/09)."""
+
+
 class OperatorState(BaseModel):
     """Full experiment view — control-desk operators only."""
 
@@ -179,6 +223,14 @@ class OperatorState(BaseModel):
     """Design commitment of this session's schedule; None for sessions with no
     schedule or scheduled before gói Q3. OPERATOR ONLY — never on HostState
     (rule L6: it is a fingerprint of the assignment mechanism)."""
+    autopilot: AutopilotState | None = None
+    """Executor status for mode='auto'; None for suggest-mode sessions."""
+    cards_note: str | None = None
+    """Lý do tiếng Việt vì sao ``cards`` rỗng theo THIẾT KẾ (phiên đã kết thúc,
+    phiên phân tích video người khác, phiên chưa phát sóng) — None khi phiên
+    đang được phép ghim. Phân biệt "không mời thao tác vì không thao tác được"
+    với "chưa đủ số liệu để xếp hạng"; hai trạng thái đó đọc giống hệt nhau
+    trên một danh sách rỗng không lời."""
 
 
 class HostState(BaseModel):
@@ -452,6 +504,13 @@ class ExperimentSummary(BaseModel):
     valid_clicks: int | None = None
     """Tổng click HỢP LỆ theo bộ quy tắc IAB/GIVT-lite (click_validity) — tập
     con của raw_clicks; chính là nguồn tử số của biến kết quả chính."""
+    sessions_excluded: dict[str, int] = Field(default_factory=dict)
+    """Lý do (tiếng Việt) -> số phiên bị giữ NGOÀI mẫu gộp theo tiền đăng ký
+    §8.2: phiên chưa kết thúc/đã huỷ, phiên phân tích quan sát, phiên chạy thử.
+
+    Công bố con số này là bắt buộc: một phiên bị loại mà không ai thấy thì
+    không phân biệt được với một phiên chưa từng tồn tại. Mọi lý do ở đây đều
+    quyết định được TRƯỚC khi nhìn bất kỳ kết quả nào."""
     estimate: float | None = None
     # No estimate_ht field: at the outer tier's constant p=0.5 the Hájek/IPW
     # estimate is algebraically identical to `estimate` — publishing both as
@@ -486,6 +545,13 @@ class SignalStateOut(BaseModel):
     name: str
     status: Literal["ok", "degraded", "missing"]
     detail: str
+    secondary: str | None = None
+    """Số PHỤ có nhãn, hiện BÊN CẠNH ``detail`` chứ không thay thế nó.
+
+    Hiện chỉ ``clicks`` dùng: mang tổng nhấp THÔ đi kèm con số hợp lệ, vì
+    tiền đăng ký §4.1 bắt buộc báo cáo chuỗi thô song song với chuỗi hợp lệ.
+    Nhãn nói rõ đây là đại lượng nào — không ai được nhầm số lớn hơn là số
+    mà phân tích đã chạy trên đó."""
 
 
 class CapabilityOut(BaseModel):
@@ -547,6 +613,13 @@ class BaoCaoTongQuan(BaseModel):
     dinh_binh_luan: DinhBinhLuan | None = None
     nguoi_xem: NguoiXemTomTat | None = None
     luot_nhap_hop_le: int | None = None
+    """Số nhấp HỢP LỆ — biến kết quả chính theo tiền đăng ký §4.1. Đây là con
+    số mà `/signals`, bảng khối và ước lượng viên cùng dùng; không màn hình nào
+    được khoe một con số khác dưới cùng cái tên "lượt nhấp"."""
+    luot_nhap_tho: int | None = None
+    """Tổng nhấp ĐÃ GHI, kể cả cú bị gắn cờ không hợp lệ (flag-don't-drop).
+    Số PHỤ bắt buộc báo cáo kèm (§4.1) — luôn đứng cạnh số hợp lệ, không bao
+    giờ thay chỗ nó."""
     reactions: ReactionTomTat | None = None
     thieu: dict[str, str] = Field(default_factory=dict)
 

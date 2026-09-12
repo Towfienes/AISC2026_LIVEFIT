@@ -211,8 +211,63 @@ def _compliance(session: dict[str, Any], store) -> ComplianceStats:
 OBSERVATIONAL_LABEL = "phân tích quan sát — không phải thí nghiệm"
 
 
-def _is_analysis_only(session: dict[str, Any]) -> bool:
-    return bool((session.get("design") or {}).get("analysis_only"))
+#: One definition, shared with every other route (``service.is_analysis_only``).
+_is_analysis_only = service.is_analysis_only
+
+
+def _in_analysis_sample(session: dict[str, Any]) -> bool:
+    """Does this session belong in the POOLED result? (PREREGISTRATION §8.2)
+
+    Three exclusions, all decidable WITHOUT looking at a single outcome — that
+    is what makes them a pre-registered inclusion rule instead of result
+    filtering:
+
+    * ``status != 'ended'`` — a session still running, or closed without ever
+      going on air (``cancelled``), has no completed measurement blocks;
+    * ``analysis_only`` — an observational analysis of someone else's video
+      was never randomized, so it carries no experimental quantity;
+    * ``dry_run`` — declared a practice run at CREATION, before the schedule
+      was drawn and before any number existed.
+
+    The third is the one added on 12/09. Until then ``/experiment/summary``
+    pooled every ended session with a schedule, so two 1-second debugging
+    sessions with zero clicks landed permanently in the pooled estimate and
+    there was no way to take them out (kiem-chung-van-hanh.md §2.4c). The flag
+    is write-once (``store._SESSION_WRITE_ONCE``) precisely so this fix cannot
+    become the opposite problem — a button that drops sessions after their
+    numbers are known.
+    """
+    return (
+        session.get("status") == "ended"
+        and not _is_analysis_only(session)
+        and not bool(session.get("dry_run"))
+    )
+
+
+#: Vietnamese labels for the §8.2 exclusions, in the order they are tested.
+SAMPLE_EXCLUSION_LABELS = {
+    "chua_ket_thuc": "phiên chưa kết thúc hoặc đã huỷ (không có khối đo hoàn tất)",
+    "quan_sat": "phiên phân tích quan sát (không có lịch gán ngẫu nhiên)",
+    "chay_thu": "phiên CHẠY THỬ, khai báo lúc tạo phiên (tiền đăng ký §8.2)",
+}
+
+
+def _excluded_session_counts(sessions: list[dict[str, Any]]) -> dict[str, int]:
+    """How many sessions each §8.2 rule kept out — counted, never hidden.
+
+    An exclusion nobody can see is indistinguishable from a session that never
+    existed. Publishing the tally is what lets a reader check that the sample
+    is the sample that was pre-declared.
+    """
+    counts = dict.fromkeys(SAMPLE_EXCLUSION_LABELS, 0)
+    for s in sessions:
+        if s.get("status") != "ended":
+            counts["chua_ket_thuc"] += 1
+        elif _is_analysis_only(s):
+            counts["quan_sat"] += 1
+        elif s.get("dry_run"):
+            counts["chay_thu"] += 1
+    return {SAMPLE_EXCLUSION_LABELS[k]: v for k, v in counts.items() if v}
 
 
 def _denominator_check(
@@ -310,9 +365,9 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
     phases: list[str] = []
     compliance_rates: list[float] = []
 
-    ended = [
-        s for s in store.list_sessions() if s.get("status") == "ended" and not _is_analysis_only(s)
-    ]
+    all_sessions = store.list_sessions()
+    ended = [s for s in all_sessions if _in_analysis_sample(s)]
+    sessions_excluded = _excluded_session_counts(all_sessions)
     # Operational click totals (gói Q1): raw = every logged click, valid = the
     # IAB-valid subset that feeds the primary outcome. Counts, not inference —
     # they are served on every path, freeze included.
@@ -363,6 +418,7 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
             n_off=n_blocks - sum(zs),
             raw_clicks=raw_clicks,
             valid_clicks=valid_clicks,
+            sessions_excluded=sessions_excluded,
             message=(
                 "Chưa đủ dữ liệu cho phân tích gộp (cần ≥ 2 phiên đã kết thúc và "
                 "≥ 8 khối). Kết quả sẽ xuất hiện khi chuỗi thí nghiệm tích lũy thêm."
@@ -449,6 +505,7 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
             n_off=int(n_blocks - sum(zs)),
             raw_clicks=raw_clicks,
             valid_clicks=valid_clicks,
+            sessions_excluded=sessions_excluded,
             estimable=False,
             message=freeze_reason,
             measured_cv=cv,
@@ -466,6 +523,7 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
         n_off=res.n_off,
         raw_clicks=raw_clicks,
         valid_clicks=valid_clicks,
+        sessions_excluded=sessions_excluded,
         estimable=res.estimable,
         message=res.reason,
         # Never publish inference fields for a design that cannot be tested.
@@ -504,13 +562,22 @@ def _signal_coverage(session: dict[str, Any], store) -> SignalCoverage:
     # counted separately — otherwise the matrix claims "nhịp phiên (người xem
     # theo thời gian)" on a session with no viewer number at all.
     n_with_viewers = sum(1 for t in ticks if float(t.get("viewers") or 0.0) > 0.0)
+    # Clicks are graded on the PRE-REGISTERED primary definition (§4.1): the
+    # IAB/GIVT-valid subset, the exact quantity `_bao_cao_tong_quan` and
+    # `block_frame` count. Grading on len(clicks) let the matrix report "ok —
+    # 93 lượt nhấp / đủ tín hiệu" while the report of the same session showed
+    # clicks=0 everywhere (kiem-chung-van-hanh.md §2.4a). The raw total is
+    # still carried, as the labelled secondary the same §4.1 requires.
+    clicks = store.list_clicks(session_id)
+    n_clicks_valid = sum(1 for c in clicks if c.get("is_valid") is not False)
     return assess_signals(
         has_schedule=bool(store.get_blocks(session_id)),
         n_ticks=len(ticks),
         n_ticks_with_viewers=n_with_viewers,
         tick_coverage_share=coverage_share,
         n_comments=len(store.list_comments(session_id)),
-        n_clicks=len(store.list_clicks(session_id)),
+        n_clicks_valid=n_clicks_valid,
+        n_clicks_raw=len(clicks),
         n_orders=len(getattr(store, "list_orders", lambda _sid: [])(session_id)),
         n_reactions=len(store.list_reactions(session_id)),
         platform=session.get("platform"),
@@ -610,8 +677,16 @@ def _bao_cao_tong_quan(
     else:
         thieu["nguoi_xem"] = _signal_detail(cov, "ticks")
 
+    # MỘT định nghĩa cho cả hai màn hình (§4.1): con số chính là nhấp HỢP LỆ,
+    # con số thô đi kèm có nhãn riêng — đúng cặp mà `/signals` trả về.
+    luot_nhap_tho: int | None = len(clicks) if clicks else None
     if clicks:
         luot_nhap: int | None = sum(1 for c in clicks if c.get("is_valid") is not False)
+        if luot_nhap == 0:
+            # Không phải "thiếu nguồn": link đo có nhận cú bấm, nhưng KHÔNG cú
+            # nào hợp lệ. Số 0 này là phép đo — và phải kèm lý do, nếu không
+            # người đọc lại đối chiếu nó với con số thô rồi tự suy diễn sai.
+            thieu["luot_nhap"] = _signal_detail(cov, "clicks")
     else:
         luot_nhap = None
         thieu["luot_nhap"] = _signal_detail(cov, "clicks")
@@ -638,6 +713,7 @@ def _bao_cao_tong_quan(
         dinh_binh_luan=dinh,
         nguoi_xem=nguoi_xem,
         luot_nhap_hop_le=luot_nhap,
+        luot_nhap_tho=luot_nhap_tho,
         reactions=reactions_out,
         thieu=thieu,
     )

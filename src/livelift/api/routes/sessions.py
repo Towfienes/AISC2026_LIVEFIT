@@ -8,9 +8,10 @@ from typing import Literal
 
 from fastapi import APIRouter, HTTPException
 
-from livelift.api import service
-from livelift.api.cards import build_candidates, build_cards
+from livelift.api import autopilot, service
+from livelift.api.cards import build_candidates, build_cards, pin_cards_blocked_reason
 from livelift.api.schemas import (
+    AutopilotState,
     BlockOut,
     HostState,
     OperatorBlockState,
@@ -27,8 +28,12 @@ from livelift.api.schemas import (
     ShortlinkOut,
 )
 from livelift.api.service import StoreDep
-from livelift.api.store import ShortlinkCodeTakenError
-from livelift.core.assigner import DesignParams
+from livelift.api.store import ShortlinkCodeTakenError, Store
+from livelift.core.assigner import (
+    DesignParams,
+    RerandomizationExhaustedError,
+    ScheduleInfeasibleError,
+)
 
 router = APIRouter()
 
@@ -73,6 +78,7 @@ def create_shortlink(body: ShortlinkIn, store: StoreDep) -> ShortlinkOut:
 
 @router.post("/sessions", response_model=SessionOut)
 def create_session(body: SessionCreate, store: StoreDep) -> SessionOut:
+    """Create a session. ``dry_run`` is declared HERE or never (§8.2)."""
     row = body.model_dump()
     row.update(
         session_id=service.new_id(),
@@ -104,13 +110,22 @@ def create_schedule(session_id: str, body: ScheduleRequest, store: StoreDep) -> 
     if session["status"] not in ("planned", "scheduled"):
         raise HTTPException(
             status_code=409,
-            detail="Lịch gán chỉ được sinh TRƯỚC khi phát sóng — phiên đã bắt đầu hoặc kết thúc",
+            detail=(
+                "Lịch gán chỉ được sinh TRƯỚC khi phát sóng — phiên này đang ở trạng thái "
+                f"{_STATUS_VI.get(session['status'], session['status'])}."
+            ),
         )
     params = DesignParams(
         block_min=body.block_min, washout_min=body.washout_min, jitter_s=body.jitter_s
     )
     seed = body.seed if body.seed is not None else secrets.randbits(63)
-    updated, blocks = service.schedule_session(store, session, params, seed)
+    try:
+        updated, blocks = service.schedule_session(store, session, params, seed)
+    except (ScheduleInfeasibleError, RerandomizationExhaustedError) as exc:
+        # A configuration the operator can fix is a CLIENT answer. Before
+        # 12/09 both paths escaped as an empty HTTP 500 — the 500 that blocked
+        # "phiên 50 phút, khối 10 phút" on every seed (incident 12/09).
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     design = updated["design"]
     realized = int(design.get("realized_min_per_arm_per_phase", 0))
     realized_trans = int(design.get("realized_transition_pairs", 0))
@@ -124,11 +139,22 @@ def create_schedule(session_id: str, body: ScheduleRequest, store: StoreDep) -> 
             f"phiên dài hơn (từ 90 phút) hoặc khối ngắn hơn."
         )
     if realized_trans < params.min_transition_pairs:
+        # Name a block length that actually fits the requested duration instead
+        # of only "phiên dài hơn" — a 50-minute session cannot become 90.
+        # 12 measurement blocks is the shortest chain that carries the full
+        # 3-pair requirement, so duration // 12 is the concrete alternative.
+        suggested = max(1, int(session["planned_duration_min"]) // 12)
+        alternative = (
+            f" Với phiên {session['planned_duration_min']} phút, khối {suggested} phút cho "
+            f"chuỗi dài hơn và giữ được ràng buộc."
+            if suggested < params.block_min
+            else ""
+        )
         warnings.append(
             f"Chuỗi {n_meas} khối chỉ ràng buộc được {realized_trans} cặp khối liền kề "
             f"cùng nhánh mỗi loại (thiết kế yêu cầu ≥ {params.min_transition_pairs} cặp "
             f"(BẬT,BẬT) và (TẮT,TẮT)). Các ước lượng nhạy carryover (τ̂ cặp liền kề, CRT) "
-            f"sẽ kém tin cậy — cân nhắc phiên dài hơn (từ 90 phút)."
+            f"sẽ kém tin cậy — cân nhắc phiên dài hơn (từ 90 phút).{alternative}"
         )
     return ScheduleOut(
         session_id=session_id,
@@ -156,8 +182,17 @@ def start_session(session_id: str, store: StoreDep) -> SessionOut:
     session = service.require_session(store, session_id)
     if session["status"] == "live":
         raise HTTPException(status_code=409, detail="Phiên đã đang phát")
-    if session["status"] == "ended":
-        raise HTTPException(status_code=409, detail="Phiên đã kết thúc")
+    if session["status"] in ("ended", "cancelled"):
+        # Terminal both ways: a closed session must never re-open and start a
+        # second broadcast under the same id — its blocks, clicks and report
+        # all key on one start_ts.
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Phiên {_STATUS_VI[session['status']]} — không phát lại được. "
+                "Tạo phiên mới bằng POST /sessions."
+            ),
+        )
     try:
         updated = service.start_session(store, session, service.now_utc())
     except service.ScheduleMissingError as exc:
@@ -175,11 +210,83 @@ def start_session(session_id: str, store: StoreDep) -> SessionOut:
 
 @router.post("/sessions/{session_id}/end", response_model=SessionOut)
 def end_session(session_id: str, store: StoreDep) -> SessionOut:
+    """Close the session.
+
+    A session that IS broadcasting ends as ``ended``. A session that never
+    broadcast is closed as ``cancelled`` instead — same button, truthful
+    record. Before 12/09 this route simply refused (409 "Phiên không ở trạng
+    thái đang phát") and an observation session typed in by hand had NO way to
+    close: it sat at ``planned`` forever, and the only workaround was to draw a
+    randomization schedule and go live — making the operator stage an
+    experiment they never intended to run, just to close a row
+    (``docs/benchmarks/kiem-chung-van-hanh.md`` §3.3).
+    """
     session = service.require_session(store, session_id)
-    if session["status"] != "live":
-        raise HTTPException(status_code=409, detail="Phiên không ở trạng thái đang phát")
+    status = session["status"]
+    if status in ("planned", "scheduled"):
+        return _cancel(store, session)
+    if status != "live":
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Phiên đã ở trạng thái cuối ({_STATUS_VI.get(status, status)}) — "
+                "không có buổi phát nào đang chạy để kết thúc."
+            ),
+        )
     updated = store.update_session(session_id, {"status": "ended", "end_ts": service.now_utc()})
     store.publish(session_id, {"type": "state", "data": {"status": "ended"}})
+    return SessionOut(**updated)
+
+
+@router.post("/sessions/{session_id}/cancel", response_model=SessionOut)
+def cancel_session(session_id: str, store: StoreDep) -> SessionOut:
+    """Close a session that never went on air, explicitly.
+
+    Only from ``planned``/``scheduled``: a broadcast that already happened
+    cannot be un-happened, so a live session must be ended (and a session
+    already ended stays ended). Cancelling is idempotent.
+
+    Scientific meaning, fixed here and in PREREGISTRATION §8.2: a cancelled
+    session NEVER enters the pooled result. It carries no ``start_ts``, so it
+    has no measurement blocks at all — the exclusion is structural, not a
+    filter someone has to remember to apply.
+    """
+    session = service.require_session(store, session_id)
+    status = session["status"]
+    if status == "cancelled":
+        return SessionOut(**session)  # idempotent: closing a closed thing is done
+    if status not in ("planned", "scheduled"):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Phiên {_STATUS_VI.get(status, status)} — chỉ huỷ được phiên CHƯA phát "
+                "sóng. Phiên đang phát thì gọi POST /sessions/{id}/end để kết thúc; "
+                "phiên đã kết thúc thì giữ nguyên (buổi phát đã diễn ra là một sự thật, "
+                "không xoá được bằng một nút bấm)."
+            ),
+        )
+    return _cancel(store, session)
+
+
+_STATUS_VI: dict[str, str] = {
+    "planned": "mới lập, chưa có lịch gán",
+    "scheduled": "đã có lịch gán, chưa phát sóng",
+    "live": "đang phát",
+    "ended": "đã kết thúc",
+    "cancelled": "đã huỷ",
+}
+
+
+def _cancel(store: Store, session: dict) -> SessionOut:
+    """Mark a never-aired session closed. ``start_ts`` stays None, always."""
+    session_id = session["session_id"]
+    updated = store.update_session(
+        session_id,
+        # end_ts records WHEN it was closed; start_ts stays None because no
+        # broadcast ever started (migration 0008 enforces that pairing).
+        {"status": "cancelled", "end_ts": service.now_utc()},
+    )
+    store.publish(session_id, {"type": "state", "data": {"status": "cancelled"}})
     return SessionOut(**updated)
 
 
@@ -217,15 +324,21 @@ def get_state(
             is_washout=bool(current["is_washout"]),
             seconds_remaining=max(0.0, current["end_offset_s"] - elapsed),
         )
-    recent_clicks: dict[str, int] = {}
-    for c in store.list_clicks(session_id):
-        pid = c.get("product_id")
-        if pid:
-            recent_clicks[pid] = recent_clicks.get(pid, 0) + 1
-    candidates = build_candidates(
-        store.list_products(), recent_clicks, store.list_ticks(session_id)
-    )
-    cards = build_cards(candidates, {p["product_id"]: p for p in store.list_products()})
+    # Cards are an invitation to act, so they only exist where the action can
+    # succeed. A finished replay analysis used to come back with three cards
+    # offering to pin unrelated demo products (incident 12/09) — the desk
+    # inviting a click that /actions/execute would refuse.
+    cards_note = pin_cards_blocked_reason(session["status"], service.is_analysis_only(session))
+    cards = []
+    if cards_note is None:
+        recent_clicks: dict[str, int] = {}
+        for c in store.list_clicks(session_id):
+            pid = c.get("product_id")
+            if pid:
+                recent_clicks[pid] = recent_clicks.get(pid, 0) + 1
+        products = store.list_products()
+        candidates = build_candidates(products, recent_clicks, store.list_ticks(session_id))
+        cards = build_cards(candidates, {p["product_id"]: p for p in products})
     return OperatorState(
         session_id=session_id,
         status=session["status"],
@@ -243,5 +356,33 @@ def get_state(
             else None
         ),
         cards=cards,
+        cards_note=cards_note,
         design_hash=service.session_design_hash(session),
+        autopilot=_autopilot_state(store, session, blocks, elapsed),
+    )
+
+
+def _autopilot_state(
+    store: Store, session: dict, blocks: list[dict], elapsed: float
+) -> AutopilotState | None:
+    """Executor status + silence alarm for auto sessions (operator view only).
+
+    Suggest-mode sessions get ``None``: nothing is supposed to run for them,
+    and an "enabled/0 actions" panel there would be noise. For auto sessions
+    this is the only place the desk can learn that the treatment arm is
+    getting no treatment — the failure that stayed silent until 12/09.
+    """
+    if session.get("mode") != "auto":
+        return None
+    exposures = store.list_exposure_events(session["session_id"])
+    view = autopilot.view(session, blocks, exposures, elapsed)
+    return AutopilotState(
+        enabled=view.enabled,
+        last_run_ts=view.last_run_ts,
+        actions_taken=view.actions_taken,
+        on_blocks_total=view.on_blocks_total,
+        on_blocks_done=view.on_blocks_done,
+        missed_on_blocks=list(view.missed_on_blocks),
+        last_error=view.last_error,
+        alarm=view.alarm,
     )

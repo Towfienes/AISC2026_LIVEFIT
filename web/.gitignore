@@ -3,6 +3,8 @@
 
 # next.js
 /.next/
+# thư mục build của máy chủ dev thứ hai (LIVELIFT_DIST_DIR trong next.config.mjs)
+/.next-*/
 /out/
 
 # production

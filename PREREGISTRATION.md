@@ -366,6 +366,53 @@ hình. Chẩn đoán mất mát nhỏ phải GỘP cả chuỗi phiên (cộng `
 một lần): đo được công suất 100% và FPR 0% trên 50 lần lặp × 30 phiên khi mất 10% nhịp
 khối TẮT. Bảo thủ ở mức mỗi-phiên là cố ý — một cổng kêu oan hàng tuần sẽ bị bỏ qua.
 
+### 8.2 Quy tắc NẠP PHIÊN vào mẫu phân tích (bổ sung 12/09/2026, trước khóa — gói C)
+
+Mục 8 nói khối nào bị loại. Mục này nói **phiên nào được tính**, và nó tồn tại vì một
+sự cố vận hành: cho tới 12/09 `/experiment/summary` gộp **mọi** phiên `status='ended'` có
+lịch gán, không phân biệt phiên thật với phiên bấm thử. Hai phiên dò lỗi sống đúng một
+giây, không một cú nhấp, đã lọt vĩnh viễn vào kết quả gộp và **không có cách nào gỡ ra**
+(`docs/benchmarks/kiem-chung-van-hanh.md` §2.4c). Bản vá thêm một cái cờ — và một cái cờ
+loại phiên khỏi kết quả là thứ nguy hiểm, nên quy tắc dùng nó phải nằm ở đây, trong tiền
+đăng ký, chứ không nằm trong mã nguồn.
+
+**Một phiên vào mẫu khẳng định khi và chỉ khi cả bốn điều sau đúng:**
+
+1. `status = 'ended'` — buổi phát đã diễn ra và đã kết thúc. Phiên `cancelled` (đóng mà
+   **chưa từng lên sóng**, trạng thái thêm ở migration 0008) không có khối đo nào: nó
+   không mang `start_ts`, nên việc loại nó là **cấu trúc**, không phải một bộ lọc ai đó
+   phải nhớ áp dụng.
+2. Có lịch gán đã lưu TRƯỚC phiên (mục 2) — không có ngẫu nhiên hóa thì không có estimand.
+3. `design.analysis_only` sai — phiên phân tích video của người khác là **quan sát**, không
+   bao giờ mang đại lượng thí nghiệm (E2-04).
+4. `dry_run` sai — phiên không được khai báo là **chạy thử**.
+
+**Cờ `dry_run` — vì sao nó không phải cửa hậu chọn lọc kết quả.** Ba ràng buộc, cả ba đã
+cài đặt và có test khẳng định:
+
+- **Khai báo lúc TẠO phiên** (`POST /sessions`), tức **trước** khi bốc lịch gán, trước khi
+  lên sóng, trước khi tồn tại một con số nào. Không có ô "loại phiên này" bấm được sau khi
+  đọc kết quả.
+- **Bất biến sau đó.** Không endpoint nào nhận `dry_run` ngoài lúc tạo; cả hai store đều
+  bỏ qua nó trong `update_session` (`store._SESSION_WRITE_ONCE`, cùng danh sách cột
+  write-once cho cả memory lẫn Postgres). Gate:
+  `tests/test_vong_doi_phien.py::test_the_dry_run_flag_cannot_be_flipped_after_the_fact`.
+- **Mặc định là TÍNH VÀO.** `dry_run = false` cho mọi phiên, kể cả phiên ghi trước
+  migration 0008. Một phiên thật biến mất âm thầm khỏi mẫu còn tệ hơn một phiên thử lọt
+  vào: cái sau nhìn thấy được, cái trước thì không.
+
+**Loại thì phải ĐẾM.** `/experiment/summary` công bố `sessions_excluded` — lý do tiếng Việt
+→ số phiên, cho cả ba nhóm (chưa kết thúc/đã huỷ, quan sát, chạy thử). Một phiên bị loại mà
+không ai thấy thì không phân biệt được với một phiên chưa từng tồn tại; con số này để người
+đọc đối chiếu mẫu thật với mẫu đã khai.
+
+**Điều này KHÔNG cho phép:** loại một phiên **thật** sau khi đã chạy. Phiên thật hỏng giữa
+chừng (mất ingest, sự cố kỹ thuật, vi phạm làm mù) xử lý ở **cấp khối** theo mục 8 —
+`excluded_reason` trên từng khối, báo cáo đầy đủ số khối loại và lý do, kèm phân tích độ
+nhạy có/không khối bị loại. Không có đường nào rút cả một phiên khỏi mẫu sau khi thấy số
+liệu của nó; nếu một hoàn cảnh bất thường buộc phải làm vậy, nó là **sai lệch tiền đăng ký**
+và phải công bố như một sai lệch, kèm kết quả tính cả hai cách.
+
 ## 9. Biện pháp chống nhiễu (tiền đăng ký như một phần thiết kế)
 
 - **Làm mù host:** màn hình host (route `/host`) chỉ hiện sản phẩm đang ghim, giá, tồn

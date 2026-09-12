@@ -7,7 +7,12 @@
 
 export type Assignment = "ON" | "OFF";
 export type Phase = "early" | "mid" | "late";
-export type SessionStatus = "planned" | "scheduled" | "live" | "ended";
+/**
+ * `cancelled` = đóng mà KHÔNG phát sóng (migration 0008). Khác hẳn `ended`:
+ * phiên huỷ chưa từng lên sóng nên không mang `start_ts`, không có khối đo
+ * nào, và không bao giờ vào kết quả gộp (tiền đăng ký §8.2).
+ */
+export type SessionStatus = "planned" | "scheduled" | "live" | "ended" | "cancelled";
 export type SessionMode = "auto" | "suggest";
 
 export interface Product {

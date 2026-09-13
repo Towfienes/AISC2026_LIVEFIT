@@ -40,10 +40,16 @@ interface Props {
   videoId: string | null;
   /** Session platform, for the empty-state explanation. */
   platform: string | null;
+  /**
+   * Mặc định THU GỌN bất kể bề rộng màn (desk v2 đặt video ở đáy cột KPI —
+   * video là bối cảnh nhường chỗ đầu tiên, mở ra khi người vận hành cần).
+   * Lựa chọn đã lưu của người vận hành vẫn thắng.
+   */
+  defaultCollapsed?: boolean;
   className?: string;
 }
 
-export default function LiveVideo({ videoId, platform, className }: Props) {
+export default function LiveVideo({ videoId, platform, defaultCollapsed, className }: Props) {
   // null = chưa quyết (trước mount). Mặc định THU GỌN — an toàn cho màn hẹp;
   // effect dưới mở ra trên màn rộng trừ khi người vận hành đã tự chọn.
   const [collapsed, setCollapsed] = useState<boolean | null>(null);
@@ -54,9 +60,13 @@ export default function LiveVideo({ videoId, platform, className }: Props) {
       setCollapsed(stored);
       return;
     }
+    if (defaultCollapsed) {
+      setCollapsed(true);
+      return;
+    }
     // Chưa từng chọn: mở trên màn ≥ xl (1280px), thu gọn dưới đó (spec B).
     setCollapsed(!window.matchMedia("(min-width: 1280px)").matches);
-  }, []);
+  }, [defaultCollapsed]);
 
   const toggle = () => {
     const next = !(collapsed ?? true);

@@ -7,5 +7,5 @@
  * BẬT/TẮT text labels (identity never by color alone).
  */
 
-export const BLOCK_ON_COLOR = "#9085e9"; // slot 7 violet
-export const BLOCK_OFF_COLOR = "#383835"; // neutral fill (axis token)
+export const BLOCK_ON_COLOR = "#8b7bff"; // slot 7 violet (--st-on v2)
+export const BLOCK_OFF_COLOR = "#3a3f4d"; // neutral fill (--st-off v2)

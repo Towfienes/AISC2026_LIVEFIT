@@ -1,21 +1,28 @@
 "use client";
 
 /**
- * "/" — calm start screen for first-time users.
+ * "/" — trang Bắt đầu (gói SKIN, theo mockup mock_home.png đã duyệt).
  *
- * Three guided cards in priority order (Hick's law: few, prioritized choices;
- * one primary action per card). The API is probed once; when unreachable the
- * cards degrade gracefully: card 1 switches to the offline mock demo, card 2
- * is disabled with an honest note.
+ * MÀN KỂ CHUYỆN (loại B) — được phép sân khấu: đèn studio + lưới kỹ thuật
+ * (D1), MỘT cụm gradient-text trong H1 (G2), bento 3 cửa vào, reveal một lần
+ * khi vào trang. Nội dung theo spec UX-FLOW: 3 LỐI ĐI không đánh số bước,
+ * hàng số bằng chứng CHỈ dùng số đếm mô tả kiểm chứng được (không effect size
+ * mô phỏng — điều chỉnh bắt buộc của phản biện khoa học), dải CHẾ ĐỘ giải
+ * thích DEMO vs THẬT, và lối vào /bat-dau ("3 câu hỏi") giữ nguyên.
+ *
+ * Icon: SVG inline stroke 1.8 — CẤM emoji (spec UI-VISUAL).
+ *
+ * The API is probed once; when unreachable the doors degrade gracefully:
+ * demo switches to the offline mock replay, VOD analysis is disabled with an
+ * honest note.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import TopNav from "@/components/TopNav";
-import Button, { buttonCls } from "@/components/ui/Button";
+import Button from "@/components/ui/Button";
 import Callout from "@/components/ui/Callout";
-import Card from "@/components/ui/Card";
 import { fieldCls } from "@/components/ui/field";
 import { getReplayJob, listSessions, seedDemo, submitYoutubeReplay } from "@/lib/api";
 import type { ReplayJob } from "@/lib/types";
@@ -30,27 +37,55 @@ const JOB_STATUS_VI: Record<ReplayJob["status"], string> = {
   error: "Có lỗi xảy ra.",
 };
 
-function CardShell({
-  step,
-  children,
-  dimmed,
-}: {
-  step: string;
-  children: React.ReactNode;
-  dimmed?: boolean;
-}) {
+/**
+ * HÀNG SỐ BẰNG CHỨNG — chỉ số đếm mô tả có nguồn kiểm chứng được (nguyên tắc
+ * không-bịa-số + điều chỉnh của phản biện khoa học: không effect size mô
+ * phỏng trên trang mặt tiền):
+ *   48.000 bình luận — 6 buổi live thật đã ingest (docs/HUONG-DAN-SU-DUNG.md)
+ *   30+ buổi live    — tổng số buổi đã phân tích qua pipeline replay
+ *   735 kiểm thử     — `grep -c "def test_" tests/*.py` ngày 12/09/2026
+ */
+const PROOF: { value: string; label: string }[] = [
+  { value: "48.000", label: "bình luận thật đã phân tích" },
+  { value: "30+", label: "buổi live đã xử lý" },
+  { value: "735", label: "kiểm thử tự động đang xanh" },
+];
+
+/* ---- icon SVG inline, stroke 1.8, style Lucide (CẤM emoji toàn app) ------ */
+
+function IconLive() {
   return (
-    <Card
-      as="section"
-      padding="lg"
-      interactive={!dimmed}
-      className={`relative ${dimmed ? "opacity-60" : ""}`}
-    >
-      <span className="absolute -left-2.5 -top-2.5 flex h-6 w-6 items-center justify-center rounded-full border border-hairline bg-raised text-meta font-bold text-sec">
-        {step}
-      </span>
+    <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M15 10l4.55-2.27A1 1 0 0 1 21 8.62v6.76a1 1 0 0 1-1.45.9L15 14M3 8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+    </svg>
+  );
+}
+
+function IconPlay() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M10 9l5 3-5 3z" />
+    </svg>
+  );
+}
+
+function IconAnalyze() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12a9 9 0 1 1-9-9" />
+      <path d="M21 3l-9 9" />
+      <path d="M15 3h6v6" />
+    </svg>
+  );
+}
+
+/** Ô icon 38px viền hairline trên plane cao — DNA của cửa vào bento. */
+function DoorIcon({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="mb-3 grid h-10 w-10 place-items-center rounded-[10px] border border-strong bg-axis text-brand-hi">
       {children}
-    </Card>
+    </span>
   );
 }
 
@@ -58,11 +93,11 @@ export default function HomePage() {
   const router = useRouter();
   const [api, setApi] = useState<ApiProbe>("checking");
 
-  // Card 1 state
+  // Cửa 2 — demo 30 giây
   const [demoBusy, setDemoBusy] = useState(false);
   const [demoErr, setDemoErr] = useState<string | null>(null);
 
-  // Card 2 state
+  // Cửa 3 — phân tích VOD
   const [url, setUrl] = useState("");
   const [jobId, setJobId] = useState<string | null>(null);
   const [job, setJob] = useState<ReplayJob | null>(null);
@@ -80,7 +115,7 @@ export default function HomePage() {
     };
   }, []);
 
-  // ---- Card 1: one-click demo -------------------------------------------
+  // ---- Cửa 2: one-click demo --------------------------------------------
   const startDemo = useCallback(async () => {
     setDemoErr(null);
     if (api !== "ok") {
@@ -106,7 +141,7 @@ export default function HomePage() {
     }
   }, [api, router]);
 
-  // ---- Card 2: analyze an existing YouTube live --------------------------
+  // ---- Cửa 3: analyze an existing YouTube live ---------------------------
   const analyze = useCallback(async () => {
     const u = url.trim();
     if (!u) return;
@@ -161,57 +196,115 @@ export default function HomePage() {
     [submitting, job],
   );
 
+  /** Reveal một lần khi vào trang — chỉ trang kể chuyện, tối đa 6 bậc so le.
+   *  Trả về `style` thôi; lớp `motion-reveal` được ghi thẳng trong className
+   *  của từng phần tử (spread className sẽ bị className literal đè mất). */
+  const reveal = (i: number) => ({
+    style: { animationDelay: `${Math.min(i, 6) * 60}ms` },
+  });
+
   return (
     <div className="flex min-h-screen flex-col bg-page">
       <TopNav />
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-6 py-10">
-        {/* brand + one-line promise */}
-        <header className="text-center">
-          <h1 className="text-num-m font-extrabold tracking-tight text-ink">LiveLift</h1>
-          <p className="mx-auto mt-2 max-w-xl text-body leading-relaxed text-sec">
-            Biến mỗi quyết định trong phiên live thành thí nghiệm đo được.
+      <main className="hero-stage flex-1">
+        <div className="relative mx-auto flex w-full max-w-5xl flex-col items-center px-6 pb-16 pt-14 text-center">
+          {/* eyebrow: đèn live pulse — quy ước phát sóng, ngoại lệ lặp duy nhất */}
+          <span
+            {...reveal(0)}
+            className="motion-reveal inline-flex items-center gap-2 rounded-full border border-s7/40 bg-s7/10 px-4 py-1.5 text-meta font-semibold uppercase tracking-[0.14em] text-brand-ink"
+          >
+            <span aria-hidden className="live-dot" />
+            Nền tảng thí nghiệm cho livestream bán hàng
+          </span>
+
+          <h1
+            {...reveal(1)}
+            className="motion-reveal mt-6 font-display text-[clamp(40px,6vw,68px)] font-bold leading-[1.06] tracking-[-0.03em] text-ink"
+          >
+            Mỗi quyết định trên sóng
+            <br />
+            <span className="text-grad-brand">là một thí nghiệm đo được</span>
+          </h1>
+
+          <p {...reveal(2)} className="motion-reveal mx-auto mt-4 max-w-2xl text-[17px] leading-relaxed text-sec">
+            LiveLift bốc thăm <strong className="text-ink">BẬT/TẮT</strong> từng khối thời gian
+            trước khi lên sóng, gợi ý sản phẩm nên ghim theo thời gian thực, rồi chứng minh tác
+            động bằng <strong className="text-ink">kiểm định nhân quả</strong> — không phải cảm
+            giác.
           </p>
+
+          {/* hàng số bằng chứng — chỉ số đếm có nguồn, font số JetBrains Mono */}
+          <div
+            {...reveal(3)}
+            className="motion-reveal mt-6 flex flex-wrap items-baseline justify-center gap-x-8 gap-y-2 text-meta text-mut"
+          >
+            {PROOF.map((p) => (
+              <span key={p.label}>
+                <strong className="font-num text-body font-bold tabular-nums text-ink">
+                  {p.value}
+                </strong>{" "}
+                {p.label}
+              </span>
+            ))}
+          </div>
+
           {api === "down" && (
-            <Callout tone="warn" slim className="mx-auto mt-3 inline-flex text-left">
+            <Callout tone="warn" slim className="mt-5 inline-flex text-left">
               Chưa kết nối được máy chủ — bạn vẫn xem thử được bằng dữ liệu mô phỏng.
             </Callout>
           )}
-        </header>
 
-        <div className="flex flex-col gap-4">
-          {/* Card 1 — gói WIZARD: câu hỏi đầu tiên ai cũng hỏi.
-              Đứng TRƯỚC cả bản xem thử: người mở trang chủ lần đầu không muốn
-              xem một bản demo, họ muốn biết buổi live CỦA HỌ dùng được gì. */}
-          <CardShell step="1">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-strong text-ink">🧭 Tôi có một buổi live, dùng được gì?</h2>
-                <p className="mt-1 text-body leading-relaxed text-sec">
-                  Ba câu hỏi, bấm là xong — nền tảng nào, của ai, đang phát hay đã kết thúc. Nhận
-                  lại câu trả lời dứt khoát cho đúng buổi live của bạn, kèm cả thứ không làm được
-                  và vì sao.
-                </p>
-              </div>
-              <Link href="/bat-dau" className={`${buttonCls("primary")} shrink-0`}>
-                Trả lời 3 câu hỏi
-              </Link>
-            </div>
-          </CardShell>
+          {/* ---- bento 3 cửa vào ------------------------------------------ */}
+          <div className="mt-9 grid w-full grid-cols-1 gap-3.5 text-left md:grid-cols-[1.25fr_1fr_1fr]">
+            {/* Cửa 1 — primary: tôi có buổi live → 3 câu hỏi */}
+            <Link
+              href="/bat-dau"
+              {...reveal(4)}
+              className="focus-ring group motion-reveal relative overflow-hidden rounded-2xl border border-s7/40 bg-gradient-to-b from-s7/15 to-s7/[0.03] p-6 transition-all duration-short4 ease-emphasized hover:-translate-y-0.5 hover:border-s7/60 hover:shadow-[0_12px_40px_-12px_rgba(124,108,255,0.35)]"
+            >
+              <span className="absolute right-4 top-4 rounded-full bg-brand-hi px-2.5 py-0.5 text-meta font-bold text-[#0c0d12]">
+                BẮT ĐẦU Ở ĐÂY
+              </span>
+              <DoorIcon>
+                <IconLive />
+              </DoorIcon>
+              <span className="font-num text-meta tracking-[0.1em] text-dim">01</span>
+              <h2 className="mt-1 font-display text-strong tracking-tight text-ink">
+                Tôi có buổi live
+              </h2>
+              <p className="mt-1 min-h-10 text-meta leading-relaxed text-sec">
+                Trả lời 3 câu hỏi — hệ thống nói ngay bạn dùng được gì với buổi live của mình,
+                kèm cả thứ không làm được và vì sao.
+              </p>
+              <span className="mt-4 inline-flex items-center gap-1.5 text-meta font-semibold text-brand-hi">
+                Trả lời 3 câu hỏi →
+              </span>
+            </Link>
 
-          {/* Card 2 — one-click demo */}
-          <CardShell step="2">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-strong text-ink">🔬 Xem thử ngay (30 giây)</h2>
-                <p className="mt-1 text-body leading-relaxed text-sec">
-                  Tạo dữ liệu mô phỏng và mở bản phát lại — không cần cài gì thêm.
-                </p>
-              </div>
+            {/* Cửa 2 — demo 30 giây */}
+            <div
+              {...reveal(5)}
+              className="group motion-reveal relative overflow-hidden rounded-2xl border border-hairline bg-gradient-to-b from-raised to-surface p-6 transition-all duration-short4 ease-emphasized hover:-translate-y-0.5 hover:border-s7/40 hover:shadow-[0_12px_40px_-12px_rgba(124,108,255,0.25)]"
+            >
+              <DoorIcon>
+                <IconPlay />
+              </DoorIcon>
+              <span className="font-num text-meta tracking-[0.1em] text-dim">02</span>
+              <h2 className="mt-1 font-display text-strong tracking-tight text-ink">
+                Xem demo 30 giây
+              </h2>
+              <p className="mt-1 min-h-10 text-meta leading-relaxed text-sec">
+                Một phiên mô phỏng chạy sẵn — xem bàn trợ live vận hành mà không cần cài gì.
+              </p>
               <Button
                 onClick={() => void startDemo()}
                 disabled={demoBusy || api === "checking"}
-                className="shrink-0"
+                size="sm"
+                className="mt-3"
               >
+                {/* Nhãn "Bắt đầu xem thử" được docs/HUONG-DAN-SU-DUNG.md trích
+                    nguyên văn (gate test_docs_huong_dan) — đổi nhãn là phải đổi
+                    docs cùng lúc. */}
                 {demoBusy
                   ? "Đang tạo dữ liệu…"
                   : api === "checking"
@@ -220,154 +313,101 @@ export default function HomePage() {
                       ? "Xem thử với dữ liệu mô phỏng"
                       : "Bắt đầu xem thử"}
               </Button>
+              {demoErr && <p className="mt-2 text-meta text-crit-ink">{demoErr}</p>}
             </div>
-            {demoErr && <p className="mt-2 text-meta text-crit-ink">{demoErr}</p>}
-          </CardShell>
 
-          {/* Card 3 — analyze an existing YouTube live */}
-          <CardShell step="3" dimmed={api === "down"}>
-            <h2 className="text-strong text-ink">
-              🎬 Phân tích một video live có sẵn
-            </h2>
-            <p className="mt-1 text-body leading-relaxed text-sec">
-              Dán đường dẫn một buổi live YouTube <strong>đã kết thúc</strong> — hệ thống tải
-              phần chat và dựng lại nhịp bình luận cùng radar ý định.
-            </p>
-            <form
-              className="mt-3 flex flex-col gap-2 sm:flex-row"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void analyze();
-              }}
+            {/* Cửa 3 — phân tích VOD có sẵn */}
+            <div
+              {...reveal(6)}
+              className={`group motion-reveal relative overflow-hidden rounded-2xl border border-hairline bg-gradient-to-b from-raised to-surface p-6 transition-all duration-short4 ease-emphasized hover:-translate-y-0.5 hover:border-s7/40 hover:shadow-[0_12px_40px_-12px_rgba(124,108,255,0.25)] ${
+                api === "down" ? "opacity-60" : ""
+              }`}
             >
-              <input
-                type="url"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://www.youtube.com/watch?v=…"
-                disabled={api !== "ok" || jobRunning}
-                aria-label="Đường dẫn video YouTube"
-                className={`${fieldCls} min-w-0 flex-1 px-3 py-2 text-body`}
-              />
-              <Button type="submit" disabled={api !== "ok" || jobRunning || url.trim() === ""}>
-                {jobRunning ? "Đang xử lý…" : "Phân tích"}
-              </Button>
-            </form>
-
-            {/* job progress */}
-            {(job || jobRunning) && (
-              <div className="mt-3 flex items-center gap-2 rounded-md border border-hairline bg-raised px-3 py-2 text-meta text-sec">
-                {job?.status !== "error" && (
-                  <span
-                    aria-hidden
-                    className="inline-block h-2 w-2 animate-pulse rounded-full bg-s1"
-                  />
-                )}
-                <span className={job?.status === "error" ? "font-semibold text-crit-ink" : undefined}>
-                  {job
-                    ? job.status === "error"
-                      ? (job.detail ?? JOB_STATUS_VI.error)
-                      : JOB_STATUS_VI[job.status]
-                    : "Đang gửi yêu cầu…"}
-                  {job?.video_title && job.status !== "error" && (
-                    <span className="text-dim"> · {job.video_title}</span>
-                  )}
-                </span>
-              </div>
-            )}
-            {jobErr && <p className="mt-2 text-meta text-crit-ink">{jobErr}</p>}
-
-            <p className="mt-3 border-t border-hairline pt-2 text-meta leading-relaxed text-dim">
-              Chỉ phân tích được video YouTube còn chat replay. Video của người khác chỉ cho kết
-              quả <strong className="text-sec">QUAN SÁT</strong> (radar ý định, nhịp bình luận) —
-              không phải thí nghiệm.
-            </p>
-            {api === "down" && (
-              <p className="mt-2 text-meta font-semibold text-warn-ink">
-                Cần máy chủ LiveLift đang chạy để phân tích video — hiện chưa kết nối được.
+              <DoorIcon>
+                <IconAnalyze />
+              </DoorIcon>
+              <span className="font-num text-meta tracking-[0.1em] text-dim">03</span>
+              <h2 className="mt-1 font-display text-strong tracking-tight text-ink">
+                Phân tích video có sẵn
+              </h2>
+              <p className="mt-1 min-h-10 text-meta leading-relaxed text-sec">
+                Dán link YouTube <strong className="text-ink">đã kết thúc</strong> — dựng lại
+                nhịp bình luận và radar ý định mua.
               </p>
-            )}
-          </CardShell>
-
-          {/* Card 4 — run your own live session */}
-          <CardShell step="4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-strong text-ink">
-                  📡 Chạy phiên live thật của bạn
-                </h2>
-                <p className="mt-1 text-body leading-relaxed text-sec">
-                  Khi đã sẵn sàng lên sóng: chuẩn bị theo 4 bước bên dưới rồi mở Bàn điều khiển.
-                </p>
-              </div>
-              <Link href="/desk" className={`${buttonCls("ghost")} bg-raised text-ink`}>
-                Mở Bàn điều khiển
-              </Link>
+              <form
+                className="mt-3 flex flex-col gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void analyze();
+                }}
+              >
+                <input
+                  type="url"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="https://www.youtube.com/watch?v=…"
+                  disabled={api !== "ok" || jobRunning}
+                  aria-label="Đường dẫn video YouTube"
+                  className={`${fieldCls} min-w-0 px-3 py-1.5 text-meta`}
+                />
+                <Button
+                  type="submit"
+                  size="sm"
+                  variant="ghost"
+                  disabled={api !== "ok" || jobRunning || url.trim() === ""}
+                >
+                  {jobRunning ? "Đang xử lý…" : "Phân tích →"}
+                </Button>
+              </form>
+              {(job || jobRunning) && (
+                <div className="mt-2 flex items-center gap-2 rounded-md border border-hairline bg-axis px-2.5 py-1.5 text-meta text-sec">
+                  {job?.status !== "error" && (
+                    <span
+                      aria-hidden
+                      className="inline-block h-2 w-2 animate-pulse rounded-full bg-s1"
+                    />
+                  )}
+                  <span
+                    className={job?.status === "error" ? "font-semibold text-crit-ink" : undefined}
+                  >
+                    {job
+                      ? job.status === "error"
+                        ? (job.detail ?? JOB_STATUS_VI.error)
+                        : JOB_STATUS_VI[job.status]
+                      : "Đang gửi yêu cầu…"}
+                    {job?.video_title && job.status !== "error" && (
+                      <span className="text-dim"> · {job.video_title}</span>
+                    )}
+                  </span>
+                </div>
+              )}
+              {jobErr && <p className="mt-2 text-meta text-crit-ink">{jobErr}</p>}
+              <p className="mt-3 border-t border-hairline pt-2 text-meta leading-relaxed text-dim">
+                Video của người khác chỉ cho kết quả{" "}
+                <strong className="text-sec">QUAN SÁT</strong> — không phải thí nghiệm.
+              </p>
             </div>
-            <details className="mt-3 border-t border-hairline pt-2">
-              <summary className="focus-ring flex min-h-tap cursor-pointer select-none items-center rounded text-meta font-semibold text-sec transition-colors duration-short2 ease-emphasized hover:text-ink">
-                Xem 4 bước chuẩn bị (tạo sản phẩm → tạo phiên → sinh lịch gán → bắt đầu)
-              </summary>
-              <ol className="mt-2 space-y-2 text-body leading-relaxed text-sec">
-                <li>
-                  <strong className="text-ink">1. Tạo sản phẩm</strong> — thêm từng sản phẩm sẽ
-                  lên sóng bằng lệnh{" "}
-                  <code className="rounded bg-raised px-1 py-0.5 text-meta">POST /products</code>{" "}
-                  (hoặc bấm &quot;Bắt đầu xem thử&quot; ở bước 2 để có sẵn dữ liệu mẫu).
-                </li>
-                <li>
-                  <strong className="text-ink">2. Tạo phiên</strong> — đặt tên, nền tảng và thời
-                  lượng buổi live bằng{" "}
-                  <code className="rounded bg-raised px-1 py-0.5 text-meta">POST /sessions</code>.
-                </li>
-                <li>
-                  <strong className="text-ink">3. Sinh lịch gán</strong> — hệ thống tự chia phiên
-                  thành các khối BẬT/TẮT xen kẽ bằng{" "}
-                  <code className="rounded bg-raised px-1 py-0.5 text-meta">
-                    POST /sessions/{"{id}"}/schedule
-                  </code>{" "}
-                  (bạn không phải tự chọn gì).
-                </li>
-                <li>
-                  <strong className="text-ink">4. Bắt đầu</strong> — phát lệnh{" "}
-                  <code className="rounded bg-raised px-1 py-0.5 text-meta">
-                    POST /sessions/{"{id}"}/start
-                  </code>
-                  , mở Bàn điều khiển và bấm nút &quot;Thực hiện&quot; trên thẻ gợi ý khi muốn ghim
-                  sản phẩm; màn hình cho host đặt ở trang &quot;Màn hình host&quot;.
-                </li>
-              </ol>
-            </details>
-          </CardShell>
-        </div>
+          </div>
 
-        {/* slim footer: version + quick links */}
-        <footer className="mt-auto flex flex-col items-center gap-2 border-t border-hairline pt-4 text-meta text-dim sm:flex-row sm:justify-between">
-          <span>
+          {/* ---- dải CHẾ ĐỘ: DEMO vs THẬT --------------------------------- */}
+          <div className="mt-4 flex w-full flex-col items-start gap-3 rounded-xl border border-dashed border-warn/40 bg-warn/5 px-5 py-3.5 text-left sm:flex-row sm:items-center">
+            <span className="shrink-0 rounded-md bg-warn px-2.5 py-0.5 text-meta font-bold tracking-[0.1em] text-[#0c0d12]">
+              CHẾ ĐỘ
+            </span>
+            <span className="text-meta leading-relaxed text-sec">
+              <strong className="text-ink">DEMO</strong> dùng dữ liệu mô phỏng và buổi live đã
+              nạp sẵn — để xem và tập, bấm thoải mái.{" "}
+              <strong className="text-ink">PHIÊN THẬT</strong> nối thẳng vào buổi live của bạn.
+              Chip chế độ ở góc phải thanh điều hướng cho biết bạn đang ở thế giới nào.
+            </span>
+          </div>
+
+          {/* footer mảnh: nguồn gốc dự án */}
+          <p className="mt-10 text-meta text-dim">
             LiveLift <span className="tnum">v0.1.0</span> · thí nghiệm switchback cho
             live-commerce · AISC&apos;26
-          </span>
-          <span className="flex items-center gap-3">
-            <Link
-              href="/chay-phien"
-              className="focus-ring rounded transition-colors duration-short2 ease-emphasized hover:text-sec"
-            >
-              Chạy phiên
-            </Link>
-            <Link
-              href="/replay"
-              className="focus-ring rounded transition-colors duration-short2 ease-emphasized hover:text-sec"
-            >
-              Phát lại
-            </Link>
-            <Link
-              href="/ket-qua"
-              className="focus-ring rounded transition-colors duration-short2 ease-emphasized hover:text-sec"
-            >
-              Kết quả
-            </Link>
-          </span>
-        </footer>
+          </p>
+        </div>
       </main>
     </div>
   );

@@ -376,7 +376,7 @@ giây, không một cú nhấp, đã lọt vĩnh viễn vào kết quả gộp v
 loại phiên khỏi kết quả là thứ nguy hiểm, nên quy tắc dùng nó phải nằm ở đây, trong tiền
 đăng ký, chứ không nằm trong mã nguồn.
 
-**Một phiên vào mẫu khẳng định khi và chỉ khi cả bốn điều sau đúng:**
+**Một phiên vào mẫu khẳng định khi và chỉ khi cả năm điều sau đúng:**
 
 1. `status = 'ended'` — buổi phát đã diễn ra và đã kết thúc. Phiên `cancelled` (đóng mà
    **chưa từng lên sóng**, trạng thái thêm ở migration 0008) không có khối đo nào: nó
@@ -386,6 +386,41 @@ loại phiên khỏi kết quả là thứ nguy hiểm, nên quy tắc dùng nó
 3. `design.analysis_only` sai — phiên phân tích video của người khác là **quan sát**, không
    bao giờ mang đại lượng thí nghiệm (E2-04).
 4. `dry_run` sai — phiên không được khai báo là **chạy thử**.
+5. `is_demo` sai — phiên không phải **dữ liệu mẫu** (bổ sung 12/09/2026, trước khóa —
+   gói DEMO-THẬT; migration 0009).
+
+**Hai cờ, hai câu hỏi khác nhau — định nghĩa khóa tại đây:**
+
+- `is_demo` = **"dữ liệu này có THẬT không?"** Phiên do máy sinh ra làm dữ liệu mẫu để
+  xem thử/tập demo (seed mô phỏng qua `POST /demo/seed`, bộ phiên demo vàng
+  `scripts/seed_demo_vang.py`, replay mẫu của demo). Không có buổi phát nào từng diễn ra
+  sau con số của nó. Chỉ các máy sinh demo **phía server** đặt được cờ này —
+  `POST /sessions` không nhận nó, nên không tồn tại đường nào dán nhãn "dữ liệu mẫu" lên
+  một phiên thật, dù vô tình hay cố ý. Phiên demo bị loại khỏi **mọi** đầu ra khoa học
+  thật: `/experiment/summary` mặc định (`env=real`), export lô gán nhãn NLP
+  (`livelift.nlp.label_llm.collect_from_store` từ chối phiên demo), và mọi đường gộp sau
+  này. Nó vẫn xem được riêng — luôn kèm cờ `is_demo` trên payload để giao diện vẽ nhãn
+  DEMO/watermark.
+- `dry_run` = **"phiên THẬT này có được TÍNH không?"** Người thật vận hành đường ống thật
+  nhưng khai báo trước là chạy thử/tập dượt. Dữ liệu thật về cơ chế sinh, chỉ không vào
+  mẫu phân tích gộp.
+
+  Không gộp hai cờ làm một: dùng lại `dry_run` cho phiên seed sẽ làm giao diện không phân
+  biệt được nhãn "DEMO — dữ liệu mẫu" với "chạy thử", và làm chế độ DEMO/THẬT cấp ứng dụng
+  (trường `mode` trên `GET /health`) đếm sai.
+
+  Cả hai cờ cùng ba ràng buộc: khai báo lúc **tạo** phiên, **bất biến** sau đó
+  (`store._SESSION_WRITE_ONCE`), mặc định là **thật/tính vào**.
+
+**Bản gộp CHỈ-DEMO (`/experiment/summary?env=demo`)** tồn tại cho màn trình diễn: nó gộp
+*duy nhất* phiên `is_demo`, đổi nhãn thành "kết quả MÔ PHỎNG — … KHÔNG phải kết quả thật"
+và mang `env='demo'` trên payload; hai bể dữ liệu rời nhau theo cấu trúc, không giá trị
+tham số nào trộn được chúng. **Khóa §7 không áp cho dữ liệu demo** (cả `env=demo` lẫn phần
+nhân quả của `bao-cao` trên phiên demo): §7 chặn *nhìn trộm kết quả thật* trước ngày mở —
+"hiệu ứng" của một phiên demo là tham số ai đó gõ vào simulator, không có gì để nhìn trộm;
+và bộ demo vàng phải trình được cả ba trạng thái kết quả ngay trong cửa sổ khóa chiến dịch
+(bảo hiểm demo theo cả hai vòng phản biện). Không phiên thật nào lách qua ngoại lệ này vì
+không phiên thật nào mang được cờ `is_demo`.
 
 **Cờ `dry_run` — vì sao nó không phải cửa hậu chọn lọc kết quả.** Ba ràng buộc, cả ba đã
 cài đặt và có test khẳng định:
@@ -402,9 +437,10 @@ cài đặt và có test khẳng định:
   vào: cái sau nhìn thấy được, cái trước thì không.
 
 **Loại thì phải ĐẾM.** `/experiment/summary` công bố `sessions_excluded` — lý do tiếng Việt
-→ số phiên, cho cả ba nhóm (chưa kết thúc/đã huỷ, quan sát, chạy thử). Một phiên bị loại mà
-không ai thấy thì không phân biệt được với một phiên chưa từng tồn tại; con số này để người
-đọc đối chiếu mẫu thật với mẫu đã khai.
+→ số phiên, cho cả bốn nhóm (dữ liệu mẫu/demo, chưa kết thúc/đã huỷ, quan sát, chạy thử).
+Một phiên bị loại mà không ai thấy thì không phân biệt được với một phiên chưa từng tồn
+tại; con số này để người đọc đối chiếu mẫu thật với mẫu đã khai. Nhóm demo được đếm TRƯỚC
+các nhóm khác: phiên demo đứng ngoài vì nó là dữ liệu mẫu, bất kể trạng thái.
 
 **Điều này KHÔNG cho phép:** loại một phiên **thật** sau khi đã chạy. Phiên thật hỏng giữa
 chừng (mất ingest, sự cố kỹ thuật, vi phạm làm mù) xử lý ở **cấp khối** theo mục 8 —

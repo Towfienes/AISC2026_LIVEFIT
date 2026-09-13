@@ -34,11 +34,17 @@ SRC = WEB / "src"
 TSX = sorted(SRC.rglob("*.tsx"))
 
 # Planes the dark desk paints, from tailwind.config.ts.
+#
+# CẬP NHẬT CÓ CHỦ ĐÍCH (gói SKIN, 09/2026): thang xám chết #0d0d0d→#383835 được
+# thay bằng thang xanh đêm của ngôn ngữ "Phòng điều khiển phát sóng" (spec
+# UI-VISUAL v2 — canvas/s1/s2/s3, đã đo lại WCAG bằng script trước khi chốt).
+# BẤT BIẾN KHÔNG ĐỔI: mọi mực trạng thái vẫn phải đạt AA 4.5:1 trên CẢ BỐN
+# plane — các test bên dưới tính lại ratio từ bảng này, không tin comment.
 DARK_PLANES = {
-    "page": "#0d0d0d",
-    "surface": "#1a1a19",
-    "raised": "#232322",
-    "axis": "#383835",
+    "page": "#07080d",  # --canvas
+    "surface": "#0d0f16",  # --s1
+    "raised": "#13161f",  # --s2
+    "axis": "#191d29",  # --s3 (plane sáng nhất chữ có thể đứng lên — worst case)
 }
 LIGHT_PLANES = {"white": "#ffffff", "surface": "#f5f5f4"}
 

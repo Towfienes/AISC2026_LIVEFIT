@@ -1,19 +1,67 @@
+/* Bộ ba font của ngôn ngữ "Phòng điều khiển phát sóng" (spec UI-VISUAL v2).
+   Cả ba đều ship subset tiếng Việt (vietnamese) trên Google Fonts (đã kiểm chứng),
+   display=swap + fallback stack thật trong --font-* bên dưới, nên khi mạng
+   chậm chữ vẫn hiện bằng font hệ thống rồi đổi sang font brand khi tải xong. */
+@import url("https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ===========================================================================
-   DESIGN TOKENS
-   Everything the desk can theme lives here as custom properties: components
+   DESIGN TOKENS v2 — "PHÒNG ĐIỀU KHIỂN PHÁT SÓNG" (Broadcast Control Room)
+   Everything the app can theme lives here as custom properties: components
    reference the Tailwind utilities built on top of them (tailwind.config.ts),
    never raw hex.
+
+   V2 (gói SKIN) thay THANG MẶT PHẲNG + MỰC CHỮ + BRAND: xám chết #0d0d0d bị
+   thay bằng thang xanh đêm #07080d→#191d29 (hue ~225°), hairline trắng 6–11%
+   alpha, MỘT accent tím điện #7c6cff. Khối MOTION, STATUS-MARK, PRINT và
+   REDUCED-MOTION được KẾ THỪA nguyên vẹn từ các gói UI-1/2/3 (spec ghi rõ).
    =========================================================================== */
 
 :root {
   color-scheme: dark;
 
   /* -------------------------------------------------------------------------
-     MOTION — Material 3 duration + easing tokens.
+     PLANE LADDER — thang mặt phẳng xanh đêm (spec UI-VISUAL v2, nguyên văn).
+     Depth = bậc mặt phẳng + hairline, KHÔNG dùng drop-shadow làm hierarchy.
+     ------------------------------------------------------------------------- */
+  --canvas: #07080d; /* nền trang */
+  --s1: #0d0f16; /* card mặc định */
+  --s2: #13161f; /* card nổi / hover */
+  --s3: #191d29; /* phần tử cao nhất: popover, ô segmented active */
+  --hair: rgba(255, 255, 255, 0.06); /* viền mọi card */
+  --hair-strong: rgba(255, 255, 255, 0.11); /* viền control tương tác */
+
+  /* Mực chữ — ĐÃ ĐO WCAG trên cả 4 plane (script, xem bảng ở khối STATUS):
+       --ink    15.42–18.35:1   chữ chính, số KPI
+       --ink-2   8.82–10.50:1   chữ phụ, mô tả
+       --ink-3   4.48–5.34:1    nhãn mờ — CHỈ trên canvas/s1/s2 (4.48 trên s3!)
+       --ink-3-raised 5.33–6.35 thay ink-3 khi nằm trên s3
+       --ink-4   2.55–3.03:1    CHỈ trang trí (đường kẻ, tick), CẤM chữ mang nghĩa */
+  --ink: #f4f5f8;
+  --ink-2: #b6bcc8;
+  --ink-3: #7d8494;
+  --ink-3-raised: #8a91a3;
+  --ink-4: #565d6d;
+
+  /* Brand — MỘT màu duy nhất, tím điện (kế thừa #9085e9 cũ). Chỉ dành cho:
+     logo, CTA chính, focus, khối BẬT, link nhấn — sự khan hiếm làm nó sang. */
+  --brand: #7c6cff; /* nút chính; chữ #0c0d12 trên nó = 5.03:1 AA */
+  --brand-hi: #a99cff; /* hover, gradient text */
+  --brand-ink: #b3aaf2; /* chữ tím trên nền tối — 7.96–9.48:1 */
+
+  /* Đèn phát sóng — CHỈ cho trạng thái đang-phát + nút Kết thúc phiên. */
+  --live: #ff4d5e; /* 5.18–6.17:1 trên cả 4 plane */
+
+  /* Font — cả 3 họ có subset vietnamese trên Google Fonts (đã kiểm chứng). */
+  --font-ui: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Space Grotesk", "Be Vietnam Pro", system-ui, sans-serif;
+  --font-num: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+
+  /* -------------------------------------------------------------------------
+     MOTION — Material 3 duration + easing tokens (KẾ THỪA nguyên vẹn gói UI-1).
      Durations are custom properties so the reduced-motion block below can
      collapse ALL of them at once; the Tailwind utilities duration-short2 …
      duration-medium3 and ease-emphasized resolve to these.
@@ -27,8 +75,9 @@
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 
   /* -------------------------------------------------------------------------
-     MOTION VỚI MỤC ĐÍCH (gói UI-3) — bốn thời lượng riêng cho bốn việc mà
-     thang M3 chung không mô tả được. Mỗi cái gắn với MỘT sự kiện vận hành:
+     MOTION VỚI MỤC ĐÍCH (gói UI-3 — KẾ THỪA nguyên vẹn) — bốn thời lượng riêng
+     cho bốn việc mà thang M3 chung không mô tả được. Mỗi cái gắn với MỘT sự
+     kiện vận hành:
 
        --dur-tick    nhịp đồng hồ của bàn. Playhead trên dải khối và thanh
                      tiến trình chạy đúng 1000ms LINEAR để trôi liền mạch giữa
@@ -52,6 +101,15 @@
      nền tối; cao hơn thì con số bị nền nuốt mất đúng lúc cần đọc nó. */
   --flash-alpha: 0.12;
 
+  /* Gói SKIN thêm — chỉ dành cho MÀN KỂ CHUYỆN (trang chủ, kết quả, báo cáo):
+       --dur-reveal   card stagger fade-up khi vào trang loại B
+       --dur-countup  count-up số verdict (một lần, rồi đứng yên vĩnh viễn)
+       --dur-beam     vòng sáng conic quét (ON-AIR ring — chỉ đèn báo trên desk)
+     Màn vận hành (desk/host) KHÔNG dùng các token này ngoài on-air ring. */
+  --dur-reveal: 600ms;
+  --dur-countup: 900ms;
+  --dur-beam: 4s;
+
   /* -------------------------------------------------------------------------
      STATUS TOKEN PAIRS — fill (area) + ink (text), plus a SHAPE.
      Colour is never the only channel (WCAG 1.4.1 Use of Colour): a colour-blind
@@ -62,41 +120,41 @@
        TRÔI (washout) .status-mark--drift  nửa đặc       half-filled disc
 
      Contrast of each ink, measured (WCAG 2.x relative luminance) against the
-     four planes the desk paints — page #0d0d0d, surface #1a1a19, raised
-     #232322, axis #383835. The axis column is the worst case and still clears
-     the 4.5:1 AA threshold for normal-size text:
+     four planes v2 paints — canvas #07080d, s1 #0d0f16, s2 #13161f, s3
+     #191d29. The s3 column is the worst case and still clears the 4.5:1 AA
+     threshold for normal-size text:
 
-       --st-on-ink     #b3aaf2   9.21 · 8.25 · 7.45 · 5.57
-       --st-off-ink    #c3c2b7  10.85 · 9.72 · 8.78 · 6.57
-       --st-drift-ink  #a3a19a   7.52 · 6.74 · 6.08 · 4.55
-       --st-good-ink   #4ed44e  10.04 · 9.00 · 8.13 · 6.08
-       --st-warn-ink   #fab219  10.59 · 9.49 · 8.57 · 6.41
-       --st-crit-ink   #f08a8a   8.06 · 7.22 · 6.52 · 4.88
-       --st-info-ink   #78b0f0   8.58 · 7.69 · 6.94 · 5.19
+       --st-on-ink     #b3aaf2   9.48 · 9.07 · 8.56 · 7.96
+       --st-off-ink    #c3c5cc  11.60 · 11.10 · 10.48 · 9.75
+       --st-drift-ink  #a6acbb   8.80 · 8.42 · 7.95 · 7.40
+       --st-good-ink   #5ee49a  12.42 · 11.89 · 11.22 · 10.44
+       --st-warn-ink   #fab219  10.91 · 10.43 · 9.85 · 9.16
+       --st-crit-ink   #f08a8a   8.30 · 7.94 · 7.49 · 6.97
+       --st-info-ink   #78b0f0   8.83 · 8.45 · 7.97 · 7.42
 
-     The base tones are kept for FILLS only: #d03b3b reaches just 4.05:1 on the
-     page plane and #0ca30c only 3.51:1 on axis, so neither may carry text.
+     The base tones are kept for FILLS only: #d03b3b reaches just 4.16:1 on the
+     canvas plane, so it may never carry text.
      ------------------------------------------------------------------------- */
-  --st-on: #9085e9; /* fill BẬT — #0d0d0d text on it = 6.22:1 */
+  --st-on: #8b7bff; /* fill BẬT — #0c0d12 text on it = 5.85:1 */
   --st-on-ink: #b3aaf2;
-  --st-off: #383835; /* fill TẮT — #c3c2b7 text on it = 6.57:1 */
-  --st-off-ink: #c3c2b7;
-  --st-drift: #2c2c2a; /* fill trôi (hatched, see .hatch-washout) */
-  --st-drift-ink: #a3a19a;
-  --st-good-ink: #4ed44e;
+  --st-off: #3a3f4d; /* fill TẮT — #c3c5cc text on it = 6.10:1 */
+  --st-off-ink: #c3c5cc;
+  --st-drift: #232838; /* fill trôi (hatched, see .hatch-washout) */
+  --st-drift-ink: #a6acbb;
+  --st-good-ink: #5ee49a;
   --st-warn-ink: #fab219;
   --st-crit-ink: #f08a8a;
   --st-info-ink: #78b0f0;
 
-  /* Focus indicator — 8.58:1 on the page plane, well over the 3:1 that
+  /* Focus indicator — 8.83:1 on the canvas plane, well over the 3:1 that
      WCAG 2.2 SC 1.4.11 asks of a non-text indicator. */
   --focus-ring: #78b0f0;
 
   /* -------------------------------------------------------------------------
-     The LIGHT half of the same pairs. Every status token has to survive a light
-     ground too — a judge printing /ket-qua gets white paper, because browsers
-     drop background graphics by default. Ratios against white #ffffff and a
-     light surface #f5f5f4:
+     The LIGHT half of the same pairs (KẾ THỪA nguyên vẹn — đã đo sẵn). Every
+     status token has to survive a light ground too — a judge printing /ket-qua
+     gets white paper, because browsers drop background graphics by default.
+     Ratios against white #ffffff and a light surface #f5f5f4:
 
        --st-on-ink-light     #4a3fb8   7.79 · 7.14
        --st-off-ink-light    #4b4a45   8.88 · 8.14
@@ -148,36 +206,54 @@
 html,
 body {
   height: 100%;
-  background: #0d0d0d;
-  color: #ffffff;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-ui);
+}
+
+/* Hệ chữ v2: heading dùng font display (Space Grotesk) với tracking âm nhẹ —
+   cá tính "phòng điều khiển" lan ra mọi trang mà không sửa từng component. */
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+/* MỌI con số dữ liệu (các bậc num-* của thang chữ) dùng JetBrains Mono:
+   monospace = tabular tự nhiên, không nhảy cột khi số đổi. `:where()` giữ
+   specificity bằng 0 để một utility (`font-display` trên chữ BẬT/TẮT hoặc tên
+   sản phẩm trên màn host) vẫn thắng được khi bậc num-* chở CHỮ thay vì SỐ. */
+:where(.text-num-s, .text-num-m, .text-num-l, .text-num-xl) {
+  font-family: var(--font-num);
 }
 
 /* Recessive scrollbars for the dark desk */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #383835 transparent;
+  scrollbar-color: #2a3040 transparent;
 }
 *::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 *::-webkit-scrollbar-thumb {
-  background: #383835;
+  background: #2a3040;
   border-radius: 4px;
 }
 *::-webkit-scrollbar-track {
   background: transparent;
 }
 
-/* Washout blocks on the timeline strip: 45deg texture, tone-on-tone */
+/* Washout blocks on the timeline strip: 45deg texture, tone-on-tone
+   (v2: recolored to the night-blue ladder — s2/s3). */
 .washout-stripes {
   background-image: repeating-linear-gradient(
     45deg,
-    #232322 0px,
-    #232322 4px,
-    #2c2c2a 4px,
-    #2c2c2a 8px
+    #13161f 0px,
+    #13161f 4px,
+    #191d29 4px,
+    #191d29 8px
   );
 }
 
@@ -185,10 +261,10 @@ body {
 .hatch-washout {
   background-image: repeating-linear-gradient(
     45deg,
-    #232322 0px,
-    #232322 4px,
-    #2c2c2a 4px,
-    #2c2c2a 8px
+    #13161f 0px,
+    #13161f 4px,
+    #191d29 4px,
+    #191d29 8px
   );
 }
 
@@ -219,7 +295,7 @@ body {
 }
 
 /* ---------------------------------------------------------------------------
-   HIỆU ỨNG CÓ MỤC ĐÍCH (gói UI-3)
+   HIỆU ỨNG CÓ MỤC ĐÍCH (gói UI-3 — KẾ THỪA nguyên vẹn)
    Ba lớp dưới đây là TOÀN BỘ chuyển động do JS/keyframes điều khiển trên bàn
    điều khiển. Không có lớp nào lặp vô hạn: đây là màn hình người ta nhìn 90
    phút liền, nên mọi thứ động phải có điểm dừng và phải TRẢ LỜI một sự kiện.
@@ -279,6 +355,142 @@ body {
   animation: ll-switch var(--dur-switch) var(--ease-emphasized) both;
 }
 
+/* ---------------------------------------------------------------------------
+   LỚP SÂN KHẤU (gói SKIN) — CHỈ cho màn KỂ CHUYỆN (trang chủ, /ket-qua,
+   /bao-cao) + hai ĐÈN BÁO được phép lặp vô hạn toàn app:
+     .live-dot     đèn ĐANG PHÁT — quy ước phát sóng toàn cầu (ngoại lệ #1)
+     .onair-ring   vòng sáng conic trên thẻ KHỐI HIỆN TẠI khi BẬT (ngoại lệ #2,
+                   chỉ tồn tại khi hệ thống đang điều khiển — là đèn báo)
+   Mọi thứ khác ở đây chạy MỘT lần rồi đứng yên. prefers-reduced-motion tắt
+   tất cả (khối reduce bên dưới collapse mọi animation/transition).
+   --------------------------------------------------------------------------- */
+
+/* Đèn studio + lưới kỹ thuật của hero trang chủ (D1 của spec). */
+.hero-stage {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(1200px 500px at 50% -10%, rgba(124, 108, 255, 0.16), transparent 60%),
+    radial-gradient(800px 400px at 85% 20%, rgba(255, 77, 94, 0.05), transparent 60%),
+    var(--canvas);
+}
+.hero-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 56px 56px;
+  -webkit-mask-image: radial-gradient(900px 600px at 50% 0%, #000 30%, transparent 80%);
+  mask-image: radial-gradient(900px 600px at 50% 0%, #000 30%, transparent 80%);
+  pointer-events: none;
+}
+
+/* G2 — gradient text: CHỈ cho MỘT cụm từ trong H1 mỗi trang. */
+.text-grad-brand {
+  background: linear-gradient(92deg, #fff 10%, #a99cff 55%, #7c6cff 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Đèn ĐANG PHÁT — ngoại lệ lặp vô hạn duy nhất được gắn trên ĐÈN, không bao
+   giờ trên chữ hay card. */
+@keyframes ll-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.live-dot {
+  display: inline-block;
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: var(--live);
+  box-shadow: 0 0 10px var(--live);
+  animation: ll-pulse 2s ease-in-out infinite;
+}
+
+/* Logo mark — khối vuông bo 6px, conic tím, glow (nav mọi trang). */
+.logo-mark {
+  display: inline-block;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: conic-gradient(from 210deg, #7c6cff, #4a3fb8 55%, #a99cff);
+  box-shadow: 0 0 14px rgba(124, 108, 255, 0.55);
+}
+
+/* Viền gradient TĨNH (thẻ hành động #1, thẻ chiến lược) — hai lớp
+   padding-box/border-box, KHÔNG xoay. Xoay chỉ dành cho .onair-ring. */
+.border-gradient-brand {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--s2), var(--s2)) padding-box,
+    linear-gradient(120deg, #7c6cff, #3ddc7a, #7c6cff) border-box;
+}
+
+/* ON-AIR RING — vòng sáng conic quét quanh thẻ KHỐI HIỆN TẠI khi trạng thái
+   BẬT (S2 của spec). @property bắt buộc: thiếu nó gradient nhảy giật thay vì
+   xoay mượt. prefers-reduced-motion: khối reduce collapse animation nên vành
+   đứng yên thành viền tĩnh — đúng fallback spec yêu cầu. */
+@property --a {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes ll-spin {
+  to {
+    --a: 360deg;
+  }
+}
+.onair-ring {
+  position: relative;
+}
+.onair-ring::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--a),
+    transparent 0 70%,
+    rgba(169, 156, 255, 0.9) 86%,
+    transparent 100%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: ll-spin var(--dur-beam) linear infinite;
+  pointer-events: none;
+}
+
+/* REVEAL vào trang — CHỈ màn kể chuyện, một lần, tối đa 6 card đầu (delay đặt
+   bằng inline style theo bậc). Desk/host KHÔNG dùng: phải hiện đủ 100% ngay. */
+@keyframes ll-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.motion-reveal {
+  animation: ll-reveal var(--dur-reveal) var(--ease-out) both;
+}
+
 /* Respect prefers-reduced-motion: collapse every motion token AND any
    animation/transition a component sets directly. */
 @media (prefers-reduced-motion: reduce) {
@@ -295,6 +507,10 @@ body {
     --dur-switch: 1ms;
     --dur-flash-in: 1ms;
     --dur-flash-out: 1ms;
+    /* Lớp sân khấu của gói SKIN rút gọn cùng chỗ. */
+    --dur-reveal: 1ms;
+    --dur-countup: 1ms;
+    --dur-beam: 1ms;
     --ease-emphasized: linear;
     --ease-standard: linear;
     --ease-out: linear;

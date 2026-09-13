@@ -29,6 +29,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import PageHeader from "@/components/PageHeader";
 import TopNav from "@/components/TopNav";
 import BatDauVod from "@/components/BatDauVod";
 import Badge, { type BadgeTone } from "@/components/ui/Badge";
@@ -275,16 +276,17 @@ export default function BatDauPage() {
     <div className="flex min-h-screen flex-col bg-page">
       <TopNav />
       <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-6 py-10">
-        <header>
-          <h1 className="text-num-m font-extrabold leading-tight tracking-tight text-ink">
-            Tôi có một buổi live — dùng được gì?
-          </h1>
-          <p className="mt-2 max-w-2xl text-body leading-relaxed text-sec">
-            Trả lời ba câu hỏi, mỗi câu bấm một lần. Bạn nhận lại câu trả lời dứt khoát cho{" "}
-            <strong className="text-ink">đúng buổi live của mình</strong>: làm được gì ngay, cần gì
-            để lên mức cao hơn, và cái gì không làm được — kèm lý do thật.
-          </p>
-        </header>
+        <PageHeader
+          phase="truoc"
+          title="Buổi live của tôi dùng được gì?"
+          lead={
+            <>
+              Trả lời ba câu hỏi, mỗi câu bấm một lần. Bạn nhận lại câu trả lời dứt khoát cho{" "}
+              <strong className="text-ink">đúng buổi live của mình</strong>: làm được gì ngay, cần
+              gì để lên mức cao hơn, và cái gì không làm được — kèm lý do thật.
+            </>
+          }
+        />
 
         {/* ---- ba câu hỏi ---------------------------------------------- */}
         <Card as="section" padding="lg" className="flex flex-col gap-4">

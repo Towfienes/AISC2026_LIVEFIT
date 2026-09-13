@@ -32,6 +32,13 @@ export interface SessionSummary {
   planned_duration_min: number;
   start_ts: string | null; // ISO UTC
   end_ts: string | null;
+  /**
+   * DỮ LIỆU MẪU (gói DEMO-THẬT, migration 0009): phiên máy sinh để xem
+   * thử/tập demo — không có buổi phát nào từng diễn ra. Khác `dry_run`
+   * (phiên THẬT chạy thử). Bị loại khỏi mọi kết quả thật phía server;
+   * UI phải vẽ nhãn DEMO ở mọi nơi phiên này xuất hiện.
+   */
+  is_demo: boolean;
 }
 
 /**
@@ -81,6 +88,40 @@ export interface SessionState {
    * hoặc lịch sinh trước gói Q3.
    */
   design_hash: string | null;
+  /**
+   * Cờ DỮ LIỆU MẪU của phiên (xem SessionSummary.is_demo) — bàn điều khiển
+   * vẽ nhãn DEMO từ đây. Optional vì state cũ/mock có thể chưa mang trường
+   * này; thiếu nghĩa là "không rõ", KHÔNG nghĩa là thật.
+   */
+  is_demo?: boolean;
+  /**
+   * Trạng thái máy tự lái + cảnh báo im lặng (gói DESK-HOST v2) — chỉ có ở
+   * phiên mode="auto"; null/thiếu cho phiên gợi ý. Bàn hiển thị nguyên văn,
+   * không suy diễn thêm.
+   */
+  autopilot?: AutopilotState | null;
+  /**
+   * Lý do tiếng Việt vì sao danh sách thẻ rỗng THEO THIẾT KẾ (phiên đã kết
+   * thúc, phiên phân tích video…) — phân biệt với "chưa đủ số liệu".
+   */
+  cards_note?: string | null;
+}
+
+/**
+ * Trạng thái máy tự lái phía máy chủ (OPERATOR ONLY — nêu đích danh chỉ số
+ * khối nên không bao giờ được đưa sang màn host bị làm mù, luật L6). Gương
+ * của `AutopilotState` trong api/schemas.py; `alarm` là câu cảnh báo tiếng
+ * Việt khi phiên auto đang KHÔNG tạo ra can thiệp nào.
+ */
+export interface AutopilotState {
+  enabled: boolean;
+  last_run_ts: string | null; // ISO UTC — nhịp tim lần chạy gần nhất
+  actions_taken: number;
+  on_blocks_total: number;
+  on_blocks_done: number;
+  missed_on_blocks: number[];
+  last_error: string | null;
+  alarm: string | null;
 }
 
 /** The block the session is in right now (operator view only — never host). */
@@ -92,10 +133,34 @@ export interface CurrentBlock {
   seconds_remaining: number;
 }
 
+/**
+ * Một câu của "tóm tắt 3 câu" (AI-LAYER lớp 0 — analysis/narrate.py, gói
+ * KẾT-QUẢ). Văn xuôi TEMPLATE tất định phía server, không LLM: mọi con số
+ * trong `text` chép từ chính payload chứa nó; `refs` là đường dẫn JSON của
+ * từng số — UI hiển thị làm nguồn (title/hover), không bao giờ tự viết lại
+ * câu hay tự chế số ở client.
+ */
+export type CauBadge = "thi_nghiem" | "quan_sat" | "thieu_du_lieu";
+
+export interface CauTomTat {
+  text: string;
+  badge: CauBadge;
+  refs: string[];
+}
+
 /** Pooled experiment result from `GET /experiment/summary`. */
 export interface ExperimentSummary {
   label: string;
   source: "experiment";
+  /**
+   * Nguồn dữ liệu của bản gộp (gói DEMO-THẬT): "real" — kết quả THẬT, mọi
+   * phiên is_demo đã bị loại phía server; "demo" — bản gộp CHỈ dữ liệu mẫu,
+   * `label` nói rõ MÔ PHỎNG. UI ở env=demo phải vẽ nhãn/watermark DEMO và
+   * không bao giờ trình bày nó như kết quả thật.
+   */
+  env: "real" | "demo";
+  /** Lý do tiếng Việt → số phiên bị giữ NGOÀI bản gộp (tiền đăng ký §8.2). */
+  sessions_excluded?: Record<string, number>;
   n_sessions: number;
   n_blocks: number;
   n_on: number;
@@ -113,6 +178,11 @@ export interface ExperimentSummary {
   message?: string | null;
   /** False when the design cannot be tested — render nothing inferential. */
   estimable?: boolean;
+  /**
+   * Tóm tắt 3 câu (kết luận / bằng chứng / việc nên làm) — server soạn bằng
+   * template tất định, tôn trọng khóa §7. Optional vì payload cũ chưa mang.
+   */
+  tom_tat_3_cau?: CauTomTat[];
 }
 
 export interface PowerRow {
@@ -406,6 +476,9 @@ export interface BaoCao {
   platform: string;
   loai_phien: "thi_nghiem" | "quan_sat";
   nhan: string;
+  /** Cờ DỮ LIỆU MẪU (xem SessionSummary.is_demo) — báo cáo phiên demo phải
+   * mang nhãn/watermark DEMO trên mọi con số. */
+  is_demo: boolean;
   tong_quan: BaoCaoTongQuan;
   tin_hieu: SignalStateItem[];
   nang_luc: CapabilityItem[];
@@ -415,6 +488,8 @@ export interface BaoCao {
   pii_da_che: Record<string, number>;
   /** null cho phiên quan sát — `nhan` nói rõ vì sao không có số nhân quả. */
   ket_qua_thi_nghiem: BaoCaoKetQuaThiNghiem | null;
+  /** Tóm tắt 3 câu của phiên — cùng luật với ExperimentSummary.tom_tat_3_cau. */
+  tom_tat_3_cau?: CauTomTat[];
   goi_y_chien_thuat: string[];
 }
 
@@ -426,17 +501,38 @@ export interface DemoSeedResult {
   shortlink_codes: string[];
 }
 
-/** Chart chrome tokens (dataviz reference palette, dark column). */
+/**
+ * `GET /health` — trích phần chip DEMO/THẬT cần (gói DEMO-THẬT). `mode` là
+ * chế độ dữ liệu TỔNG HỢP của kho phía server:
+ * - "demo"  — kho CHỈ chứa dữ liệu mẫu;
+ * - "real"  — không có phiên demo nào (kho rỗng cũng là "real");
+ * - "mixed" — kho chứa CẢ HAI → UI phải cảnh báo rõ, dán nhãn từng phiên.
+ * Đây là mô tả dữ liệu đang có, không thay công tắc chế độ phía client
+ * (localStorage `ll.mode`).
+ */
+export interface HealthInfo {
+  status: string;
+  store_backend: string;
+  mode: "demo" | "real" | "mixed";
+  mode_counts: { demo: number; real: number };
+  /** Câu giải thích tiếng Việt, hiển thị được nguyên văn trong tooltip chip. */
+  mode_note: string;
+  /** Các trường an toàn dữ liệu khác của /health (durable, storage_mode, ...). */
+  [key: string]: unknown;
+}
+
+/** Chart chrome tokens — v2 khớp thang mặt phẳng xanh đêm của gói SKIN
+ *  (tailwind.config.ts giữ cùng bộ giá trị; số contrast trong globals.css). */
 export const CHART = {
-  surface: "#1a1a19",
-  grid: "#2c2c2a",
-  axis: "#383835",
-  mut: "#898781", // gridline/axis chrome only — 4.38:1 on the raised plane
-  dim: "#a3a19a", // axis TEXT: 7.52:1 on page … 4.55:1 on axis, clears AA everywhere
-  sec: "#c3c2b7",
-  ink: "#ffffff",
+  surface: "#0d0f16",
+  grid: "#1b1e28",
+  axis: "#191d29",
+  mut: "#7d8494", // gridline/axis chrome only — dưới AA trên plane axis, chỉ trang trí
+  dim: "#8a91a3", // axis TEXT: 6.35:1 on page … 5.33:1 on axis, clears AA everywhere
+  sec: "#b6bcc8",
+  ink: "#f4f5f8",
   s1: "#3987e5",
   s2: "#d95926",
   s3: "#199e70", // nhịp bình luận — slot 3 (aqua) của bảng màu đã kiểm định
-  on: "#9085e9", // block strip ON (slot 7 violet — not used by any chart series)
+  on: "#8b7bff", // block strip ON (slot 7 violet — not used by any chart series)
 } as const;

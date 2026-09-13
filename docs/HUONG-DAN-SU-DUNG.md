@@ -88,12 +88,15 @@ chuyển màn:
 
 | Bấm | Mở màn hình gì | Dành cho ai |
 |---|---|---|
-| **Trang chính** | Màn hình bắt đầu, 3 thẻ hướng dẫn | Người mới |
-| **Chạy phiên** | 4 bước chuẩn bị một buổi live thí nghiệm | Chủ shop |
-| **Bàn điều khiển** | Màn hình vận hành khi đang lên sóng | Người trợ live |
-| **Màn hình host** | Màn hình cỡ lớn cho người dẫn | Người dẫn |
-| **Phát lại / Phân tích** | Tua lại một buổi đã xong | Ai cũng được |
-| **Kết quả** | Con số khoa học tổng hợp | Chủ shop, giám khảo |
+| **Bắt đầu** | Màn hình bắt đầu, các cửa vào | Người mới |
+| **Chuẩn bị phiên** | Wizard 4 bước chuẩn bị một buổi live thí nghiệm | Chủ shop |
+| **Bàn trợ live** | Màn hình vận hành khi đang lên sóng | Người trợ live |
+| **Xem lại phiên** | Tua lại một buổi đã xong | Ai cũng được |
+| **Kết quả & chiến lược** | Con số khoa học tổng hợp | Chủ shop, giám khảo |
+
+Màn hình cỡ lớn cho **người dẫn** không nằm trên thanh trên cùng nữa (để người
+vận hành khỏi mở nhầm màn bị làm mù): mở nó bằng nút **"Mở màn hình người
+dẫn"** ở bước 4 của wizard Chuẩn bị phiên.
 
 ---
 
@@ -254,36 +257,48 @@ Chi tiết cách đọc báo cáo ở **Luồng 4**.
 
 ## 5. LUỒNG 3 — Chạy một phiên thí nghiệm thật của bạn
 
-Đây là phần chính của sản phẩm. Bốn bước, **phải theo đúng thứ tự** — vì lịch
-bốc thăm BẬT/TẮT bắt buộc phải sinh **trước khi** lên sóng thì kết quả mới kiểm
-chứng được.
+Đây là phần chính của sản phẩm. Từ 09/2026 trang này là **wizard từng-bước-một**:
+màn hình chỉ hiện MỘT bước mỗi lúc, có dải 4 chấm tiến độ ở trên (bước xong bấm
+lại được để sửa). Bốn bước **phải theo đúng thứ tự** — vì lịch bốc thăm BẬT/TẮT
+bắt buộc phải sinh **trước khi** lên sóng thì kết quả mới kiểm chứng được. Mỗi
+bước có dòng **"Vì sao cần bước này?"** bấm vào là ra giải thích ngắn. Lỡ tắt
+tab giữa chừng cũng không mất: mở lại trang là wizard tự nhảy về đúng bước của
+phiên đang chuẩn bị.
 
-**Bấm gì để vào:** chữ **"Chạy phiên"** trên thanh trên cùng.
+> Ảnh chụp trong mục này thuộc giao diện bản trước (4 thẻ trải dọc) — bố cục đã
+> đổi thành từng-bước-một nhưng **tên các nút giữ nguyên**, bấm theo tên nút là
+> đúng.
+
+**Bấm gì để vào:** chữ **"Chuẩn bị phiên"** trên thanh trên cùng.
 
 ### Bước 3.1 — Khai báo sản phẩm sẽ bán
 
 ![Bước 1 — danh mục sản phẩm](img/l3-01-buoc1-danh-muc.png)
 
-**Ở đâu:** thẻ số **1 — Danh mục sản phẩm**.
+**Ở đâu:** bước **1/4 — Sản phẩm**.
 
 Nếu bạn đã bấm "Xem thử" ở Luồng 1 thì đã có sẵn vài sản phẩm mẫu. Thêm sản phẩm
-của bạn:
+của bạn (mọi ô đều có nhãn; **không còn ô "Mã SP"** — mã hệ thống tự sinh từ
+tên, ví dụ "Áo khoác dù 2 lớp" → `ao-khoac-du-2-lop`):
 
-**Bấm gì:** điền 5 ô nhỏ ở cuối thẻ rồi bấm **"Thêm sản phẩm"**.
+**Bấm gì:** điền form "Thêm sản phẩm mới" rồi bấm **"Thêm sản phẩm"**. Chưa có
+gì để điền thì bấm **"Dùng sản phẩm mẫu"** — form tự điền một sản phẩm demo.
 
 | Ô | Điền gì | Ví dụ |
 |---|---|---|
-| Mã SP | mã ngắn, không dấu, không trùng | `sp-ao-thun` |
-| Tên | tên hiển thị, có dấu | `Áo thun cotton 100%` |
-| Giá vốn | số, không dấu chấm | `80000` |
-| Giá bán | số | `199000` |
-| Tồn kho | số | `50` |
+| Tên sản phẩm * | tên hiển thị, có dấu | `Áo thun cotton 100%` |
+| Giá bán (đ) | số, không dấu chấm | `199000` |
+| Link trang sản phẩm thật | trang Shopee/website của bạn | `https://shopee.vn/ao-thun` |
+| Giá vốn, Tồn kho | trong mục "Thêm chi tiết — tuỳ chọn" | `80000`, `50` |
 
 ![Đã điền 5 ô sản phẩm](img/l3-02-them-san-pham.png)
 
 ### Bước 3.2 — Dán link trang sản phẩm thật (bước hay bị bỏ quên)
 
-Sau khi thêm, sản phẩm hiện thành một dòng, **bên dưới có một ô nhập dài**.
+Sau khi thêm, sản phẩm hiện thành một dòng kèm chip trạng thái: **"✓ link đo
+sẵn sàng"** (xanh) hoặc **"⚠ chưa có link"** (vàng, kèm câu *"sản phẩm này sẽ
+không đo được lượt nhấp"*) — thiếu link là biết NGAY LÚC NHẬP, không đợi tới
+lúc lên sóng. Bên dưới mỗi dòng có một ô nhập dài.
 
 **Bấm gì:** bấm vào ô đó, dán **địa chỉ trang bán sản phẩm thật** của bạn
 (Shopee / TikTok Shop / website riêng). Phải bắt đầu bằng `http://` hoặc
@@ -301,85 +316,100 @@ http:// hoặc https://"* ⇒ bạn quên phần `https://` ở đầu.
 
 **Xong bước 1:** bấm **"Xong, sang bước 2"**.
 
-### Bước 3.3 — Tạo phiên live
+### Bước 3.3 — Thông tin buổi live (tạo phiên)
 
 ![Bước 2 — tạo phiên live](img/l3-04-buoc2-tao-phien.png)
 
-Điền 4 ô rồi bấm **"Tạo phiên"**:
+Ở bước **2/4 — Buổi live**, ba lựa chọn đều là **thẻ bấm** (không còn dropdown),
+xong bấm **"Tạo phiên"**:
 
-| Ô | Chọn/điền gì |
+| Mục | Chọn/điền gì |
 |---|---|
-| Tên phiên | tuỳ ý, ví dụ `Phiên live tối thứ Bảy` |
-| Nền tảng | `YouTube Live` hoặc `Facebook Live` |
-| **Chế độ** | ⚠️ **chọn `Đề xuất`** — xem cảnh báo ngay dưới |
-| Số phút | độ dài dự kiến, **nên ≥ 90** |
+| Tên buổi live | tuỳ chọn, ví dụ `Phiên live tối thứ Bảy` |
+| Nền tảng | thẻ `YouTube Live` hoặc `Facebook Live` |
+| Thời lượng | nút `30/60/90/120 phút` — **90 phút gắn nhãn "khuyên dùng"** |
+| Chế độ | thẻ **Tự ghim** (khuyên dùng) hoặc **Chỉ gợi ý** |
 
-> ### ⚠️ Chọn "Đề xuất", đừng chọn "Tự động"
->
-> Ở chế độ **Tự động**, hai nút *Thực hiện* và *Bỏ qua* trên mọi thẻ gợi ý đều
-> **bị khoá**, và hiện **chưa có bộ thực thi tự động ở máy chủ** — nghĩa là
-> **không sản phẩm nào được ghim cả**, suốt buổi live.
+> **Hai chế độ nghĩa là gì (giải thích ngay trên thẻ):**
+> - **Tự ghim** — hệ thống tự ghim sản phẩm tốt nhất khi đến lượt khối BẬT
+>   (bộ thực thi tự động phía máy chủ, có từ 12/09); bạn chỉ theo dõi. Ở chế độ
+>   này nút *Thực hiện* trên thẻ gợi ý bị khoá — vì máy đã bấm thay bạn:
 >
 > ![Chế độ Tự động — nút Thực hiện bị mờ, không bấm được](img/l3-08b-che-do-tu-dong-nut-mo.png)
 >
-> Chọn **Đề xuất** thì nút sáng lên và bạn bấm tay được. Chế độ **không đổi được
-> sau khi đã tạo phiên** (nút Gợi ý/Tự động trên bàn điều khiển chỉ dùng cho
-> chế độ xem thử).
+> - **Chỉ gợi ý** — hệ thống chỉ đề xuất, sản phẩm chỉ được ghim khi bạn bấm
+>   *Thực hiện* trên bàn trợ live. Dùng khi live nhờ phòng đối tác.
+>
+> Chế độ **không đổi được sau khi đã tạo phiên** — muốn đổi thì bấm "Huỷ phiên
+> nháp, sửa lại" (chỉ được trước khi lên sóng).
 
-> **Vì sao nên ≥ 90 phút:** phiên càng ngắn càng ít khối, kết quả càng yếu. Chọn
-> 30 phút, hệ thống sẽ **nói thẳng** ra điều đó:
+> **Vì sao nên ≥ 90 phút:** phiên càng ngắn càng ít khối, kết quả càng yếu.
+> Chọn dưới 90 phút, wizard cảnh báo **ngay lúc chọn**, và khi bốc thăm máy chủ
+> sẽ nói thẳng mức đảm bảo thật của lịch:
 >
 > ![Cảnh báo lịch quá ngắn khi chọn 30 phút](img/l3-05b-canh-bao-phien-ngan.png)
 
 ### Bước 3.4 — Bốc thăm lịch BẬT/TẮT (trước khi lên sóng)
 
-**Ở đâu:** thẻ số **3 — Bốc thăm lịch BẬT/TẮT — TRƯỚC khi lên sóng**.
+**Ở đâu:** bước **3/4 — Bốc thăm**.
 
-**Bấm gì:**
-1. (Tuỳ chọn) ô **Độ dài khối (phút)** — để nguyên `5`.
-2. (Tuỳ chọn) ô **Seed (để trống = ngẫu nhiên)** — điền `42` nếu muốn lịch lặp
-   lại được y hệt cho lần sau.
-3. Bấm **"Bốc thăm lịch"**.
+**Bấm gì:** đúng MỘT nút **"Bốc thăm lịch"** (tên đầy đủ: *Bốc thăm lịch
+BẬT/TẮT*). Muốn chỉnh **Độ dài khối (phút)** hay **Mã bốc thăm (seed)** thì mở
+mục **"Tuỳ chọn nâng cao — mặc định là đủ"** trước khi bốc (điền seed `42` nếu
+muốn lịch lặp lại được y hệt cho lần sau).
 
 ![Lịch đã bốc — 16 khối, BẬT 8 / TẮT 8, seed 42](img/l3-05-buoc3-lich-da-boc.png)
 
-**Chuyện gì xảy ra:** hiện dòng tóm tắt `16 khối · BẬT 8 / TẮT 8 · seed 42` và
-một dải tím/xám — đó là toàn bộ kịch bản BẬT/TẮT của buổi live, **đã khoá**.
+**Chuyện gì xảy ra:** hiện dòng tóm tắt `16 khối, phần lớn ~5 phút · BẬT 8 /
+TẮT 8`, dải
+khối tím/xám — toàn bộ kịch bản BẬT/TẮT của buổi live, **đã khoá** — và một
+khung **"Mã bằng chứng"**: dấu kiểm chứng của lịch, chốt TRƯỚC giờ phát; ai
+cũng có thể sinh lại lịch và đối chiếu mã này — khớp nghĩa là **không ai sửa
+lịch giữa chừng** (đây là bằng chứng giám khảo sẽ hỏi). Dòng mờ bên dưới ghi
+*mã kiểm chứng lịch (seed)*.
 
-**Ghi lại con số seed.** Sinh lại với cùng seed cho ra đúng lịch này — đây là
-bằng chứng "không ai sửa giữa chừng" mà giám khảo sẽ hỏi.
+**Nếu thấy khung cam "Máy chủ lưu ý về lịch vừa bốc":** hệ thống đang nói thật
+rằng lịch này quá ngắn để đảm bảo cân bằng, kèm gợi ý sửa (phiên dài hơn hoặc
+khối ngắn hơn). Bấm "Bốc lại lịch khác" sau khi chỉnh, hoặc chấp nhận và đi
+tiếp.
 
-**Nếu thấy khung cam "Lưu ý về lịch vừa bốc":** hệ thống đang nói thật rằng lịch
-này quá ngắn để đảm bảo cân bằng. Bấm lùi lại, tạo phiên dài hơn.
+### Bước 3.5 — Checklist trước giờ G & Bắt đầu phát sóng
 
-### Bước 3.5 — Bắt đầu phát sóng & lấy link đo
+Ở bước **4/4 — Lên sóng**, wizard soát hộ bạn một checklist trước giờ G:
 
-**Bấm gì:** nút xanh **"Bắt đầu phát sóng"** ngay dưới dải lịch.
+- **Sản phẩm & link trang sản phẩm** — bao nhiêu sản phẩm đã có link hợp lệ;
+- **Lịch đã bốc và niêm phong** — kèm mã bằng chứng;
+- **Link đo** — tạo sẵn cho mọi sản phẩm có link, mỗi dòng kèm nút
+  **"Chép link"** (bấm xong đổi thành *"Đã chép ✓"*), và một ô tự đánh dấu
+  "tôi đã dán link vào bình luận ghim";
+- **Màn hình người dẫn** — nút **"Mở màn hình người dẫn"** kèm hướng dẫn kéo
+  sang màn phụ/TV, bấm F11;
+- **Nguồn dữ liệu (ma trận tín hiệu)** — trạng thái thật của từng nguồn, ô nào
+  THIẾU kèm lý do của máy chủ (trước giờ phát, nguồn người xem/bình luận chưa
+  chảy là bình thường).
 
 ![Bước 4 — đang phát, có link đo](img/l3-06-buoc4-dang-phat-va-link-do.png)
 
-**Chuyện gì xảy ra:**
-- Dòng ở thẻ 2 đổi từ `planned` sang **`live`**.
-- Thẻ số **4** bật sáng với 3 nút: **Mở bàn điều khiển** · **Mở màn hình host** ·
-  **Kết thúc phiên**.
-- Xuất hiện mục **"Link đo lượt nhấp — dán vào bình luận ghim khi giới thiệu sản
-  phẩm"**, mỗi sản phẩm một dòng kèm nút **"Chép link"** (bấm xong đổi thành
-  *"Đã chép ✓"*).
+**Bấm gì:** nút **"Bắt đầu phát sóng"**. Trang tự chuyển sang **bàn trợ live**
+đúng phiên vừa tạo — không phải tìm phiên trong danh sách.
 
 > **Khung cam "Đã tạo 2 link đo; 9 sản phẩm bị bỏ qua…"** là bình thường: chỉ
 > những sản phẩm bạn đã dán link ở bước 3.2 mới có link đo.
 
 > ⚠️ **Link đang là `http://localhost:8000/r/…`** — địa chỉ này **chỉ mở được
 > trên chính máy bạn**. Khách xem live ở nhà họ bấm sẽ không vào được. Muốn đo
-> thật, cần đặt một địa chỉ công khai (xem mục 8).
+> thật, cần đặt một địa chỉ công khai (xem mục 8) — wizard cũng tự cảnh báo
+> điều này ngay cạnh danh sách link.
 
-**Đừng đóng tab này vội** — nút "Kết thúc phiên" nằm ở đây. Nhưng nếu lỡ đóng,
-bạn vẫn kết thúc được từ bàn điều khiển (bước 3.9).
+**Kết thúc phiên ở đâu?** Trên bàn trợ live (nút "Kết thúc phiên" ở thanh trạng
+thái — bước 3.9). Mở lại trang Chuẩn bị phiên khi đang phát sẽ thấy hai nút
+**"Mở bàn trợ live"** và **"Mở màn hình người dẫn"**.
 
-### Bước 3.6 — Mở Bàn điều khiển
+### Bước 3.6 — Mở Bàn trợ live
 
-**Bấm gì:** nút xanh **"Mở bàn điều khiển"** ở thẻ 4 (hoặc chữ **"Bàn điều
-khiển"** trên thanh trên cùng).
+**Bấm gì:** wizard đã tự chuyển bạn sang đây sau khi bấm "Bắt đầu phát sóng";
+nếu lỡ đóng, bấm nút **"Mở bàn trợ live"** ở bước 4 của wizard (hoặc chữ **"Bàn
+trợ live"** trên thanh trên cùng).
 
 ![Bàn điều khiển đang chạy phiên thật](img/l3-07-ban-dieu-khien.png)
 
@@ -449,10 +479,11 @@ bằng chữ xanh **"✓ Đã thực hiện"**; dòng **"Đang ghim:"** ở góc
 **Khi nào thì tới khối BẬT?** Nhìn dải ô: ô tím đầu tiên nằm ở đâu. Đồng hồ
 *"CÒN ĐẾN RANH GIỚI KHỐI"* đếm ngược tới lần đổi kế tiếp.
 
-### Bước 3.8 — Mở màn hình host trên máy người dẫn
+### Bước 3.8 — Mở màn hình người dẫn trên máy người dẫn
 
-**Bấm gì:** trên máy/màn hình đặt trước mặt người dẫn, mở
-`http://localhost:3000/host` (hoặc bấm **"Màn hình host"** trên thanh trên cùng).
+**Bấm gì:** nút **"Mở màn hình người dẫn"** ở bước 4 của wizard Chuẩn bị phiên
+(hoặc mở thẳng `http://localhost:3000/host` trên máy/màn hình đặt trước mặt
+người dẫn) — kéo cửa sổ sang màn phụ/TV, bấm F11 để toàn màn hình.
 
 Khi chưa ghim gì, màn này chỉ có đồng hồ và dòng chữ **"Chưa ghim sản phẩm"** —
 đúng như thiết kế, không phải màn hình lỗi:
@@ -472,8 +503,8 @@ lớn** để người dẫn liếc từ xa 2 mét vẫn đọc được: *Sản
 
 ### Bước 3.9 — Kết thúc phiên
 
-**Bấm gì:** nút đỏ **"Kết thúc phiên"** — có ở cả hai nơi: góc phải thanh trạng
-thái của *Bàn điều khiển*, và thẻ số 4 của trang *Chạy phiên*.
+**Bấm gì:** nút đỏ **"Kết thúc phiên"** ở góc phải thanh trạng thái của *Bàn
+trợ live*.
 
 **Chuyện gì xảy ra:** trình duyệt hỏi lại một câu:
 *"Kết thúc phiên ngay bây giờ? Các khối chưa chạy sẽ không được tính vào kết
@@ -601,12 +632,12 @@ hiển thị cho bàn điều khiển — màn hình host không thấy khối"*
 |---|---|---|---|
 | 1 | **Chưa có đăng nhập, chưa có mật khẩu** | Ai vào được địa chỉ là dùng được toàn quyền | Chỉ chạy trên **máy cá nhân** hoặc **Wi-Fi nội bộ**. Chưa đưa lên Internet công khai |
 | 2 | **Dữ liệu nằm trong bộ nhớ tạm** | Đóng cửa sổ máy chủ (cửa sổ 1) là **mất hết phiên đã tạo** | Đừng đóng khi còn đang dùng. Buổi live YouTube thì nạp lại được (Luồng 2) |
-| 3 | **Chế độ "Tự động" chưa có bộ thực thi** | Chọn Tự động ⇒ nút *Thực hiện* bị khoá **và** máy chủ cũng không tự ghim ⇒ **không sản phẩm nào được ghim** | **Luôn chọn chế độ "Đề xuất"** khi tạo phiên, rồi **bấm tay theo đèn báo** BẬT/TẮT |
+| 3 | **Chế độ "Tự ghim" cần máy chủ chạy đúng 1 tiến trình** | Trước 12/09 chế độ này chưa có bộ thực thi (không gì được ghim); nay bộ thực thi tự động chạy phía máy chủ, nhưng tắt được bằng biến môi trường và chỉ an toàn với 1 worker | Nếu bàn trợ live báo **"Bộ thực thi tự động ĐANG TẮT"** hoặc phiên auto im lặng quá 5 phút thì ghim tay ngay theo cảnh báo trên bàn |
 | 4 | **Điện thoại chưa dùng được cho Bàn điều khiển** | Màn `/desk` thiết kế cho ≥ 1366×768; trên điện thoại các khung chồng lên nhau, khó bấm | Dùng laptop cho `/desk`. Màn `/host` và trang báo cáo thì xem tạm được trên màn nhỏ |
 | 5 | **Địa chỉ trên thanh URL không chọn được buổi ở màn Phát lại** | Sau khi phân tích xong, trang mở **nhầm buổi** (bước 2.3) | Chọn tay trong ô thả xuống góc trái |
 | 6 | **Báo lỗi sai khi bấm Thực hiện trong khối TẮT** | Hiện *"kiểm tra kết nối API"* trong khi thật ra là *"đang ở khối TẮT"* | Nhìn ô lớn KHỐI HIỆN TẠI trước khi nghi ngờ mạng |
 | 7 | **Ô "Người xem" trên đồng hồ khối in số 0** khi chưa có nguồn đo | Mâu thuẫn với ô *"NGƯỜI XEM — THIẾU nguồn"* ngay bên dưới | **Tin ô THIẾU nguồn**, đừng tin số 0 |
-| 8 | **Ô "Lượt bấm" ghi "không có link đo"** ngay cả khi đã tạo link | Dễ tưởng link chưa được tạo | Link vẫn có, chỉ là **chưa ai bấm**. Kiểm tra lại danh sách link ở thẻ 4 trang *Chạy phiên* |
+| 8 | **Ô "Lượt bấm" ghi "không có link đo"** ngay cả khi đã tạo link | Dễ tưởng link chưa được tạo | Link vẫn có, chỉ là **chưa ai bấm**. Kiểm tra lại danh sách link ở bước 4 của wizard *Chuẩn bị phiên* |
 | 9 | **Link đo trỏ về `localhost`** | Khách xem live **không mở được** | Cần một địa chỉ công khai (tên miền thật hoặc tunnel) đặt vào `NEXT_PUBLIC_PUBLIC_API_BASE` — nhờ người kỹ thuật làm 1 lần |
 | 10 | **Nguồn thu bình luận trực tiếp chưa nối sẵn** | Phiên bạn tự chạy sẽ hiện *THIẾU nguồn* ở Bình luận, Người xem, Tim & quà | Bình thường. Muốn thấy radar/feed có dữ liệu thật, dùng Luồng 2 (nạp buổi YouTube đã xong) |
 | 11 | **Chưa có nhập đơn hàng / doanh thu** | Báo cáo luôn ghi *"chưa ghi nhận đơn"* | Chỉ tiêu chính hiện là **lượt nhấp**, không phải doanh thu |

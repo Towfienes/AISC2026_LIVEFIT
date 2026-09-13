@@ -273,6 +273,9 @@ export const MOCK_SESSIONS: SessionSummary[] = [
     planned_duration_min: 90,
     start_ts: "2026-08-25T13:00:00Z", // 20:00 Asia/Ho_Chi_Minh
     end_ts: null,
+    // Mock client-side CHÍNH LÀ dữ liệu mẫu (gói DEMO-THẬT): cờ này giữ cho
+    // nhãn DEMO hiện cả khi UI chạy không có API.
+    is_demo: true,
   },
   {
     session_id: "mock-ended-01",
@@ -283,6 +286,7 @@ export const MOCK_SESSIONS: SessionSummary[] = [
     planned_duration_min: 90,
     start_ts: "2026-08-22T13:00:00Z",
     end_ts: "2026-08-22T14:30:00Z",
+    is_demo: true,
   },
   {
     session_id: "mock-ended-02",
@@ -293,6 +297,7 @@ export const MOCK_SESSIONS: SessionSummary[] = [
     planned_duration_min: 60,
     start_ts: "2026-08-20T05:00:00Z",
     end_ts: "2026-08-20T06:00:00Z",
+    is_demo: true,
   },
 ];
 
@@ -311,6 +316,7 @@ export const MOCK_ANALYSIS_SESSION: SessionSummary = {
   planned_duration_min: 30,
   start_ts: "2026-08-24T12:00:00Z",
   end_ts: "2026-08-24T12:30:00Z",
+  is_demo: true,
 };
 
 function generateAnalysisRecording(session: SessionSummary, seed: number): SessionRecording {

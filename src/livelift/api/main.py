@@ -67,6 +67,7 @@ def create_app(store: Store | None = None) -> FastAPI:
 
     @app.get("/health")
     def health() -> dict[str, Any]:
+        from livelift.api import service
         from livelift.nlp.intent import classifier_info
 
         info = classifier_info()
@@ -81,6 +82,11 @@ def create_app(store: Store | None = None) -> FastAPI:
             # lose?". Before the incident of 11/09/2026 nothing on the wire
             # answered that, and 13 real sessions went missing unannounced.
             **durability_info(app.state.store),
+            # Gói DEMO-THẬT: mode/"mode_counts"/"mode_note" nói kho này đang
+            # chứa dữ liệu mẫu hay dữ liệu thật (hay cả hai) — nguồn dữ liệu
+            # cho chip DEMO/THẬT trên web. Người dùng phải LUÔN biết mình đang
+            # nhìn loại dữ liệu nào (yêu cầu phản biện #2-3).
+            **service.data_mode(app.state.store),
         }
 
     app.include_router(sessions.router, tags=["sessions"])

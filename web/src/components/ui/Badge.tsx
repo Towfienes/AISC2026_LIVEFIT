@@ -15,7 +15,7 @@ export type BadgeTone = "neutral" | "good" | "warn" | "violet" | "critical";
 
 const TONE: Record<BadgeTone, string> = {
   neutral: "border-hairline bg-axis text-off-ink",
-  good: "border-[#0ca30c66] bg-[#0ca30c1f] text-good-ink",
+  good: "border-good/40 bg-good/10 text-good-ink",
   warn: "border-warn/60 bg-warn/10 text-warn-ink",
   violet: "border-s7/50 bg-s7/15 text-on-ink",
   critical: "border-critical/50 bg-critical/10 text-crit-ink",
@@ -23,7 +23,7 @@ const TONE: Record<BadgeTone, string> = {
 
 const DOT: Record<BadgeTone, string> = {
   neutral: "bg-mut",
-  good: "bg-[#0ca30c]",
+  good: "bg-good",
   warn: "bg-warn",
   violet: "bg-s7",
   critical: "bg-critical",

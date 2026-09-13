@@ -98,13 +98,26 @@ def collect_from_store(store: Any, session_id: str | None = None) -> list[dict[s
     ``session_id`` scopes the lot to a single observed session, which is what a
     labeling lot must do: prevalence estimated from a mix of sessions belongs
     to no session in particular.
+
+    DEMO GATE (gói DEMO-THẬT): sessions flagged ``is_demo`` are refused —
+    skipped in the all-sessions sweep, and a hard error when named explicitly.
+    Their "comments" are our own template strings (``DEMO_COMMENTS``); labeling
+    them would teach the classifier its own demo script and quietly poison the
+    training set — the exact demo-into-science leak the critique rounds vetoed.
     """
     if session_id is not None:
-        if store.get_session(session_id) is None:
+        session = store.get_session(session_id)
+        if session is None:
             raise LabelPipelineError(f"Không tìm thấy phiên: {session_id}")
+        if session.get("is_demo"):
+            raise LabelPipelineError(
+                f"Phiên {session_id} là DỮ LIỆU MẪU (is_demo) — bình luận của nó là "
+                "văn mẫu do máy sinh, không được đưa vào lô gán nhãn/huấn luyện "
+                "(tiền đăng ký §8.2: demo không vào bất kỳ đầu ra khoa học nào)."
+            )
         session_ids = [session_id]
     else:
-        session_ids = [s["session_id"] for s in store.list_sessions()]
+        session_ids = [s["session_id"] for s in store.list_sessions() if not s.get("is_demo")]
     items: list[dict[str, Any]] = []
     for sid in session_ids:
         for c in store.list_comments(sid):

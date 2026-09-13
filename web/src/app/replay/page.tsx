@@ -65,6 +65,16 @@ export default function ReplayPage() {
         ) : null}
       </header>
 
+      {/* Câu định vị trang (PageHeader d1, bản một-dòng cho màn h-screen):
+          trang này để làm gì — cho ai — khi nào dùng. */}
+      <p className="shrink-0 px-1 text-meta leading-snug text-dim">
+        <span className="mr-1.5 font-semibold uppercase tracking-[0.08em] text-good-ink">
+          Sau live
+        </span>
+        Xem lại phiên — tua lại một buổi đã phát theo từng phút, thử &quot;nếu-thì&quot; với tồn
+        kho; không đụng gì tới dữ liệu gốc.
+      </p>
+
       <ReplayControls
         sessions={rp.sessions}
         sessionId={rp.sessionId}

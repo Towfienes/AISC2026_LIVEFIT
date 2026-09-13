@@ -291,12 +291,26 @@ def test_a_finished_live_is_never_promised_an_intervention_level():
 # 4. trang phải nằm trong luồng
 # ---------------------------------------------------------------------------
 def test_the_wizard_is_reachable_from_the_home_page_and_the_nav():
+    # CẬP NHẬT CÓ CHỦ ĐÍCH (gói SKIN, 09/2026 — spec UX-FLOW mục a): nav gộp
+    # 7 mục về 5 mục theo pha TRƯỚC/TRONG/SAU live; /bat-dau RỜI KHỎI NAV vì
+    # nó là công cụ tra cứu MỘT LẦN, không phải điểm đến hằng ngày. Lối vào
+    # của nó bây giờ là CỬA SỐ 1 (nổi bật nhất) trên trang chủ — bất biến
+    # "người mới phải thấy được /bat-dau ngay" vẫn giữ, chỉ đổi chỗ đứng.
     assert '"/bat-dau"' in code(HOME.read_text(encoding="utf-8")), (
         "trang chủ phải có lối vào /bat-dau — đây là câu hỏi đầu tiên của mọi "
-        "người dùng mới, không được giấu trong menu"
+        "người dùng mới; khi rời nav thì cửa trên trang chủ là lối vào duy nhất"
     )
-    assert '"/bat-dau"' in code(TOPNAV.read_text(encoding="utf-8")), (
-        "TopNav chưa có mục cho trang /bat-dau"
+    topnav = code(TOPNAV.read_text(encoding="utf-8"))
+    assert '"/bat-dau"' not in topnav, (
+        "nav v2 chỉ còn 5 mục theo pha (spec UX-FLOW a) — /bat-dau đã rời nav "
+        "một cách CÓ CHỦ ĐÍCH; nếu muốn đưa lại phải sửa spec trước"
+    )
+    # Năm mục theo việc — đúng cấu trúc pha TRƯỚC/TRONG/SAU của spec.
+    for href in ('"/"', '"/chay-phien"', '"/desk"', '"/replay"', '"/ket-qua"'):
+        assert href in topnav, f"nav v2 thiếu mục {href}"
+    assert '"/host"' not in topnav, (
+        "màn hình người dẫn (bị làm mù) không được nằm trên nav — lối vào là "
+        "nút 'Mở màn hình người dẫn' từ Chuẩn bị phiên / Bàn trợ live"
     )
 
 

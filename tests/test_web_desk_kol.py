@@ -139,15 +139,20 @@ def test_the_tiles_take_their_reasons_from_the_server_matrix():
 def test_the_replay_desk_does_not_show_a_fake_viewer_zero_on_the_clock():
     """Phiên replay: CCU quá khứ không tồn tại — đồng hồ khối nhận null (hiện
     '—'), không nhận số 0 giả từ tick placeholder."""
-    page = code(DESK_PAGE.read_text(encoding="utf-8"))
-    m = re.search(r"viewers=\{([^}]+)\}", page)
-    assert m, "không đọc được prop viewers của BlockClock"
-    assert "null" in m.group(1), (
-        "BlockClock phải nhận viewers=null cho phiên không có nguồn đo người xem"
+    # CẬP NHẬT CÓ CHỦ ĐÍCH (gói DESK-HOST v2): hai chỉ số vận hành rời đồng hồ
+    # khối sang cột KPI (mockup mock_desk), nên đồng hồ khối KHÔNG còn nhận
+    # `viewers` — về mặt cấu trúc nó không thể in số 0 giả nữa. Bất biến
+    # không-bịa-số chuyển sang ô KPI: ô Người xem do MA TRẬN TÍN HIỆU của máy
+    # chủ quyết định, nguồn `ticks` missing ⇒ chip THIẾU + lý do, không phải 0.
+    clock = code((SRC / "components" / "BlockClock.tsx").read_text(encoding="utf-8"))
+    assert not re.search(r"\bviewers\b", clock), (
+        "đồng hồ khối v2 không nhận số người xem — KPI thuộc về cột tín hiệu "
+        "(SignalTiles), nơi ma trận tín hiệu quyết định GIÁ TRỊ/THIẾU"
     )
-    clock = (SRC / "components" / "BlockClock.tsx").read_text(encoding="utf-8")
-    assert re.search(r"viewers:\s*number \| null", clock), (
-        "BlockClock.viewers phải là number | null — Vital hiện '—' cho null"
+    tiles = code((SRC / "components" / "SignalTiles.tsx").read_text(encoding="utf-8"))
+    assert re.search(r'ticksSig\.status === "missing"', tiles), (
+        "ô Người xem phải đổi sang trạng thái THIẾU khi ma trận nói nguồn ticks "
+        "không tồn tại (phiên replay) — không render 0 giả"
     )
 
 
@@ -156,11 +161,13 @@ def test_the_clock_does_not_show_a_fake_clicks_zero_when_no_link_exists():
     có link đo) thì đồng hồ khối phải nhận null (hiện '—') — tổng click_count
     của tick chỉ là chỗ trống, hiện 0 sẽ mâu thuẫn với ô THIẾU ngay bên dưới
     (bắt gặp trên desk buổi Achan 11/09)."""
+    # v2: con số nằm ở Ô KPI (buildSignalTiles), không còn trên đồng hồ khối —
+    # bất biến không-bịa-số giữ nguyên, chỉ đổi chỗ ở.
     page = code(DESK_PAGE.read_text(encoding="utf-8"))
-    m = re.search(r"clicksPerMin=\{([^}]+)\}", page)
-    assert m, "không đọc được prop clicksPerMin của BlockClock"
+    m = re.search(r"clicksPerMin:\s*([A-Za-z.]+)", page)
+    assert m, "không đọc được nguồn clicksPerMin của buildSignalTiles"
     assert "honestClicksPerMin" in m.group(1), (
-        "BlockClock phải nhận bản đã đối chiếu ma trận (null khi clicks missing)"
+        "cột KPI phải nhận bản đã đối chiếu ma trận (null khi clicks missing)"
     )
     assert re.search(r'"clicks"\s*&&\s*s\.status\s*===\s*"missing"', page), (
         "điều kiện phải đọc từ ma trận tín hiệu của máy chủ, không đoán theo platform"

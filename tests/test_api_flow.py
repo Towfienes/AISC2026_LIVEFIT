@@ -296,15 +296,31 @@ def test_execute_scopes_to_the_clicked_card(client):
 
 
 def test_demo_seed_and_experiment_summary(client):
-    """Demo seeding produces analyzable sessions; the pooled summary runs the
-    pre-registered estimator and returns experiment-source numbers with CI."""
+    """Demo seeding produces analyzable sessions; the DEMO-scope summary runs
+    the pre-registered estimator and returns experiment-source numbers with CI.
+
+    Gói DEMO-THẬT: seeded sessions are SAMPLE data (is_demo), so the default
+    (real) summary must NOT move — the demo verdict lives at ?env=demo, under
+    a MÔ PHỎNG label. Both directions of the no-mixing gate are asserted here.
+    """
     r = client.post("/demo/seed", json={"n_sessions": 3, "effect": 0.5, "duration_min": 40})
     assert r.status_code == 200, r.text
     seeded = r.json()
     assert len(seeded["session_ids"]) == 3
 
-    summary = client.get("/experiment/summary").json()
+    # Gate (phản biện #2-3): the REAL pooled result ignores demo data entirely
+    # — and says so out loud in sessions_excluded.
+    real = client.get("/experiment/summary").json()
+    assert real["env"] == "real"
+    assert real["n_sessions"] == 0
+    assert real["estimate"] is None
+    assert any("DEMO" in reason for reason in real["sessions_excluded"])
+
+    summary = client.get("/experiment/summary?env=demo").json()
     assert summary["source"] == "experiment"
+    assert summary["env"] == "demo"
+    assert "MÔ PHỎNG" in summary["label"]
+    assert "KHÔNG phải kết quả thật" in summary["label"]
     assert summary["n_sessions"] >= 3
     assert summary["n_blocks"] >= 8
     assert summary["estimate"] is not None
@@ -320,6 +336,7 @@ def test_demo_seed_and_experiment_summary(client):
     replay = seeded["replay_session_id"]
     op = client.get(f"/sessions/{replay}/state").json()
     assert op["status"] == "live"
+    assert op["is_demo"] is True, "bàn điều khiển phải biết phiên replay demo là dữ liệu mẫu"
 
     # demo comments demonstrate the scrubber in the stored feed
     all_comments = []
@@ -357,8 +374,14 @@ def _with_freeze(client, monkeypatch, value: str):
 def test_summary_locked_before_freeze_date(client, monkeypatch):
     """§7: before the freeze date no inferential field may be served — the
     operational numbers §7 explicitly allows (sessions, blocks, CV, MDE,
-    compliance) still are."""
-    client.post("/demo/seed", json={"n_sessions": 3, "effect": 0.5, "duration_min": 40})
+    compliance) still are.
+
+    Seeded via the REAL-session helper (gói DEMO-THẬT): the freeze guards real
+    results, and demo sessions no longer reach the default summary at all.
+    """
+    from tests.conftest import seed_phien_that_mo_phong
+
+    seed_phien_that_mo_phong(client.app.state.store)
     summary = _with_freeze(client, monkeypatch, "2999-01-01")
 
     assert summary["estimable"] is False
@@ -375,7 +398,9 @@ def test_summary_locked_before_freeze_date(client, monkeypatch):
 
 
 def test_summary_unlocked_on_or_after_freeze_date(client, monkeypatch):
-    client.post("/demo/seed", json={"n_sessions": 3, "effect": 0.5, "duration_min": 40})
+    from tests.conftest import seed_phien_that_mo_phong
+
+    seed_phien_that_mo_phong(client.app.state.store)
     summary = _with_freeze(client, monkeypatch, "2000-01-01")
     assert summary["estimable"] is True
     assert summary["estimate"] is not None
@@ -385,7 +410,9 @@ def test_summary_unlocked_on_or_after_freeze_date(client, monkeypatch):
 
 def test_summary_malformed_freeze_date_fails_closed(client, monkeypatch):
     """A typo in the freeze config must lock, never silently unlock."""
-    client.post("/demo/seed", json={"n_sessions": 3, "effect": 0.5, "duration_min": 40})
+    from tests.conftest import seed_phien_that_mo_phong
+
+    seed_phien_that_mo_phong(client.app.state.store)
     summary = _with_freeze(client, monkeypatch, "14/09/2026")
     assert summary["estimable"] is False
     assert summary["estimate"] is None
@@ -394,8 +421,8 @@ def test_summary_malformed_freeze_date_fails_closed(client, monkeypatch):
 
 def test_summary_redraws_use_each_sessions_saved_design(client, monkeypatch):
     """Review 06/09: analyze_outer must receive the PERSISTED DesignParams of
-    every pooled session (demo sessions store jitter_s=0, not the default 30)
-    so redraws run the design that actually ran."""
+    every pooled session (the sim-seeded sessions store jitter_s=0, not the
+    default 30) so redraws run the design that actually ran."""
     from livelift.analysis import estimators
     from livelift.api.routes import reports
 
@@ -405,8 +432,10 @@ def test_summary_redraws_use_each_sessions_saved_design(client, monkeypatch):
         captured["design_params"] = kwargs.get("design_params")
         return estimators.analyze_outer(*args, **kwargs)
 
+    from tests.conftest import seed_phien_that_mo_phong
+
     monkeypatch.setattr(reports, "analyze_outer", spy)
-    client.post("/demo/seed", json={"n_sessions": 2, "effect": 0.5, "duration_min": 40})
+    seed_phien_that_mo_phong(client.app.state.store, n_sessions=2)
     summary = client.get("/experiment/summary").json()
     assert summary["estimate"] is not None
 
@@ -415,7 +444,7 @@ def test_summary_redraws_use_each_sessions_saved_design(client, monkeypatch):
     ended = [s for s in client.get("/sessions").json() if s["status"] == "ended"]
     assert {s["session_id"] for s in ended} <= set(params)
     assert all(p.jitter_s == 0 for p in params.values()), (
-        "phải là DesignParams đã lưu của phiên (demo seed dùng jitter_s=0), "
+        "phải là DesignParams đã lưu của phiên (máy seed mô phỏng dùng jitter_s=0), "
         "không phải tham số mặc định"
     )
 

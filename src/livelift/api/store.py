@@ -121,15 +121,24 @@ class Broadcaster:
 # ---------------------------------------------------------------------------
 
 
-_SESSION_WRITE_ONCE: frozenset[str] = frozenset({"session_id", "platform", "dry_run"})
+_SESSION_WRITE_ONCE: frozenset[str] = frozenset({"session_id", "platform", "dry_run", "is_demo"})
 """Session columns fixed at creation — ``update_session`` silently ignores them.
 
-``dry_run`` is the load-bearing one: it decides whether a session counts in the
-pooled result, so it has to be a decision taken BEFORE the session runs
-(PREREGISTRATION §8.2). A column that can be flipped later is not a
-pre-registration rule, it is a switch for dropping sessions whose numbers you
-did not like. The SQL store gets the same guarantee from the fixed ``allowed``
-tuple in its own ``update_session``.
+``dry_run`` and ``is_demo`` are the load-bearing ones: each decides whether a
+session counts in a pooled result, so both have to be decisions taken BEFORE
+the session runs (PREREGISTRATION §8.2). A column that can be flipped later is
+not a pre-registration rule, it is a switch for dropping sessions whose numbers
+you did not like — and for ``is_demo`` the reverse flip would be worse still:
+relabeling a real session as "sample data" after seeing its numbers, or
+laundering a demo session into the real pool. The SQL store gets the same
+guarantee from the fixed ``allowed`` tuple in its own ``update_session``.
+
+The two flags answer DIFFERENT questions (gói DEMO-THẬT, 12/09/2026):
+``is_demo`` — is this data REAL at all? (machine-generated sample sessions from
+/demo/seed and scripts/seed_demo_vang.py; no broadcast ever happened);
+``dry_run`` — is this REAL session counted? (a real practice run, declared at
+creation). Demo data is excluded from every real scientific output and always
+labeled; a dry run is real data that merely stays out of the pooled sample.
 """
 
 
@@ -852,8 +861,8 @@ class PostgresStore:
             """
             INSERT INTO live_session
                 (session_id, platform, title, mode, status, planned_duration_min,
-                 host_id, created_at, dry_run)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *
+                 host_id, created_at, dry_run, is_demo)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *
             """,
             (
                 row["session_id"],
@@ -864,10 +873,12 @@ class PostgresStore:
                 row["planned_duration_min"],
                 row.get("host_id"),
                 row["created_at"],
-                # Write-once (migration 0008): `dry_run` is NOT in
-                # update_session's allowed columns, so the sample-inclusion rule
-                # is fixed at creation and no later call can flip it.
+                # Write-once (migrations 0008/0009): neither `dry_run` nor
+                # `is_demo` is in update_session's allowed columns, so both
+                # sample-inclusion rules are fixed at creation and no later
+                # call can flip them.
                 bool(row.get("dry_run", False)),
+                bool(row.get("is_demo", False)),
             ),
         )
         assert out is not None

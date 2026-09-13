@@ -104,6 +104,41 @@ const STATUS_VI: Record<SessionStatus, string> = {
   cancelled: "đã huỷ (chưa phát sóng)",
 };
 
+/**
+ * ĐÈN TRẠNG THÁI PHÁT SÓNG (gói DESK-HOST v2, khoảnh khắc S1 của spec
+ * UI-VISUAL). Đèn ĐANG PHÁT đỏ với chấm pulse 8px là NGOẠI LỆ LẶP VÔ HẠN duy
+ * nhất của màn vận hành — quy ước phát sóng toàn cầu, và nó gắn trên ĐÈN chứ
+ * không phải trên chữ hay card (`.live-dot` trong globals.css; prefers-
+ * reduced-motion tắt nhịp đập). Màu --live chỉ dành cho trạng thái đang-phát
+ * + nút Kết thúc phiên. Các trạng thái khác là chip TĨNH trung tính — cả ba
+ * kết cục (đang phát / đã kết thúc / chưa phát) được trình bày tử tế ngang
+ * nhau, không tôn vinh riêng trạng thái đẹp.
+ */
+const STATUS_CHIP: Record<SessionStatus, string> = {
+  planned: "CHƯA PHÁT SÓNG",
+  scheduled: "ĐÃ CÓ LỊCH — CHƯA PHÁT",
+  live: "ĐANG PHÁT",
+  ended: "ĐÃ KẾT THÚC",
+  cancelled: "ĐÃ HUỶ",
+};
+
+function OnAirLight({ status }: { status: SessionStatus | null }) {
+  if (status === "live") {
+    return (
+      <span className="flex shrink-0 items-center gap-2 rounded-full border border-live/40 bg-live/10 px-3 py-1 text-meta font-bold tracking-[0.12em] text-live">
+        <span aria-hidden className="live-dot" />
+        ĐANG PHÁT
+      </span>
+    );
+  }
+  if (!status) return null;
+  return (
+    <span className="flex shrink-0 items-center gap-2 rounded-full border border-hairline bg-raised px-3 py-1 text-meta font-bold tracking-[0.12em] text-sec">
+      {STATUS_CHIP[status]}
+    </span>
+  );
+}
+
 /** Hai chế độ vận hành — nhãn và giải thích đi liền nhau, một nguồn duy nhất. */
 const MODES = [
   {
@@ -269,9 +304,20 @@ export default function StatusBar({
   alert,
   onDismissAlert,
 }: Props) {
+  const session = sessions.find((s) => s.session_id === sessionId) ?? null;
   return (
     <header className="shrink-0 rounded-lg border border-hairline bg-surface">
       <div className="flex min-h-bar flex-wrap items-center gap-x-3 gap-y-2 px-3 py-1.5">
+        {/* đèn phát sóng — trạng thái phiên là thứ đầu tiên trên thanh */}
+        <OnAirLight status={session?.status ?? null} />
+
+        {/* timecode mono — đồng hồ PHIÊN, khác đồng hồ KHỐI ở hero bên dưới.
+            Nhảy mỗi giây ⇒ KHÔNG transition, chỉ `tnum` để chữ số không xê. */}
+        <span className="flex shrink-0 items-baseline gap-1.5">
+          <span className="tnum font-num text-title font-bold leading-none text-ink">{fmtClock(elapsedS)}</span>
+          <span className="tnum font-num text-meta text-dim">/ {fmtClock(durationS)}</span>
+        </span>
+
         <span className="shrink-0 text-meta font-semibold text-sec">Phiên đang xem</span>
 
         <select
@@ -287,19 +333,16 @@ export default function StatusBar({
           ))}
         </select>
 
+        {/* phiên DỮ LIỆU MẪU phải tự khai trên mọi ảnh chụp (không trộn
+            demo/thật); chế độ mock đã có DEMO DATA từ ConnectionBadge —
+            không in hai badge trùng nhau. */}
+        {connection !== "mock" && session?.is_demo ? <DemoBadge /> : null}
+
         <ConnectionBadge connection={connection} wsStatus={wsStatus} />
 
         {designHash ? <DesignHashBadge hash={designHash} /> : null}
 
         <div className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-2">
-          {/* đồng hồ PHIÊN — khác đồng hồ KHỐI ở khối tiêu điểm bên dưới.
-              Nhảy mỗi giây ⇒ KHÔNG transition, chỉ `tnum` để chữ số không xê. */}
-          <span className="flex items-baseline gap-1.5 text-meta text-dim">
-            Đã phát:
-            <span className="tnum text-strong text-ink">{fmtClock(elapsedS)}</span>
-            <span className="tnum">/ {fmtClock(durationS)}</span>
-          </span>
-
           {/* mode toggle — segmented control.
               `min-h-tap` là sàn WCAG 2.2 SC 2.5.8 (24px); `h-ctl` nâng thực tế
               lên 36px vì đây là control người vận hành bấm khi đang nhìn stream. */}

@@ -96,7 +96,14 @@ class SessionCreate(BaseModel):
     quyết định trước khi bốc lịch gán và trước khi thấy bất kỳ con số nào.
     Không endpoint nào sửa được cờ này sau đó — một nút "loại phiên này khỏi
     kết quả" bấm được sau khi đọc kết quả không phải quy tắc tiền đăng ký, nó
-    là chọn lọc kết quả. Quy tắc đầy đủ: PREREGISTRATION §8.2."""
+    là chọn lọc kết quả. Quy tắc đầy đủ: PREREGISTRATION §8.2.
+
+    CỐ Ý KHÔNG có trường ``is_demo`` ở đây (gói DEMO-THẬT): dữ liệu MẪU chỉ
+    sinh ra từ máy sinh demo phía server (``/demo/seed``,
+    ``scripts/seed_demo_vang.py``) — không đường nào qua ``POST /sessions``
+    tạo được một phiên mang nhãn demo, nên cũng không ai dán nhầm (hay dán
+    gian) nhãn "dữ liệu mẫu" lên một phiên thật. Muốn tập dượt trên đường ống
+    thật thì dùng ``dry_run``."""
 
 
 class SessionOut(BaseModel):
@@ -114,6 +121,17 @@ class SessionOut(BaseModel):
     """Xem :class:`SessionCreate`. Mặc định False cho phiên tạo trước gói
     C-NHẤT-QUÁN — chúng là phiên thật, và mặc định phải là "tính vào kết quả"
     để không có phiên nào biến mất âm thầm khỏi mẫu."""
+    is_demo: bool = False
+    """DỮ LIỆU MẪU (gói DEMO-THẬT): phiên máy sinh ra để xem thử/tập demo —
+    không có buổi phát nào từng diễn ra sau con số của nó. Khác hẳn
+    ``dry_run`` (phiên THẬT chạy thử): ``is_demo`` trả lời "dữ liệu này có
+    THẬT không?", ``dry_run`` trả lời "phiên thật này có được TÍNH không?".
+
+    Chỉ máy sinh demo phía server đặt được (``/demo/seed``,
+    ``scripts/seed_demo_vang.py``); bất biến sau khi tạo
+    (``store._SESSION_WRITE_ONCE``). Phiên demo bị loại khỏi MỌI đầu ra khoa
+    học thật (``/experiment/summary`` mặc định, export nhãn NLP) và UI phải
+    vẽ nhãn DEMO từ cờ này ở mọi nơi phiên xuất hiện. PREREGISTRATION §8.2."""
 
 
 class SessionDetail(SessionOut):
@@ -231,6 +249,11 @@ class OperatorState(BaseModel):
     đang được phép ghim. Phân biệt "không mời thao tác vì không thao tác được"
     với "chưa đủ số liệu để xếp hạng"; hai trạng thái đó đọc giống hệt nhau
     trên một danh sách rỗng không lời."""
+    is_demo: bool = False
+    """Cờ DỮ LIỆU MẪU của phiên (xem :class:`SessionOut`) — bàn điều khiển vẽ
+    nhãn DEMO từ đây. KHÔNG thêm vào :class:`HostState`: màn host bị đóng băng
+    ở đúng 4 trường (quy tắc làm mù L6), và người dẫn không cần biết buổi tập
+    là demo hay thật để đọc kịch bản."""
 
 
 class HostState(BaseModel):
@@ -461,12 +484,29 @@ class SessionReport(BaseModel):
     session_id: str
     label: str = "kết quả thí nghiệm sơ bộ"
     source: Literal["experiment"] = "experiment"
+    is_demo: bool = False
+    """Cờ DỮ LIỆU MẪU của phiên (xem :class:`SessionOut`) — báo cáo một phiên
+    demo vẫn xem được riêng, nhưng client phải vẽ nhãn DEMO kèm mọi con số."""
     n_blocks: int
     n_on: int
     n_off: int
     diff_in_means: float | None = None
     blocks: list[dict[str, Any]]
     compliance: ComplianceStats
+
+
+class CauTomTat(BaseModel):
+    """Một câu của "tóm tắt 3 câu" (AI-LAYER lớp 0 — analysis/narrate.py).
+
+    Văn xuôi TEMPLATE tất định, không LLM: mọi con số trong ``text`` chép từ
+    chính payload chứa nó, ``refs`` là đường dẫn JSON của từng số để UI hover
+    ra nguồn. ``badge`` là huy hiệu bằng chứng: ``thi_nghiem`` CHỈ khi số đến
+    từ analyze_outer ước lượng được; ``quan_sat`` cho số đếm mô tả;
+    ``thieu_du_lieu`` cho tuyên bố thiếu kèm con số cần thêm."""
+
+    text: str
+    badge: Literal["thi_nghiem", "quan_sat", "thieu_du_lieu"]
+    refs: list[str] = Field(default_factory=list)
 
 
 class DenominatorCheck(BaseModel):
@@ -494,6 +534,12 @@ class DenominatorCheck(BaseModel):
 class ExperimentSummary(BaseModel):
     label: str = "kết quả thí nghiệm"
     source: Literal["experiment"] = "experiment"
+    env: Literal["real", "demo"] = "real"
+    """Nguồn dữ liệu của bản gộp này (gói DEMO-THẬT). ``real`` (mặc định) —
+    KẾT QUẢ THẬT: mọi phiên ``is_demo`` bị loại như ``dry_run``, không có cách
+    nào trộn. ``demo`` — bản gộp CHỈ trên dữ liệu mẫu, ``label`` đổi thành
+    "kết quả MÔ PHỎNG..."; client phải vẽ nhãn/watermark DEMO và không bao giờ
+    trình bày nó như kết quả thật."""
     n_sessions: int
     n_blocks: int
     n_on: int
@@ -533,6 +579,10 @@ class ExperimentSummary(BaseModel):
     """Cờ vận hành gói P3: mẫu số của biến kết quả có dấu hiệu chịu can thiệp
     không. Không phải suy diễn chính — xem :class:`DenominatorCheck`."""
     message: str | None = None  # Vietnamese, set when data is insufficient
+    tom_tat_3_cau: list[CauTomTat] = Field(default_factory=list)
+    """Tóm tắt 3 câu (kết luận / bằng chứng / việc nên làm) — template tất
+    định từ chính các trường của payload này, tôn trọng khóa §7 (trong cửa sổ
+    khóa không câu nào chứa ước lượng/KTC/p). Xem :class:`CauTomTat`."""
     estimable: bool = True
     """False when the design cannot be tested at all (an arm below the minimum
     block count) OR when the effect estimate is locked by the pre-registered
@@ -673,6 +723,10 @@ class BaoCaoOut(BaseModel):
     platform: str
     loai_phien: Literal["thi_nghiem", "quan_sat"]
     nhan: str
+    is_demo: bool = False
+    """Cờ DỮ LIỆU MẪU của phiên (xem :class:`SessionOut`). Báo cáo phiên demo
+    xem được đầy đủ nhưng client phải vẽ nhãn/watermark DEMO — con số mô phỏng
+    không bao giờ được trình bày như số đo thật."""
     tong_quan: BaoCaoTongQuan
     tin_hieu: list[SignalStateOut]
     nang_luc: list[CapabilityOut]
@@ -682,6 +736,10 @@ class BaoCaoOut(BaseModel):
     pii_da_che: dict[str, int] = Field(default_factory=dict)
     ket_qua_thi_nghiem: KetQuaThiNghiem | None = None
     """None cho phiên quan sát — nhãn ``nhan`` nói rõ vì sao."""
+    tom_tat_3_cau: list[CauTomTat] = Field(default_factory=list)
+    """Tóm tắt 3 câu của phiên (kết luận đúng trạng thái / bằng chứng / việc
+    nên làm) — template tất định, phiên quan sát không câu nào nhân quả và
+    khóa §7 được tôn trọng y như ``ket_qua_thi_nghiem``."""
     goi_y_chien_thuat: list[str] = Field(default_factory=list)
     """Câu QUAN SÁT có dán nhãn ('— quan sát, chưa kiểm chứng nhân quả');
     tuyệt đối không câu nhân quả cho phiên quan sát."""

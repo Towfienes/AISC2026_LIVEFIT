@@ -48,13 +48,18 @@ interface Props {
   durationS: number;
   /** Current position in seconds (marker); null hides the marker. */
   positionS: number | null;
+  /**
+   * Dải cao 56px cho hàng hero của desk v2 (mockup mock_desk) — chữ BẬT/TẮT
+   * trong ô đọc được từ xa. Mặc định giữ 36px cho các chỗ chật (replay…).
+   */
+  tall?: boolean;
 }
 
 function shapeOf(b: BlockInfo): StatusShape {
   return b.is_washout ? "drift" : b.assignment === "ON" ? "on" : "off";
 }
 
-export default function BlockStrip({ blocks, durationS, positionS }: Props) {
+export default function BlockStrip({ blocks, durationS, positionS, tall = false }: Props) {
   if (durationS <= 0 || blocks.length === 0) {
     // Never a blank bar: say why it is empty instead of showing a grey slab.
     return (
@@ -84,7 +89,9 @@ export default function BlockStrip({ blocks, durationS, positionS }: Props) {
             ? ` Vị trí hiện tại: khối ${current.block_index + 1}, ${STATUS_TEXT[shapeOf(current)]}.`
             : "")
         }
-        className="relative h-9 w-full overflow-hidden rounded border border-edge bg-surface"
+        className={`relative w-full overflow-hidden rounded border border-edge bg-surface ${
+          tall ? "h-16" : "h-9"
+        }`}
       >
         {blocks.map((b) => {
           const left = pct(b.start_offset_s);
@@ -92,20 +99,23 @@ export default function BlockStrip({ blocks, durationS, positionS }: Props) {
           const isOn = b.assignment === "ON";
           const shape = shapeOf(b);
           const isCurrent = current?.block_index === b.block_index;
+          // Khối ĐÃ QUA mờ đi (mockup): mắt rơi vào hiện tại và phần còn lại
+          // của lịch. Chỉ là kênh phụ — chữ và vị trí playhead vẫn đầy đủ.
+          const isPast = !isCurrent && positionS !== null && b.end_offset_s <= positionS;
           return (
             <div
               key={b.block_index}
               aria-hidden
               className={`absolute top-0 flex h-full items-center justify-center overflow-hidden text-meta font-semibold ${
                 b.is_washout ? "hatch-washout" : ""
-              } ${isCurrent ? "ring-2 ring-inset ring-ink" : ""}`}
+              } ${isCurrent ? "ring-2 ring-inset ring-ink" : ""} ${isPast ? "opacity-50" : ""}`}
               style={{
                 left,
                 width: `calc(${width} - 2px)`, // 2px surface gap between blocks
                 background: b.is_washout ? undefined : isOn ? BLOCK_ON_COLOR : BLOCK_OFF_COLOR,
-                // #a3a19a on the hatch (7.5:1), #0d0d0d on violet (6.2:1),
-                // #c3c2b7 on the neutral fill (6.6:1) — all clear AA.
-                color: b.is_washout ? "#a3a19a" : isOn ? "#0d0d0d" : "#c3c2b7",
+                // v2: #a6acbb on the hatch (7.4:1 on s3), #0c0d12 on violet
+                // (5.9:1), #c3c5cc on the neutral fill (6.1:1) — all clear AA.
+                color: b.is_washout ? "#a6acbb" : isOn ? "#0c0d12" : "#c3c5cc",
               }}
               title={`Khối ${b.block_index + 1} · ${STATUS_TEXT[shape]} · ${fmtElapsed(
                 b.start_offset_s,

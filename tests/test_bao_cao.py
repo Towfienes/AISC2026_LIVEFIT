@@ -209,8 +209,16 @@ def _bao_cao_with_freeze(client, monkeypatch, sid: str, value: str):
         get_settings.cache_clear()
 
 
+def _seed_phien_that(client) -> str:
+    """Một phiên THẬT mô phỏng: khóa §7 canh KẾT QUẢ THẬT (gói DEMO-THẬT —
+    phiên demo được miễn khóa, có test riêng ở tests/test_demo_that.py)."""
+    from tests.conftest import seed_phien_that_mo_phong
+
+    return seed_phien_that_mo_phong(client.app.state.store, n_sessions=1, duration_min=60)[0]
+
+
 def test_bao_cao_causal_part_locked_before_freeze_date(client, monkeypatch):
-    sid = _seed(client)["session_ids"][0]
+    sid = _seed_phien_that(client)
     body = _bao_cao_with_freeze(client, monkeypatch, sid, "2999-01-01")
 
     kq = body["ket_qua_thi_nghiem"]
@@ -226,7 +234,7 @@ def test_bao_cao_causal_part_locked_before_freeze_date(client, monkeypatch):
 
 
 def test_bao_cao_causal_part_unlocked_after_freeze_date(client, monkeypatch):
-    sid = _seed(client)["session_ids"][0]
+    sid = _seed_phien_that(client)
     body = _bao_cao_with_freeze(client, monkeypatch, sid, "2000-01-01")
     kq = body["ket_qua_thi_nghiem"]
     assert kq["khoa"] is False
@@ -234,7 +242,7 @@ def test_bao_cao_causal_part_unlocked_after_freeze_date(client, monkeypatch):
 
 
 def test_bao_cao_malformed_freeze_date_fails_closed(client, monkeypatch):
-    sid = _seed(client)["session_ids"][0]
+    sid = _seed_phien_that(client)
     kq = _bao_cao_with_freeze(client, monkeypatch, sid, "11/09/2026")["ket_qua_thi_nghiem"]
     assert kq["khoa"] is True
     assert "không hợp lệ" in kq["ly_do_khoa"]

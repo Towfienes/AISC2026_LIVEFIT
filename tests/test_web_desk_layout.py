@@ -105,25 +105,45 @@ def _before(src: str, needle: str, window: int = 400) -> str:
 # 1. the operating clock — the desk's hero, not a line of hint text
 # --------------------------------------------------------------------------
 def test_current_block_is_rendered_at_display_size():
-    """Trạng thái khối + đếm ngược phải ở bậc hiển thị, không phải bậc chú thích."""
+    """Trạng thái khối + đếm ngược phải ở bậc hiển thị, không phải bậc chú thích.
+
+    CẬP NHẬT CÓ CHỦ ĐÍCH (gói DESK-HOST v2, 09/2026 — mockup mock_desk.png):
+    hai chỉ số vận hành (người xem, lượt bấm/phút) CHUYỂN từ đồng hồ khối sang
+    cột KPI (SignalTiles) để hero chỉ còn đúng một việc — trạng thái khối; nhãn
+    đếm ngược đổi "Còn đến ranh giới khối" → "Chuyển khối sau" (ngôn ngữ
+    việc-cần-làm). BẤT BIẾN GIỮ NGUYÊN: mọi con số vẫn ở bậc hiển thị có nhãn
+    thật — phần KPI được khẳng định ở nửa dưới của test, trên SignalTiles.
+    """
     src = code(BLOCK_CLOCK.read_text(encoding="utf-8"))
 
-    countdown = _before(src, 'role="timer"', 600) + src[src.index('role="timer"') :][:400]
-    assert "text-num-xl" in countdown, (
-        "đếm ngược tới ranh giới khối phải đạt bậc num-xl (72px) trên màn thiết kế"
+    # v2: đếm ngược num-l (56px) ở màn thiết kế, num-m dự phòng — hạ một bậc so
+    # với num-xl của UI-2 để tổng chiều cao hero ≤ ~300px và desk 1920×1080
+    # KHÔNG cuộn (ràng buộc f4 của spec, đo lại bằng ảnh chụp); 56px mono vẫn
+    # là bậc hiển thị, đọc được từ 2 mét.
+    countdown = _before(src, 'role="timer"', 700) + src[src.index('role="timer"') :][:400]
+    assert "xl:text-num-l" in countdown, (
+        "đếm ngược tới ranh giới khối phải đạt bậc num-l (56px) trên màn thiết kế"
     )
-    assert "text-num-l" in countdown, "đếm ngược thiếu bậc dự phòng num-l cho màn hẹp"
+    assert "text-num-m" in countdown, "đếm ngược thiếu bậc dự phòng num-m cho màn hẹp"
+    assert "Chuyển khối sau" in src, "thiếu nhãn tiếng Việt cho đếm ngược ranh giới khối"
 
     # The status word itself: num-l at the design width, one step down below it.
     assert "xl:text-num-l" in src, "chữ trạng thái khối chưa đạt bậc num-l (56px)"
     assert "text-num-m" in src, "chữ trạng thái khối thiếu bậc dự phòng cho màn hẹp"
+    assert "text-label" in src, "nhãn của thẻ khối phải ở bậc label"
 
-    # ... and the two vitals get display figures with a real label, not a
-    # bare number glued to a sentence.
-    assert "text-num-s" in src, "Người xem / lượt bấm mỗi phút phải ở bậc num-s trở lên"
-    assert "text-label" in src, "chỉ số vận hành phải có nhãn ở bậc label"
-    for label in ("Người xem", "Lượt bấm / phút", "Còn đến ranh giới khối"):
-        assert label in src, f"thiếu nhãn tiếng Việt {label!r} cho chỉ số vận hành"
+    # Hero v2 phải GIẢI THÍCH trạng thái bằng một câu người thường (spec UX-FLOW
+    # e2: "hệ thống đang điều khiển" vs "vận hành như thường lệ").
+    assert "Hệ thống đang điều khiển việc ghim sản phẩm" in src
+    assert "Vận hành như thường lệ" in src
+
+    # ... and the vitals — now KPI tiles — keep display figures with a real
+    # label, not a bare number glued to a sentence.
+    tiles = code((SRC / "components" / "SignalTiles.tsx").read_text(encoding="utf-8"))
+    assert "text-num-s" in tiles, "số KPI phải ở bậc hiển thị (num-s trở lên) trên cột KPI"
+    assert "text-label" in tiles, "ô KPI phải có nhãn ở bậc label"
+    for label in ("Người xem", "Lượt bấm / phút", "Bình luận / phút"):
+        assert label in tiles, f"thiếu nhãn tiếng Việt {label!r} trên cột KPI"
 
 
 def test_block_status_carries_a_shape_and_a_word_not_only_a_colour():

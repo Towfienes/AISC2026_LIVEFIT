@@ -420,8 +420,12 @@ def test_redirect_reads_only_the_matching_fingerprint(client_and_store):
 
 
 def test_experiment_summary_reports_raw_and_valid_click_totals(client_and_store):
-    client, _ = client_and_store
-    client.post("/demo/seed", json={"n_sessions": 3, "effect": 0.5, "duration_min": 40})
+    from tests.conftest import seed_phien_that_mo_phong
+
+    client, store = client_and_store
+    # Tổng nhấp thô/hợp lệ là số vận hành của KẾT QUẢ THẬT — seed phiên thật
+    # mô phỏng (gói DEMO-THẬT: phiên demo không còn vào bản gộp mặc định).
+    seed_phien_that_mo_phong(store)
     summary = client.get("/experiment/summary").json()
     assert summary["raw_clicks"] is not None
     assert summary["valid_clicks"] is not None

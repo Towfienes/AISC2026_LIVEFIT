@@ -23,8 +23,10 @@ import {
   sanitizeCards,
 } from "./api";
 import { MOCK_SESSIONS, mockElapsedS, mockRecording } from "./mock";
+import { pickCurrentSession } from "./pickSession";
 import type {
   ActionCardData,
+  AutopilotState,
   BlockInfo,
   CurrentBlock,
   CommentItem,
@@ -60,6 +62,13 @@ export interface DeskState {
    * rút gọn trên thanh trạng thái. Operator-only; null khi chưa có lịch.
    */
   designHash: string | null;
+  /**
+   * Máy tự lái phía máy chủ (phiên mode="auto") + cảnh báo im lặng — hiển thị
+   * nguyên văn ở cột hành động. Null cho phiên gợi ý/mock. Operator-only (L6).
+   */
+  autopilot: AutopilotState | null;
+  /** Lý do thẻ rỗng THEO THIẾT KẾ từ máy chủ (phiên đã kết thúc, phân tích…). */
+  cardsNote: string | null;
   /** Vietnamese warning when a data source is failing; null when all is well. */
   degraded: string | null;
   ticks: Tick[];
@@ -82,10 +91,18 @@ export interface DeskState {
 export interface UseDeskOptions {
   /** Switch to the deterministic mock demo (e.g. the desk empty-state button). */
   forceMock?: boolean;
+  /**
+   * Deep link `/desk?session=ID` (spec UX-FLOW luồng 3, gói WIZARD): wizard
+   * Chuẩn bị phiên bấm "Bắt đầu phát sóng" rồi chuyển thẳng sang bàn — bàn
+   * phải mở ĐÚNG phiên vừa tạo, không phải phiên live đầu tiên trong danh
+   * sách (hai phiên live song song là tình huống thật ở Live Lab).
+   */
+  preferredSessionId?: string | null;
 }
 
 export function useDesk(opts?: UseDeskOptions): DeskState {
   const forceMock = opts?.forceMock === true;
+  const preferredSessionId = opts?.preferredSessionId ?? null;
   const [connection, setConnection] = useState<ConnectionKind>(
     MOCK_FORCED ? "mock" : "connecting",
   );
@@ -109,6 +126,10 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
   const [currentBlock, setCurrentBlock] = useState<CurrentBlock | null>(null);
   /** Design commitment hash of the selected session (operator view only). */
   const [designHash, setDesignHash] = useState<string | null>(null);
+  /** Máy tự lái + cảnh báo im lặng của phiên auto (operator view only). */
+  const [autopilot, setAutopilot] = useState<AutopilotState | null>(null);
+  /** Lý do thẻ rỗng theo thiết kế, nguyên văn từ máy chủ. */
+  const [cardsNote, setCardsNote] = useState<string | null>(null);
   /** Vietnamese warning when one data source is failing (see the poll loop). */
   const [degraded, setDegraded] = useState<string | null>(null);
   /** Session start, used to turn API timestamps into seconds-since-start. */
@@ -146,8 +167,12 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
       .then((list) => {
         if (cancelled) return;
         setSessions(list);
-        const live = list.find((s) => s.status === "live") ?? list[0] ?? null;
-        setSessionId(live ? live.session_id : null);
+        // Deep link thắng heuristic; sau đó là phiên live MỚI NHẤT rồi phiên
+        // mới nhất nói chung (pickSession.ts — sửa gốc bug đồng hồ 328:36:29:
+        // "live đầu tiên trong danh sách" từng vớ phải phiên mô phỏng cũ chưa
+        // được kết thúc).
+        const picked = pickCurrentSession(list, preferredSessionId);
+        setSessionId(picked ? picked.session_id : null);
         setConnection("live");
       })
       .catch(() => {
@@ -159,7 +184,7 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
     return () => {
       cancelled = true;
     };
-  }, [forceMock]);
+  }, [forceMock, preferredSessionId]);
 
   // Reset per-session UI state on switch.
   useEffect(() => {
@@ -177,6 +202,9 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
     // Cam kết thiết kế thuộc về đúng một phiên: giữ lại hash phiên cũ trong
     // lúc chờ poll đầu tiên sẽ là một cam kết SAI trên màn hình.
     setDesignHash(null);
+    // Trạng thái tự lái + lý do thẻ rỗng cũng thuộc về đúng một phiên.
+    setAutopilot(null);
+    setCardsNote(null);
   }, [sessionId]);
 
   // -------------------------------------------------------------------------
@@ -248,6 +276,8 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
         setModeState(st.mode);
         setCurrentBlock(st.current_block ?? null);
         setDesignHash(st.design_hash ?? null);
+        setAutopilot(st.autopilot ?? null);
+        setCardsNote(st.cards_note ?? null);
       }
       if (tksR.status === "fulfilled") {
         setTicks(tksR.value);
@@ -286,12 +316,15 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
     };
   }, [connection, sessionId]);
 
-  // Live mode: 1 s local clock between polls.
+  // Live mode: 1 s local clock between polls — CHỈ khi phiên đang phát thật.
+  // Phiên đã kết thúc có elapsed đóng băng ở end_ts; để đồng hồ cục bộ tự
+  // cộng thêm là hiển thị 01:30:02/01:30:00 giữa hai lần poll (gói DESK-HOST).
+  const sessionStatus = session?.status ?? null;
   useEffect(() => {
-    if (connection !== "live") return;
+    if (connection !== "live" || sessionStatus !== "live") return;
     const timer = setInterval(() => setElapsedS((e) => e + 1), 1000);
     return () => clearInterval(timer);
-  }, [connection]);
+  }, [connection, sessionStatus]);
 
   // Live mode: load the product catalog once so a WebSocket "state" patch
   // ({pinned_product_id}) can be resolved to a displayable product.
@@ -496,6 +529,8 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
     blocks,
     currentBlock,
     designHash,
+    autopilot,
+    cardsNote,
     degraded,
     ticks,
     comments,

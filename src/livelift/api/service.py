@@ -175,6 +175,44 @@ def start_session(store: Store, session: dict[str, Any], start_ts: datetime) -> 
     return updated
 
 
+def data_mode(store: Store) -> dict[str, Any]:
+    """Chế độ dữ liệu TỔNG HỢP của cả kho — nguồn cho chip DEMO/THẬT trên web.
+
+    Đếm phiên theo cờ ``is_demo`` (gói DEMO-THẬT):
+
+    * ``"demo"``  — kho CHỈ chứa dữ liệu mẫu (≥ 1 phiên, tất cả is_demo);
+    * ``"real"``  — kho không có phiên demo nào (kể cả kho rỗng: một deploy
+      mới tinh là deploy thật đang chờ dữ liệu, không phải sân demo);
+    * ``"mixed"`` — kho chứa CẢ HAI. UI phải cảnh báo rõ thay vì chọn đại một
+      chip; các đường tổng hợp kết quả thật vẫn tự loại demo bất kể mode này.
+
+    Phiên ``dry_run`` là phiên THẬT (chạy thử ≠ dữ liệu mẫu) nên đếm bên
+    "real". Đây là mô tả DỮ LIỆU đang có, phía server; nó không thay thế công
+    tắc chế độ phía client (localStorage ``ll.mode`` — UX spec B-1).
+    """
+    sessions = store.list_sessions()
+    n_demo = sum(1 for s in sessions if s.get("is_demo"))
+    n_real = len(sessions) - n_demo
+    if n_demo and n_real:
+        mode = "mixed"
+        note = (
+            f"Kho đang chứa CẢ dữ liệu mẫu ({n_demo} phiên demo) lẫn dữ liệu thật "
+            f"({n_real} phiên) — giao diện phải dán nhãn từng phiên; kết quả thật "
+            "vẫn tự loại demo."
+        )
+    elif n_demo:
+        mode = "demo"
+        note = f"Toàn bộ {n_demo} phiên trong kho là dữ liệu MẪU (demo)."
+    else:
+        mode = "real"
+        note = (
+            f"Kho chứa {n_real} phiên dữ liệu thật, không có phiên demo nào."
+            if n_real
+            else "Kho trống — chế độ thật, đang chờ dữ liệu."
+        )
+    return {"mode": mode, "mode_counts": {"demo": n_demo, "real": n_real}, "mode_note": note}
+
+
 def is_analysis_only(session: dict[str, Any]) -> bool:
     """True for an observational analysis of someone else's finished video.
 

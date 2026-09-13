@@ -102,8 +102,13 @@ QUOTED_LABELS = [
     ("Tạo phiên", "app/chay-phien/page.tsx"),
     ("Bốc thăm lịch", "app/chay-phien/page.tsx"),
     ("Bắt đầu phát sóng", "app/chay-phien/page.tsx"),
-    ("Mở bàn điều khiển", "app/chay-phien/page.tsx"),
-    ("Mở màn hình host", "app/chay-phien/page.tsx"),
+    # CẬP NHẬT CÓ CHỦ ĐÍCH (gói WIZARD, 09/2026 — spec UX-FLOW a/f): hai nút
+    # đổi tên theo ngôn ngữ việc-cần-làm: "Mở bàn điều khiển" → "Mở bàn trợ
+    # live" (desk đã đổi tên trên nav từ gói SKIN) và "Mở màn hình host" →
+    # "Mở màn hình người dẫn" (không bắt người bán học chữ "host"). Bất biến
+    # docs-khớp-mã giữ nguyên — chỉ nhãn đổi, có cập nhật HUONG-DAN-SU-DUNG.md.
+    ("Mở bàn trợ live", "app/chay-phien/page.tsx"),
+    ("Mở màn hình người dẫn", "app/chay-phien/page.tsx"),
     ("Chép link", "app/chay-phien/page.tsx"),
     ("Kết thúc phiên", "components/StatusBar.tsx"),
     ("Phiên đang xem", "components/StatusBar.tsx"),

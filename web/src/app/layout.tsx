@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "LiveLift — Bàn trung control",
-  description: "Bàn trung control cho thí nghiệm vận hành livestream thương mại (AISC'26)",
+  title: "LiveLift — Phòng điều khiển livestream bán hàng",
+  description:
+    "Nền tảng thí nghiệm switchback cho livestream bán hàng: bốc thăm BẬT/TẮT trước giờ lên sóng, gợi ý ghim theo thời gian thực, chứng minh tác động bằng kiểm định nhân quả (AISC'26)",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

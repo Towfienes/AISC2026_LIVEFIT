@@ -95,7 +95,7 @@ export default function ReplayControls({
         value={Math.floor(t)}
         onChange={(e) => onSeek(Number(e.target.value))}
         disabled={disabled}
-        className="focus-ring min-h-tap min-w-0 flex-1 cursor-pointer accent-[#9085e9]"
+        className="focus-ring min-h-tap min-w-0 flex-1 cursor-pointer accent-[#8b7bff]"
         aria-label="Tua đến vị trí"
       />
 

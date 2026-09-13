@@ -13,6 +13,7 @@ import type {
   CommentItem,
   DemoSeedResult,
   ExperimentSummary,
+  HealthInfo,
   HostState,
   OverrideReason,
   Product,
@@ -62,7 +63,20 @@ async function request<T>(path: string, init?: RequestInit & { timeoutMs?: numbe
       cache: "no-store",
     });
     if (!res.ok) {
-      throw new Error(`API ${res.status} ${res.statusText} — ${path}`);
+      // Gói WIZARD: máy chủ trả lỗi 400/409 kèm `detail` TIẾNG VIỆT có gợi ý
+      // sửa (vd "phiên 50 phút, khối 10 phút…"). Nuốt nó đi và ném ra chuỗi
+      // kỹ thuật "API 400 Bad Request" là vứt câu trả lời tốt nhất mà người
+      // dùng có thể nhận — nên đọc body trước, chuỗi kỹ thuật chỉ là fallback.
+      let detail: string | null = null;
+      try {
+        const body = (await res.json()) as { detail?: unknown } | null;
+        if (typeof body?.detail === "string" && body.detail.trim()) {
+          detail = body.detail.trim();
+        }
+      } catch {
+        // body không phải JSON — giữ fallback kỹ thuật
+      }
+      throw new Error(detail ?? `API ${res.status} ${res.statusText} — ${path}`);
     }
     return (await res.json()) as T;
   } finally {
@@ -105,8 +119,24 @@ export function sanitizeCards(cards: ActionCardData[]): ActionCardData[] {
 // Endpoints
 // ---------------------------------------------------------------------------
 
-export function listSessions(timeoutMs?: number): Promise<SessionSummary[]> {
-  return request<SessionSummary[]>("/sessions", { timeoutMs });
+/**
+ * List sessions. `env` (gói DEMO-THẬT, UX spec B-3/L-B) lọc theo nguồn dữ
+ * liệu phía server — "real": chỉ phiên thật, "demo": chỉ dữ liệu mẫu. Bỏ
+ * trống trả cả hai, mỗi dòng đã mang cờ `is_demo` để UI dán nhãn.
+ */
+export function listSessions(
+  timeoutMs?: number,
+  env?: "real" | "demo",
+): Promise<SessionSummary[]> {
+  return request<SessionSummary[]>(env ? `/sessions?env=${env}` : "/sessions", { timeoutMs });
+}
+
+/**
+ * `GET /health` — trạng thái an toàn dữ liệu + chế độ dữ liệu tổng hợp
+ * (mode/mode_counts/mode_note) cho chip DEMO/THẬT trên nav.
+ */
+export function getHealth(timeoutMs?: number): Promise<HealthInfo> {
+  return request<HealthInfo>("/health", { timeoutMs });
 }
 
 export function getState(sessionId: string): Promise<SessionState> {
@@ -402,9 +432,13 @@ export function getReplayJob(jobId: string): Promise<ReplayJob> {
  * Pooled experiment result — the project's headline scientific output.
  * This IS `source: "experiment"`, so a confidence interval is required here
  * (E2-04 forbids intervals only on forecast-sourced numbers).
+ *
+ * `env` (gói DEMO-THẬT): mặc định "real" — kết quả THẬT, server đã loại mọi
+ * phiên is_demo. "demo" trả bản gộp CHỈ dữ liệu mẫu với nhãn MÔ PHỎNG — dùng
+ * cho chế độ DEMO của UI, luôn kèm watermark; hai bể không bao giờ trộn.
  */
-export function getExperimentSummary(): Promise<ExperimentSummary> {
-  return request<ExperimentSummary>("/experiment/summary", { timeoutMs: 15000 });
+export function getExperimentSummary(env: "real" | "demo" = "real"): Promise<ExperimentSummary> {
+  return request<ExperimentSummary>(`/experiment/summary?env=${env}`, { timeoutMs: 15000 });
 }
 
 // ---------------------------------------------------------------------------
@@ -458,6 +492,8 @@ export function createSchedule(
   blocks: BlockInfo[];
   /** Cam kết thiết kế (SHA-256 của tham số + seed), công bố trước phát sóng. */
   design_hash: string;
+  /** Cảnh báo tiếng Việt khi lịch không đạt đảm bảo cân bằng (phiên ngắn). */
+  warning?: string | null;
 }> {
   return request(`/sessions/${sessionId}/schedule`, {
     method: "POST",
@@ -472,6 +508,17 @@ export function startSession(sessionId: string): Promise<SessionSummary> {
 
 export function endSession(sessionId: string): Promise<SessionSummary> {
   return request<SessionSummary>(`/sessions/${sessionId}/end`, { method: "POST" });
+}
+
+/**
+ * Huỷ một phiên CHƯA phát sóng (planned/scheduled) — gói WIZARD dùng cho nút
+ * "tạo lại phiên" khi người dùng muốn sửa nền tảng/thời lượng/chế độ: backend
+ * không có API sửa phiên (cố ý — thông số phiên là một phần của thiết kế thí
+ * nghiệm), nên đường đúng là huỷ phiên nháp rồi tạo phiên mới. Phiên huỷ không
+ * bao giờ vào kết quả (loại trừ cấu trúc, PREREGISTRATION §8.2).
+ */
+export function cancelSession(sessionId: string): Promise<SessionSummary> {
+  return request<SessionSummary>(`/sessions/${sessionId}/cancel`, { method: "POST" });
 }
 
 export function createShortlink(body: {

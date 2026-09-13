@@ -78,7 +78,14 @@ def create_shortlink(body: ShortlinkIn, store: StoreDep) -> ShortlinkOut:
 
 @router.post("/sessions", response_model=SessionOut)
 def create_session(body: SessionCreate, store: StoreDep) -> SessionOut:
-    """Create a session. ``dry_run`` is declared HERE or never (§8.2)."""
+    """Create a session. ``dry_run`` is declared HERE or never (§8.2).
+
+    ``is_demo`` is pinned to False DELIBERATELY: every session born through
+    this route is real data. Sample/demo sessions come only from the server-
+    side demo generators (``/demo/seed``, ``scripts/seed_demo_vang.py``), so a
+    client cannot mislabel a real session as demo — not at creation and (write-
+    once, ``store._SESSION_WRITE_ONCE``) not afterwards either.
+    """
     row = body.model_dump()
     row.update(
         session_id=service.new_id(),
@@ -87,13 +94,26 @@ def create_session(body: SessionCreate, store: StoreDep) -> SessionOut:
         end_ts=None,
         design=None,
         created_at=service.now_utc(),
+        is_demo=False,
     )
     return SessionOut(**store.create_session(row))
 
 
 @router.get("/sessions", response_model=list[SessionOut])
-def list_sessions(store: StoreDep) -> list[SessionOut]:
-    return [SessionOut(**s) for s in store.list_sessions()]
+def list_sessions(store: StoreDep, env: Literal["real", "demo"] | None = None) -> list[SessionOut]:
+    """List sessions. Every row carries ``is_demo`` so the UI can label it.
+
+    ``env`` filters by data source (UX spec B-3/L-B): ``real`` — real sessions
+    only, ``demo`` — sample sessions only. Default (no param) returns both,
+    each row LABELED — kept for operational tools and backward compatibility;
+    result AGGREGATION never happens here, and the pooled endpoints enforce
+    their own is_demo gate regardless of what this listing shows.
+    """
+    rows = store.list_sessions()
+    if env is not None:
+        want_demo = env == "demo"
+        rows = [s for s in rows if bool(s.get("is_demo")) == want_demo]
+    return [SessionOut(**s) for s in rows]
 
 
 @router.get("/sessions/{session_id}", response_model=SessionDetail)
@@ -359,6 +379,9 @@ def get_state(
         cards_note=cards_note,
         design_hash=service.session_design_hash(session),
         autopilot=_autopilot_state(store, session, blocks, elapsed),
+        # Nhãn DEMO đi cùng state để bàn điều khiển không bao giờ vẽ số mô
+        # phỏng như số thật. HostState cố ý KHÔNG mang cờ này (L6: 4 trường).
+        is_demo=bool(session.get("is_demo")),
     )
 
 

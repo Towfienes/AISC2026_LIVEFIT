@@ -22,6 +22,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import PageHeader from "@/components/PageHeader";
+import TomTat3Cau from "@/components/TomTat3Cau";
 import TopNav from "@/components/TopNav";
 import Badge from "@/components/ui/Badge";
 import Button, { buttonCls } from "@/components/ui/Button";
@@ -188,15 +190,25 @@ export default function BaoCaoPage() {
     <div className="flex min-h-screen flex-col bg-page">
       <TopNav />
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
-        <header className="mb-6">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-title font-bold tracking-tight text-ink">Báo cáo sau phiên</h1>
-            {data ? (
-              <Badge tone={observational ? "neutral" : "good"} dot>
-                {observational ? "PHIÊN QUAN SÁT" : "PHIÊN THÍ NGHIỆM"}
-              </Badge>
-            ) : null}
-          </div>
+        <PageHeader
+          phase="sau"
+          size="sm"
+          className="mb-6"
+          title={
+            <span className="flex flex-wrap items-center gap-2">
+              Báo cáo sau phiên
+              {data ? (
+                <Badge tone={observational ? "neutral" : "good"} dot>
+                  {observational ? "PHIÊN QUAN SÁT" : "PHIÊN THÍ NGHIỆM"}
+                </Badge>
+              ) : null}
+              {/* Chip DEMO trên MỌI số liệu sinh từ phiên demo (gói KẾT-QUẢ):
+                  báo cáo phiên mẫu xem được đầy đủ nhưng không bao giờ được
+                  trình bày như số đo thật. */}
+              {data?.is_demo ? <Badge tone="warn">DEMO — dữ liệu mẫu</Badge> : null}
+            </span>
+          }
+        >
           {data ? (
             <>
               <p className="mt-1 text-strong text-ink">{data.tieu_de ?? data.session_id}</p>
@@ -205,6 +217,11 @@ export default function BaoCaoPage() {
             </>
           ) : null}
           <div className="mt-3 flex flex-wrap items-center gap-2">
+            {sessionId ? (
+              <Link href={`/ket-qua?phien=${sessionId}`} className={buttonCls("ghost", "sm")}>
+                Kết quả phiên này
+              </Link>
+            ) : null}
             <Link href="/desk" className={buttonCls("ghost", "sm")}>
               Mở bàn trợ live
             </Link>
@@ -215,7 +232,7 @@ export default function BaoCaoPage() {
               In / lưu PDF
             </Button>
           </div>
-        </header>
+        </PageHeader>
 
         {loading ? <ReportSkeleton /> : null}
 
@@ -233,6 +250,12 @@ export default function BaoCaoPage() {
 
         {data && tq ? (
           <>
+            {/* 0 — Tóm tắt 3 câu: kết luận / bằng chứng / việc nên làm —
+                máy soạn câu tất định phía server (analysis/narrate.py). */}
+            {data.tom_tat_3_cau && data.tom_tat_3_cau.length > 0 ? (
+              <TomTat3Cau cau={data.tom_tat_3_cau} demo={data.is_demo} className="mb-6" />
+            ) : null}
+
             {/* 1 — Tổng quan: mỗi ô hoặc có giá trị, hoặc THIẾU + lý do */}
             <section>
               <SectionTitle>Tổng quan</SectionTitle>

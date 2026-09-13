@@ -9,11 +9,12 @@ never diverge."""
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 from fastapi import APIRouter
 
+from livelift.analysis import narrate
 from livelift.analysis.estimators import analyze_outer, diff_in_means, randomization_test
 from livelift.analysis.power import (
     Scenario,
@@ -26,6 +27,7 @@ from livelift.api import service
 from livelift.api.schemas import (
     BaoCaoOut,
     BaoCaoTongQuan,
+    CauTomTat,
     ComplianceStats,
     DenominatorCheck,
     DinhBinhLuan,
@@ -215,10 +217,10 @@ OBSERVATIONAL_LABEL = "phân tích quan sát — không phải thí nghiệm"
 _is_analysis_only = service.is_analysis_only
 
 
-def _in_analysis_sample(session: dict[str, Any]) -> bool:
+def _in_analysis_sample(session: dict[str, Any], demo: bool = False) -> bool:
     """Does this session belong in the POOLED result? (PREREGISTRATION §8.2)
 
-    Three exclusions, all decidable WITHOUT looking at a single outcome — that
+    Four exclusions, all decidable WITHOUT looking at a single outcome — that
     is what makes them a pre-registered inclusion rule instead of result
     filtering:
 
@@ -227,47 +229,67 @@ def _in_analysis_sample(session: dict[str, Any]) -> bool:
     * ``analysis_only`` — an observational analysis of someone else's video
       was never randomized, so it carries no experimental quantity;
     * ``dry_run`` — declared a practice run at CREATION, before the schedule
-      was drawn and before any number existed.
+      was drawn and before any number existed;
+    * ``is_demo`` — machine-generated SAMPLE data (gói DEMO-THẬT), marked at
+      creation by the demo generators. Sample data must never touch a real
+      result, whatever its status.
 
-    The third is the one added on 12/09. Until then ``/experiment/summary``
-    pooled every ended session with a schedule, so two 1-second debugging
-    sessions with zero clicks landed permanently in the pooled estimate and
-    there was no way to take them out (kiem-chung-van-hanh.md §2.4c). The flag
-    is write-once (``store._SESSION_WRITE_ONCE``) precisely so this fix cannot
-    become the opposite problem — a button that drops sessions after their
+    ``demo=True`` selects the mirror-image pool for the labeled DEMO view
+    (``/experiment/summary?env=demo``): ONLY ``is_demo`` sessions, same other
+    rules. The two pools are disjoint by construction — no scope mixes them.
+
+    ``dry_run`` was added on 12/09 (§2.4c: two 1-second debugging sessions
+    landed permanently in the pooled estimate); ``is_demo`` the same day, gói
+    DEMO-THẬT, after both critique rounds demanded that demo data can never
+    leak into real results. Both flags are write-once
+    (``store._SESSION_WRITE_ONCE``) precisely so this fix cannot become the
+    opposite problem — a button that drops (or launders) sessions after their
     numbers are known.
     """
     return (
         session.get("status") == "ended"
         and not _is_analysis_only(session)
         and not bool(session.get("dry_run"))
+        and bool(session.get("is_demo")) == demo
     )
 
 
 #: Vietnamese labels for the §8.2 exclusions, in the order they are tested.
 SAMPLE_EXCLUSION_LABELS = {
+    "demo": "phiên DEMO — dữ liệu mẫu, không bao giờ vào kết quả thật (tiền đăng ký §8.2)",
     "chua_ket_thuc": "phiên chưa kết thúc hoặc đã huỷ (không có khối đo hoàn tất)",
     "quan_sat": "phiên phân tích quan sát (không có lịch gán ngẫu nhiên)",
     "chay_thu": "phiên CHẠY THỬ, khai báo lúc tạo phiên (tiền đăng ký §8.2)",
 }
 
+#: Label for real sessions withheld from the DEMO view (mirror of "demo").
+REAL_EXCLUSION_LABEL = "phiên THẬT — không thuộc bản gộp dữ liệu mẫu (xem env=real)"
 
-def _excluded_session_counts(sessions: list[dict[str, Any]]) -> dict[str, int]:
+
+def _excluded_session_counts(sessions: list[dict[str, Any]], demo: bool = False) -> dict[str, int]:
     """How many sessions each §8.2 rule kept out — counted, never hidden.
 
     An exclusion nobody can see is indistinguishable from a session that never
     existed. Publishing the tally is what lets a reader check that the sample
     is the sample that was pre-declared.
+
+    The demo/real split is tested FIRST: a demo session stays out of the real
+    pool because it is sample data, whatever its status — filing the live demo
+    replay under "chưa kết thúc" would hide the one exclusion the reader most
+    needs to see. ``demo=True`` mirrors the tally for the DEMO view.
     """
-    counts = dict.fromkeys(SAMPLE_EXCLUSION_LABELS, 0)
+    counts = dict.fromkeys([*SAMPLE_EXCLUSION_LABELS, "phien_that"], 0)
     for s in sessions:
-        if s.get("status") != "ended":
+        if bool(s.get("is_demo")) != demo:
+            counts["demo" if not demo else "phien_that"] += 1
+        elif s.get("status") != "ended":
             counts["chua_ket_thuc"] += 1
         elif _is_analysis_only(s):
             counts["quan_sat"] += 1
         elif s.get("dry_run"):
             counts["chay_thu"] += 1
-    return {SAMPLE_EXCLUSION_LABELS[k]: v for k, v in counts.items() if v}
+    labels = {**SAMPLE_EXCLUSION_LABELS, "phien_that": REAL_EXCLUSION_LABEL}
+    return {labels[k]: v for k, v in counts.items() if v}
 
 
 def _denominator_check(
@@ -324,6 +346,7 @@ def session_report(session_id: str, store: StoreDep) -> SessionReport:
         return SessionReport(
             session_id=session_id,
             label=OBSERVATIONAL_LABEL,
+            is_demo=bool(session.get("is_demo")),
             n_blocks=0,
             n_on=0,
             n_off=0,
@@ -339,6 +362,7 @@ def session_report(session_id: str, store: StoreDep) -> SessionReport:
     diff = diff_in_means(ys, zs) if len(frame) >= 4 else None
     return SessionReport(
         session_id=session_id,
+        is_demo=bool(session.get("is_demo")),
         n_blocks=len(frame),
         n_on=int(zs.sum()) if len(frame) else 0,
         n_off=int(len(zs) - zs.sum()) if len(frame) else 0,
@@ -348,8 +372,16 @@ def session_report(session_id: str, store: StoreDep) -> SessionReport:
     )
 
 
+DEMO_SUMMARY_LABEL = "kết quả MÔ PHỎNG — dữ liệu mẫu (demo), KHÔNG phải kết quả thật"
+
+
+def _cau_list(cau: list[narrate.Cau]) -> list[CauTomTat]:
+    """Dataclass thuần của analysis/narrate → schema serialize được."""
+    return [CauTomTat(text=c.text, badge=c.badge, refs=list(c.refs)) for c in cau]
+
+
 @router.get("/experiment/summary", response_model=ExperimentSummary)
-def experiment_summary(store: StoreDep) -> ExperimentSummary:
+def experiment_summary(store: StoreDep, env: Literal["real", "demo"] = "real") -> ExperimentSummary:
     """Pooled primary analysis over every ENDED session that has a schedule.
 
     Runs the pre-registered estimator (randomization inference, redraws via the
@@ -358,7 +390,23 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
 
     While ``RESULTS_FREEZE_UNTIL`` is set and not yet reached (PREREGISTRATION
     §7), the inferential fields are withheld and only operational numbers are
-    returned."""
+    returned.
+
+    ``env`` (gói DEMO-THẬT, UX spec B-3/L-B): ``real`` (default) pools ONLY
+    real sessions — every ``is_demo`` session is excluded like ``dry_run`` and
+    counted in ``sessions_excluded``, so seeding a demo can never move this
+    number. ``env=demo`` is the mirror view over ONLY sample sessions, with
+    ``label`` rewritten to say MÔ PHỎNG and ``env='demo'`` on the payload; the
+    two pools are disjoint and no value of the parameter mixes them.
+
+    The §7 freeze applies to the REAL view only: it exists to stop the team
+    peeking at the real effect before the pre-registered date, and a demo
+    pool's "effect" is a parameter somebody typed into the simulator — there
+    is nothing to peek at, and the demo view is precisely the campaign-window
+    insurance both critique rounds asked for.
+    """
+    demo = env == "demo"
+    label = DEMO_SUMMARY_LABEL if demo else "kết quả thí nghiệm"
     ys: list[float] = []
     zs: list[int] = []
     session_ids: list[str] = []
@@ -366,8 +414,8 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
     compliance_rates: list[float] = []
 
     all_sessions = store.list_sessions()
-    ended = [s for s in all_sessions if _in_analysis_sample(s)]
-    sessions_excluded = _excluded_session_counts(all_sessions)
+    ended = [s for s in all_sessions if _in_analysis_sample(s, demo=demo)]
+    sessions_excluded = _excluded_session_counts(all_sessions, demo=demo)
     # Operational click totals (gói Q1): raw = every logged click, valid = the
     # IAB-valid subset that feeds the primary outcome. Counts, not inference —
     # they are served on every path, freeze included.
@@ -411,7 +459,13 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
     n_blocks = len(ys)
     n_sessions = len(set(session_ids))
     if n_blocks < 8 or n_sessions < 2:
+        thieu_msg = (
+            "Chưa đủ dữ liệu cho phân tích gộp (cần ≥ 2 phiên đã kết thúc và "
+            "≥ 8 khối). Kết quả sẽ xuất hiện khi chuỗi thí nghiệm tích lũy thêm."
+        )
         return ExperimentSummary(
+            label=label,
+            env=env,
             n_sessions=n_sessions,
             n_blocks=n_blocks,
             n_on=sum(zs),
@@ -419,9 +473,20 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
             raw_clicks=raw_clicks,
             valid_clicks=valid_clicks,
             sessions_excluded=sessions_excluded,
-            message=(
-                "Chưa đủ dữ liệu cho phân tích gộp (cần ≥ 2 phiên đã kết thúc và "
-                "≥ 8 khối). Kết quả sẽ xuất hiện khi chuỗi thí nghiệm tích lũy thêm."
+            message=thieu_msg,
+            # estimable mặc định True là di sản payload cũ; ở nhánh này thiết
+            # kế CHƯA kiểm định được — tóm tắt 3 câu phải nói đúng như vậy.
+            estimable=False,
+            tom_tat_3_cau=_cau_list(
+                narrate.tom_tat_gop(
+                    estimable=False,
+                    message=thieu_msg,
+                    n_sessions=n_sessions,
+                    n_blocks=n_blocks,
+                    n_on=sum(zs),
+                    n_off=n_blocks - sum(zs),
+                    valid_clicks=valid_clicks,
+                )
             ),
         )
 
@@ -431,7 +496,9 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
 
     # PREREGISTRATION §7: before the freeze date the effect estimate is not
     # even COMPUTED here — the weekly view is operational numbers only.
-    freeze_reason = _results_freeze_reason(service.now_utc())
+    # The DEMO view is exempt (see the route docstring): §7 guards against
+    # peeking at REAL results, and the demo pool contains none.
+    freeze_reason = None if demo else _results_freeze_reason(service.now_utc())
     res = None
     denominator = DenominatorCheck(note=ICS_FROZEN_NOTE)
     if freeze_reason is None:
@@ -499,6 +566,8 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
         # withheld — the operational numbers (sessions, blocks, CV, MDE,
         # compliance) that §7 explicitly allows are still served.
         return ExperimentSummary(
+            label=label,
+            env=env,
             n_sessions=n_sessions,
             n_blocks=n_blocks,
             n_on=int(sum(zs)),
@@ -514,9 +583,23 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
             measured_compliance=(float(np.mean(compliance_rates)) if compliance_rates else None),
             power_table=power_rows,
             denominator_check=denominator,
+            tom_tat_3_cau=_cau_list(
+                narrate.tom_tat_gop(
+                    estimable=False,
+                    khoa=True,
+                    ly_do_khoa=freeze_reason,
+                    n_sessions=n_sessions,
+                    n_blocks=n_blocks,
+                    n_on=int(sum(zs)),
+                    n_off=int(n_blocks - sum(zs)),
+                    valid_clicks=valid_clicks,
+                )
+            ),
         )
 
     return ExperimentSummary(
+        label=label,
+        env=env,
         n_sessions=n_sessions,
         n_blocks=res.n_blocks,
         n_on=res.n_on,
@@ -542,6 +625,25 @@ def experiment_summary(store: StoreDep) -> ExperimentSummary:
         measured_compliance=(float(np.mean(compliance_rates)) if compliance_rates else None),
         power_table=power_rows,
         denominator_check=denominator,
+        tom_tat_3_cau=_cau_list(
+            narrate.tom_tat_gop(
+                estimable=res.estimable,
+                estimate=res.estimate if res.estimable else None,
+                ci_low=res.ci_low if res.estimable else None,
+                ci_high=res.ci_high if res.estimable else None,
+                p_value=res.p_value if res.estimable else None,
+                n_draws=res.n_draws if res.estimable else None,
+                message=res.reason,
+                n_sessions=n_sessions,
+                n_blocks=res.n_blocks,
+                n_on=res.n_on,
+                n_off=res.n_off,
+                valid_clicks=valid_clicks,
+                measured_cv=cv,
+                measured_compliance=measured_comp,
+                power_table=power_rows,
+            )
+        ),
     )
 
 
@@ -778,13 +880,21 @@ def _bao_cao_ket_qua(session: dict[str, Any], store) -> KetQuaThiNghiem:
 
     Freeze được kiểm TRƯỚC KHI ước lượng được tính: trong thời gian khóa,
     estimator không chạy — không tồn tại con số nào để rò rỉ.
+
+    NGOẠI LỆ DUY NHẤT: phiên ``is_demo`` (gói DEMO-THẬT). §7 tồn tại để chặn
+    nhìn trộm KẾT QUẢ THẬT trước ngày mở khóa; "hiệu ứng" của một phiên demo
+    là tham số ai đó gõ vào simulator — không có gì để nhìn trộm, và bộ phiên
+    demo vàng phải trình được cả ba trạng thái kết quả NGAY TRONG cửa sổ khóa
+    chiến dịch (bảo hiểm demo mà cả hai vòng phản biện yêu cầu). Không phiên
+    thật nào lách được qua đây: ``is_demo`` chỉ sinh từ máy sinh demo phía
+    server và bất biến sau khi tạo.
     """
     frame_all = _session_frame(session, store)
     frame = [r for r in frame_all if r.get("measurable", True)]
     zs = [int(r["z"]) for r in frame]
     n_on, n_off = sum(zs), len(zs) - sum(zs)
 
-    freeze_reason = _results_freeze_reason(service.now_utc())
+    freeze_reason = None if session.get("is_demo") else _results_freeze_reason(service.now_utc())
     if freeze_reason is not None:
         return KetQuaThiNghiem(
             khoa=True,
@@ -894,12 +1004,45 @@ def session_bao_cao(session_id: str, store: StoreDep) -> BaoCaoOut:
             pii_da_che[kind] = pii_da_che.get(kind, 0) + 1
 
     cov_dict = cov.to_dict()
+    # Tóm tắt 3 câu (AI-LAYER lớp 0): tính MỘT lần từ đúng khối nhân quả sẽ
+    # được serialize — phiên quan sát narrate không câu nào nhân quả, phiên
+    # thí nghiệm narrate tôn trọng khóa §7 y như ket_qua_thi_nghiem.
+    ket_qua = None if observational else _bao_cao_ket_qua(session, store)
+    if observational:
+        tom_tat = narrate.tom_tat_phien(
+            loai_phien="quan_sat",
+            tong_binh_luan=tong_quan.tong_binh_luan,
+            luot_nhap_hop_le=tong_quan.luot_nhap_hop_le,
+            thoi_luong_s=tong_quan.thoi_luong_s,
+            nguong_khoi=MIN_BAO_CAO_BLOCKS,
+        )
+    else:
+        tom_tat = narrate.tom_tat_phien(
+            loai_phien="thi_nghiem",
+            tong_binh_luan=tong_quan.tong_binh_luan,
+            luot_nhap_hop_le=tong_quan.luot_nhap_hop_le,
+            thoi_luong_s=tong_quan.thoi_luong_s,
+            khoa=ket_qua.khoa,
+            ly_do_khoa=ket_qua.ly_do_khoa,
+            estimable=ket_qua.estimable,
+            estimate=ket_qua.estimate,
+            ci_low=ket_qua.ci_low,
+            ci_high=ket_qua.ci_high,
+            p_value=ket_qua.p_value,
+            n_draws=ket_qua.n_draws,
+            n_blocks=ket_qua.n_blocks,
+            n_on=ket_qua.n_on,
+            n_off=ket_qua.n_off,
+            message=ket_qua.message,
+            nguong_khoi=MIN_BAO_CAO_BLOCKS,
+        )
     return BaoCaoOut(
         session_id=session_id,
         tieu_de=session.get("title"),
         platform=session.get("platform") or "khong_ro",
         loai_phien="quan_sat" if observational else "thi_nghiem",
         nhan=NHAN_QUAN_SAT if observational else NHAN_THI_NGHIEM,
+        is_demo=bool(session.get("is_demo")),
         tong_quan=tong_quan,
         tin_hieu=cov_dict["signals"],
         nang_luc=cov_dict["capabilities"],
@@ -909,6 +1052,7 @@ def session_bao_cao(session_id: str, store: StoreDep) -> BaoCaoOut:
             tong=len(comments), dem_theo_nhan=dem_theo_nhan, caveat=INTENT_CAVEAT
         ),
         pii_da_che=pii_da_che,
-        ket_qua_thi_nghiem=None if observational else _bao_cao_ket_qua(session, store),
+        ket_qua_thi_nghiem=ket_qua,
+        tom_tat_3_cau=_cau_list(tom_tat),
         goi_y_chien_thuat=_bao_cao_goi_y(khoanh_khac, dem_theo_nhan, len(comments)),
     )

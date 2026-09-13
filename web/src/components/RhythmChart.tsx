@@ -42,6 +42,8 @@ import {
   CartesianGrid,
   Line,
   LineChart,
+  ReferenceArea,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   TooltipProps,
@@ -49,9 +51,37 @@ import {
   YAxis,
 } from "recharts";
 
-import { CHART, type Tick } from "@/lib/types";
+import { CHART, type BlockInfo, type Tick } from "@/lib/types";
 
 import Term from "./Term";
+
+/**
+ * NHUỘM VÙNG KHỐI BẬT (gói DESK-HOST v2, kỹ thuật D4 của spec UI-VISUAL):
+ * các quãng thời gian hệ thống được quyền ghim được tô tím rất nhạt trên mọi
+ * panel — người liếc thấy ngay nhịp tăng có rơi vào vùng tím hay không, tức
+ * là câu chuyện nhân quả bằng mắt. Chỉ là LỚP NỀN tĩnh vẽ từ lịch đã bốc thăm
+ * (dữ liệu thật của bàn điều khiển), không phải hiệu ứng. OPERATOR-ONLY theo
+ * vị trí đặt: chỉ /desk và /replay (hai màn thấy lịch) truyền `blocks` vào.
+ */
+const ON_TINT = "rgba(139, 123, 255, 0.08)";
+
+interface OnSpan {
+  x1: number;
+  x2: number;
+}
+
+/** Các quãng BẬT giao với miền dữ liệu đã vẽ — quãng ngoài dữ liệu bị cắt. */
+function onSpans(blocks: BlockInfo[] | undefined, lastOffsetS: number): OnSpan[] {
+  if (!blocks || blocks.length === 0) return [];
+  const out: OnSpan[] = [];
+  for (const b of blocks) {
+    if (b.is_washout || b.assignment !== "ON") continue;
+    const x1 = Math.max(0, b.start_offset_s);
+    const x2 = Math.min(b.end_offset_s, lastOffsetS);
+    if (x2 > x1) out.push({ x1, x2 });
+  }
+  return out;
+}
 
 interface MinutePoint {
   offset_s: number;
@@ -153,20 +183,30 @@ function Panel({
   series,
   showAxis,
   className,
+  spans = [],
+  playheadX = null,
 }: {
   data: MinutePoint[];
   series: SeriesSpec[];
   showAxis: boolean;
   className: string;
+  /** Vùng khối BẬT nhuộm tím (D4) — lớp nền tĩnh, vẽ trước mọi đường. */
+  spans?: OnSpan[];
+  /** Vạch "đang ở đây" (giây) — null ẩn vạch (phiên đã kết thúc/replay đứng yên). */
+  playheadX?: number | null;
 }) {
   return (
     <div className={className}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} syncId="rhythm" margin={MARGIN}>
           <CartesianGrid stroke={CHART.grid} strokeWidth={1} vertical={false} />
+          {/* Trục x là TRỤC SỐ (giây): ReferenceArea/ReferenceLine cần toạ độ
+              thật để vùng BẬT và vạch playhead rơi đúng chỗ giữa các phút. */}
           {showAxis ? (
             <XAxis
               dataKey="offset_s"
+              type="number"
+              domain={[0, "dataMax"]}
               tickFormatter={fmtMinuteTick}
               tick={AXIS_TICK}
               axisLine={{ stroke: CHART.axis }}
@@ -175,7 +215,7 @@ function Panel({
               minTickGap={40}
             />
           ) : (
-            <XAxis dataKey="offset_s" hide />
+            <XAxis dataKey="offset_s" type="number" domain={[0, "dataMax"]} hide />
           )}
           <YAxis
             width={44}
@@ -190,6 +230,19 @@ function Panel({
             cursor={{ stroke: CHART.axis, strokeWidth: 1 }}
             isAnimationActive={false}
           />
+          {spans.map((a) => (
+            <ReferenceArea
+              key={`on-${a.x1}`}
+              x1={a.x1}
+              x2={a.x2}
+              fill={ON_TINT}
+              stroke="none"
+              ifOverflow="hidden"
+            />
+          ))}
+          {playheadX != null ? (
+            <ReferenceLine x={playheadX} stroke={CHART.ink} strokeOpacity={0.8} />
+          ) : null}
           {series.map((s) => (
             <Line
               key={String(s.key)}
@@ -220,9 +273,22 @@ interface Props {
    */
   viewersMissing?: string | null;
   clicksMissing?: string | null;
+  /**
+   * Lịch khối của phiên — CHỈ màn thấy lịch (desk/replay) truyền vào để nhuộm
+   * vùng BẬT. Bỏ trống = không nhuộm gì (không đoán lịch).
+   */
+  blocks?: BlockInfo[];
+  /** Vị trí hiện tại (giây) cho vạch "đang ở đây"; null/bỏ trống = ẩn vạch. */
+  positionS?: number | null;
 }
 
-export default function RhythmChart({ ticks, viewersMissing, clicksMissing }: Props) {
+export default function RhythmChart({
+  ticks,
+  viewersMissing,
+  clicksMissing,
+  blocks,
+  positionS,
+}: Props) {
   const data = useMemo(() => toMinutePoints(ticks), [ticks]);
 
   // Một điểm không vẽ thành đường: Recharts sẽ trả về khung trống có trục,
@@ -253,6 +319,12 @@ export default function RhythmChart({ ticks, viewersMissing, clicksMissing }: Pr
   if (!viewersMissing) drawn.push("viewers");
   if (!clicksMissing) drawn.push("clicks");
   const last = drawn[drawn.length - 1];
+
+  // Vùng BẬT + vạch playhead cắt vào miền dữ liệu đã vẽ — không kéo dài trục
+  // sang tương lai chưa có số liệu.
+  const lastOffsetS = data[data.length - 1].offset_s;
+  const spans = onSpans(blocks, lastOffsetS);
+  const playheadX = positionS == null ? null : Math.min(positionS, lastOffsetS);
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-1.5">
@@ -291,9 +363,26 @@ export default function RhythmChart({ ticks, viewersMissing, clicksMissing }: Pr
                 strokeDasharray="4 3"
               />
             </svg>
-            <Term tip="Con số từ mô hình dự báo — chưa qua thí nghiệm nên không có khoảng tin cậy.">
-              Đường dự báo baseline
+            <Term tip="Con số từ mô hình dự báo — chưa qua thí nghiệm nên không có khoảng tin cậy. Nét đứt chỉ dành cho dự báo.">
+              Dự báo nếu không can thiệp
             </Term>
+          </span>
+        )}
+        {spans.length > 0 && (
+          <span className="flex items-center gap-1.5">
+            <span
+              className="inline-block h-2.5 w-3 rounded-sm"
+              style={{ background: "rgba(139,123,255,0.45)" }}
+            />
+            <Term tip="Quãng thời gian hệ thống được quyền ghim theo lịch bốc thăm — so nhịp trong/ngoài vùng tím là câu chuyện nhân quả bằng mắt.">
+              Vùng tím = khối BẬT
+            </Term>
+          </span>
+        )}
+        {playheadX != null && (
+          <span className="flex items-center gap-1.5">
+            <span aria-hidden className="inline-block h-3 w-0.5 rounded-full bg-ink" />
+            đang ở đây
           </span>
         )}
       </div>
@@ -304,6 +393,8 @@ export default function RhythmChart({ ticks, viewersMissing, clicksMissing }: Pr
         series={[{ key: "comments", name: "Bình luận / phút", color: CHART.s3 }]}
         showAxis={last === "comments"}
         className="min-h-0 flex-[3]"
+        spans={spans}
+        playheadX={playheadX}
       />
 
       {/* panel 2: người xem + baseline dự báo — hoặc dải THIẾU nguồn */}
@@ -318,6 +409,8 @@ export default function RhythmChart({ ticks, viewersMissing, clicksMissing }: Pr
           ]}
           showAxis={last === "viewers"}
           className="min-h-0 flex-[3]"
+          spans={spans}
+          playheadX={playheadX}
         />
       )}
 
@@ -333,6 +426,8 @@ export default function RhythmChart({ ticks, viewersMissing, clicksMissing }: Pr
           ]}
           showAxis={last === "clicks"}
           className="min-h-0 flex-[2]"
+          spans={spans}
+          playheadX={playheadX}
         />
       )}
     </div>

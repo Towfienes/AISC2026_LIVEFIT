@@ -22,10 +22,12 @@ const BASE =
   "disabled:cursor-not-allowed";
 
 const VARIANT: Record<ButtonVariant, string> = {
+  // v2 (gói SKIN): CTA chính chuyển từ xanh Bootstrap-mặc-định sang MỘT accent
+  // brand tím điện thống nhất toàn app; chữ #0c0d12 trên #7c6cff = 5.03:1 AA.
   primary:
-    "bg-s1 text-page hover:bg-[#5099ea] disabled:bg-raised disabled:text-mut",
+    "bg-brand text-[#0c0d12] hover:bg-brand-hi disabled:bg-raised disabled:text-mut",
   ghost:
-    "border border-hairline bg-transparent text-sec hover:border-white/20 hover:bg-raised hover:text-ink " +
+    "border border-strong bg-transparent text-sec hover:border-white/20 hover:bg-raised hover:text-ink " +
     "disabled:border-hairline disabled:bg-transparent disabled:text-mut",
   danger:
     "border border-critical/50 bg-transparent text-crit-ink hover:bg-critical/10 " +

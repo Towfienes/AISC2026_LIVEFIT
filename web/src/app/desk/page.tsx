@@ -6,31 +6,29 @@
  * useHost or HostState — the blinding boundary (rule L6) runs along this file.
  *
  * ---------------------------------------------------------------------------
- * LAYOUT (rebuilt in gói UI-2)
+ * LAYOUT (gói DESK-HOST v2 — theo mockup mock_desk.png của spec UI-VISUAL)
  * ---------------------------------------------------------------------------
- * The previous layout was a fixed three-zone fit for 1920x1080 with two nested
- * `overflow-hidden` planes and NOT ONE breakpoint. On the 1366x768 laptop most
- * operators actually use, the "lượt bấm/phút" panel — the primary outcome of
- * the experiment — collapsed to about 4 px and the action-card column was
- * clipped to a third of a card, with no scrollbar to say so. At 1920x1080 the
- * same rigid split left ~141 px of dead space under the cards.
+ * Thứ tự ưu tiên không đổi so với gói UI-2 (đồng hồ khối là căn cước khoa học
+ * của bàn, dính đầu màn hình); hình dạng đổi theo mockup đã duyệt:
  *
- * The desk is now a flowing document with a priority order, not a fitted
- * dashboard (gói UI-KOL adds the media row — video + signal tiles — WITHOUT
- * touching priority 1: the block clock stays the desk's scientific identity,
- * the video is auxiliary context and is the FIRST thing to give way):
- *
- *   1. đồng hồ khối  — sticky at the top, never scrolls away;
- *   2. thẻ hành động — own column from `xl` up, first panel below `xl`;
- *   3. dải thẻ tín hiệu + khung video — tiles are honest (a source that
- *      cannot measure renders "THIẾU nguồn" with the matrix reason, never 0);
- *      the video defaults to a collapsed button below `xl`;
- *   4. biểu đồ nhịp  — `min-h` floors so it can never collapse again;
- *   5. radar + feed  — the data panel that gives way first (video gives first).
+ *   1. thanh trạng thái v2 — đèn ĐANG PHÁT (ngoại lệ pulse duy nhất), timecode
+ *      mono, chọn phiên, chế độ, Kết thúc + ô lỗi dành sẵn; sticky cùng hero;
+ *   2. HÀNG HERO (BlockClock v2) — thẻ KHỐI HIỆN TẠI (chữ BẬT/TẮT cỡ hiển thị,
+ *      MỘT câu giải thích, đếm ngược "Chuyển khối sau", vòng on-air khi BẬT)
+ *      + thẻ LỊCH BẬT/TẮT (dải khối, vạch "đang ở đây", câu ranh giới làm mù);
+ *   3. cột trái — KPI: người xem, bình luận/phút, lượt bấm/phút, ý định mua
+ *      (radar), tim & quà. Ô nào thiếu nguồn in chip THIẾU + lý do NGUYÊN VĂN
+ *      của ma trận tín hiệu — không bao giờ một số 0 giả; khung video ở đáy
+ *      cột (bối cảnh phụ trợ, nhường chỗ đầu tiên);
+ *   4. cột giữa — biểu đồ NHỊP PHIÊN nhuộm vùng khối BẬT + đường dự báo
+ *      nếu-không-can-thiệp + vạch đang-ở-đây (`min-h` sàn để không bao giờ sập
+ *      về 4px), dưới là radar + feed bình luận;
+ *   5. cột phải — HÀNH ĐỘNG GỢI Ý: thẻ #1 viền gradient là "việc cần làm
+ *      ngay", các thẻ sau nhỏ dần; panel TỰ LÁI + cảnh báo im lặng từ backend.
  *
  * When the content no longer fits, the page SCROLLS (the browser scrollbar is
  * the indicator, and the card list adds its own "cuộn để xem hết" line) instead
- * of silently cutting content off.
+ * of silently cutting content off. Ở 1920×1080 toàn bàn hiện đủ không cuộn.
  *
  * First-time-user rules: an empty state instead of a blank screen when no
  * session is running, skeletons instead of a blank screen while connecting,
@@ -47,7 +45,9 @@ import LiveVideo from "@/components/LiveVideo";
 import RhythmChart from "@/components/RhythmChart";
 import SignalTiles, { buildSignalTiles } from "@/components/SignalTiles";
 import StatusBar from "@/components/StatusBar";
+import PageHeader from "@/components/PageHeader";
 import TopNav from "@/components/TopNav";
+import Badge from "@/components/ui/Badge";
 import Button, { buttonCls } from "@/components/ui/Button";
 import Callout from "@/components/ui/Callout";
 import Card from "@/components/ui/Card";
@@ -55,6 +55,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import SectionTitle from "@/components/ui/SectionTitle";
 import Skeleton from "@/components/ui/Skeleton";
 import { getReactions, getSessionDetail, getSignalCoverage, youtubeVideoId } from "@/lib/api";
+import { fmtTimeHCM } from "@/lib/format";
 import type { ActionCardData, SessionDetail, SignalCoverage } from "@/lib/types";
 import { useDesk } from "@/lib/useDesk";
 
@@ -104,50 +105,26 @@ function DeskSkeleton() {
       </p>
       <div className="mb-3 flex flex-col gap-3">
         <Skeleton className="h-bar shrink-0 rounded-lg" />
-        <Card padding="sm" className="flex flex-col gap-3">
-          <Skeleton className="h-4 w-32" />
-          <div className="flex flex-wrap items-end gap-6">
-            <Skeleton className="h-20 w-56" />
-            <Skeleton className="h-16 w-40" />
-            <Skeleton className="ml-auto h-14 w-32" />
-            <Skeleton className="h-14 w-32" />
-          </div>
-          <Skeleton className="h-2 w-full rounded-full" />
-          <Skeleton className="h-9 w-full" />
-        </Card>
-      </div>
-      <div className="grid flex-1 grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,30rem)] xl:grid-rows-[auto_minmax(20rem,3fr)_minmax(16rem,2fr)]">
-        <Card
-          padding="sm"
-          className="flex min-h-[16rem] flex-col gap-2 xl:col-start-2 xl:row-span-3 xl:row-start-1"
-        >
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-24" />
-          <Skeleton className="h-24" />
-          <Skeleton className="h-24" />
-        </Card>
-        {/* dải media: khung video + 4 thẻ tín hiệu (gói UI-KOL) */}
-        <div className="flex flex-col gap-3 lg:flex-row xl:col-start-1 xl:row-start-1">
-          <Skeleton className="h-40 rounded-lg lg:basis-[24rem] lg:shrink-0" />
-          {/* hai cột minmax — không dùng grid-cols-2 cứng (gate bố cục UI-2) */}
-          <div className="grid flex-1 grid-cols-[repeat(2,minmax(0,1fr))] gap-2">
-            <Skeleton className="h-[4.5rem]" />
-            <Skeleton className="h-[4.5rem]" />
-            <Skeleton className="h-[4.5rem]" />
-            <Skeleton className="h-[4.5rem]" />
-          </div>
+        {/* hàng hero: thẻ khối hiện tại + dải lịch */}
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(17rem,21rem)_minmax(0,1fr)]">
+          <Skeleton className="h-56 rounded-lg" />
+          <Skeleton className="h-56 rounded-lg" />
         </div>
-        <Card
-          padding="sm"
-          className="flex min-h-[20rem] flex-col gap-2 xl:col-start-1 xl:row-start-2"
-        >
+      </div>
+      <div className="grid flex-1 grid-cols-1 gap-3 xl:grid-cols-[minmax(16rem,19rem)_minmax(0,1fr)_minmax(21rem,25rem)] xl:grid-rows-[minmax(18rem,1fr)_minmax(14rem,auto)]">
+        {/* cột KPI */}
+        <div className="flex flex-col gap-2.5 xl:col-start-1 xl:row-span-2 xl:row-start-1">
+          <Skeleton className="h-24 rounded-lg" />
+          <Skeleton className="h-24 rounded-lg" />
+          <Skeleton className="h-24 rounded-lg" />
+          <Skeleton className="h-24 rounded-lg" />
+        </div>
+        {/* biểu đồ + radar */}
+        <Card padding="sm" className="flex min-h-[18rem] flex-col gap-2 xl:col-start-2 xl:row-start-1">
           <Skeleton className="h-4 w-24" />
-          <Skeleton className="min-h-[14rem] flex-1" />
+          <Skeleton className="min-h-[12rem] flex-1" />
         </Card>
-        <Card
-          padding="sm"
-          className="flex min-h-[16rem] flex-col gap-2 xl:col-start-1 xl:row-start-3"
-        >
+        <Card padding="sm" className="flex min-h-[14rem] flex-col gap-2 xl:col-start-2 xl:row-start-2">
           <Skeleton className="h-4 w-40" />
           <Skeleton className="min-h-[6rem] flex-[2]" />
           <div className="flex min-h-[6rem] flex-[3] flex-col gap-1.5 border-t border-hairline pt-2">
@@ -155,6 +132,16 @@ function DeskSkeleton() {
             <Skeleton className="h-5 w-2/3" />
             <Skeleton className="h-5 w-4/5" />
           </div>
+        </Card>
+        {/* cột hành động */}
+        <Card
+          padding="sm"
+          className="flex min-h-[14rem] flex-col gap-3 xl:col-start-3 xl:row-span-2 xl:row-start-1"
+        >
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-32" />
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
         </Card>
       </div>
     </main>
@@ -209,7 +196,19 @@ export default function DeskPage() {
    * thể bỏ sót.
    */
   const [alert, setAlert] = useState<string | null>(null);
-  const desk = useDesk({ forceMock: demoMode });
+  /**
+   * Deep link `/desk?session=ID` (gói WIZARD, spec UX-FLOW luồng 3): wizard
+   * Chuẩn bị phiên chuyển sang đây ngay sau khi bấm "Bắt đầu phát sóng" và
+   * bàn phải mở ĐÚNG phiên đó. Đọc bằng window.location (không dùng
+   * useSearchParams để trang không phải bọc Suspense — tiền lệ /bat-dau);
+   * khởi tạo lười + guard `typeof window` vì trang còn được prerender.
+   */
+  const [preferredSessionId] = useState<string | null>(() =>
+    typeof window === "undefined"
+      ? null
+      : new URLSearchParams(window.location.search).get("session"),
+  );
+  const desk = useDesk({ forceMock: demoMode, preferredSessionId });
 
   const clicksPerMin = useMemo(
     () => clicksInLastMinute(desk.ticks, desk.elapsedS),
@@ -266,6 +265,16 @@ export default function DeskPage() {
     };
   }, [desk.connection, desk.sessionId]);
 
+  /**
+   * Cùng luật không-bịa-số cho lượt bấm: khi ma trận tín hiệu nói phiên KHÔNG
+   * có link đo (clicks = missing), tổng click_count của các tick chỉ là chỗ
+   * trống — ô KPI phải nhận null (chip THIẾU), không phải một số 0 giả.
+   * Chưa có ma trận (mock/đang tải) thì giữ số đo hiện có.
+   */
+  const clicksUnmeasured =
+    signalCov?.signals.some((s) => s.name === "clicks" && s.status === "missing") ?? false;
+  const honestClicksPerMin = clicksUnmeasured ? null : clicksPerMin;
+
   const tiles = useMemo(
     () =>
       buildSignalTiles({
@@ -273,32 +282,29 @@ export default function DeskPage() {
         connection: desk.connection,
         viewers: desk.viewers,
         ticks: desk.ticks,
-        clicksPerMin,
+        clicksPerMin: honestClicksPerMin,
         reactionsTotal,
+        comments: desk.comments,
+        nowS: desk.elapsedS,
+        ended: desk.session?.status === "ended",
       }),
-    [signalCov, desk.connection, desk.viewers, desk.ticks, clicksPerMin, reactionsTotal],
+    [
+      signalCov,
+      desk.connection,
+      desk.viewers,
+      desk.ticks,
+      honestClicksPerMin,
+      reactionsTotal,
+      desk.comments,
+      desk.elapsedS,
+      desk.session,
+    ],
   );
-
-  /** Phiên replay không còn lộ CCU quá khứ — số 0 trong tick là chỗ trống,
-   * KHÔNG phải phép đo (signals.py), nên đồng hồ khối hiện "—" thay vì 0. */
-  const isReplaySession = desk.session?.platform === "replay";
-
-  /**
-   * Cùng luật cho lượt bấm: khi ma trận tín hiệu nói phiên KHÔNG có link đo
-   * (clicks = missing), tổng click_count của các tick chỉ là chỗ trống — đồng
-   * hồ khối phải hiện "—" như ô THIẾU bên dưới, không phải một số 0 giả.
-   * Chưa có ma trận (mock/đang tải) thì giữ số đo hiện có.
-   */
-  const clicksUnmeasured =
-    signalCov?.signals.some((s) => s.name === "clicks" && s.status === "missing") ?? false;
-  const honestClicksPerMin = clicksUnmeasured ? null : clicksPerMin;
 
   /**
    * Cùng ma trận, cùng luật, áp cho BIỂU ĐỒ NHỊP PHIÊN — khung lớn nhất của
-   * bàn. Trước gói UI-KOL nó luôn vẽ hai đường "người xem" và "lượt bấm/phút";
-   * trên phiên replay cả hai nguồn đều không tồn tại nên biểu đồ vẽ hai đường
-   * phẳng ở mức 0, mâu thuẫn thẳng với ô "THIẾU nguồn" ngay phía trên. Nay
-   * panel nào không có nguồn thì hiện dải THIẾU kèm lý do của máy chủ.
+   * bàn. Panel nào không có nguồn thì hiện dải THIẾU kèm lý do của máy chủ,
+   * không vẽ đường phẳng ở mức 0 từ tick placeholder.
    */
   const missingReason = (name: string): string | null => {
     const s = signalCov?.signals.find((x) => x.name === name);
@@ -356,6 +362,8 @@ export default function DeskPage() {
     !showAnyway &&
     (desk.sessionId == null || (desk.connection === "live" && !hasLive));
 
+  const autopilot = desk.autopilot;
+
   return (
     <div className="flex min-h-screen flex-col bg-page">
       <TopNav />
@@ -369,6 +377,15 @@ export default function DeskPage() {
         />
       ) : (
         <main className="flex flex-1 flex-col p-3">
+          {/* PageHeader chuẩn (spec UX-FLOW d1) — bản `sm` một dòng, KHÔNG
+              sticky: cuộn đi được, vì trên màn vận hành từng pixel dọc thuộc
+              về số liệu. */}
+          <PageHeader
+            phase="trong"
+            size="sm"
+            title="Bàn trợ live"
+            lead="Dành cho người ngồi máy (không phải người dẫn): theo dõi nhịp buổi live và bấm khi hệ thống gợi ý."
+          />
           {/* Ưu tiên 1 — thanh trạng thái, cảnh báo và ĐỒNG HỒ KHỐI dính đầu
               màn hình: khi trang phải cuộn (1366x768) đây là những thứ người
               vận hành không được phép mất khỏi tầm mắt. */}
@@ -405,97 +422,149 @@ export default function DeskPage() {
               currentBlock={desk.currentBlock}
               elapsedS={desk.elapsedS}
               durationS={desk.durationS}
-              viewers={isReplaySession ? null : desk.viewers}
-              clicksPerMin={honestClicksPerMin}
               pinnedName={desk.pinned?.name ?? null}
               observational={observational}
+              sessionEnded={desk.session?.status === "ended"}
             />
           </div>
 
-          {/* Cột phải giữ nguyên bề rộng thẻ hành động ở mọi màn ≥ xl; cột trái
-              co giãn. Các `minmax(...)` là sàn chiều cao — lý do biểu đồ không
-              còn sập được về 4px. Hàng đầu (`auto`) là dải media của gói
-              UI-KOL: video + thẻ tín hiệu — không có sàn vì video là vùng
-              NHƯỜNG CHỖ ĐẦU TIÊN khi màn chật (ưu tiên G của spec). */}
-          <div className="grid flex-1 grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,30rem)] xl:grid-rows-[auto_minmax(20rem,3fr)_minmax(16rem,2fr)]">
-            {/* Ưu tiên 2 — thẻ hành động */}
-            <Card
-              as="section"
-              padding="sm"
-              className="flex min-h-[16rem] min-w-0 flex-col xl:col-start-2 xl:row-span-3 xl:row-start-1"
-            >
-              <SectionTitle
-                className="mb-1.5"
-                meta={<>chế độ {desk.mode === "auto" ? "tự động" : "gợi ý"}</>}
-              >
-                Hành động gợi ý
-              </SectionTitle>
-              {/* Khung cuộn `absolute` trong hộp `relative` — cùng lý do với
-                  feed bình luận: nội dung của một lớp absolute không đóng góp
-                  chiều cao cho lưới `3fr`/`2fr` cao không xác định, nên 10 thẻ
-                  không thể tự kéo dài hàng lưới và đẩy cả trang phải cuộn. */}
-              <div className="relative min-h-0 flex-1">
-                <div
-                  ref={cardList.ref}
-                  className="absolute inset-0 flex flex-col justify-start gap-2 overflow-y-auto pr-1"
+          {/* Lưới 3 cột của mockup: KPI trái, nhịp phiên giữa, hành động phải.
+              Các `minmax(...)` là sàn chiều cao — lý do biểu đồ không còn sập
+              được về 4px. Dưới xl mọi thứ xếp một cột theo thứ tự ưu tiên
+              (hành động trước, KPI, biểu đồ, radar). */}
+          <div className="grid flex-1 grid-cols-1 gap-3 xl:grid-cols-[minmax(16rem,19rem)_minmax(0,1fr)_minmax(21rem,25rem)] xl:grid-rows-[minmax(18rem,1fr)_minmax(14rem,auto)]">
+            {/* Ưu tiên 2 — cột hành động gợi ý + tự lái */}
+            <div className="flex min-h-0 min-w-0 flex-col gap-3 xl:col-start-3 xl:row-span-2 xl:row-start-1">
+              <Card as="section" padding="sm" className="flex min-h-[14rem] min-w-0 flex-1 flex-col">
+                <SectionTitle
+                  className="mb-1.5"
+                  meta={
+                    desk.mode === "auto" ? (
+                      <Badge tone="good" dot>
+                        Tự động thực thi
+                      </Badge>
+                    ) : (
+                      <>chế độ gợi ý</>
+                    )
+                  }
                 >
-                  {desk.cards.length === 0 ? (
-                    <div className="px-2 py-4">
-                      <p className="text-body text-sec">
-                        {observational
-                          ? "Phiên quan sát — không có thẻ hành động."
-                          : "Chưa có gợi ý cho thời điểm này."}
-                      </p>
-                      <p className="mt-1 text-body leading-snug text-dim">
-                        {observational
-                          ? "Đây là buổi live của người khác, nạp lại để phân tích: hệ thống không " +
-                            "ghim được sản phẩm nào và cũng không có link đo để xếp hạng, nên sẽ " +
-                            "không có thẻ nào xuất hiện. Dải tín hiệu và nhịp bình luận bên trái " +
-                            "vẫn là số liệu thật của buổi đó."
-                          : "Thẻ mới sẽ tự hiện khi hệ thống đủ số liệu — thường trong vài phút " +
-                            "đầu phiên. Trong lúc đó cứ vận hành như thường lệ; bạn không cần chờ " +
-                            "thẻ để ghim sản phẩm."}
-                      </p>
-                    </div>
-                  ) : (
-                    desk.cards.map((c) => (
-                      <ActionCard
-                        key={c.card_id}
-                        card={c}
-                        mode={desk.mode}
-                        executed={desk.executedCardIds.has(c.card_id)}
-                        onExecute={() => runCard(c)}
-                        onSkip={() => desk.skip(c.card_id)}
-                      />
-                    ))
-                  )}
+                  Hành động gợi ý
+                </SectionTitle>
+                {/* Khung cuộn `absolute` trong hộp `relative` — cùng lý do với
+                    feed bình luận: nội dung của một lớp absolute không đóng góp
+                    chiều cao cho lưới `3fr`/`2fr` cao không xác định, nên 10 thẻ
+                    không thể tự kéo dài hàng lưới và đẩy cả trang phải cuộn. */}
+                <div className="relative min-h-0 flex-1">
+                  <div
+                    ref={cardList.ref}
+                    className="absolute inset-0 flex flex-col justify-start gap-2 overflow-y-auto pr-1"
+                  >
+                    {desk.cards.length === 0 ? (
+                      <div className="px-2 py-4">
+                        <p className="text-body text-sec">
+                          {observational
+                            ? "Phiên quan sát — không có thẻ hành động."
+                            : (desk.cardsNote ?? "Chưa có gợi ý cho thời điểm này.")}
+                        </p>
+                        <p className="mt-1 text-body leading-snug text-dim">
+                          {observational
+                            ? "Đây là buổi live của người khác, nạp lại để phân tích: hệ thống không " +
+                              "ghim được sản phẩm nào và cũng không có link đo để xếp hạng, nên sẽ " +
+                              "không có thẻ nào xuất hiện. Dải tín hiệu và nhịp bình luận bên trái " +
+                              "vẫn là số liệu thật của buổi đó."
+                            : desk.cardsNote != null
+                              ? "Đây là trạng thái theo thiết kế, không phải lỗi tải dữ liệu."
+                              : "Thẻ mới sẽ tự hiện khi hệ thống đủ số liệu — thường trong vài phút " +
+                                "đầu phiên. Trong lúc đó cứ vận hành như thường lệ; bạn không cần chờ " +
+                                "thẻ để ghim sản phẩm."}
+                        </p>
+                      </div>
+                    ) : (
+                      desk.cards.map((c, i) => (
+                        <ActionCard
+                          key={c.card_id}
+                          card={c}
+                          mode={desk.mode}
+                          emphasized={i === 0}
+                          executed={desk.executedCardIds.has(c.card_id)}
+                          onExecute={() => runCard(c)}
+                          onSkip={() => desk.skip(c.card_id)}
+                        />
+                      ))
+                    )}
+                  </div>
                 </div>
-              </div>
-              {cardList.overflowing && (
-                <p className="mt-2 shrink-0 text-body text-warn-ink">
-                  ↓ Danh sách dài hơn khung — cuộn để xem hết {desk.cards.length} thẻ.
+                {cardList.overflowing && (
+                  <p className="mt-2 shrink-0 text-body text-warn-ink">
+                    ↓ Danh sách dài hơn khung — cuộn để xem hết {desk.cards.length} thẻ.
+                  </p>
+                )}
+                <p className="mt-2 shrink-0 border-t border-hairline pt-2 text-body leading-snug text-dim">
+                  {desk.mode === "auto"
+                    ? "Chế độ tự động: hệ thống tự ghim thẻ hạng 1 khi đếm ngược về 0."
+                    : "Chế độ gợi ý: hệ thống chỉ đề xuất — sản phẩm chỉ được ghim khi bạn bấm Thực hiện."}
                 </p>
-              )}
-              <p className="mt-2 shrink-0 border-t border-hairline pt-2 text-body leading-snug text-dim">
-                {desk.mode === "auto"
-                  ? "Chế độ tự động: hệ thống tự ghim thẻ hạng 1 khi đếm ngược về 0."
-                  : "Chế độ gợi ý: hệ thống chỉ đề xuất — sản phẩm chỉ được ghim khi bạn bấm Thực hiện."}
-              </p>
-            </Card>
+              </Card>
 
-            {/* Ưu tiên 3 (gói UI-KOL) — dải media: khung video (bối cảnh, thu
-                gọn được và mặc định thu gọn dưới xl) + 4 thẻ tín hiệu trung
-                thực. Dưới lg các thẻ tín hiệu đứng TRƯỚC video (thứ tự nhường
-                chỗ G: dữ liệu là nhiệm vụ, video là tiện nghi). */}
-            <div className="flex min-w-0 flex-col gap-3 lg:flex-row xl:col-start-1 xl:row-start-1">
-              <LiveVideo
-                videoId={youtubeVideoId(videoDetail)}
-                platform={desk.session?.platform ?? null}
-                className="order-2 min-w-0 lg:order-1 lg:basis-[24rem] lg:shrink-0 2xl:basis-[34rem]"
-              />
+              {/* Panel TỰ LÁI + CẢNH BÁO IM LẶNG — trạng thái thật của máy chủ
+                  cho phiên auto (AutopilotState, operator-only). Cảnh báo tính
+                  từ exposure đã lưu, nên nó kêu cả khi executor chưa từng chạy. */}
+              {autopilot ? (
+                <Card as="section" padding="sm" className="shrink-0">
+                  <SectionTitle
+                    className="mb-1.5"
+                    meta={autopilot.enabled ? "máy chủ đang tự lái" : "executor đang TẮT"}
+                  >
+                    Tự lái phía máy chủ
+                  </SectionTitle>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-meta text-sec">
+                    <span>
+                      Đã thực hiện{" "}
+                      <span className="tnum font-semibold text-ink">{autopilot.actions_taken}</span>{" "}
+                      lệnh ghim
+                    </span>
+                    <span>
+                      Khối BẬT có can thiệp{" "}
+                      <span className="tnum font-semibold text-ink">
+                        {autopilot.on_blocks_done}/{autopilot.on_blocks_total}
+                      </span>
+                    </span>
+                    <span>
+                      Nhịp tim:{" "}
+                      <span className="tnum text-ink">
+                        {autopilot.last_run_ts ? fmtTimeHCM(autopilot.last_run_ts) : "chưa chạy lần nào"}
+                      </span>
+                    </span>
+                  </div>
+                  {autopilot.missed_on_blocks.length > 0 && (
+                    <p className="mt-1.5 text-meta leading-snug text-warn-ink">
+                      Khối BẬT đã trôi qua mà không có thao tác nào:{" "}
+                      <span className="tnum">
+                        {autopilot.missed_on_blocks.map((i) => `#${i + 1}`).join(", ")}
+                      </span>{" "}
+                      — không sửa lại được, LATE sẽ phản ánh mức pha loãng này.
+                    </p>
+                  )}
+                  {autopilot.alarm ? (
+                    <Callout tone="critical" className="mt-2">
+                      {autopilot.alarm}
+                    </Callout>
+                  ) : null}
+                  {autopilot.last_error ? (
+                    <Callout tone="warn" className="mt-2">
+                      Lỗi executor gần nhất: {autopilot.last_error}
+                    </Callout>
+                  ) : null}
+                </Card>
+              ) : null}
+            </div>
+
+            {/* Ưu tiên 3 — cột KPI trung thực + khung video (bối cảnh phụ trợ,
+                nhường chỗ đầu tiên: nằm đáy cột, tự thu gọn dưới xl). */}
+            <div className="flex min-w-0 flex-col gap-3 xl:col-start-1 xl:row-span-2 xl:row-start-1">
               <SignalTiles
                 tiles={tiles}
-                className="order-1 min-w-0 flex-1 lg:order-2"
+                className="min-w-0"
                 meta={
                   desk.sessionId ? (
                     <Link
@@ -507,24 +576,33 @@ export default function DeskPage() {
                   ) : undefined
                 }
               />
+              <LiveVideo
+                videoId={youtubeVideoId(videoDetail)}
+                platform={desk.session?.platform ?? null}
+                defaultCollapsed
+                className="min-w-0"
+              />
             </div>
 
-            {/* Ưu tiên 4 — nhịp phiên (chỉ số đầu ra chính của thí nghiệm) */}
+            {/* Ưu tiên 4 — nhịp phiên (chỉ số đầu ra chính của thí nghiệm),
+                nhuộm vùng khối BẬT + vạch đang-ở-đây (mockup, kỹ thuật D4). */}
             <Card
               as="section"
               padding="sm"
-              className="flex min-h-[20rem] min-w-0 flex-col xl:col-start-1 xl:row-start-2"
+              className="flex min-h-[18rem] min-w-0 flex-col xl:col-start-2 xl:row-start-1"
             >
               <SectionTitle className="mb-1.5" meta="gộp theo phút">
                 Nhịp phiên
               </SectionTitle>
               {/* Trạng thái rỗng nằm TRONG RhythmChart: nó biết cần mấy phút
                   số liệu mới vẽ được đường, trang thì không. */}
-              <div className="min-h-[14rem] flex-1">
+              <div className="min-h-[12rem] flex-1">
                 <RhythmChart
                   ticks={desk.ticks}
                   viewersMissing={viewersMissingReason}
                   clicksMissing={clicksMissingReason}
+                  blocks={desk.blocks}
+                  positionS={desk.elapsedS}
                 />
               </div>
             </Card>
@@ -533,7 +611,7 @@ export default function DeskPage() {
             <Card
               as="section"
               padding="sm"
-              className="flex min-h-[16rem] min-w-0 flex-col xl:col-start-1 xl:row-start-3"
+              className="flex min-h-[14rem] min-w-0 flex-col xl:col-start-2 xl:row-start-2"
             >
               <SectionTitle className="mb-1.5" meta="5 phút gần nhất">
                 Radar bình luận

@@ -702,8 +702,11 @@ def _freeze(client, monkeypatch, value: str):
 
 def test_summary_carries_the_denominator_flag(client):
     from livelift.api.routes.reports import ICS_DRAWS
+    from tests.conftest import seed_phien_that_mo_phong
 
-    client.post("/demo/seed", json={"n_sessions": 3, "effect": 0.5, "duration_min": 40})
+    # Phiên THẬT mô phỏng (gói DEMO-THẬT): cờ mẫu số là ghi chú phương pháp
+    # của KẾT QUẢ THẬT, và phiên demo không còn vào bản gộp mặc định.
+    seed_phien_that_mo_phong(client.app.state.store)
     summary = client.get("/experiment/summary").json()
 
     check = summary["denominator_check"]
@@ -726,7 +729,9 @@ def test_summary_withholds_the_denominator_flag_before_the_freeze_date(client, m
     động của can thiệp, nên cổng này bị khóa cùng với ước lượng hiệu ứng thay vì
     được phục vụ như số vận hành thuần túy.
     """
-    client.post("/demo/seed", json={"n_sessions": 3, "effect": 0.5, "duration_min": 40})
+    from tests.conftest import seed_phien_that_mo_phong
+
+    seed_phien_that_mo_phong(client.app.state.store)
     summary = _freeze(client, monkeypatch, "2999-01-01")
 
     assert summary["estimable"] is False

@@ -150,13 +150,35 @@ def test_the_session_clock_is_never_animated():
 
 
 def test_no_permanent_ambient_motion_on_the_desk():
-    """`animate-pulse` trên chấm TRỰC TIẾP chạy suốt 90 phút — đã gỡ."""
+    """`animate-pulse` trên chấm TRỰC TIẾP chạy suốt 90 phút — đã gỡ.
+
+    NGOẠI LỆ CÓ CHỦ ĐÍCH (gói DESK-HOST v2, spec UI-VISUAL c1): đèn ĐANG PHÁT
+    (`.live-dot`, keyframes ll-pulse trong globals.css) là chuyển động lặp
+    DUY NHẤT được phép trên màn vận hành — quy ước phát sóng toàn cầu, gắn
+    trên ĐÈN 8px chứ không phải trên chữ/card, và prefers-reduced-motion tắt
+    nó. Gate dưới khoá ngoại lệ ở đúng một chỗ: chỉ StatusBar, chỉ trong nhánh
+    status === "live".
+    """
     bar = code(STATUS_BAR.read_text(encoding="utf-8"))
     assert "animate-pulse" not in bar, (
         "Chấm TRỰC TIẾP không được nhấp nháy vĩnh viễn: nó không báo điều gì "
         "mới, nhưng nằm ngay cạnh vùng số liệu và bắt mắt vài nghìn lần mỗi "
         "phiên. Trạng thái kết nối đã có ba kênh TĨNH: hình dạng, màu và chữ."
     )
+    # Đèn ĐANG PHÁT: đúng một lần trong StatusBar, và phải nằm sau guard live.
+    assert bar.count("live-dot") == 1, (
+        "`.live-dot` (pulse vô hạn) chỉ được gắn trên MỘT đèn ĐANG PHÁT của "
+        "thanh trạng thái — mọc thêm ở chỗ khác là quay lại nhiễu nền"
+    )
+    guard = bar[: bar.index("live-dot")]
+    assert 'status === "live"' in guard[-400:], (
+        "đèn ĐANG PHÁT chỉ được sáng khi phiên thật sự đang live — không phải "
+        "đèn trang trí thường trực"
+    )
+    for rel, raw in desk_render_path().items():
+        if rel.endswith("StatusBar.tsx"):
+            continue
+        assert "live-dot" not in code(raw), f"{rel}: `.live-dot` lọt ra ngoài đèn ĐANG PHÁT"
     # Chỉ khung xương chờ tải mới được lặp — nó biến mất ngay khi có dữ liệu.
     offenders: list[str] = []
     for rel, raw in desk_render_path().items():
@@ -195,9 +217,15 @@ def test_the_kpi_count_up_has_a_threshold_and_uses_raf():
 
 
 def test_the_kpi_figures_actually_use_the_count_up():
-    src = code(BLOCK_CLOCK.read_text(encoding="utf-8"))
-    assert "useCountUp" in src, "Người xem / lượt bấm mỗi phút phải đi qua count-up"
-    assert "<Flash" in src, "giá trị vừa đổi phải có nháy nền xác nhận"
+    # CẬP NHẬT CÓ CHỦ ĐÍCH (gói DESK-HOST v2): các con số KPI chuyển từ đồng hồ
+    # khối sang cột KPI (SignalTiles) theo mockup mock_desk — bất biến motion
+    # giữ nguyên, chỉ đổi chỗ ở: số vẫn phải qua count-up có ngưỡng + nháy nền.
+    tiles = code((SRC / "components" / "SignalTiles.tsx").read_text(encoding="utf-8"))
+    assert "useCountUp" in tiles, "số KPI phải đi qua count-up"
+    assert "<Flash" in tiles, "giá trị vừa đổi phải có nháy nền xác nhận"
+    # Đồng hồ khối giữ nháy nền một-lần cho khoảnh khắc chuyển khối (S2).
+    clock = code(BLOCK_CLOCK.read_text(encoding="utf-8"))
+    assert "<Flash" in clock, "thẻ khối phải nháy nền MỘT lần đúng lúc chuyển khối"
 
 
 # --------------------------------------------------------------------------

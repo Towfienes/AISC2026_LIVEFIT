@@ -41,7 +41,8 @@
     ".next-thu-rang/types/**/*.ts",
     ".next-gate-css-pytest/types/**/*.ts",
     ".next-thu-chay/types/**/*.ts",
-    ".next-visual/types/**/*.ts"
+    ".next-visual/types/**/*.ts",
+    ".next-chay-local/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

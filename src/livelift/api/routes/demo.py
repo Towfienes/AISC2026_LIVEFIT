@@ -238,16 +238,19 @@ def _seed_one_session(
     return session_id
 
 
-def _seed_products_and_links(store: Any) -> tuple[list[str], list[str]]:
+def _seed_products_and_links(store: Any, run_tag: str | None = None) -> tuple[list[str], list[str]]:
     """Create the demo product catalog + one measurement shortlink each.
 
     Shortlink codes must be unique per seed run: re-seeding is a normal user
     action ("Xem thử ngay" can be clicked repeatedly) and a fixed code would
     collide with the previous run's link (incident 27/08). Products upsert, so
     re-running never errors.
+
+    ``run_tag`` cho phép bên gọi dùng CHUNG một nhãn lần-gieo giữa mã link và
+    tên phiên, để hai thứ sinh ra trong cùng một lần bấm nhận ra được nhau.
     """
     now = service.now_utc()
-    run_tag = secrets.token_hex(2)
+    run_tag = run_tag or secrets.token_hex(2)
     product_ids: list[str] = []
     codes: list[str] = []
     for p in DEMO_PRODUCTS:
@@ -269,7 +272,19 @@ def _seed_products_and_links(store: Any) -> tuple[list[str], list[str]]:
 @router.post("/demo/seed", response_model=DemoSeedOut)
 def seed_demo(body: DemoSeedRequest, store: StoreDep) -> DemoSeedOut:
     rng = random.Random(4242)
-    product_ids, codes = _seed_products_and_links(store)
+
+    # Tên phiên phải phân biệt được giữa các lần gieo, đúng lý lẽ đã dùng cho
+    # mã link ở _seed_products_and_links: bấm "Xem thử ngay" nhiều lần là
+    # thao tác bình thường. Trước 14/09/2026 mọi lần gieo đều đặt cùng một
+    # tên, nên sau bốn lần bấm màn kết quả có bốn dòng "Phiên mô phỏng
+    # seed=1000" không tài nào phân biệt.
+    #
+    # Nhãn phải có phần NGẪU NHIÊN chứ không chỉ giờ-phút: người dùng bấm hai
+    # lần liên tiếp thì hai lần rơi vào cùng một phút, và cổng kiểm thử đã bắt
+    # đúng lỗi ấy. Giờ-phút giữ lại để người đọc biết dòng nào mới gieo.
+    run_tag = secrets.token_hex(2)
+    lan_gieo = f"{service.now_utc().strftime('%d/%m %H:%M')}·{run_tag}"
+    product_ids, codes = _seed_products_and_links(store, run_tag)
 
     session_ids = []
     for i in range(body.n_sessions):
@@ -281,6 +296,7 @@ def seed_demo(body: DemoSeedRequest, store: StoreDep) -> DemoSeedOut:
                 effect=body.effect,
                 seed=1000 + i,
                 start_offset_ago_min=(i + 1) * (body.duration_min + 30),
+                title=f"Phiên mô phỏng #{i + 1} · gieo {lan_gieo}",
             )
         )
     replay_id = _seed_one_session(
@@ -291,6 +307,7 @@ def seed_demo(body: DemoSeedRequest, store: StoreDep) -> DemoSeedOut:
         seed=999,
         start_offset_ago_min=body.duration_min // 2,
         leave_live=True,
+        title=f"Phiên đang phát (mô phỏng) · gieo {lan_gieo}",
     )
     return DemoSeedOut(
         session_ids=session_ids,
@@ -412,3 +429,79 @@ def seed_demo_vang(store: Any) -> dict[str, Any]:
         "product_ids": product_ids,
         "shortlink_codes": codes,
     }
+
+
+#: Tiền tố tên của mọi phiên trong bộ vàng — cũng là khoá nhận dạng để gieo
+#: lại không sinh bản trùng (xem :func:`seed_demo_vang_route`).
+VANG_TITLE_PREFIX = "Demo vàng · "
+
+
+def _bo_vang_dang_co(store: Any) -> list[dict[str, Any]]:
+    """Các phiên vàng đã nằm sẵn trong kho, theo tiền tố tên + cờ is_demo."""
+    return [
+        s
+        for s in store.list_sessions()
+        if s.get("is_demo") and str(s.get("title") or "").startswith(VANG_TITLE_PREFIX)
+    ]
+
+
+@router.post("/demo/seed-vang")
+def seed_demo_vang_route(store: StoreDep, gieo_lai: bool = False) -> dict[str, Any]:
+    """Gieo bộ phiên DEMO VÀNG vào ĐÚNG kho mà API này đang dùng.
+
+    Vì sao cần route chứ không chỉ CLI (phát hiện 14/09/2026 khi dựng kịch bản
+    demo cho hội đồng): ``scripts/seed_demo_vang.py`` tạo store trong tiến
+    trình của chính nó. Với kho ``memory`` — cấu hình mặc định khi chưa dựng
+    PostgreSQL, và là cấu hình một máy lạ sẽ chạy — nó gieo vào một kho rời
+    rồi thoát, nên API đang chạy không thấy phiên nào. Buổi demo vì thế mở ra
+    là trống. Route này gieo vào ``StoreDep``, tức kho thật của tiến trình
+    đang phục vụ, nên một máy vừa dựng xong có đủ ba trạng thái kết quả sau
+    một lệnh.
+
+    BẤT BIẾN KHI GỌI LẠI (phát hiện cùng ngày, lúc chụp màn hình kiểm tra):
+    gọi hai lần thì màn kết quả hiện 12 dòng trùng tên nhau, giám khảo không
+    biết dòng nào là dòng nào. Mà bấm gieo lại trước buổi demo là thao tác
+    bình thường. Nên mặc định: đã có bộ vàng thì trả lại đúng bộ đang có,
+    không sinh thêm. Muốn một bộ mới thì gọi ``?gieo_lai=true``.
+
+    Lỗi trạng thái vẫn vỡ to như ở CLI: :class:`DemoVangStateError` không bị
+    bắt ở đây — thà 500 còn hơn giao một bộ demo kể sai câu chuyện.
+    """
+    from livelift.api.routes.reports import _bao_cao_ket_qua
+
+    dang_co = _bo_vang_dang_co(store)
+    if dang_co and not gieo_lai:
+        nhom: dict[str, list[str]] = {"duong": [], "null": [], "thieu": []}
+        ket_qua: dict[str, dict[str, Any]] = {}
+        for s in dang_co:
+            sid = s["session_id"]
+            kq = _bao_cao_ket_qua(s, store)
+            ten_nhom = _trang_thai_ket_qua(kq)
+            nhom[ten_nhom].append(sid)
+            ket_qua[sid] = {
+                "nhom": ten_nhom,
+                "title": s.get("title"),
+                "estimable": kq.estimable,
+                "n_blocks": kq.n_blocks,
+                "estimate": kq.estimate,
+                "ci_low": kq.ci_low,
+                "ci_high": kq.ci_high,
+                "p_value": kq.p_value,
+                "message": kq.message,
+            }
+        return {
+            "nhom": nhom,
+            "ket_qua": ket_qua,
+            "product_ids": [],
+            "shortlink_codes": [],
+            "da_co_san": True,
+            "ghi_chu": (
+                f"Kho đã có {len(dang_co)} phiên vàng — trả lại bộ đang có, "
+                "không gieo thêm để màn kết quả không hiện các dòng trùng tên. "
+                "Muốn một bộ mới: POST /demo/seed-vang?gieo_lai=true"
+            ),
+        }
+
+    ket_qua_moi = seed_demo_vang(store)
+    ket_qua_moi["da_co_san"] = False
+    return ket_qua_moi

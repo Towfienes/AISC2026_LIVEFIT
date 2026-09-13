@@ -12,7 +12,7 @@ hành động *tạo ra giá trị* với *sự trùng hợp thời điểm*.
 [![CI](https://github.com/bminhnemhoi/AISC2026_LIVEFIT/actions/workflows/ci.yml/badge.svg)](https://github.com/bminhnemhoi/AISC2026_LIVEFIT/actions/workflows/ci.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
-[![Tests](https://img.shields.io/badge/tests-249%20passed-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-993%20nhanh%20%2B%2016%20Monte--Carlo-brightgreen)](tests/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Next.js 14](https://img.shields.io/badge/Next.js-14-black?logo=next.js)](web/)
 
@@ -93,7 +93,7 @@ chưa làm được.
 python -m venv .venv && .venv\Scripts\activate      # Windows; Linux: source .venv/bin/activate
 pip install -e ".[dev,server,ml]"
 
-pytest -m "not slow"     # 249 test, < 10 giây
+pytest -m "not slow"     # 993 test nhanh (đếm 14/09/2026)
 pytest -m slow           # gate thống kê Monte-Carlo (vài phút)
 ruff check src tests     # lint
 
@@ -262,7 +262,7 @@ Chi tiết thành tựu, việc còn lại (P0/P1/P2), nợ kỹ thuật không 
 ## 🧑‍💻 Quy trình & đóng góp
 
 Vòng lặp: *hiểu → nghiên cứu (có trích dẫn) → thiết kế test trước → code thuần ở lõi
-→ gate tự động → root cause mọi lỗi → sổ sự cố*. Quality gates: 249 test nhanh · gate
+→ gate tự động → root cause mọi lỗi → sổ sự cố*. Quality gates: 993 test nhanh · gate
 thống kê Monte-Carlo · recall PII · cân bằng gán 1000 lịch · **contract test web↔API**
 · cách ly collectors · ruff.
 

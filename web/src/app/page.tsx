@@ -53,15 +53,25 @@ const JOB_STATUS_VI: Record<ReplayJob["status"], string> = {
 /**
  * HÀNG SỐ BẰNG CHỨNG — chỉ số đếm mô tả có nguồn kiểm chứng được (nguyên tắc
  * không-bịa-số + điều chỉnh của phản biện khoa học: không effect size mô
- * phỏng trên trang mặt tiền):
- *   48.000 bình luận — 6 buổi live thật đã ingest (docs/HUONG-DAN-SU-DUNG.md)
- *   30+ buổi live    — tổng số buổi đã phân tích qua pipeline replay
- *   735 kiểm thử     — `grep -c "def test_" tests/*.py` ngày 12/09/2026
+ * phỏng trên trang mặt tiền).
+ *
+ * Sửa 14/09/2026 — bộ số cũ ("48.000 · 30+ · 735") vừa cũ vừa tự mâu thuẫn:
+ * chú thích nguồn ghi 48.000 bình luận từ "6 buổi live" trong khi ô ngay cạnh
+ * ghi "30+ buổi live", và 735 là số HÀM `def test_` đếm ngày 12/09 chứ không
+ * phải số test pytest thật sự chạy. Hồ sơ thi trích 19.126 / 16 buổi / 990
+ * test; trang mặt tiền nói số khác là tự tặng giám khảo một câu hỏi.
+ *
+ * Bộ số hiện tại — mỗi con số một nguồn kiểm chứng được, cùng thước đo với
+ * hồ sơ, ưu tiên con số NHỎ HƠN nhưng truy được về một lô đo duy nhất:
+ *   19.126 bình luận — lô đo có hệ thống 10/09/2026
+ *                      (docs/benchmarks/live-fire-da-nguon.md §1)
+ *   16 buổi live     — cùng lô đo đó, cùng tài liệu
+ *   993 kiểm thử     — `pytest -m "not slow"`, chạy 14/09/2026, exit 0
  */
 const PROOF: { value: string; label: string }[] = [
-  { value: "48.000", label: "bình luận thật đã phân tích" },
-  { value: "30+", label: "buổi live đã xử lý" },
-  { value: "735", label: "kiểm thử tự động đang xanh" },
+  { value: "19.126", label: "bình luận thật đã phân tích" },
+  { value: "16", label: "buổi live thật đã chạy qua hệ thống" },
+  { value: "993", label: "kiểm thử tự động đang xanh" },
 ];
 
 /* ---- icon SVG inline, stroke 1.8, style Lucide (CẤM emoji toàn app) ------ */

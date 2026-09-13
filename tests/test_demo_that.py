@@ -279,3 +279,78 @@ def test_demo_vang_is_deterministic_across_runs():
     assert _fingerprint(seed_demo_vang(InMemoryStore())) == _fingerprint(
         seed_demo_vang(InMemoryStore())
     )
+
+
+def test_demo_vang_seeds_into_the_running_api_store(client):
+    """Bộ demo vàng phải gieo được qua HTTP vào kho của chính API đang chạy.
+
+    Hồi quy cho sự cố 14/09/2026: bộ vàng chỉ có bản CLI, mà CLI dựng store
+    trong tiến trình của nó. Với kho ``memory`` (mặc định khi chưa có
+    PostgreSQL) nó gieo vào một kho rời rồi thoát, nên API đang chạy vẫn
+    trống — mở buổi demo ra là không có phiên nào. Cổng này buộc phải tồn tại
+    một đường HTTP gieo vào đúng kho đang phục vụ.
+    """
+    truoc = {s["session_id"] for s in client.get("/sessions?env=demo").json()}
+
+    r = client.post("/demo/seed-vang")
+    assert r.status_code == 200, r.text
+    ket_qua = r.json()["ket_qua"]
+    assert len(ket_qua) == 6
+
+    sau = {s["session_id"] for s in client.get("/sessions?env=demo").json()}
+    assert set(ket_qua) <= sau - truoc, "phiên vàng phải xuất hiện trong kho của API"
+
+    # Và phải đọc được báo cáo đúng trạng thái qua chính đường người dùng đi.
+    for sid, kq in ket_qua.items():
+        bao_cao = client.get(f"/sessions/{sid}/bao-cao").json()
+        assert bao_cao["ket_qua_thi_nghiem"]["estimable"] is kq["estimable"]
+
+
+def test_seeding_sample_sessions_twice_gives_distinguishable_titles(client):
+    """Bấm "Xem thử ngay" hai lần không được sinh các dòng trùng tên y hệt.
+
+    Hồi quy 14/09/2026: mỗi lần gieo đều đặt cùng một tên cố định theo seed,
+    nên sau bốn lần bấm màn kết quả có bốn dòng "Phiên mô phỏng seed=1000".
+    Người dùng không biết dòng nào vừa tạo. Mã link đã có nhãn riêng mỗi lần
+    gieo từ sự cố 27/08 — tên phiên phải theo cùng lý lẽ đó.
+    """
+    body = {"n_sessions": 2, "duration_min": 40}
+    lan_1 = client.post("/demo/seed", json=body).json()
+    lan_2 = client.post("/demo/seed", json=body).json()
+
+    rows = {s["session_id"]: s["title"] for s in client.get("/sessions?env=demo").json()}
+    ten_1 = [rows[sid] for sid in lan_1["session_ids"]]
+    ten_2 = [rows[sid] for sid in lan_2["session_ids"]]
+
+    assert all(ten_1), "phiên mẫu phải có tên"
+    assert len(set(ten_1)) == len(ten_1), "trong cùng một lần gieo, tên phải khác nhau"
+    assert not set(ten_1) & set(ten_2), f"hai lần gieo không được trùng tên: {ten_1} vs {ten_2}"
+
+
+def test_seed_vang_twice_does_not_duplicate_the_golden_set(client):
+    """Gieo lại bộ vàng không được sinh bản trùng tên.
+
+    Hồi quy cho lỗi thấy trên ảnh chụp 14/09/2026: gọi endpoint lần hai thì
+    màn kết quả hiện 12 dòng mang đúng 6 cái tên, mỗi tên hai lần — giám khảo
+    không biết dòng nào là dòng nào. Bấm gieo lại trước buổi demo là thao tác
+    bình thường, nên mặc định phải bất biến.
+    """
+    lan_1 = client.post("/demo/seed-vang").json()
+    assert lan_1["da_co_san"] is False
+
+    lan_2 = client.post("/demo/seed-vang").json()
+    assert lan_2["da_co_san"] is True
+    assert set(lan_2["ket_qua"]) == set(lan_1["ket_qua"]), "phải trả đúng bộ cũ"
+    assert lan_2["ghi_chu"], "trả bộ cũ thì phải nói rõ vì sao, bằng tiếng Việt"
+
+    vang = [
+        s
+        for s in client.get("/sessions?env=demo").json()
+        if str(s.get("title") or "").startswith("Demo vàng · ")
+    ]
+    assert len(vang) == 6, f"kho phải còn đúng 6 phiên vàng, đang có {len(vang)}"
+
+    # Cửa thoát vẫn mở khi người dùng CỐ Ý muốn bộ mới.
+    lan_3 = client.post("/demo/seed-vang?gieo_lai=true").json()
+    assert lan_3["da_co_san"] is False
+    assert not set(lan_3["ket_qua"]) & set(lan_1["ket_qua"])

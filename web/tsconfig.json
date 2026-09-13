@@ -36,7 +36,12 @@
     ".next-kiemchung/types/**/*.ts",
     ".next-kiemchung2/types/**/*.ts",
     ".next-kiemchung-dev/types/**/*.ts",
-    ".next-ketqua/types/**/*.ts"
+    ".next-ketqua/types/**/*.ts",
+    ".next-gate-css/types/**/*.ts",
+    ".next-thu-rang/types/**/*.ts",
+    ".next-gate-css-pytest/types/**/*.ts",
+    ".next-thu-chay/types/**/*.ts",
+    ".next-visual/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

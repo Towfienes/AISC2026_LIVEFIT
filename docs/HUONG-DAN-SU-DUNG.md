@@ -72,9 +72,19 @@ Mở **http://localhost:3000**. Bạn phải thấy đúng màn hình này:
 ![Trang chính LiveLift](img/l1-01-trang-chu.png)
 
 Dấu hiệu **máy chủ đã chạy**: ở thẻ số **2**, ô nhập link YouTube và nút **Phân
-tích** đều **sáng** (bấm được). Nếu chúng **mờ đi** và phía trên có dòng cam
-*"Chưa kết nối được máy chủ — bạn vẫn xem thử được bằng dữ liệu mô phỏng"* thì
-cửa sổ 1 chưa chạy.
+tích** đều **sáng** (bấm được).
+
+Trang chủ hỏi máy chủ đúng một câu (`/health`) và cho **ba câu trả lời khác
+nhau** — đọc câu nào thì làm việc đó:
+
+| Trang hiện gì | Nghĩa là | Việc cần làm |
+|---|---|---|
+| Không có dải cảnh báo nào, hai ô ở thẻ **2** sáng | **SỐNG** — máy chủ chạy, kho dữ liệu bình thường | dùng bình thường |
+| Dải **cam**: *"Máy chủ SỐNG, kho dữ liệu SUY GIẢM"* (kèm nguyên văn lý do máy chủ nói) và chip **KHO SUY GIẢM** ở góc phải thanh trên | **SUY GIẢM** — máy chủ vẫn trả lời nhưng dữ liệu mới có thể không lưu được | xem được, **đừng lên sóng thật**; bật lại cơ sở dữ liệu rồi tải lại trang |
+| Dải **đỏ**: *"Chưa kết nối được máy chủ — bạn vẫn xem thử được bằng dữ liệu mô phỏng"* và chip **MẤT KẾT NỐI** | **CHẾT** — gọi hai lần, 4 giây mỗi lần, đều không ai trả lời | cửa sổ 1 chưa chạy — bật lại nó |
+
+Dòng cam *"Máy chủ đang chạy bình thường nhưng trả lời chậm"* là trạng thái
+**SỐNG**, chỉ là máy chậm — không phải mất kết nối, không cần làm gì.
 
 > ⚠️ **Quan trọng:** dữ liệu hiện đang lưu trong bộ nhớ tạm. **Đóng cửa sổ 1 là
 > mất sạch các phiên đã tạo.** Đây là giới hạn thật, xem mục 8.
@@ -157,8 +167,11 @@ chưa tua thì chưa có số liệu nào để vẽ.
   Phiên mô phỏng không có bình luận nên nó báo *"Chưa có bình luận nào"*. Muốn
   thấy radar có dữ liệu thật, làm Luồng 2.
 
-> **Chữ "PHÁT LẠI DỮ LIỆU THẬT" ở góc phải trên** luôn hiện để bạn không nhầm
-> bản ghi với buổi đang phát trực tiếp.
+> **Chữ ở góc phải trên** luôn hiện để bạn không nhầm bản ghi với buổi đang
+> phát trực tiếp — và nó nói đúng loại dữ liệu đang xem: *"PHÁT LẠI DỮ LIỆU
+> THẬT — ghi ngày …"* khi đọc được bản ghi từ máy chủ, *"PHÁT LẠI DỮ LIỆU MÔ
+> PHỎNG — không phải buổi live thật"* khi máy chủ không gọi được và trang đang
+> chạy bản ghi mẫu ngoại tuyến.
 
 ---
 

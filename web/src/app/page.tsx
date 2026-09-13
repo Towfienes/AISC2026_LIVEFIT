@@ -12,9 +12,12 @@
  *
  * Icon: SVG inline stroke 1.8 — CẤM emoji (spec UI-VISUAL).
  *
- * The API is probed once; when unreachable the doors degrade gracefully:
- * demo switches to the offline mock replay, VOD analysis is disabled with an
- * honest note.
+ * THĂM DÒ MÁY CHỦ (gói B-PROBE, sự cố 13/09/2026): trang hỏi `/health` — chứ
+ * KHÔNG phải `/sessions` — đúng một lần, 4 giây, thử lại một lần, rồi rơi vào
+ * MỘT trong ba trạng thái: SỐNG / SUY GIẢM / CHẾT. Mỗi trạng thái một câu
+ * riêng; câu "Chưa kết nối được máy chủ" chỉ được phép xuất hiện ở trạng thái
+ * CHẾT. Ở trạng thái SUY GIẢM các cửa ĐỌC vẫn mở, cửa GHI bị khoá kèm lý do
+ * thật thay vì để người dùng bấm rồi mất dữ liệu.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -24,10 +27,20 @@ import TopNav from "@/components/TopNav";
 import Button from "@/components/ui/Button";
 import Callout from "@/components/ui/Callout";
 import { fieldCls } from "@/components/ui/field";
-import { getReplayJob, listSessions, seedDemo, submitYoutubeReplay } from "@/lib/api";
+import {
+  PROBE_TIMEOUT_MS,
+  SERVER_STATUS_MESSAGE,
+  getReplayJob,
+  listSessions,
+  probeServer,
+  seedDemo,
+  submitYoutubeReplay,
+} from "@/lib/api";
+import type { ServerProbe } from "@/lib/api";
 import type { ReplayJob } from "@/lib/types";
 
-type ApiProbe = "checking" | "ok" | "down";
+/** "checking" là trạng thái CHƯA BIẾT — không được hiển thị như CHẾT. */
+type ApiProbe = "checking" | "ok" | "degraded" | "down";
 
 const JOB_STATUS_VI: Record<ReplayJob["status"], string> = {
   queued: "Đang xếp hàng…",
@@ -92,6 +105,8 @@ function DoorIcon({ children }: { children: React.ReactNode }) {
 export default function HomePage() {
   const router = useRouter();
   const [api, setApi] = useState<ApiProbe>("checking");
+  /** Kết quả thăm dò đầy đủ — giữ lại để in LÝ DO, không chỉ in màu. */
+  const [probe, setProbe] = useState<ServerProbe | null>(null);
 
   // Cửa 2 — demo 30 giây
   const [demoBusy, setDemoBusy] = useState(false);
@@ -104,22 +119,44 @@ export default function HomePage() {
   const [jobErr, setJobErr] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Probe the API once (2.5 s) — same probe the hooks use.
+  /**
+   * Thăm dò MỘT lần bằng `/health` (KHÔNG dùng `listSessions`: đó là truy vấn
+   * đọc kho, nó treo khi database chết và biến một máy chủ đang sống thành
+   * "chưa kết nối"). `probeServer` đã tự thử lại một lần và không bao giờ ném.
+   */
   useEffect(() => {
     let cancelled = false;
-    listSessions(2500)
-      .then(() => !cancelled && setApi("ok"))
-      .catch(() => !cancelled && setApi("down"));
+    void probeServer().then((p) => {
+      if (cancelled) return;
+      setProbe(p);
+      setApi(p.status);
+    });
     return () => {
       cancelled = true;
     };
   }, []);
 
+  /** Máy chủ đang trả lời (dù kho có suy giảm) — cấm nói "chưa kết nối". */
+  const serverAlive = api === "ok" || api === "degraded";
+
+  /** Vì sao kết luận CHẾT — hết giờ (có thể chỉ là chậm) hay không nối được. */
+  const downDetail =
+    probe?.downKind === "timeout"
+      ? `Máy chủ không trả lời trong ${(PROBE_TIMEOUT_MS / 1000).toFixed(0)} giây ` +
+        `(đã thử ${probe.attempts} lần) — có thể nó đang tắt, hoặc đang quá tải.`
+      : probe?.downKind === "error"
+        ? `Không mở được kết nối tới máy chủ (đã thử ${probe.attempts} lần) — ` +
+          "nhiều khả năng tiến trình API chưa chạy."
+        : null;
+
   // ---- Cửa 2: one-click demo --------------------------------------------
   const startDemo = useCallback(async () => {
     setDemoErr(null);
     if (api !== "ok") {
-      // Offline: open the deterministic mock replay directly.
+      // CHẾT hoặc SUY GIẢM: mở thẳng bản phát lại mô phỏng tất định. Với kho
+      // suy giảm, `seedDemo` ghi dữ liệu vào một cái kho không giữ được — bấm
+      // vào là mất công chờ rồi mất trắng, nên đi đường mô phỏng là trung thực
+      // hơn (và trang đã in rõ vì sao ở dải cảnh báo phía trên).
       router.push("/replay?session=mock-ended-01");
       return;
     }
@@ -152,10 +189,17 @@ export default function HomePage() {
       const { job_id } = await submitYoutubeReplay(u);
       setJobId(job_id);
     } catch {
-      setJobErr("Không gửi được yêu cầu — kiểm tra đường dẫn video và máy chủ.");
+      // Phân biệt "máy chủ từ chối" (nó đang sống — nhiều khả năng link sai)
+      // với "máy chủ không trả lời": hai lỗi khác nhau, hai việc cần làm khác
+      // nhau, không được gộp thành một câu chung chung.
+      setJobErr(
+        serverAlive
+          ? "Máy chủ không nhận yêu cầu — kiểm tra lại đường dẫn: phải là một buổi live YouTube ĐÃ KẾT THÚC."
+          : "Không gửi được yêu cầu vì máy chủ không trả lời — bật lại tiến trình API rồi thử lại.",
+      );
       setSubmitting(false);
     }
-  }, [url]);
+  }, [url, serverAlive]);
 
   // Poll the job every 2 s until done/error.
   const stopped = useRef(false);
@@ -248,9 +292,37 @@ export default function HomePage() {
             ))}
           </div>
 
-          {api === "down" && (
+          {/* BA TRẠNG THÁI, BA CÂU KHÁC NHAU (gói B-PROBE).
+              - SỐNG: không chiếm chỗ; chỉ nói khi máy chủ trả lời CHẬM, vì
+                "chậm" là thông tin hữu ích và KHÔNG phải "chết";
+              - SUY GIẢM: cảnh báo CAM, in nguyên văn lý do của máy chủ;
+              - CHẾT: đỏ, kèm phân biệt hết-giờ / không-nối-được.
+              Trạng thái "checking" không in gì: chưa biết thì chưa nói. */}
+          {api === "ok" && probe?.slow && (
             <Callout tone="warn" slim className="mt-5 inline-flex text-left">
-              Chưa kết nối được máy chủ — bạn vẫn xem thử được bằng dữ liệu mô phỏng.
+              {SERVER_STATUS_MESSAGE.ok} Chỉ có điều nó trả lời chậm (
+              <span className="tnum">{(probe.elapsedMs / 1000).toFixed(1)}</span> giây), nên các
+              trang sẽ tải lâu hơn thường lệ — đây là CHẬM, không phải mất kết nối.
+            </Callout>
+          )}
+
+          {api === "degraded" && (
+            <Callout tone="warn" className="mt-5 max-w-3xl text-left">
+              <strong>Máy chủ SỐNG, kho dữ liệu SUY GIẢM.</strong>{" "}
+              {SERVER_STATUS_MESSAGE.degraded}
+              {probe?.warning ? (
+                <>
+                  {" "}
+                  <span className="text-warn-ink">Máy chủ nói:</span> “{probe.warning}”
+                </>
+              ) : null}
+            </Callout>
+          )}
+
+          {api === "down" && (
+            <Callout tone="critical" className="mt-5 max-w-3xl text-left">
+              {SERVER_STATUS_MESSAGE.down}
+              {downDetail ? <> {downDetail}</> : null}
             </Callout>
           )}
 
@@ -309,10 +381,16 @@ export default function HomePage() {
                   ? "Đang tạo dữ liệu…"
                   : api === "checking"
                     ? "Đang kiểm tra máy chủ…"
-                    : api === "down"
-                      ? "Xem thử với dữ liệu mô phỏng"
-                      : "Bắt đầu xem thử"}
+                    : api === "ok"
+                      ? "Bắt đầu xem thử"
+                      : "Xem thử với dữ liệu mô phỏng"}
               </Button>
+              {api === "degraded" && (
+                <p className="mt-2 text-meta leading-snug text-warn-ink">
+                  Kho đang suy giảm nên bản demo chạy hoàn toàn ngoại tuyến — không ghi gì
+                  xuống máy chủ.
+                </p>
+              )}
               {demoErr && <p className="mt-2 text-meta text-crit-ink">{demoErr}</p>}
             </div>
 
@@ -320,7 +398,7 @@ export default function HomePage() {
             <div
               {...reveal(6)}
               className={`group motion-reveal relative overflow-hidden rounded-2xl border border-hairline bg-gradient-to-b from-raised to-surface p-6 transition-all duration-short4 ease-emphasized hover:-translate-y-0.5 hover:border-s7/40 hover:shadow-[0_12px_40px_-12px_rgba(124,108,255,0.25)] ${
-                api === "down" ? "opacity-60" : ""
+                api === "down" || api === "degraded" ? "opacity-60" : ""
               }`}
             >
               <DoorIcon>
@@ -382,6 +460,20 @@ export default function HomePage() {
                 </div>
               )}
               {jobErr && <p className="mt-2 text-meta text-crit-ink">{jobErr}</p>}
+              {/* Khoá cửa GHI khi kho suy giảm — và nói rõ vì sao. Phân tích
+                  một VOD mất nhiều phút rồi ghi kết quả vào kho; chạy nó trên
+                  một kho không lưu được là hứa hão với người dùng. */}
+              {api === "degraded" && (
+                <p className="mt-2 text-meta leading-snug text-warn-ink">
+                  Tạm khoá: kho dữ liệu đang suy giảm nên kết quả phân tích sẽ không lưu lại
+                  được. Máy chủ vẫn sống — chỉ chờ kho trở lại bình thường rồi dán link.
+                </p>
+              )}
+              {api === "down" && (
+                <p className="mt-2 text-meta leading-snug text-crit-ink">
+                  Tạm khoá: cần máy chủ LiveLift đang chạy để tải và phân tích video.
+                </p>
+              )}
               <p className="mt-3 border-t border-hairline pt-2 text-meta leading-relaxed text-dim">
                 Video của người khác chỉ cho kết quả{" "}
                 <strong className="text-sec">QUAN SÁT</strong> — không phải thí nghiệm.

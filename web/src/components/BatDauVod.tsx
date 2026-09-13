@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import { fieldCls } from "@/components/ui/field";
 import { getReplayJob, submitYoutubeReplay } from "@/lib/api";
+import type { ServerStatus } from "@/lib/api";
 import type { ReplayJob } from "@/lib/types";
 
 const JOB_STATUS_VI: Record<ReplayJob["status"], string> = {
@@ -32,9 +33,15 @@ interface Props {
   label: string;
   /** API có với tới được không — khi không thì ô bị khoá kèm lý do thật. */
   apiUp: boolean;
+  /**
+   * Vì sao ô bị khoá (gói B-PROBE). Trước đây chỉ có `apiUp`, nên MỌI lý do
+   * đều in ra cùng một câu "hiện chưa kết nối được" — kể cả khi máy chủ đang
+   * chạy và chỉ có kho dữ liệu suy giảm. Khoá thì được, nói sai thì không.
+   */
+  server?: "checking" | ServerStatus;
 }
 
-export default function BatDauVod({ label, apiUp }: Props) {
+export default function BatDauVod({ label, apiUp, server = "checking" }: Props) {
   const router = useRouter();
   const [url, setUrl] = useState("");
   const [jobId, setJobId] = useState<string | null>(null);
@@ -145,7 +152,11 @@ export default function BatDauVod({ label, apiUp }: Props) {
       {err && <p className="mt-2 text-meta text-crit-ink">{err}</p>}
       {!apiUp && (
         <p className="mt-2 text-meta font-semibold text-warn-ink">
-          Cần máy chủ LiveLift đang chạy để nạp video — hiện chưa kết nối được.
+          {server === "degraded"
+            ? "Máy chủ VẪN CHẠY nhưng kho dữ liệu đang suy giảm — kết quả nạp video sẽ không lưu lại được, nên tạm khoá."
+            : server === "checking"
+              ? "Đang kiểm tra máy chủ…"
+              : "Cần máy chủ LiveLift đang chạy để nạp video — hiện chưa kết nối được."}
         </p>
       )}
     </div>

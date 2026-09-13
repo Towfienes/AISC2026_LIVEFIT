@@ -16,7 +16,7 @@ BLOCK    ?= 5
 SESSIONS ?= 30
 EFFECT   ?= 0.15
 
-.PHONY: install test test-fast test-slow lint fmt up down logs qc simulate sim-grid sim-icc schedule isolation
+.PHONY: install test test-fast test-slow lint fmt up down logs qc simulate sim-grid sim-icc schedule isolation chay-local gate-css
 
 install:            ## editable install with dev + server + ml extras
 	pip install -e ".[dev,server,ml]"
@@ -65,3 +65,9 @@ schedule:           ## generate a block assignment schedule BEFORE the session
 
 isolation:          ## src/ <-> collectors/ import isolation gate (same as CI)
 	python scripts/check_isolation.py
+
+chay-local:         ## MỘT lệnh: dọn cổng + rác build, chọn kho, bật API + web, kiểm CSS
+	python scripts/chay_local.py
+
+gate-css:           ## cổng chống "trang vỡ vì thiếu CSS": next build thật rồi cân tệp CSS
+	python scripts/gate_css_web.py

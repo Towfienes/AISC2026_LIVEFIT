@@ -37,7 +37,8 @@ import { buttonCls } from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import SectionTitle from "@/components/ui/SectionTitle";
 import StatusMark, { type StatusShape } from "@/components/ui/StatusMark";
-import { listSessions } from "@/lib/api";
+import { probeServer } from "@/lib/api";
+import type { ServerStatus } from "@/lib/api";
 import {
   LEVEL_META,
   LEVEL_ORDER,
@@ -58,7 +59,12 @@ import {
   type When,
 } from "@/lib/batdau";
 
-type ApiProbe = "checking" | "ok" | "down";
+/**
+ * Gói B-PROBE: ba trạng thái, không phải hai. Trang này cũng từng thăm dò bằng
+ * `listSessions(2500)` — truy vấn đọc kho treo 30 giây khi database chết — nên
+ * nó nói "chưa kết nối" y hệt trang chủ trong khi máy chủ vẫn đang trả lời.
+ */
+type ApiProbe = "checking" | ServerStatus;
 
 const LEVEL_TONE: Record<Level, BadgeTone> = {
   khong: "critical",
@@ -174,8 +180,18 @@ function Ladder({ level, ceiling }: { level: Level; ceiling: Level }) {
   );
 }
 
-function ActionButton({ action, apiUp }: { action: Action; apiUp: boolean }) {
-  if (action.kind === "vod") return <BatDauVod label={action.label} apiUp={apiUp} />;
+function ActionButton({
+  action,
+  apiUp,
+  server,
+}: {
+  action: Action;
+  apiUp: boolean;
+  server: ApiProbe;
+}) {
+  if (action.kind === "vod") {
+    return <BatDauVod label={action.label} apiUp={apiUp} server={server} />;
+  }
   return (
     <Link href={action.href} className={`${buttonCls("primary")} mt-3`}>
       {action.label}
@@ -254,9 +270,9 @@ export default function BatDauPage() {
 
   useEffect(() => {
     let cancelled = false;
-    listSessions(2500)
-      .then(() => !cancelled && setApi("ok"))
-      .catch(() => !cancelled && setApi("down"));
+    void probeServer().then((p) => {
+      if (!cancelled) setApi(p.status);
+    });
     return () => {
       cancelled = true;
     };
@@ -393,7 +409,7 @@ export default function BatDauPage() {
               <p className="text-body leading-relaxed text-sec">{outcome.now.body}</p>
               {outcome.now.bullets ? <Bullets items={outcome.now.bullets} /> : null}
               {outcome.now.action ? (
-                <ActionButton action={outcome.now.action} apiUp={apiUp} />
+                <ActionButton action={outcome.now.action} apiUp={apiUp} server={api} />
               ) : null}
             </ResultBlock>
 
@@ -418,7 +434,7 @@ export default function BatDauPage() {
               <p className="text-body leading-relaxed text-sec">{outcome.upgrade.body}</p>
               {outcome.upgrade.bullets ? <Bullets items={outcome.upgrade.bullets} /> : null}
               {outcome.upgrade.action ? (
-                <ActionButton action={outcome.upgrade.action} apiUp={apiUp} />
+                <ActionButton action={outcome.upgrade.action} apiUp={apiUp} server={api} />
               ) : null}
             </ResultBlock>
 

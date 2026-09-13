@@ -3,8 +3,14 @@
 
 # next.js
 /.next/
-# thư mục build của máy chủ dev thứ hai (LIVELIFT_DIST_DIR trong next.config.mjs)
+# Thư mục build của MỌI tiến trình dev/build song song (LIVELIFT_DIST_DIR trong
+# next.config.mjs). Sự cố 13/09/2026: nhiều tiến trình cùng ghi một `.next` làm
+# hỏng thư mục build và trang chủ hiện HTML thô không CSS. Luật từ đó: mỗi tiến
+# trình song song một thư mục riêng — .next-chay-local, .next-gate-css,
+# .next-gate-css-pytest, ...
 /.next-*/
+# ... kể cả tệp rác cùng tiền tố (nhật ký, bản dở) chứ không chỉ thư mục.
+/.next-*
 /out/
 
 # production

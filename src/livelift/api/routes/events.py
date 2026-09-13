@@ -13,10 +13,24 @@ subscribers.
 
 Auth: when the INGEST_TOKEN setting is non-empty, both POST endpoints require
 ``Authorization: Bearer <token>``. Read endpoints stay open.
+
+Kho chết giữa phiên (sự cố 13/09/2026 — gói D-ĐỘ-BỀN). Khi PostgreSQL biến
+mất trong lúc phiên đang phát, mọi lời gọi store ở đây ném lỗi kết nối và
+FastAPI trả một ``500 Internal Server Error`` trống rỗng: người vận hành
+không biết bình luận vừa rồi đã mất hay chưa, còn bộ thu thì không phân biệt
+được "máy chủ hỏng tạm thời" với "payload sai vĩnh viễn". Mọi đường sự kiện
+trong module này vì thế đi qua :func:`storage_guard`, biến lỗi kho thành
+``503`` kèm thông điệp tiếng Việt nói thẳng: **bản ghi này CHƯA ĐƯỢC LƯU**,
+nó đang nằm trong spool của bộ thu, và đây là lệnh nạp bù. 503 (chứ không
+phải 4xx) là quan trọng: :class:`livelift.ingest.base.ApiSink` coi 5xx là lỗi
+tạm thời và giữ bản ghi lại, còn 4xx-payload thì vứt đi.
 """
 
 from __future__ import annotations
 
+import logging
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import timedelta
 from typing import Annotated
 
@@ -29,9 +43,93 @@ from livelift.config import get_settings
 from livelift.ingest.pii import scrub
 from livelift.nlp.intent import classify_with_confidence
 
+logger = logging.getLogger("livelift.api.events")
+
 router = APIRouter()
 
 TICK_S = 30
+
+
+# ---------------------------------------------------------------------------
+# Kho chết giữa phiên: nhận ra, và NÓI RA
+# ---------------------------------------------------------------------------
+
+STORAGE_OUTAGE_STATUS = 503
+"""Mã trả về khi kho không phản hồi. Phải là 5xx: bộ thu chỉ spool (giữ lại)
+những lỗi nó tin là tạm thời."""
+
+_STORAGE_OUTAGE_CLASS_NAMES = frozenset(
+    {
+        # DB-API 2.0: psycopg, psycopg_pool, sqlite3 đều đặt tên lớp như nhau.
+        # So khớp theo TÊN lớp trên cây kế thừa thay vì import psycopg, vì
+        # psycopg là phụ thuộc tùy chọn (extra 'server') — bản cài chỉ chạy
+        # memory không được sập vì một import.
+        "OperationalError",  # mất kết nối, server đóng, pool timeout
+        "InterfaceError",  # connection đã đóng khi đang dùng
+        "PoolClosed",  # psycopg_pool: pool đã đóng
+        "AdminShutdown",  # postgres bị tắt dưới chân (docker stop)
+        "CannotConnectNow",  # postgres đang khởi động lại
+        # Ngoại lệ của CHÍNH tầng kho (gói A-HEALTH, sự cố 13/09/2026):
+        # ``PostgresStore._connection`` nay DỊCH mọi ``OperationalError`` của
+        # driver thành ``StoreUnavailableError`` kèm câu tiếng Việt, nên tên
+        # lớp gốc không còn xuất hiện trên cây kế thừa nữa. Thiếu dòng này thì
+        # một lần PostgreSQL chết thật sẽ KHÔNG được nhận là "kho chết" và bộ
+        # thu mất đường spool — khoá bằng test ở
+        # tests/test_health_su_that.py::test_loi_kho_chet_van_duoc_bo_thu_nhan_ra.
+        "StoreUnavailableError",
+    }
+)
+
+
+def is_storage_outage(exc: BaseException) -> bool:
+    """Lỗi này có phải là "kho không phản hồi" không?
+
+    Phân biệt rất có ý nghĩa: kho chết là lỗi TẠM THỜI (bản ghi phải được giữ
+    lại và nạp bù), còn một bug trong code là lỗi VĨNH VIỄN (phải nổ ra để có
+    người sửa, không được ngụy trang thành 503 rồi để bộ thu gửi lại mãi mãi).
+    """
+    if isinstance(exc, ConnectionError | TimeoutError):
+        return True
+    if isinstance(exc, OSError):  # socket bị cắt giữa chừng
+        return True
+    return any(cls.__name__ in _STORAGE_OUTAGE_CLASS_NAMES for cls in type(exc).__mro__)
+
+
+def storage_outage_detail(what: str, session_id: str) -> str:
+    """Thông điệp tiếng Việt cho người vận hành đang nhìn màn hình lúc 21h."""
+    return (
+        f"KHO DỮ LIỆU KHÔNG PHẢN HỒI — {what} này CHƯA ĐƯỢC LƯU. Bộ thu đang giữ bản ghi "
+        f"trong data/spool/{session_id}.jsonl; sau khi kho sống lại hãy nạp bù bằng: "
+        f"python -m livelift.ingest.spool_replay data/spool/{session_id}.jsonl "
+        f"(gửi lại an toàn nhờ khóa idempotency). Trong lúc chờ, số liệu trên bàn điều "
+        f"khiển là THIẾU — hãy dừng phiên hoặc ghi tay, đừng chạy tiếp trong vô vọng."
+    )
+
+
+@contextmanager
+def storage_guard(what: str, session_id: str) -> Iterator[None]:
+    """Biến lỗi kho thành 503 + tiếng Việt; mọi lỗi khác vẫn nổ nguyên trạng.
+
+    ``what`` là danh từ đi vào câu thông báo ("Bình luận", "Lượt xem"...).
+    """
+    try:
+        yield
+    except HTTPException:
+        raise  # 401/404/409 đã có thông điệp riêng — không nuốt
+    except Exception as exc:
+        if not is_storage_outage(exc):
+            raise  # bug thật phải nổ, không được ngụy trang thành "kho chết"
+        logger.error(
+            "KHO KHÔNG PHẢN HỒI khi ghi/đọc %s của phiên %s (%s) — trả 503, bản ghi CHƯA LƯU",
+            what,
+            session_id,
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=STORAGE_OUTAGE_STATUS,
+            detail=storage_outage_detail(what, session_id),
+            headers={"Retry-After": "5", "X-LiveLift-Storage": "down"},
+        ) from exc
 
 
 def require_ingest_auth(
@@ -67,6 +165,11 @@ def post_comment(session_id: str, body: CommentIn, store: StoreDep) -> CommentOu
     logging; only the scrubbed text exists beyond this function's locals.
     (Ingest already scrubs — running it again here is defense in depth and
     is idempotent.)"""
+    with storage_guard("Bình luận", session_id):
+        return _store_comment(session_id, body, store)
+
+
+def _store_comment(session_id: str, body: CommentIn, store: StoreDep) -> CommentOut:
     session = service.require_session(store, session_id)
     now = service.now_utc()
     ts = body.ts_utc or now
@@ -116,20 +219,21 @@ def post_comment(session_id: str, body: CommentIn, store: StoreDep) -> CommentOu
 
 @router.get("/sessions/{session_id}/comments", response_model=list[CommentOut])
 def list_comments(session_id: str, store: StoreDep) -> list[CommentOut]:
-    service.require_session(store, session_id)
-    return [
-        CommentOut(
-            comment_id=c["comment_id"],
-            session_id=session_id,
-            block_id=c.get("block_id"),
-            ts=c["ts"],
-            text=c["text_scrubbed"],
-            pii_kinds=list(c.get("pii_kinds", [])),
-            intent=c.get("intent_label"),
-            intent_confidence=c.get("intent_confidence"),
-        )
-        for c in store.list_comments(session_id)
-    ]
+    with storage_guard("Danh sách bình luận", session_id):
+        service.require_session(store, session_id)
+        return [
+            CommentOut(
+                comment_id=c["comment_id"],
+                session_id=session_id,
+                block_id=c.get("block_id"),
+                ts=c["ts"],
+                text=c["text_scrubbed"],
+                pii_kinds=list(c.get("pii_kinds", [])),
+                intent=c.get("intent_label"),
+                intent_confidence=c.get("intent_confidence"),
+            )
+            for c in store.list_comments(session_id)
+        ]
 
 
 @router.post(
@@ -138,6 +242,11 @@ def list_comments(session_id: str, store: StoreDep) -> list[CommentOut]:
     dependencies=[IngestAuth],
 )
 def post_tick(session_id: str, body: TickIn, store: StoreDep) -> TickOut:
+    with storage_guard("Lượt xem (tick)", session_id):
+        return _store_tick(session_id, body, store)
+
+
+def _store_tick(session_id: str, body: TickIn, store: StoreDep) -> TickOut:
     session = service.require_session(store, session_id)
     ts = body.ts_utc or service.now_utc()
     # snap to the 30s bucket grid, aligned to session start when live
@@ -165,8 +274,9 @@ def post_tick(session_id: str, body: TickIn, store: StoreDep) -> TickOut:
 
 @router.get("/sessions/{session_id}/ticks", response_model=list[TickOut])
 def list_ticks(session_id: str, store: StoreDep) -> list[TickOut]:
-    service.require_session(store, session_id)
-    return [TickOut(**{**t, "session_id": session_id}) for t in store.list_ticks(session_id)]
+    with storage_guard("Danh sách lượt xem", session_id):
+        service.require_session(store, session_id)
+        return [TickOut(**{**t, "session_id": session_id}) for t in store.list_ticks(session_id)]
 
 
 @router.post(
@@ -182,6 +292,11 @@ def post_reaction(session_id: str, body: ReactionIn, store: StoreDep) -> Reactio
     for who sent the money, only the public amount string. Idempotent on
     (platform, ext_id), like comments — the runner may re-deliver freely.
     """
+    with storage_guard("Tương tác trả phí", session_id):
+        return _store_reaction(session_id, body, store)
+
+
+def _store_reaction(session_id: str, body: ReactionIn, store: StoreDep) -> ReactionOut:
     service.require_session(store, session_id)
     row = {
         "reaction_id": service.new_id(),
@@ -212,17 +327,18 @@ def post_reaction(session_id: str, body: ReactionIn, store: StoreDep) -> Reactio
 
 @router.get("/sessions/{session_id}/reactions", response_model=list[ReactionOut])
 def list_reactions(session_id: str, store: StoreDep) -> list[ReactionOut]:
-    service.require_session(store, session_id)
-    return [
-        ReactionOut(
-            reaction_id=r["reaction_id"],
-            session_id=session_id,
-            ts_utc=r["ts_utc"],
-            kind=r["kind"],
-            amount=r.get("amount"),
-            currency=r.get("currency"),
-            platform=r.get("platform"),
-            ext_id=r.get("ext_id"),
-        )
-        for r in store.list_reactions(session_id)
-    ]
+    with storage_guard("Danh sách tương tác trả phí", session_id):
+        service.require_session(store, session_id)
+        return [
+            ReactionOut(
+                reaction_id=r["reaction_id"],
+                session_id=session_id,
+                ts_utc=r["ts_utc"],
+                kind=r["kind"],
+                amount=r.get("amount"),
+                currency=r.get("currency"),
+                platform=r.get("platform"),
+                ext_id=r.get("ext_id"),
+            )
+            for r in store.list_reactions(session_id)
+        ]

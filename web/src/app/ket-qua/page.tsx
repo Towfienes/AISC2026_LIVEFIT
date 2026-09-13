@@ -598,6 +598,13 @@ export default function KetQuaPage() {
   const [loading, setLoading] = useState(true);
   /** Phiên đã kết thúc — nhóm THẬT/DEMO cho danh sách báo cáo cuối trang. */
   const [endedSessions, setEndedSessions] = useState<SessionSummary[]>([]);
+  /**
+   * RỖNG khác LỖI (gói B-PROBE, sự cố 13/09/2026). Trước đây `listSessions`
+   * hỏng thì danh sách bị đặt về `[]` và cả hai mục "Phiên thật"/"Phiên demo"
+   * biến mất không một lời — người đọc hiểu thành "chưa có phiên nào", trong
+   * khi sự thật là KHÔNG ĐỌC ĐƯỢC. Cờ này bắt trang phải nói ra.
+   */
+  const [sessionsErr, setSessionsErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -623,8 +630,13 @@ export default function KetQuaPage() {
       try {
         const sessions = await listSessions();
         setEndedSessions(sessions.filter((s) => s.status === "ended").reverse());
+        setSessionsErr(null);
       } catch {
         setEndedSessions([]);
+        setSessionsErr(
+          "Không đọc được danh sách phiên — đây là LỖI TẢI DỮ LIỆU, không phải " +
+            "“chưa có phiên nào”. Các phiên đã kết thúc (nếu có) vẫn còn nguyên trên máy chủ.",
+        );
       }
     }
   }, [phien, env]);
@@ -809,7 +821,20 @@ export default function KetQuaPage() {
           </details>
         ) : null}
 
-        {/* ── Báo cáo từng phiên — nhóm THẬT / DEMO theo cờ is_demo ── */}
+        {/* ── Báo cáo từng phiên — nhóm THẬT / DEMO theo cờ is_demo ──
+            Danh sách vắng vì LỖI thì phải nói là lỗi: một khu vực trống lặng
+            lẽ đọc y hệt "không có gì cả", và đó là một câu trả lời sai. */}
+        {!phien && sessionsErr ? (
+          <Callout tone="warn" className="mt-8">
+            {sessionsErr}{" "}
+            <button
+              onClick={() => void load()}
+              className="focus-ring rounded underline underline-offset-2 transition-colors duration-short2 ease-emphasized hover:text-ink"
+            >
+              Thử lại
+            </button>
+          </Callout>
+        ) : null}
         {!phien && realSessions.length > 0 ? (
           <section className="mt-8">
             <SectionTitle meta={`${realSessions.length} phiên`}>Phiên thật</SectionTitle>

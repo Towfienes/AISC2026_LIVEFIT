@@ -31,6 +31,13 @@ export default function ReplayPage() {
   const rec = rp.recording;
   const loading = rp.connection === "connecting" || (rp.sessionId != null && !rec);
   const recordedOn = rec?.session.start_ts ? fmtDateHCM(rec.session.start_ts) : "—";
+  /**
+   * Gói B-PROBE: dải băng vàng trước đây in "PHÁT LẠI DỮ LIỆU THẬT" trong MỌI
+   * trạng thái — kể cả khi trang đang chạy bản ghi mô phỏng vì máy chủ không
+   * gọi được. Trang chủ đưa người dùng sang đúng đường đó khi máy chủ chết
+   * hoặc kho suy giảm, nên câu này phải nói đúng thứ đang nằm trên màn hình.
+   */
+  const isMock = rp.connection === "mock";
 
   return (
     <main className="flex h-screen flex-col gap-3 overflow-hidden bg-page p-3">
@@ -42,13 +49,15 @@ export default function ReplayPage() {
         >
           LiveLift <span className="ml-1 font-normal text-dim">· phát lại phiên</span>
         </Link>
-        {rp.connection === "mock" && <DemoBadge />}
+        {isMock && <DemoBadge />}
         <div className="ml-auto flex min-w-0 items-center gap-2 rounded-md border border-warn/60 bg-warn/10 px-3 py-1">
           <span aria-hidden className="text-warn-ink">
             ⏮
           </span>
           <span className="truncate text-meta font-bold tracking-wide text-warn-ink">
-            PHÁT LẠI DỮ LIỆU THẬT — ghi ngày {recordedOn}
+            {isMock
+              ? "PHÁT LẠI DỮ LIỆU MÔ PHỎNG — không phải buổi live thật"
+              : `PHÁT LẠI DỮ LIỆU THẬT — ghi ngày ${recordedOn}`}
           </span>
         </div>
         {/* Gói UI-KOL: người bán đang xem lại buổi live thường muốn biết

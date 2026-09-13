@@ -44,6 +44,19 @@ this task's heartbeat, so it fires even when the executor is switched off or
 never started — the silent-zero-compliance failure must be loud no matter why
 it happened.
 
+Kho chết giữa phiên (sự cố 13/09/2026 — gói D-ĐỘ-BỀN). Trước gói này, một
+``OperationalError`` từ store rơi vào ``except Exception`` của vòng quét, in
+một dòng traceback rồi **quét tiếp như không có gì**: cứ 5 giây một lần, im
+lặng, trong khi hết khối BẬT này đến khối BẬT khác trôi qua không ai ghim.
+Kết quả là một bản ghi tuân thủ SAI — báo cáo sẽ nói "khối 3, 4, 5 không tuân
+thủ" như thể đội vận hành lười, trong khi thật ra là cơ sở dữ liệu đã chết.
+Từ nay: lỗi kho làm vòng quét **DỪNG NGAY** (không xử lý nốt phiên nào khác,
+không ghim nửa vời khi chưa đọc được bảng phơi nhiễm), ghi lại cửa sổ chết
+(:func:`storage_outage`), và bắn một báo động tiếng Việt lên
+``GET /sessions/{id}/state`` — báo động ĐỨNG LẠI cả sau khi kho sống lại, vì
+những khối BẬT đã trôi qua trong lúc đó không ghim bù được và người đọc báo
+cáo phải biết vì sao.
+
 Known limitation — one process only. The loop lives inside the API process.
 Run the API with a single worker (the project's docker/compose setup does).
 With several uvicorn workers each process would run its own loop; the
@@ -146,6 +159,126 @@ def heartbeat(session_id: str) -> Heartbeat:
 def reset_heartbeats() -> None:
     """Drop all heartbeat state (tests; process restart semantics)."""
     _HEARTBEATS.clear()
+    global _OUTAGE
+    _OUTAGE = None
+
+
+# ---------------------------------------------------------------------------
+# Kho chết giữa phiên — DỪNG và BÁO ĐỘNG, không im lặng bỏ khối BẬT
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class StorageOutage:
+    """Một cửa sổ thời gian kho dữ liệu không phản hồi.
+
+    Sống ở phạm vi tiến trình chứ không theo phiên: kho chết thì chết cho mọi
+    phiên cùng lúc, và bộ thực thi cũng chỉ có một.
+    """
+
+    since: datetime
+    error: str
+    sweeps_blocked: int = 1
+    resumed_at: datetime | None = None
+
+    @property
+    def active(self) -> bool:
+        return self.resumed_at is None
+
+
+_OUTAGE: StorageOutage | None = None
+
+ALARM_REPEAT_SWEEPS = 12
+"""Nhắc lại báo động sau mỗi chừng này vòng quét (≈60 giây ở nhịp mặc định 5s):
+đủ để không ai bỏ lỡ, không đủ để ngập log."""
+
+
+def storage_outage() -> StorageOutage | None:
+    """Cửa sổ kho chết gần nhất của tiến trình này (None nếu chưa từng có)."""
+    return _OUTAGE
+
+
+def is_storage_outage(exc: BaseException) -> bool:
+    """Ủy quyền cho bộ phân loại của đường ghi sự kiện — một định nghĩa duy
+    nhất cho "kho chết", để route và bộ thực thi không bao giờ bất đồng ý kiến
+    về việc chuyện gì vừa xảy ra.
+
+    Import muộn: :mod:`livelift.api.routes.events` là tầng route, module này là
+    tác vụ nền; import ở phạm vi hàm giữ chiều phụ thuộc sạch và loại hẳn rủi
+    ro vòng import khi thứ tự nạp module đổi.
+    """
+    from livelift.api.routes.events import is_storage_outage as _classify
+
+    return _classify(exc)
+
+
+def note_storage_outage(exc: BaseException, now: datetime) -> StorageOutage:
+    """Ghi nhận kho chết và hét lên (lần đầu, rồi nhắc lại đều đặn)."""
+    global _OUTAGE
+    error = type(exc).__name__
+    if _OUTAGE is None or not _OUTAGE.active:
+        _OUTAGE = StorageOutage(since=now, error=error)
+        logger.error(
+            "BÁO ĐỘNG: bộ thực thi tự động ĐÃ DỪNG — kho dữ liệu không phản hồi (%s). "
+            "Không khối BẬT nào được ghim cho tới khi kho sống lại, và các khối trôi qua "
+            "trong lúc này KHÔNG ghim bù được (sẽ bị tính là không tuân thủ). "
+            "Kiểm tra cơ sở dữ liệu NGAY, hoặc ghim tay và ghi lại vào nhật ký phiên.",
+            error,
+        )
+        return _OUTAGE
+    _OUTAGE.sweeps_blocked += 1
+    _OUTAGE.error = error
+    if _OUTAGE.sweeps_blocked % ALARM_REPEAT_SWEEPS == 0:
+        logger.error(
+            "BÁO ĐỘNG (vẫn đang tiếp diễn): kho dữ liệu không phản hồi từ %s UTC — "
+            "%d vòng quét bị bỏ, %s.",
+            _OUTAGE.since.strftime("%H:%M:%S"),
+            _OUTAGE.sweeps_blocked,
+            error,
+        )
+    return _OUTAGE
+
+
+def clear_storage_outage(now: datetime) -> None:
+    """Một vòng quét trọn vẹn = kho sống. Đóng cửa sổ, nhưng GIỮ lại dấu vết."""
+    global _OUTAGE
+    if _OUTAGE is None or not _OUTAGE.active:
+        return
+    _OUTAGE.resumed_at = now
+    logger.warning(
+        "Kho dữ liệu phản hồi trở lại lúc %s UTC (chết từ %s UTC, %d vòng quét bị bỏ) — "
+        "bộ thực thi tự động chạy lại. Khối BẬT trôi qua trong khoảng đó KHÔNG ghim bù được.",
+        now.strftime("%H:%M:%S"),
+        _OUTAGE.since.strftime("%H:%M:%S"),
+        _OUTAGE.sweeps_blocked,
+    )
+
+
+def storage_alarm() -> str | None:
+    """Câu báo động tiếng Việt về kho, cho bàn điều khiển.
+
+    Vẫn trả về một câu SAU KHI kho sống lại: người vận hành có thể đang đi pha
+    trà lúc sự cố xảy ra, và khoảng trống tuân thủ trong báo cáo phải có lời
+    giải thích đi kèm chứ không để người đọc tự suy diễn.
+    """
+    outage = _OUTAGE
+    if outage is None:
+        return None
+    if outage.active:
+        return (
+            f"BÁO ĐỘNG: bộ thực thi tự động ĐÃ DỪNG vì kho dữ liệu không phản hồi "
+            f"(từ {outage.since.strftime('%H:%M:%S')} UTC, lỗi {outage.error}, "
+            f"{outage.sweeps_blocked} vòng quét bị bỏ). Không có khối BẬT nào được ghim "
+            f"trong lúc này và cũng KHÔNG ghim bù được. Sửa cơ sở dữ liệu ngay, hoặc dừng "
+            f"phiên — chạy tiếp chỉ tạo thêm khối không tuân thủ."
+        )
+    return (
+        f"CẢNH BÁO: kho dữ liệu đã chết từ {outage.since.strftime('%H:%M:%S')} đến "
+        f"{outage.resumed_at.strftime('%H:%M:%S') if outage.resumed_at else '?'} UTC "
+        f"({outage.sweeps_blocked} vòng quét bị bỏ, lỗi {outage.error}); bộ thực thi tự động "
+        f"đã chạy lại. Các khối BẬT trôi qua trong khoảng đó KHÔNG ghim bù được và sẽ được "
+        f"tính là KHÔNG tuân thủ — ghi rõ lý do này vào nhật ký phiên."
+    )
 
 
 LOG_KEEP = 50
@@ -274,6 +407,10 @@ class AutopilotView:
     missed_on_blocks: tuple[int, ...]
     last_error: str | None
     alarm: str | None
+    storage_outage: StorageOutage | None = None
+    """Cửa sổ kho chết (đang diễn ra hoặc đã qua). Nội dung của nó cũng nằm
+    trong ``alarm``/``last_error`` để bàn điều khiển thấy mà không cần trường
+    mới trong schema."""
 
 
 def view(
@@ -287,6 +424,11 @@ def view(
     hb = _HEARTBEATS.get(str(session.get("session_id")), Heartbeat())
     on_blocks = _measurement_on_blocks(blocks)
     handled = handled_block_indices(exposure_events)
+    # Kho chết đứng TRƯỚC báo động im lặng: khi cả hai cùng đúng, nguyên nhân
+    # phải đọc được trước hậu quả ("chưa ghim gì" là hệ quả của "kho chết").
+    kho = storage_alarm()
+    im_lang = silence_alarm(session, blocks, exposure_events, elapsed_s)
+    alarm = " ".join(p for p in (kho, im_lang) if p) or None
     return AutopilotView(
         enabled=is_enabled(),
         last_run_ts=hb.last_run_ts,
@@ -294,8 +436,16 @@ def view(
         on_blocks_total=len(on_blocks),
         on_blocks_done=sum(1 for b in on_blocks if int(b["block_index"]) in handled),
         missed_on_blocks=tuple(missed_on_blocks(blocks, exposure_events, elapsed_s)),
-        last_error=hb.last_error,
-        alarm=silence_alarm(session, blocks, exposure_events, elapsed_s),
+        last_error=(
+            hb.last_error
+            or (
+                f"kho dữ liệu không phản hồi: {_OUTAGE.error}"
+                if _OUTAGE is not None and _OUTAGE.active
+                else None
+            )
+        ),
+        alarm=alarm,
+        storage_outage=_OUTAGE,
     )
 
 
@@ -351,7 +501,12 @@ def step_session(store: Store, session: dict[str, Any], now: datetime) -> str | 
             _remember(hb, message)
         hb.last_error = str(exc.detail)
         return message
-    except Exception as exc:  # pragma: no cover - defensive: never kill the loop
+    except Exception as exc:
+        if is_storage_outage(exc):
+            # KHÔNG nuốt: kho chết thì cả vòng quét phải dừng (xem step_all).
+            # Nuốt ở đây là đúng cách sinh ra bản ghi tuân thủ sai — phiên chạy
+            # tiếp, khối BẬT trôi qua, và không ai được báo.
+            raise
         hb.last_error = repr(exc)
         logger.exception("Bộ thực thi tự động gặp lỗi không lường trước ở phiên %s", session_id)
         return None
@@ -382,13 +537,26 @@ def step_session(store: Store, session: dict[str, Any], now: datetime) -> str | 
 
 
 def step_all(store: Store, now: datetime | None = None) -> list[str]:
-    """One sweep over every live auto session. Returns the log lines produced."""
+    """One sweep over every live auto session. Returns the log lines produced.
+
+    Kho chết = DỪNG NGAY giữa vòng quét. Không xử lý nốt các phiên còn lại:
+    một store nửa sống nửa chết có thể trả được danh sách phiên nhưng không
+    trả được bảng phơi nhiễm, và ghim khi chưa đọc được phơi nhiễm là ghim đè
+    lên việc người thật vừa làm. Thà không làm gì và hét lên.
+    """
     moment = now if now is not None else service.now_utc()
     lines: list[str] = []
-    for session in auto_sessions(store):
-        line = step_session(store, session, moment)
-        if line:
-            lines.append(line)
+    try:
+        for session in auto_sessions(store):
+            line = step_session(store, session, moment)
+            if line:
+                lines.append(line)
+    except Exception as exc:
+        if not is_storage_outage(exc):
+            raise
+        note_storage_outage(exc, moment)
+        return lines
+    clear_storage_outage(moment)  # quét trọn vẹn một vòng = kho đang sống
     return lines
 
 

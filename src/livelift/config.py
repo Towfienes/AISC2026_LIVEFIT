@@ -36,6 +36,33 @@ class Settings(BaseSettings):
     # tự luôn chụp lần cuối nên không mất gì.
     store_snapshot_interval_s: float = 30.0
 
+    # --- Hạn giờ khi cơ sở dữ liệu chết (sự cố 13/09/2026) ----------------
+    # Ngày 13/09/2026 PostgreSQL chết hẳn giữa lúc hệ thống đang chạy. Mỗi lần
+    # gọi GET /sessions treo ĐÚNG 30 GIÂY rồi trả "Internal Server Error" trần
+    # (30s là ConnectionPool.timeout mặc định của psycopg_pool), còn /health thì
+    # vẫn báo xanh vì nó chưa bao giờ hỏi cơ sở dữ liệu lấy một câu. Trang web
+    # đặt hạn 2,5 giây cho phép thử nên nó luôn thất bại và báo "Chưa kết nối
+    # được máy chủ" NGAY CẢ KHI API còn sống.
+    #
+    # Bốn hạn giờ dưới đây là bốn pha khác nhau, không thay được cho nhau:
+    #   connect   — bắt tay TCP/TLS với máy chủ (libpq mặc định: chờ VÔ HẠN);
+    #   pool      — chờ pool cấp một kết nối (mặc định 30,0 = con số đã đếm);
+    #   statement — chờ máy chủ chạy xong truy vấn đã cầm được kết nối;
+    #   ping      — hạn riêng, ngắn hơn, cho lần hỏi thăm của /health.
+    # Hạn pool để 2,0 giây — NGẮN HƠN hạn 2,5 giây trang web đặt cho mỗi lời
+    # gọi: máy chủ trả lời sau khi client đã bỏ cuộc thì câu 503 tiếng Việt
+    # không đến được mắt ai.
+    # libpq làm tròn connect_timeout < 2 lên 2 giây, nên 1 là vô nghĩa.
+    store_connect_timeout_s: int = 3
+    store_pool_timeout_s: float = 2.0
+    store_statement_timeout_s: float = 8.0
+    health_ping_timeout_s: float = 1.5
+    # Trang web hỏi /health liên tục (nhiều tab, mỗi vài giây). Không đệm thì
+    # chính cái đồng hồ đo sức khỏe lại đấm vào cơ sở dữ liệu. 5 giây: người
+    # vận hành thấy DB chết gần như tức thì, mà 20 tab không thành 20 lần kết
+    # nối mỗi giây. Đặt 0 để tắt đệm (ping thật ở mọi lần gọi).
+    health_ping_cache_s: float = 5.0
+
     # Shared secret for the write endpoints POST /sessions/{id}/comments and
     # /ticks. Empty (default) = auth disabled (dev/demo). When set, ApiSink
     # attaches "Authorization: Bearer <token>" automatically.

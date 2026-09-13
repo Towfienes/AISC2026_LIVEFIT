@@ -77,9 +77,22 @@ async def _heartbeat(
     c: Counters,
     client: PlatformClient | None = None,
     every_s: float = HEARTBEAT_EVERY_S,
+    sink: IngestSink | None = None,
 ) -> None:
     while True:
         await asyncio.sleep(every_s)
+        # Kho chết giữa phiên (13/09): nếu API/kho không nhận nữa, sink ghi
+        # thẳng vào spool và vòng đọc vẫn chạy êm — đúng cái làm sự cố trở
+        # nên VÔ HÌNH. Heartbeat phải hét lên đều đặn, vì đây là dòng log duy
+        # nhất người vận hành còn nhìn khi mọi thứ khác trông vẫn bình thường.
+        if getattr(sink, "spool_mode", False):
+            logger.error(
+                "BÁO ĐỘNG: máy chủ/kho KHÔNG nhận dữ liệu — %d bản ghi đang nằm trong %s, "
+                "CHƯA có trong cơ sở dữ liệu. Sửa kho xong phải nạp bù: %s",
+                getattr(sink, "spooled", 0),
+                getattr(sink, "spool_path", "?"),
+                getattr(sink, "replay_command", "python -m livelift.ingest.spool_replay <file>"),
+            )
         # The platform client records its most recent poll error (None when
         # healthy) — surfacing it here means a stuck loop (expired token,
         # exhausted quota) is visible in every heartbeat, not only in the
@@ -88,16 +101,24 @@ async def _heartbeat(
         # warning for the *other* way a session dies: hitting the rate limit.
         last_error = getattr(client, "last_error", None)
         usage_pct = getattr(client, "last_usage_pct", None)
+        spooled = getattr(sink, "spooled", 0)
+        dropped = getattr(sink, "dropped", 0)
         logger.info(
             "heartbeat: comments seen=%d posted=%d | ticks seen=%d posted=%d | failures=%d"
-            " | tải API: %s | lỗi gần nhất: %s",
+            " | tải API: %s | spool: %s | mất hẳn: %d | lỗi gần nhất: %s",
             c.comments_seen,
             c.comments_posted,
             c.ticks_seen,
             c.ticks_posted,
             c.post_failures,
             "không rõ" if usage_pct is None else f"{usage_pct:.0f}%",
-            last_error or "không có",
+            (
+                f"{spooled} bản ghi chờ nạp bù"
+                if spooled
+                else "không có (máy chủ đang nhận bình thường)"
+            ),
+            dropped,
+            last_error or getattr(sink, "last_error", None) or "không có",
         )
 
 
@@ -153,7 +174,7 @@ async def _run(platform: str, source_id: str, session_id: str, api_url: str) -> 
     tasks = [
         asyncio.create_task(_pump_comments(client, source_id, sink, counters), name="comments"),
         asyncio.create_task(_pump_ticks(client, source_id, sink, counters), name="ticks"),
-        asyncio.create_task(_heartbeat(counters, client), name="heartbeat"),
+        asyncio.create_task(_heartbeat(counters, client, sink=sink), name="heartbeat"),
     ]
     try:
         # First finished pump task ends the run (heartbeat never finishes on
@@ -179,6 +200,17 @@ async def _run(platform: str, source_id: str, session_id: str, api_url: str) -> 
             counters.ticks_posted,
             counters.post_failures,
         )
+        # Kết thúc phiên mà spool còn bản ghi = cơ sở dữ liệu đang THIẾU dữ
+        # liệu của chính phiên vừa chạy. Không được để dòng cuối cùng của
+        # runner nói "xong" khi chưa xong.
+        if sink.spooled:
+            logger.error(
+                "CHƯA XONG: %d bản ghi của phiên này nằm trong %s và CHƯA vào cơ sở dữ liệu. "
+                "Chạy ngay sau khi kho sống lại: %s",
+                sink.spooled,
+                sink.spool_path,
+                sink.replay_command,
+            )
 
 
 def build_parser() -> argparse.ArgumentParser:

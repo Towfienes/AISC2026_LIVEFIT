@@ -139,6 +139,203 @@ export function getHealth(timeoutMs?: number): Promise<HealthInfo> {
   return request<HealthInfo>("/health", { timeoutMs });
 }
 
+// ---------------------------------------------------------------------------
+// THĂM DÒ MÁY CHỦ — SỐNG / SUY GIẢM / CHẾT (gói B-PROBE)
+//
+// Sự cố 13/09/2026: trang chủ hỏi "máy chủ còn sống không" bằng `listSessions`,
+// tức bằng một truy vấn ĐỌC KHO. Khi PostgreSQL chết, `GET /sessions` treo 30
+// giây rồi trả 500, nên probe 2,5 giây LUÔN hết giờ và trang in "Chưa kết nối
+// được máy chủ" TRONG KHI API vẫn đang chạy và trả lời. Ba lỗi trong một:
+//   (a) hỏi sai câu hỏi — một endpoint nặng không trả lời được câu "còn sống
+//       không"; câu đó thuộc về `/health`, endpoint rẻ nhất và là nơi máy chủ
+//       TỰ KHAI trạng thái an toàn dữ liệu của mình;
+//   (b) chỉ có hai trạng thái (sống/chết) cho một thế giới có ba — máy chủ
+//       chạy nhưng kho hỏng là trạng thái RIÊNG, phải nói riêng;
+//   (c) 2,5 giây quá ngắn cho máy dev lạnh, nên CHẬM bị kết luận nhầm là CHẾT.
+//
+// Luật bất di bất dịch: hễ máy chủ đã trả lời thì KHÔNG BAO GIỜ được nói
+// "chưa kết nối được" — nói sai trạng thái còn tệ hơn không nói gì.
+// ---------------------------------------------------------------------------
+
+export type ServerStatus = "ok" | "degraded" | "down";
+
+/**
+ * 4 giây. Máy dev lạnh biên dịch trang đầu rất chậm và `next dev` có thể giữ
+ * request đầu tiên vài giây — 2,5 giây cắt nhầm một máy chủ hoàn toàn khoẻ.
+ */
+export const PROBE_TIMEOUT_MS = 4000;
+/** Thử lại ĐÚNG một lần trước khi dám tuyên bố CHẾT. */
+export const PROBE_ATTEMPTS = 2;
+/** Nghỉ giữa hai lần thử — đủ cho một cú nấc mạng, không đủ để người dùng chờ. */
+const PROBE_RETRY_DELAY_MS = 300;
+/** Trả lời được nhưng lâu hơn ngưỡng này là CHẬM — vẫn sống, không phải chết. */
+export const PROBE_SLOW_MS = 1500;
+
+export interface ServerProbe {
+  /** SỐNG / SUY GIẢM / CHẾT — ba trạng thái, không phải hai. */
+  status: ServerStatus;
+  /** Thân `/health` khi đọc được; null khi máy chủ không trả lời hoặc trả rác. */
+  health: HealthInfo | null;
+  /** Lý do suy giảm, ưu tiên NGUYÊN VĂN câu tiếng Việt của máy chủ. */
+  warning: string | null;
+  /** Vì sao kết luận CHẾT: hết giờ chờ hay không nối được. Null khi còn sống. */
+  downKind: "timeout" | "error" | null;
+  /** Mã HTTP nhận được (kể cả 5xx — máy chủ trả 500 vẫn là máy chủ đang sống). */
+  httpStatus: number | null;
+  /** Tổng thời gian chờ, tính cả lần thử lại. */
+  elapsedMs: number;
+  /** Số lần đã gọi `/health`. */
+  attempts: number;
+  /** Sống nhưng chậm hơn `PROBE_SLOW_MS` — để UI nói "chậm", không nói "chết". */
+  slow: boolean;
+}
+
+/**
+ * MỘT câu cho MỖI trạng thái. Ba câu phải khác nhau: người vận hành đọc câu
+ * này để quyết định có lên sóng hay không.
+ *
+ * Câu "Chưa kết nối được máy chủ" CHỈ được phép nằm ở nhánh `down` — đó chính
+ * là câu đã nói dối trong sự cố 13/09.
+ */
+export const SERVER_STATUS_MESSAGE: Record<ServerStatus, string> = {
+  ok: "Máy chủ đang chạy bình thường — mọi chức năng sẵn sàng.",
+  degraded:
+    "Máy chủ vẫn chạy nhưng KHO DỮ LIỆU ĐANG SUY GIẢM — xem được số liệu hiện có, " +
+    "nhưng dữ liệu mới có thể KHÔNG LƯU LẠI ĐƯỢC. Đừng lên sóng thật cho tới khi kho trở lại bình thường.",
+  down: "Chưa kết nối được máy chủ — bạn vẫn xem thử được bằng dữ liệu mô phỏng.",
+};
+
+/**
+ * Phân loại một câu trả lời `/health` thành SỐNG hay SUY GIẢM.
+ *
+ * Không bao giờ trả "down" ở đây: hàm này chỉ chạy khi máy chủ ĐÃ trả lời.
+ *
+ * Nguồn sự thật là chính máy chủ (`status`), không phải suy đoán của web. Hai
+ * trường hợp web tự kết luận được, vì cả hai đều là sự thật kiểm chứng được
+ * ngay trong payload:
+ *   - máy chủ trả lời nhưng thân không đọc được → không xác nhận được gì;
+ *   - kho là RAM trần KHÔNG ảnh chụp → khởi động lại là mất sạch (đúng cách
+ *     13 phiên thật biến mất ngày 11/09/2026).
+ * `memory+snapshot` KHÔNG bị tính là suy giảm: nó có `durable=false` nhưng vẫn
+ * sống sót qua một lần khởi động lại, và đó là chế độ demo bình thường.
+ */
+export function serverStatusOf(health: HealthInfo | null, httpStatus: number): "ok" | "degraded" {
+  if (health == null) return "degraded";
+  const declared = typeof health.status === "string" ? health.status.trim().toLowerCase() : "";
+  if (declared && declared !== "ok") return "degraded";
+  if (httpStatus >= 400) return "degraded";
+  if (health.durable === false && health.storage_mode === "memory" && health.snapshot == null) {
+    return "degraded";
+  }
+  return "ok";
+}
+
+/** Lý do suy giảm — câu của máy chủ trước, câu của web chỉ là phương án cuối. */
+function degradedWarning(health: HealthInfo | null, httpStatus: number): string {
+  const w = health?.storage_warning;
+  if (typeof w === "string" && w.trim()) return w.trim();
+  if (health == null) {
+    return (
+      `Máy chủ trả lời (HTTP ${httpStatus}) nhưng /health không đọc được — ` +
+      "không xác nhận được kho dữ liệu có an toàn hay không."
+    );
+  }
+  const declared = typeof health.status === "string" ? health.status.trim() : "";
+  if (declared && declared.toLowerCase() !== "ok") {
+    return `Máy chủ tự khai trạng thái "${declared}" — kho dữ liệu không ở mức bình thường.`;
+  }
+  if (httpStatus >= 400) {
+    return `Máy chủ trả HTTP ${httpStatus} cho /health — nó còn sống nhưng đang có sự cố.`;
+  }
+  return (
+    "Kho dữ liệu chỉ nằm trong RAM và KHÔNG có ảnh chụp: khởi động lại tiến trình là " +
+    "mất sạch mọi phiên."
+  );
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Một lần gọi `/health`. Không bao giờ ném — kết quả LUÔN là một trạng thái. */
+async function probeOnce(timeoutMs: number): Promise<ServerProbe> {
+  const ctrl = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    ctrl.abort();
+  }, timeoutMs);
+  const t0 = Date.now();
+  try {
+    // Đọc thẳng bằng fetch thay vì `getHealth`: `request` ném khi mã HTTP khác
+    // 2xx, mà một máy chủ trả 503 vì kho hỏng vẫn là máy chủ ĐANG SỐNG — gọi
+    // nó là "chưa kết nối" chính là lời nói dối cần diệt.
+    const res = await fetch(`${API_BASE}/health`, {
+      signal: ctrl.signal,
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+    });
+    let health: HealthInfo | null = null;
+    try {
+      const body: unknown = await res.json();
+      if (body && typeof body === "object") health = body as HealthInfo;
+    } catch {
+      health = null; // thân không phải JSON — máy chủ sống nhưng không khai được
+    }
+    const status = serverStatusOf(health, res.status);
+    const elapsedMs = Date.now() - t0;
+    return {
+      status,
+      health,
+      warning: status === "degraded" ? degradedWarning(health, res.status) : null,
+      downKind: null,
+      httpStatus: res.status,
+      elapsedMs,
+      attempts: 1,
+      slow: elapsedMs >= PROBE_SLOW_MS,
+    };
+  } catch {
+    return {
+      status: "down",
+      health: null,
+      warning: null,
+      downKind: timedOut ? "timeout" : "error",
+      httpStatus: null,
+      elapsedMs: Date.now() - t0,
+      attempts: 1,
+      slow: false,
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Câu hỏi "máy chủ còn sống không" — hỏi `/health`, thử lại một lần, trả về
+ * MỘT trong ba trạng thái. Không bao giờ ném.
+ */
+export async function probeServer(
+  opts: { timeoutMs?: number; attempts?: number } = {},
+): Promise<ServerProbe> {
+  const timeoutMs = opts.timeoutMs ?? PROBE_TIMEOUT_MS;
+  const maxAttempts = Math.max(1, opts.attempts ?? PROBE_ATTEMPTS);
+  let result = await probeOnce(timeoutMs);
+  let used = 1;
+  let total = result.elapsedMs;
+  while (result.status === "down" && used < maxAttempts) {
+    await sleep(PROBE_RETRY_DELAY_MS);
+    result = await probeOnce(timeoutMs);
+    used += 1;
+    total += result.elapsedMs + PROBE_RETRY_DELAY_MS;
+  }
+  return {
+    ...result,
+    attempts: used,
+    elapsedMs: total,
+    slow: result.status !== "down" && total >= PROBE_SLOW_MS,
+  };
+}
+
 export function getState(sessionId: string): Promise<SessionState> {
   return request<SessionState>(`/sessions/${sessionId}/state?role=operator`);
 }

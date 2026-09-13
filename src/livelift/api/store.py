@@ -51,7 +51,9 @@ import json
 import logging
 import os
 import threading
+import time
 import uuid
+import weakref
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -75,6 +77,47 @@ def _norm_value(v: Any) -> Any:
 
 def _norm_row(row: dict[str, Any]) -> dict[str, Any]:
     return {k: _norm_value(v) for k, v in row.items()}
+
+
+# ---------------------------------------------------------------------------
+# Hạn giờ — sự cố 13/09/2026 ("API treo 30 giây khi PostgreSQL chết")
+# ---------------------------------------------------------------------------
+#
+# Khi cơ sở dữ liệu chết, mọi lần đọc kho đứng im đúng 30 giây rồi trả
+# "Internal Server Error" trần: đó là ``ConnectionPool.timeout`` mặc định của
+# psycopg_pool. Trang web đặt hạn 2,5 giây cho phép thử nên nó luôn thất bại và
+# báo "Chưa kết nối được máy chủ" NGAY CẢ KHI API còn sống. Bốn con số dưới đây
+# là ranh giới giữa "hỏng nhanh, nói rõ" và "treo im lặng".
+#
+# Vì sao là các con số này (đo trên máy chạy demo, cổng không ai nghe):
+#   - connect_timeout=3  → libpq bỏ cuộc sau ~3,0s (đo được 3,013s). Đây là
+#     tham số duy nhất cứu được trường hợp máy chủ *nuốt gói* (không refuse),
+#     mà mặc định của libpq là chờ VÔ HẠN.
+#   - pool timeout=2,0s  → lấy kết nối từ pool hỏng bật lỗi sau ~2,0s thay vì
+#     30s. Cố ý NGẮN HƠN hạn 2,5 giây mà trang web đặt cho mỗi lời gọi: máy chủ
+#     trả lời sau khi client đã bỏ cuộc thì câu 503 tiếng Việt viết kỹ đến mấy
+#     cũng không ai đọc được, người dùng chỉ thấy "không kết nối được máy chủ"
+#     — đúng cái nhầm lẫn API-chết-hay-DB-chết của ngày 13/09.
+#   - statement_timeout=8s → chặn truy vấn đã cầm được kết nối nhưng chạy mãi
+#     (khóa bảng, máy chủ lết). Phải LỚN HƠN pool timeout: nó bảo vệ pha khác,
+#     và một truy vấn thật trên phiên live có thể chạy vài giây.
+#   - ping 1,5s          → /health phải trả lời dưới 3 giây kể cả khi kho chết,
+#     nên lần thử kết nối của nó phải ngắn hơn hẳn hạn của route thường.
+#
+# libpq làm tròn connect_timeout < 2 lên 2 giây, nên đừng đặt 1.
+DEFAULT_CONNECT_TIMEOUT_S = 3
+DEFAULT_POOL_TIMEOUT_S = 2.0
+DEFAULT_STATEMENT_TIMEOUT_S = 8.0
+DEFAULT_PING_TIMEOUT_S = 1.5
+# Kết quả ping được nhớ trong ngần này giây. Trang web hỏi /health liên tục
+# (mỗi vài giây, nhiều tab); nếu mỗi lần hỏi là một lần mở kết nối thì chính
+# cái đồng hồ đo sức khỏe lại đấm vào cơ sở dữ liệu. 5 giây đủ ngắn để người
+# vận hành thấy DB chết gần như tức thì, đủ dài để 20 tab không thành 20 lần
+# kết nối mỗi giây.
+DEFAULT_PING_CACHE_S = 5.0
+# Đóng pool khi DB đã chết: mỗi luồng nền của psycopg_pool bị chờ đủ `timeout`
+# giây (mặc định 5,0 × số luồng) nên tắt máy sạch cũng mất hàng chục giây.
+DEFAULT_CLOSE_TIMEOUT_S = 1.0
 
 
 # ---------------------------------------------------------------------------
@@ -150,6 +193,27 @@ class ShortlinkCodeTakenError(Exception):
     an experiment-integrity bug. Both store backends must therefore REJECT a
     duplicate code rather than replace it; the API turns this into a 409.
     """
+
+
+class StoreUnavailableError(RuntimeError):
+    """Kho dữ liệu KHÔNG trả lời (sự cố 13/09/2026).
+
+    Ngày 13/09/2026 PostgreSQL chết hẳn giữa phiên. Mỗi lần đọc kho treo đúng
+    30 giây (thời gian chờ mặc định của ``ConnectionPool``) rồi bật lên thành
+    ``Internal Server Error`` trần — không ai đọc ra được là *cơ sở dữ liệu đã
+    chết*. Ngoại lệ này là câu trả lời có nghĩa: mọi lỗi kết nối/hết giờ của
+    tầng Postgres được dịch sang đây kèm câu tiếng Việt, và ``main.py`` biến nó
+    thành HTTP 503 có thân đọc được thay vì 500 trống.
+
+    ``message`` là câu tiếng Việt cho người vận hành; ``cause_text`` giữ nguyên
+    văn lỗi của driver để log/gỡ rối — không được ném nguyên văn đó ra cho
+    người dùng vì nó là tiếng Anh và không nói phải làm gì.
+    """
+
+    def __init__(self, message: str, *, cause_text: str = "") -> None:
+        super().__init__(message)
+        self.message = message
+        self.cause_text = cause_text
 
 
 class Store(Protocol):
@@ -230,6 +294,13 @@ class Store(Protocol):
     def subscribe(self, session_id: str) -> asyncio.Queue[dict[str, Any]]: ...
     def unsubscribe(self, session_id: str, q: asyncio.Queue[dict[str, Any]]) -> None: ...
     def publish(self, session_id: str, message: dict[str, Any]) -> None: ...
+
+    # Kiểm tra sống/chết của kho, RẺ và có HẠN GIỜ (sự cố 13/09/2026).
+    # Trả về None nếu kho trả lời được; ném StoreUnavailableError nếu không.
+    # /health gọi nó trước khi dám tuyên bố durable=true — trước đó /health chỉ
+    # đọc tên backend rồi khẳng định "dữ liệu nằm trong PostgreSQL" kể cả khi
+    # không còn ai nghe ở cổng 5432.
+    def ping(self, timeout_s: float = ...) -> None: ...
 
     def close(self) -> None: ...
 
@@ -739,6 +810,15 @@ class InMemoryStore:
             "exposure_events": sum(len(v) for v in self._exposure_events.values()),
         }
 
+    def ping(self, timeout_s: float = DEFAULT_PING_TIMEOUT_S) -> None:
+        """Luôn sống: kho nằm ngay trong tiến trình này.
+
+        Không có mạng, không có socket, không thể "chết mà vẫn báo xanh" như
+        Postgres ngày 13/09/2026. Vẫn hiện diện để ``/health`` gọi một đường
+        duy nhất cho mọi backend, và ``timeout_s`` bị bỏ qua một cách có ý.
+        """
+        return
+
     def close(self) -> None:  # nothing to release
         return
 
@@ -755,6 +835,52 @@ def _by_ts(key: str):
 # PostgreSQL backend
 # ---------------------------------------------------------------------------
 
+# Câu nói sự thật khi cơ sở dữ liệu chết. Một nguồn duy nhất cho cả /health
+# (storage_warning) lẫn thân 503 của route — hai chỗ nói hai kiểu thì người vận
+# hành phải đoán xem chỗ nào đúng.
+STORE_DOWN_CORE = (
+    "KHÔNG kết nối được PostgreSQL — hệ thống đang KHÔNG lưu được dữ liệu, mọi ghi sẽ thất bại."
+)
+STORE_DOWN_FIX = (
+    "Cách xử lý: bật lại cơ sở dữ liệu (python scripts/bat_postgres.py hoặc "
+    "docker compose up -d db), hoặc đặt STORE_BACKEND=memory rồi khởi động lại API để "
+    "chạy tạm bằng RAM — chấp nhận mất dữ liệu khi khởi động lại."
+)
+STORE_DOWN_WARNING = f"{STORE_DOWN_CORE} {STORE_DOWN_FIX}"
+STORE_DOWN_DETAIL = (
+    "Yêu cầu này cần đọc kho dữ liệu nhưng kho không trả lời trong hạn giờ. "
+    f"{STORE_DOWN_CORE} {STORE_DOWN_FIX}"
+)
+
+
+def _connect_kwargs(
+    conninfo: str,
+    *,
+    row_factory: Any,
+    connect_timeout_s: int,
+    statement_timeout_s: float,
+) -> dict[str, Any]:
+    """Tham số kết nối cho pool: hạn giờ ép vào, nhưng KHÔNG đè cấu hình người dùng.
+
+    ``psycopg.connect`` nhận thẳng các tham số conninfo dạng từ khóa, nên không
+    cần nối chuỗi (và không cần lo trích dẫn). Nhưng nếu người vận hành đã tự
+    ghi ``connect_timeout``/``options`` trong DATABASE_URL thì con số của họ
+    thắng: một mặc định an toàn được phép thêm vào chỗ trống, không được phép
+    ghi đè lựa chọn có chủ ý.
+    """
+    kwargs: dict[str, Any] = {"row_factory": row_factory}
+    try:
+        from psycopg.conninfo import conninfo_to_dict
+
+        existing = conninfo_to_dict(conninfo)
+    except Exception:  # noqa: BLE001 - chuỗi lạ thì cứ áp mặc định an toàn
+        existing = {}
+    if "connect_timeout" not in existing:
+        kwargs["connect_timeout"] = int(connect_timeout_s)
+    if "options" not in existing:
+        kwargs["options"] = f"-c statement_timeout={int(statement_timeout_s * 1000)}"
+    return kwargs
+
 
 class PostgresStore:
     """Maps the Store protocol onto the SQL schema via psycopg3 + pool.
@@ -762,11 +888,27 @@ class PostgresStore:
     psycopg is imported lazily inside ``__init__`` so that the default memory
     backend works without the driver installed. Timestamps are ``timestamptz``
     (UTC); callers always pass timezone-aware datetimes.
+
+    Hạn giờ (sự cố 13/09/2026): mọi đường ra cơ sở dữ liệu đều có hạn — chờ kết
+    nối (``connect_timeout``), chờ pool cấp kết nối (``ConnectionPool.timeout``)
+    và chờ truy vấn chạy (``statement_timeout``). Trước đó chỉ có mặc định của
+    thư viện: 30 giây treo rồi 500 trần. Mọi lỗi của ba pha ấy được dịch sang
+    :class:`StoreUnavailableError` để route trả 503 kèm câu tiếng Việt.
     """
 
     backend = "postgres"
 
-    def __init__(self, conninfo: str, min_size: int = 1, max_size: int = 8) -> None:
+    def __init__(
+        self,
+        conninfo: str,
+        min_size: int = 1,
+        max_size: int = 8,
+        *,
+        connect_timeout_s: int = DEFAULT_CONNECT_TIMEOUT_S,
+        pool_timeout_s: float = DEFAULT_POOL_TIMEOUT_S,
+        statement_timeout_s: float = DEFAULT_STATEMENT_TIMEOUT_S,
+        close_timeout_s: float = DEFAULT_CLOSE_TIMEOUT_S,
+    ) -> None:
         try:
             from psycopg.rows import dict_row
             from psycopg.types.json import Jsonb
@@ -776,29 +918,79 @@ class PostgresStore:
                 "STORE_BACKEND=postgres cần cài 'psycopg[binary,pool]' (pip install -e '.[server]')"
             ) from exc
         self._jsonb = Jsonb
+        self._pool_timeout_s = float(pool_timeout_s)
+        self._close_timeout_s = float(close_timeout_s)
         self._pool = ConnectionPool(
             conninfo,
             min_size=min_size,
             max_size=max_size,
-            kwargs={"row_factory": dict_row},
+            kwargs=_connect_kwargs(
+                conninfo,
+                row_factory=dict_row,
+                connect_timeout_s=connect_timeout_s,
+                statement_timeout_s=statement_timeout_s,
+            ),
+            # KHÔNG để mặc định 30,0: đây chính là con số người vận hành đếm
+            # được khi /sessions treo ngày 13/09/2026.
+            timeout=self._pool_timeout_s,
+            # open=True và KHÔNG chờ kết nối đầu tiên: API vẫn phải khởi động
+            # được khi DB đang chết, để /health còn có chỗ mà nói ra sự thật.
             open=True,
         )
         self._broadcaster = Broadcaster()
 
     # -- helpers -----------------------------------------------------------
+    @contextlib.contextmanager
+    def _connection(self, timeout_s: float | None = None):
+        """Mượn một kết nối, và dịch MỌI lỗi hạ tầng sang tiếng Việt.
+
+        Một chỗ duy nhất: nếu mỗi phương thức tự bắt lỗi thì chỉ cần quên một
+        chỗ là sự cố 13/09 quay lại đúng ở chỗ đó. ``psycopg.OperationalError``
+        là cha chung của ``PoolTimeout``/``PoolClosed``/kết nối đứt/truy vấn bị
+        hủy vì quá ``statement_timeout`` — đúng tập hợp "kho không trả lời".
+        Lỗi dữ liệu (ràng buộc, trùng khóa) KHÔNG thuộc nhánh này nên vẫn nổi
+        lên nguyên vẹn cho route xử lý (ví dụ 409 của shortlink).
+        """
+        import psycopg
+
+        try:
+            with self._pool.connection(
+                timeout=self._pool_timeout_s if timeout_s is None else timeout_s
+            ) as conn:
+                yield conn
+        except psycopg.OperationalError as exc:
+            raise StoreUnavailableError(STORE_DOWN_DETAIL, cause_text=str(exc).strip()) from exc
+
     def _one(self, sql: str, params: tuple) -> dict[str, Any] | None:
-        with self._pool.connection() as conn:
+        with self._connection() as conn:
             row = conn.execute(sql, params).fetchone()
         return _norm_row(row) if row else None
 
     def _all(self, sql: str, params: tuple = ()) -> list[dict[str, Any]]:
-        with self._pool.connection() as conn:
+        with self._connection() as conn:
             rows = conn.execute(sql, params).fetchall()
         return [_norm_row(r) for r in rows]
 
     def _exec(self, sql: str, params: tuple) -> None:
-        with self._pool.connection() as conn:
+        with self._connection() as conn:
             conn.execute(sql, params)
+
+    def ping(self, timeout_s: float = DEFAULT_PING_TIMEOUT_S) -> None:
+        """``SELECT 1`` có hạn giờ NGẮN — nền của một /health không nói dối.
+
+        Hạn riêng, ngắn hơn hạn của route thường: ``/health`` phải trả lời
+        nhanh kể cả khi cơ sở dữ liệu đã chết, vì đó đúng là lúc người vận hành
+        bấm vào nó.
+
+        Hai pha đều bị chặn: chờ pool cấp kết nối (``timeout_s``) VÀ chờ máy chủ
+        chạy xong ``SELECT 1``. Một máy chủ còn mở cổng nhưng đã lết (khóa bảng,
+        hết bộ nhớ) sẽ cấp kết nối rồi im — không chặn pha hai thì /health vẫn
+        treo. ``SET`` nằm trong giao dịch của psycopg (autocommit tắt) nên nó
+        được hoàn tác khi kết nối về pool, không rò sang truy vấn khác.
+        """
+        with self._connection(timeout_s=timeout_s) as conn:
+            conn.execute(f"SET statement_timeout = {max(1, int(timeout_s * 1000))}")
+            conn.execute("SELECT 1")
 
     # -- products ----------------------------------------------------------
     def create_product(self, row: dict[str, Any]) -> dict[str, Any]:
@@ -914,7 +1106,7 @@ class PostgresStore:
     def save_schedule(
         self, session_id: str, block_rows: list[dict[str, Any]]
     ) -> list[dict[str, Any]]:
-        with self._pool.connection() as conn:
+        with self._connection() as conn:
             conn.execute("DELETE FROM experiment_block WHERE session_id = %s", (session_id,))
             for r in block_rows:
                 conn.execute(
@@ -1176,7 +1368,7 @@ class PostgresStore:
         if not rows:
             return []
         inserted: list[dict[str, Any]] = []
-        with self._pool.connection() as conn:
+        with self._connection() as conn:
             for r in rows:
                 out = conn.execute(
                     """
@@ -1271,7 +1463,10 @@ class PostgresStore:
         self._broadcaster.publish(session_id, message)
 
     def close(self) -> None:
-        self._pool.close()
+        # Hạn giờ tường minh: khi DB đã chết, psycopg_pool chờ TỪNG luồng nền
+        # đủ `timeout` giây (mặc định 5,0) nên tắt máy sạch mất hàng chục giây
+        # — đúng kiểu treo mà sự cố 13/09/2026 đã dạy là không chấp nhận được.
+        self._pool.close(timeout=self._close_timeout_s)
 
 
 # ---------------------------------------------------------------------------
@@ -1550,6 +1745,146 @@ def durability_info(store: Store) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# /health phải NÓI THẬT: hỏi kho trước khi tuyên bố bền vững (sự cố 13/09/2026)
+# ---------------------------------------------------------------------------
+#
+# ``durability_info`` ở trên chỉ đọc TÊN backend. Ngày 13/09/2026 PostgreSQL
+# chết hẳn (không ai nghe ở cổng 5432) mà /health vẫn trả 200 trong 0,002 giây
+# với durable=true và câu "Dữ liệu nằm trong PostgreSQL — khởi động lại không
+# mất gì". Người vận hành nhìn thấy màu xanh trong khi hệ thống không ghi được
+# một dòng nào. Đó là bịa: tuyên bố một điều mà chưa hề kiểm tra.
+#
+# Từ nay: hỏi kho một câu rẻ, có hạn giờ, rồi mới dám nói. Giữ nguyên
+# ``durability_info`` thuần (không I/O) — nó vẫn là hàm mô tả cấu hình, còn
+# ``storage_health`` là hàm mô tả THỰC TẾ.
+
+# Khóa theo id() nhưng GIỮ KÈM một weakref để kiểm chứng: id của một đối tượng
+# đã bị thu hồi có thể được cấp lại cho đối tượng khác, và một kết quả ping của
+# kho CŨ dán lên kho MỚI đúng là kiểu nói dối mà gói này đang đi sửa.
+_ping_cache: dict[int, tuple[float, dict[str, Any], Any]] = {}
+_ping_lock = threading.Lock()
+
+
+def reset_store_ping_cache() -> None:
+    """Xóa bộ nhớ đệm ping (dùng trong test và khi đổi kho giữa chừng)."""
+    with _ping_lock:
+        _ping_cache.clear()
+
+
+def store_ping(
+    store: Store,
+    *,
+    timeout_s: float = DEFAULT_PING_TIMEOUT_S,
+    cache_s: float = DEFAULT_PING_CACHE_S,
+) -> dict[str, Any]:
+    """Hỏi kho "còn sống không?" và trả lời KÈM BẰNG CHỨNG.
+
+    Trả về ``{"ok", "checked_at", "latency_ms", "cached", "timeout_s", "error"}``.
+    Không bao giờ ném: người gọi là ``/health``, mà một trang sức khỏe tự sập
+    thì vô dụng đúng lúc cần nhất.
+
+    Đệm ``cache_s`` giây theo từng đối tượng kho: trang web hỏi /health liên tục
+    nên nếu mỗi lần hỏi là một lần mở kết nối thì chính cái đồng hồ đo lại làm
+    hỏng thứ nó đo. ``cached=True`` nói thẳng rằng con số này là lần đo trước —
+    một kết quả cũ được dán nhãn thì vẫn là sự thật, giấu việc dán nhãn mới là
+    nói dối.
+    """
+    key = id(store)
+    now = time.monotonic()
+    try:
+        ref: Any = weakref.ref(store)
+    except TypeError:  # pragma: no cover - kho không cho weakref ⇒ không đệm
+        ref = None
+    if cache_s > 0 and ref is not None:
+        with _ping_lock:
+            hit = _ping_cache.get(key)
+        if hit is not None and hit[2]() is store and (now - hit[0]) < cache_s:
+            return {**hit[1], "cached": True}
+
+    t0 = time.perf_counter()
+    ping = getattr(store, "ping", None)
+    result: dict[str, Any]
+    if ping is None:
+        # Kho không biết tự kiểm tra: nói ĐÚNG điều đó, đừng đoán là nó ổn.
+        result = {
+            "ok": False,
+            "latency_ms": 0.0,
+            "timeout_s": timeout_s,
+            "error": "Kho này không hỗ trợ kiểm tra kết nối (thiếu phương thức ping).",
+        }
+    else:
+        try:
+            ping(timeout_s)
+            result = {
+                "ok": True,
+                "latency_ms": round((time.perf_counter() - t0) * 1000, 3),
+                "timeout_s": timeout_s,
+                "error": None,
+            }
+        except StoreUnavailableError as exc:
+            result = {
+                "ok": False,
+                "latency_ms": round((time.perf_counter() - t0) * 1000, 3),
+                "timeout_s": timeout_s,
+                "error": exc.cause_text or exc.message,
+            }
+        except Exception as exc:  # noqa: BLE001 - /health không được tự sập
+            result = {
+                "ok": False,
+                "latency_ms": round((time.perf_counter() - t0) * 1000, 3),
+                "timeout_s": timeout_s,
+                "error": f"{type(exc).__name__}: {exc}".strip(),
+            }
+    result["checked_at"] = datetime.now(UTC).isoformat()
+    if cache_s > 0 and ref is not None:
+        with _ping_lock:
+            # Dọn các mục có kho đã bị thu hồi: một tiến trình chỉ có một kho
+            # nên bộ đệm không bao giờ lớn, nhưng một tiến trình dựng nhiều kho
+            # (chính là bộ test) thì không có lý do gì để giữ rác lại.
+            for k in [k for k, v in _ping_cache.items() if v[2]() is None]:
+                del _ping_cache[k]
+            _ping_cache[key] = (now, result, ref)
+    return {**result, "cached": False}
+
+
+def storage_health(
+    store: Store,
+    *,
+    timeout_s: float = DEFAULT_PING_TIMEOUT_S,
+    cache_s: float = DEFAULT_PING_CACHE_S,
+) -> dict[str, Any]:
+    """``durability_info`` + bằng chứng kho còn sống. Đây là thứ /health trả.
+
+    Thêm hai trường so với ``durability_info``:
+
+    * ``storage_ok`` — kho có trả lời hay không (``None`` nếu không cần hỏi);
+    * ``storage_ping`` — lần đo: độ trễ, hạn giờ, lỗi thô, có phải bản đệm.
+
+    Với ``memory``/``memory+snapshot``: kho nằm trong chính tiến trình này, hỏi
+    nó cũng chỉ là hỏi chính mình, nên phần còn lại của thân giữ NGUYÊN như
+    trước (cảnh báo mất dữ liệu khi khởi động lại vẫn là cảnh báo đúng).
+
+    Với ``postgres`` mà ping thất bại: ``durable`` hạ xuống ``False``,
+    ``storage_note`` (câu "khởi động lại không mất gì") bị GỠ, và
+    ``storage_warning`` nói ra điều đang thật sự xảy ra.
+    """
+    info = durability_info(store)
+    ping = store_ping(store, timeout_s=timeout_s, cache_s=cache_s)
+    if info["storage_mode"] != "postgres":
+        return {**info, "storage_ok": ping["ok"], "storage_ping": ping}
+    if ping["ok"]:
+        return {**info, "storage_ok": True, "storage_ping": ping}
+    return {
+        **info,
+        "durable": False,
+        "storage_ok": False,
+        "storage_warning": STORE_DOWN_WARNING,
+        "storage_note": None,
+        "storage_ping": ping,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Factory
 # ---------------------------------------------------------------------------
 
@@ -1562,7 +1897,15 @@ def build_store(backend: str | None = None) -> Store:
     if name == "postgres":
         from livelift.config import get_settings  # lazy: needs pydantic-settings
 
-        return PostgresStore(get_settings().database_url)
+        s = get_settings()
+        # Hạn giờ đi kèm kho ngay từ lúc dựng: một kho Postgres không có hạn
+        # giờ là một kho biết treo 30 giây (sự cố 13/09/2026).
+        return PostgresStore(
+            s.database_url,
+            connect_timeout_s=s.store_connect_timeout_s,
+            pool_timeout_s=s.store_pool_timeout_s,
+            statement_timeout_s=s.store_statement_timeout_s,
+        )
     if name != "memory":
         raise ValueError(f"unknown STORE_BACKEND: {name!r} (expected 'memory' or 'postgres')")
     if raw is None and _database_url_is_configured():

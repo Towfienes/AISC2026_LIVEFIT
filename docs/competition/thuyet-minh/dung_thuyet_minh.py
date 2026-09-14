@@ -54,7 +54,11 @@ NOI_DUNG = DAY / "noi-dung.json"
 # lại được từ tệp này cộng noi-dung.json.
 NGOAI = DAY.parents[3]
 MAU = NGOAI / "AISC26_Mau_Thuyet_Minh_Du_An.docx"
-RA = NGOAI / "AISC26_Thuyet_Minh_LiveLift.docx"
+
+# Đường ra mặc định; truyền một đường dẫn khác làm tham số dòng lệnh để ghi
+# chỗ khác. Cần thật: Word khoá tệp đang mở, nên lúc đang xem bản cũ mà muốn
+# dựng bản mới thì ghi ra tệp tạm rồi đổi chỗ sau, thay vì phải đóng Word.
+RA = Path(sys.argv[1]) if len(sys.argv) > 1 else NGOAI / "AISC26_Thuyet_Minh_LiveLift.docx"
 
 FONT = "Times New Roman"
 CO = Pt(13)
@@ -72,23 +76,15 @@ TEN_DOI = "LiveLift"
 TRUONG_NHOM = "Ngô Bình Minh"
 SDT = "0905484286"
 
-# Sửa số liệu cho khớp kho mã tại thời điểm nộp. Mỗi dòng là một phép đếm
-# THẬT chạy lại được, không phải ước lượng:
-#   9 bản migration   — `ls src/livelift/migrations/*.up.sql` (bản thảo ghi 8)
-#   993 / 1.009 test  — `pytest -m "not slow"` ra 993 xanh sau khi thêm 3 cổng
-#                       hồi quy cho bộ demo; cộng 16 cổng Monte-Carlo là 1.009
-# Lưu ý khi thêm luật: "990" cũng xuất hiện trong giá gói "Pro 990.000 đồng",
-# nên mọi mẫu phải neo vào chữ "kiểm thử" chứ không thay số trần.
-SUA_SO = [
-    (r"\b8 bản migration\b", "9 bản migration"),
-    (r"\b990 kiểm thử", "993 kiểm thử"),
-    (r"\b1\.006 kiểm thử", "1.009 kiểm thử"),
-    (r"tổng 1\.006\.", "tổng 1.009."),
-    # 41 sự cố — đếm số hàng bảng trong docs/incident-log.md sau khi ghi thêm
-    # ba sự cố tìm ra hôm nay (số nói dối trên mặt tiền, buổi demo mở ra trống,
-    # demo nhân bản). "38" chỉ xuất hiện kèm chữ "sự cố" nên mẫu neo vào đó.
-    (r"\b38 sự cố", "41 sự cố"),
-]
+# KHÔNG có cơ chế vá số ở đây, và đó là chủ ý.
+#
+# Bản dựng ngày 14/09/2026 từng có một danh sách `SUA_SO` vá vài con số lúc
+# ghi ra .docx (990→993, 38→41, 8→9 migration). Kết quả: file nộp đúng còn
+# `noi-dung.json` sai, tức nguồn và bản dựng nói hai chuyện khác nhau, và lần
+# dựng sau sẽ lặng lẽ quay về số cũ. Vòng chấm hồ sơ cùng ngày bắt đúng lỗi đó.
+#
+# Luật từ nay: MỌI con số sửa thẳng trong `noi-dung.json`. Tệp này chỉ làm
+# định dạng, không được đụng tới chữ nghĩa.
 
 
 def set_font(run, *, bold=False, size=CO, italic=False, mono=False):
@@ -108,7 +104,8 @@ def set_font(run, *, bold=False, size=CO, italic=False, mono=False):
 
 
 def para(doc, text="", *, bold=False, size=CO, italic=False, align=None,
-         space_before=0, space_after=6, indent=None, mono=False, spacing=1.5):
+         space_before=0, space_after=6, indent=None, mono=False, spacing=1.5,
+         giu_voi_doan_sau=False):
     p = doc.add_paragraph()
     pf = p.paragraph_format
     pf.line_spacing = 1.0 if mono else spacing
@@ -118,6 +115,13 @@ def para(doc, text="", *, bold=False, size=CO, italic=False, align=None,
         p.alignment = align
     if indent is not None:
         pf.left_indent = Pt(indent)
+    if mono:
+        # Sơ đồ ASCII: bỏ thụt dòng đầu của docDefaults, nếu không dòng đầu
+        # khối bị đẩy lệch 1 cm so với các dòng sau và khung vẽ vỡ.
+        pf.first_line_indent = Pt(0)
+    if giu_voi_doan_sau:
+        # Tiêu đề không được nằm trơ một mình ở dòng cuối trang.
+        pf.keep_with_next = True
     if text:
         set_font(p.add_run(text), bold=bold, size=size, italic=italic, mono=mono)
     return p
@@ -175,6 +179,13 @@ def add_table(doc, rows):
             # Mẫu để mặc định canh giữa; ô nhiều chữ canh giữa rất khó đọc.
             cp.alignment = (WD_ALIGN_PARAGRAPH.CENTER if i == 0
                             else WD_ALIGN_PARAGRAPH.LEFT)
+            # PHẢI đặt tường minh về 0. File mẫu đặt `<w:ind w:firstLine="567"/>`
+            # ở docDefaults, tức thụt dòng đầu 1 cm cho MỌI đoạn — kể cả đoạn
+            # nằm trong ô bảng. Với văn xuôi thì đó là thụt đầu dòng bình thường
+            # và đẹp, nhưng trong ô bảng nó đẩy dòng đầu vào trong còn dòng
+            # xuống hàng lại sát mép trái, trông như lỗi in. Vòng chấm hồ sơ
+            # 14/09/2026 bắt lỗi này ở cả 22 bảng.
+            cp.paragraph_format.first_line_indent = Pt(0)
             emit_runs(cp, txt, size=CO_BANG, bold_default=(i == 0))
 
         # Hàng tiêu đề lặp lại ở mỗi trang, và không hàng nào bị xẻ đôi giữa
@@ -287,10 +298,6 @@ def dien_phan_i(doc):
 
 def main():
     secs = json.loads(NOI_DUNG.read_text(encoding="utf-8"))
-    for s in secs:
-        for pat, rep in SUA_SO:
-            s["body"] = re.sub(pat, rep, s["body"])
-
     doc = Document(str(MAU))
     dien_phan_i(doc)
 
@@ -314,10 +321,10 @@ def main():
     for s in secs:
         if s.get("level", 1) == 1:
             para(doc, s["heading"].upper(), bold=True, size=Pt(14),
-                 space_before=10, space_after=4)
+                 space_before=10, space_after=4, giu_voi_doan_sau=True)
         else:
             para(doc, s["heading"], bold=True, size=Pt(13),
-                 space_before=8, space_after=4)
+                 space_before=8, space_after=4, giu_voi_doan_sau=True)
         render_body(doc, s["body"])
 
     doc.save(str(RA))

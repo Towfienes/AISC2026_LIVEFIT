@@ -1,6 +1,6 @@
 # FACT SHEET — Một bộ số chuẩn duy nhất
 
-*Tạo 06/09/2026 · Mọi tài liệu (thuyết minh, slide, kế hoạch, mô tả) TRỎ VỀ file này.
+*Tạo 06/09/2026 · cập nhật 14/09/2026 · Mọi tài liệu (thuyết minh, slide, kế hoạch, mô tả) TRỎ VỀ file này.
 Sửa số ở đây trước, rồi đồng bộ ra các tài liệu khác — không bao giờ ngược lại.*
 
 > **Lý do tồn tại:** kiểm toán 06/09 phát hiện các tài liệu gốc đang lệch nhau
@@ -27,8 +27,14 @@ Sửa số ở đây trước, rồi đồng bộ ra các tài liệu khác — 
 | ⚠️ Quy tắc quote số intent | LUÔN kèm caveat "trên bộ biên soạn; số trên chat thật đang đo" | `docs/benchmarks/intent-classifier.md` |
 | Live-fire VOD thật | 262 phút, 14.903 bình luận qua API | phiên "quan sát" trong DB |
 | Hiệu chỉnh KuaiLive | 1,16M phòng live shop thật (SIGIR 2026) | `docs/benchmarks/kuailive-calibration.md` |
-| Test suite | 157+ test nhanh pass, kiểm toán đối kháng 16/16 xử lý | `pytest -m "not slow"`, `docs/incident-log.md` |
-| Số phiên live THẬT đã chạy | **0** (tính đến 06/09) | trung thực — không tuyên bố khác đi cho đến khi có |
+| Bộ kiểm thử | **993 test nhanh xanh + 16 cổng Monte-Carlo = 1.009** (đếm 14/09/2026) | `pytest -m "not slow"` và `pytest -m slow`; đối chiếu tự động bằng `scripts/dong_bo_so_test.py --xem-truoc` |
+| Sổ sự cố | **41 sự cố có nguyên nhân gốc** (đếm 14/09/2026) | đếm số hàng bảng trong `docs/incident-log.md` |
+| Bình luận thật đã chạy qua API | **19.126 bình luận · 16 buổi live · 7 ngành hàng** (lô đo 10/09/2026) | `docs/benchmarks/live-fire-da-nguon.md` §1 — con số 14.903 ghi ở bản 06/09 là lô CŨ, đã bị lô 10/09 thay thế |
+| Bộ phân loại ý định trên CHAT THẬT | **macro-F1 0,271** (200 bình luận gán nhãn tay) — thua baseline luôn đoán "khac" | `docs/benchmarks/intent-classifier.md`; **luôn quote CẶP 0,870 / 0,271, không bao giờ quote riêng số đẹp** |
+| Độ phủ KTC dưới hiệu ứng lưu | bán rã 0 giây → **100%**; 120 giây → **84%**; 180 giây → **60%** (lệch −0,3% / −20,3% / −29,8%) | docstring `run_validation` trong `src/livelift/sim/validate.py`; đo 02/09 trên SimParams đã hiệu chỉnh KuaiLive. **Con số 76% cũ là TRƯỚC hiệu chỉnh, đã bị thay** |
+| Điều kiện đo MDE 20,1% | mô phỏng ~45–62 người xem đồng thời | `src/livelift/sim/simulator.py`; **phải nói kèm: đo thật chỉ được 5–15 người xem đồng thời** |
+| Số bản migration | 9 (0001–0009) | `ls src/livelift/migrations/*.up.sql` |
+| Số phiên live THẬT đã chạy | **0** (tính đến 14/09/2026) | trung thực — không tuyên bố khác đi cho đến khi có |
 
 ## 3. Số thị trường dùng trong hồ sơ (kèm nguồn, cập nhật 09/2026)
 
@@ -51,5 +57,10 @@ là công cụ chứng minh ROI, không phải đơn vị tính tiền.
 ## 5. Quy tắc dùng file này
 
 1. Trước khi viết bất kỳ số nào vào thuyết minh/slide: tra ở đây. Không có → thêm vào đây trước.
+0. **Luật thêm ngày 14/09/2026:** hồ sơ thuyết minh có câu trỏ thẳng vào file này
+   ("Mọi số của hồ sơ chốt ở docs/competition/FACT-SHEET.md"). Chấm lại hồ sơ hôm ấy
+   phát hiện file này KHÔNG chứa hai con số mà hồ sơ nói nó chốt, và bản thân nó còn
+   dừng ở lô đo 06/09. Một giám khảo mở file ra kiểm mất 30 giây là bắt được. Từ nay:
+   **sửa hồ sơ mà không sửa file này là chưa xong việc.**
 2. Ô ⬜ nào còn trống sau 08/09 là việc P0 chưa xong.
 3. Người review chéo hồ sơ đối chiếu từng số trong bản nộp với file này trước khi nộp ≥24h.

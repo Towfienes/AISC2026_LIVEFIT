@@ -5,9 +5,14 @@ tài liệu đó là luật. Trang này chỉ là bản đồ nhanh.
 
 ## Bắt đầu
 
-1. Đi hết **lộ trình 90 phút cho thành viên mới** trong [README §10](README.md#10-dành-cho-thành-viên-mới).
-2. Chọn việc từ [docs/TONG-KET-DU-AN.md §II](docs/TONG-KET-DU-AN.md) (ưu tiên P0 → P1 → P2).
-3. Tạo nhánh `<mã-việc>-mô-tả-ngắn`, ví dụ `e1-05-ingest-facebook`.
+> **Từ 16/09/2026 đội làm song song 3 người.** Đọc trước tiên
+> **[docs/competition/sang-tao-tre-2026/09-PHAN-CONG.md](docs/competition/sang-tao-tre-2026/09-PHAN-CONG.md)**:
+> ai sở hữu thư mục nào, việc nào trước 30/09, hợp đồng giữa các làn, và 48 giờ đầu.
+> Mẫu PR ở `.github/pull_request_template.md` được GitHub điền sẵn khi mở PR.
+
+1. Đi hết **lộ trình 90 phút cho thành viên mới** trong [README](README.md).
+2. Nhận việc theo mã trong `09-PHAN-CONG.md` (ví dụ `K-06`, `T-01`).
+3. Tạo nhánh `<ten>/<MA-VIEC>-mo-ta`, ví dụ `khanh/K-06-xuat-prompt-log`. Mở Draft PR ngay ngày đầu.
 
 ## Trước khi mở PR — checklist bắt buộc
 
@@ -34,7 +39,8 @@ python scripts/check_isolation.py         # cách ly collectors/
 
 ## Quy ước
 
-- Commit: dòng đầu ≤ 72 ký tự; tiếng Việt không dấu hoặc tiếng Anh, nhất quán trong PR.
+- Commit: dòng đầu `<khu-vuc>: <mo ta khong dau>` ≤ 72 ký tự; thân có `Vi sao:` và `Kiem bang:`.
+  Dùng AI thì thêm trailer đúng công cụ (xem `09-PHAN-CONG.md` §7). Không viết lại lịch sử đã push.
 - `main` luôn chạy được `docker compose up` từ máy trắng.
 - Số liệu mới trong docs/benchmarks phải kèm script sinh lại.
 - Mọi công thức thống kê có docstring dẫn nguồn (tác giả, năm).

@@ -1,0 +1,67 @@
+# CODEOWNERS — LiveLift. Phân làn: docs/competition/sang-tao-tre-2026/09-PHAN-CONG.md
+#
+# TRẠNG THÁI 15/09/2026: mới bật dòng mặc định. Các dòng theo làn bên dưới đang để dạng chú
+# thích vì chưa có tài khoản GitHub của Khánh và Tiến. Khi có:
+#   1. Thay @khanh và @tien bằng tài khoản thật, bỏ dấu # ở đầu các dòng.
+#   2. Kiểm: GET https://api.github.com/repos/bminhnemhoi/AISC2026_LIVEFIT/codeowners/errors
+#      phải trả "errors": [] — tên sai hoặc người chưa nhận lời mời sẽ hiện ở đây.
+#   3. Chỉ SAU đó mới bật "Require review from Code Owners" trong ruleset của main.
+#
+# Luật GitHub: mỗi dòng một mẫu; dòng khớp CUỐI CÙNG thắng. Mỗi mẫu cần ≥2 chủ vì tác giả PR
+# không tự duyệt được PR của mình. Người đứng đầu dòng là chủ làn (được sửa), người sau duyệt.
+
+# 0. Mặc định
+*                                               @bminhnemhoi
+
+# 1. Làn Khánh — dữ liệu, PII, NLP, nạp nền tảng
+# /src/livelift/ingest/                         @khanh @tien @bminhnemhoi
+# /src/livelift/nlp/                            @khanh @tien @bminhnemhoi
+# /src/livelift/api/routes/replays.py           @khanh @bminhnemhoi
+# /collectors/                                  @khanh @bminhnemhoi
+# /scripts/xuat_prompt_log.py                   @khanh @tien
+# /scripts/gan_lai_nhan_11.py                   @khanh @bminhnemhoi
+# /scripts/live_fire_da_nguon.py                @khanh @bminhnemhoi
+# /scripts/kiem_tra_facebook.py                 @khanh @tien
+# /scripts/kiem_tra_shopee.py                   @khanh @tien
+# /tests/test_ingest_*.py                       @khanh @tien
+# /tests/test_pii_filter.py                     @khanh @tien @bminhnemhoi
+# /tests/test_intent_classifier.py              @khanh @tien @bminhnemhoi
+# /tests/test_nlp_eval_harness.py               @khanh @tien @bminhnemhoi
+# /docs/benchmarks/intent-classifier.md         @khanh @bminhnemhoi
+# /docs/benchmarks/intent-eval/                 @khanh @bminhnemhoi
+# /docs/nen-tang-ho-tro.md                      @khanh @tien
+# /docs/competition/sang-tao-tre-2026/03-NLP-NANG-CAP.md  @khanh @bminhnemhoi
+
+# 2. Làn Tiến — giao diện, E2E, minh chứng nhìn thấy được
+# /web/                                         @tien @khanh
+# /web/src/lib/api.ts                           @tien @bminhnemhoi
+# /web/src/lib/types.ts                         @tien @khanh @bminhnemhoi
+# /web/src/app/page.tsx                         @tien @bminhnemhoi
+# /tests/test_web_*.py                          @tien @khanh
+# /scripts/gate_css_web.py                      @tien @bminhnemhoi
+# /docs/img/                                    @tien @khanh
+# /docs/HUONG-DAN-SU-DUNG.md                    @tien @khanh
+# /docs/competition/sang-tao-tre-2026/dung_ho_so.py        @tien @bminhnemhoi
+# /docs/competition/sang-tao-tre-2026/07-KICH-BAN-2-VIDEO.md @tien @khanh @bminhnemhoi
+# /docs/competition/thong_tin_doi.py            @tien @bminhnemhoi
+# /docs/competition/thong-tin-doi.example.json  @tien @bminhnemhoi
+
+# 3. Hợp đồng và tệp dùng chung — Minh chủ, bên tiêu thụ duyệt (đặt SAU các mẫu rộng để thắng)
+# /tests/test_web_api_contract.py               @bminhnemhoi @tien
+# /tests/test_bao_ve_ghi.py                     @bminhnemhoi @khanh @tien
+# /tests/test_so_cong_bo.py                     @bminhnemhoi @tien
+# /tests/test_infra_public.py                   @bminhnemhoi @khanh
+# /src/livelift/config.py                       @bminhnemhoi @khanh
+# /.env.example                                 @bminhnemhoi @khanh
+# /pyproject.toml                               @bminhnemhoi @khanh
+# /docker-compose.yml                           @bminhnemhoi @khanh
+# /docker-compose.prod.yml                      @bminhnemhoi @khanh
+# /.github/                                     @bminhnemhoi @khanh @tien
+# /docs/incident-log.md                         @bminhnemhoi @khanh @tien
+# /docs/competition/FACT-SHEET.md               @bminhnemhoi @khanh @tien
+
+# 4. Sau 01/10 — chuyển chủ vận hành sang Tiến (PR riêng)
+# /ops/deploy/                                  @tien @bminhnemhoi
+# /ops/monitoring/                              @tien @bminhnemhoi
+# /docker/Caddyfile                             @tien @bminhnemhoi
+# /scripts/khoi_phuc_sao_luu.py                 @tien @bminhnemhoi

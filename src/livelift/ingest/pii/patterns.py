@@ -195,7 +195,14 @@ SOCIAL_URL_RE = re.compile(
     re.VERBOSE | re.IGNORECASE,
 )
 # "@handle" — the lookbehind keeps email local-parts ("a@b.vn") for EMAIL_RE.
-SOCIAL_HANDLE_RE = re.compile(r"(?<![\w.@])@[A-Za-z0-9_.]{3,32}\b")
+#
+# The body is Unicode `\w`, not `[A-Za-z0-9_.]`. Until 15/09/2026 it was
+# ASCII-only, so handles with Vietnamese diacritics or a hyphen — exactly the
+# shape YouTube hands out ("@TrầnThịMai-k3x") — went through unscrubbed. The
+# gate in tests/test_pii_filter.py never caught it because every fixture handle
+# was ASCII. Hyphen and period are allowed inside, but the match must END on a
+# word character so sentence punctuation after it ("cảm ơn @shop.") survives.
+SOCIAL_HANDLE_RE = re.compile(r"(?<![\w.@])@\w[\w.\-]{1,30}\w")
 
 # --- Bank account -----------------------------------------------------------
 # Context-triggered only ("stk", "số tk", "tk:", "số tài khoản" + 6-19 digits).

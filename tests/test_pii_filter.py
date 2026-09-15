@@ -204,6 +204,32 @@ def test_social_links_and_handles_scrubbed():
         assert "[MXH]" in res.text
 
 
+def test_vietnamese_youtube_handles_scrubbed():
+    """Handle YouTube có dấu tiếng Việt và gạch nối — dạng thật đã lọt tới 15/09/2026.
+
+    Mọi handle trong test cũ đều là ASCII nên cổng xanh trong khi biểu thức chỉ
+    khớp [A-Za-z0-9_.]. Kiểm toán mở dữ liệu gán nhãn ra thì còn hàng chục lượt
+    nhắc tên tài khoản thật. Các ca dưới đây dựng theo đúng HÌNH DẠNG đã gặp,
+    còn tên là bịa.
+    """
+    for text, ten in (
+        ("@TrầnThịMai-k3x chốt 2 cái nha", "TrầnThịMai"),
+        ("cảm ơn @Bảo_ngọc_Shop nhiều", "Bảo_ngọc_Shop"),
+        ("@ĐứcAnh.Vlog ơi cho xin giá", "ĐứcAnh"),
+        ("hỏi giúp @NguyễnVănHùng-9q2 với", "NguyễnVănHùng"),
+    ):
+        res = scrub(text)
+        assert res.counts.get("social", 0) == 1, f"lọt handle: {text!r} -> {res.text!r}"
+        assert ten not in res.text, f"còn sót tên tài khoản: {res.text!r}"
+
+
+def test_handle_scrub_keeps_trailing_punctuation():
+    """Handle phải kết thúc ở ký tự chữ: dấu chấm cuối câu không bị nuốt theo."""
+    res = scrub("cảm ơn @ThuHà.")
+    assert res.counts.get("social", 0) == 1
+    assert res.text.endswith("[MXH].")
+
+
 def test_email_not_double_counted_as_handle():
     res = scrub("gửi bill qua mail hoa.nguyen89@gmail.com giúp em")
     assert res.counts == {"email": 1}

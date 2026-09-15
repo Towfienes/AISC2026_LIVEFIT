@@ -34,6 +34,7 @@ from typing import Any
 from fastapi import APIRouter
 
 from livelift.api import service
+from livelift.api.auth import cho_phep_demo
 from livelift.api.schemas import DemoSeedOut, DemoSeedRequest
 from livelift.api.service import StoreDep
 from livelift.core.assigner import DesignParams
@@ -269,6 +270,7 @@ def _seed_products_and_links(store: Any, run_tag: str | None = None) -> tuple[li
     return product_ids, codes
 
 
+@cho_phep_demo
 @router.post("/demo/seed", response_model=DemoSeedOut)
 def seed_demo(body: DemoSeedRequest, store: StoreDep) -> DemoSeedOut:
     rng = random.Random(4242)
@@ -445,6 +447,7 @@ def _bo_vang_dang_co(store: Any) -> list[dict[str, Any]]:
     ]
 
 
+@cho_phep_demo
 @router.post("/demo/seed-vang")
 def seed_demo_vang_route(store: StoreDep, gieo_lai: bool = False) -> dict[str, Any]:
     """Gieo bộ phiên DEMO VÀNG vào ĐÚNG kho mà API này đang dùng.

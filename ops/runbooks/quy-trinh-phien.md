@@ -109,7 +109,10 @@ Runner ingest chạy **một tiến trình cho mỗi phiên live** (trên máy v
 # Env cần thiết (đọc từ .env tại thư mục chạy lệnh):
 #   - YouTube:  YOUTUBE_API_KEY  (nếu chưa có key: xem "hai đường" ngay bên dưới)
 #   - Facebook: FACEBOOK_PAGE_ACCESS_TOKEN (+ FACEBOOK_GRAPH_VERSION)
-#   - INGEST_TOKEN nếu API bật bảo vệ endpoint ghi (khuyến nghị môi trường thật)
+#   - INGEST_TOKEN: BẮT BUỘC khi API có địa chỉ công khai. Một token duy nhất bảo
+#     vệ cả 15 endpoint ghi (gói VÁ-XÁC-THỰC 14/09/2026); để trống = tắt kiểm tra
+#     hoàn toàn. Runner tự đính header Authorization: Bearer <token>.
+#     Chi tiết: docs/competition/sang-tao-tre-2026/08-VA-XAC-THUC.md
 python -m livelift.ingest.runner \
   --platform youtube \
   --source-id <VIDEO_ID> \

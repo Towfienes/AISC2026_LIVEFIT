@@ -63,10 +63,36 @@ class Settings(BaseSettings):
     # nối mỗi giây. Đặt 0 để tắt đệm (ping thật ở mọi lần gọi).
     health_ping_cache_s: float = 5.0
 
-    # Shared secret for the write endpoints POST /sessions/{id}/comments and
-    # /ticks. Empty (default) = auth disabled (dev/demo). When set, ApiSink
-    # attaches "Authorization: Bearer <token>" automatically.
+    # --- Xác thực đường GHI (gói VÁ-XÁC-THỰC, 14/09/2026) ------------------
+    # Bí mật dùng chung cho MỌI endpoint ghi, không chỉ comments/ticks: từ
+    # 14/09 dependency require_write_auth được gắn ở CẤP ỨNG DỤNG nên nó che
+    # cả 15 đường ghi (xem src/livelift/api/auth.py). Để trống (mặc định) =
+    # tắt kiểm tra hoàn toàn — chế độ phát triển cục bộ và kiểm thử. Khi đặt,
+    # ApiSink tự đính "Authorization: Bearer <token>".
     ingest_token: str = ""
+
+    # Chế độ TRƯNG BÀY công khai. Khi ingest_token đã đặt, cờ này quyết định
+    # một khách KHÔNG có token còn làm được gì:
+    #   True  — được tạo phiên của riêng mình và thao tác trên phiên DEMO
+    #           (wizard, lịch gán, phát, ghim, kết thúc), có giới hạn tần
+    #           suất. Phiên do khách tạo được máy chủ ghi is_demo=True nên
+    #           không bao giờ lọt vào kết quả khoa học thật.
+    #   False — khoá sạch: mọi đường ghi đòi token.
+    # Mặc định True là một ĐÁNH ĐỔI CÓ CHỦ Ý cho bản triển khai cho hội đồng
+    # chấm: bán kính thiệt hại bị chặn bằng cấu trúc (khách không chạm được
+    # vào phiên thật, không chạm được vào đường nạp dữ liệu của bộ thu, không
+    # chạm được vào /replays/youtube), còn một bản trưng bày bị khoá sạch thì
+    # thành ảnh tĩnh — hỏng đúng thứ nó sinh ra để chứng minh. Máy chủ chạy
+    # thí nghiệm THẬT và không cần cho người lạ bấm thử: đặt False.
+    public_demo_writes: bool = True
+    # Trần tần suất cho đường ghi MỞ (chỉ áp cho yêu cầu KHÔNG có token —
+    # bộ thu của đội bắn một bình luận mỗi giây và không bao giờ bị chặn).
+    # Đặt 0 để tắt. 30/phút đủ rộng cho một người bấm wizard rất nhanh, đủ
+    # hẹp để một vòng lặp curl không làm ngập buổi demo.
+    write_rate_limit_per_min: int = 30
+    # /demo/seed và /demo/seed-vang sinh hàng nghìn bản ghi mỗi lần gọi nên
+    # có trần riêng, tính theo giờ.
+    demo_seed_rate_limit_per_hour: int = 6
 
     # PREREGISTRATION.md §7 (no peeking): ISO date (YYYY-MM-DD, UTC). While the
     # current UTC date is BEFORE this date, /experiment/summary withholds every

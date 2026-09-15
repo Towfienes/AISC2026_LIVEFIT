@@ -58,8 +58,19 @@ export default function BatDauVod({ label, apiUp, server = "checking" }: Props) 
     try {
       const { job_id } = await submitYoutubeReplay(u);
       setJobId(job_id);
-    } catch {
-      setErr("Không gửi được yêu cầu — kiểm tra lại đường dẫn video và máy chủ LiveLift.");
+    } catch (e) {
+      // Máy chủ trả `detail` TIẾNG VIỆT nói đúng chuyện gì xảy ra — và từ gói
+      // VÁ-XÁC-THỰC (14/09/2026) một trong những câu ấy là "đường này cần
+      // token ghi" trên bản trưng bày công khai. Nuốt nó rồi in câu chung
+      // chung "kiểm tra lại đường dẫn video" là đổ lỗi cho người dùng về một
+      // thứ họ không sai: `request()` đã đọc sẵn `detail` vào Error.message,
+      // nên dùng nó, chuỗi mặc định chỉ còn là lưới cuối khi không nối được.
+      const detail = e instanceof Error ? e.message.trim() : "";
+      setErr(
+        detail && !detail.startsWith("API ")
+          ? detail
+          : "Không gửi được yêu cầu — kiểm tra lại đường dẫn video và máy chủ LiveLift.",
+      );
       setSubmitting(false);
     }
   }, [url]);

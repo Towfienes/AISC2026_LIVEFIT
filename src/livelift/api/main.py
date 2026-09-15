@@ -11,12 +11,13 @@ import os
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from livelift import __version__
 from livelift.api import autopilot
+from livelift.api.auth import GioiHanTanSuat, require_write_auth
 from livelift.api.routes import actions, demo, events, redirect, replays, reports, sessions, ws
 from livelift.api.store import (
     Store,
@@ -59,7 +60,21 @@ def create_app(store: Store | None = None) -> FastAPI:
             "REST + WebSocket cho bàn trung control (AISC'26)"
         ),
         lifespan=lifespan,
+        # XÁC THỰC ĐƯỜNG GHI, GẮN MỘT LẦN CHO CẢ ỨNG DỤNG (gói VÁ-XÁC-THỰC,
+        # 14/09/2026). Trước hôm đó mỗi route tự dán `dependencies=[IngestAuth]`
+        # và 12 trong 15 endpoint ghi quên dán — một lỗ hổng IM LẶNG: không có
+        # gì trong mã, trong test hay trong log nói rằng chúng đang mở. Gắn ở
+        # đây thì route nào cũng đi qua cổng, kể cả route thêm vào ngày mai;
+        # route ghi không khai báo mức bảo vệ rơi về mức ngặt nhất (đòi token)
+        # và cổng tests/test_bao_ve_ghi.py bắt nó ngay. Mọi đường ĐỌC vẫn mở —
+        # cổng chỉ chặn POST/PUT/PATCH/DELETE.
+        dependencies=[Depends(require_write_auth)],
     )
+
+    # Bộ đếm giới hạn tần suất sống theo ỨNG DỤNG, không phải theo module: hai
+    # ứng dụng trong cùng một tiến trình (bộ kiểm thử dựng hàng chục) không
+    # được dùng chung hạn mức của nhau.
+    app.state.gioi_han_ghi = GioiHanTanSuat()
 
     origins = [
         o.strip()

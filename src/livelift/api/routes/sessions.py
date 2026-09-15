@@ -6,9 +6,10 @@ from __future__ import annotations
 import secrets
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from livelift.api import autopilot, service
+from livelift.api.auth import cho_phep_demo, ghi_khong_token
 from livelift.api.cards import build_candidates, build_cards, pin_cards_blocked_reason
 from livelift.api.schemas import (
     AutopilotState,
@@ -41,6 +42,7 @@ router = APIRouter()
 # -- products ---------------------------------------------------------------
 
 
+@cho_phep_demo
 @router.post("/products", response_model=ProductOut)
 def create_product(body: ProductIn, store: StoreDep) -> ProductOut:
     row = body.model_dump()
@@ -56,6 +58,7 @@ def list_products(store: StoreDep) -> list[ProductOut]:
 # -- shortlinks -------------------------------------------------------------
 
 
+@cho_phep_demo
 @router.post("/shortlinks", response_model=ShortlinkOut)
 def create_shortlink(body: ShortlinkIn, store: StoreDep) -> ShortlinkOut:
     if store.get_product(body.product_id) is None:
@@ -76,15 +79,24 @@ def create_shortlink(body: ShortlinkIn, store: StoreDep) -> ShortlinkOut:
 # -- sessions ---------------------------------------------------------------
 
 
+@cho_phep_demo
 @router.post("/sessions", response_model=SessionOut)
-def create_session(body: SessionCreate, store: StoreDep) -> SessionOut:
+def create_session(body: SessionCreate, store: StoreDep, request: Request) -> SessionOut:
     """Create a session. ``dry_run`` is declared HERE or never (§8.2).
 
-    ``is_demo`` is pinned to False DELIBERATELY: every session born through
-    this route is real data. Sample/demo sessions come only from the server-
-    side demo generators (``/demo/seed``, ``scripts/seed_demo_vang.py``), so a
-    client cannot mislabel a real session as demo — not at creation and (write-
-    once, ``store._SESSION_WRITE_ONCE``) not afterwards either.
+    ``is_demo`` KHÔNG BAO GIỜ do client đặt — ``SessionCreate`` không có
+    trường ấy và ``store._SESSION_WRITE_ONCE`` khoá nó sau khi tạo, nên không
+    ai gắn nhãn "mẫu" cho một phiên thật (hay ngược lại) sau khi đã nhìn số.
+    **Máy chủ** quyết, và từ 14/09/2026 nó quyết theo đúng một câu hỏi: yêu
+    cầu này có chứng minh được mình là người vận hành không?
+
+    * có token (hoặc chạy cục bộ, chưa đặt ``INGEST_TOKEN``) ⇒ ``is_demo=False``
+      — hành vi cũ, không đổi một ly: đây là dữ liệu thật;
+    * không token, đi qua được nhờ chế độ trưng bày công khai ⇒
+      ``is_demo=True``. Đó là sự thật chứ không phải một nhãn cho tiện: không
+      buổi phát nào diễn ra và người tạo là một khách vãng lai. Nhờ vậy giám
+      khảo chạy trọn wizard trên phiên của chính mình, còn dữ liệu ấy không
+      bao giờ lọt vào kết quả khoa học thật (mọi đường gộp đã tự loại is_demo).
     """
     row = body.model_dump()
     row.update(
@@ -94,7 +106,7 @@ def create_session(body: SessionCreate, store: StoreDep) -> SessionOut:
         end_ts=None,
         design=None,
         created_at=service.now_utc(),
-        is_demo=False,
+        is_demo=ghi_khong_token(request),
     )
     return SessionOut(**store.create_session(row))
 
@@ -121,6 +133,7 @@ def get_session(session_id: str, store: StoreDep) -> SessionDetail:
     return SessionDetail(**service.require_session(store, session_id))
 
 
+@cho_phep_demo
 @router.post("/sessions/{session_id}/schedule", response_model=ScheduleOut)
 def create_schedule(session_id: str, body: ScheduleRequest, store: StoreDep) -> ScheduleOut:
     """Generate + persist the switchback schedule. Only before broadcast:
@@ -197,6 +210,7 @@ def get_schedule(session_id: str, store: StoreDep) -> list[BlockOut]:
     return [BlockOut(**b) for b in store.get_blocks(session_id)]
 
 
+@cho_phep_demo
 @router.post("/sessions/{session_id}/start", response_model=SessionOut)
 def start_session(session_id: str, store: StoreDep) -> SessionOut:
     session = service.require_session(store, session_id)
@@ -228,6 +242,7 @@ def start_session(session_id: str, store: StoreDep) -> SessionOut:
     return SessionOut(**updated)
 
 
+@cho_phep_demo
 @router.post("/sessions/{session_id}/end", response_model=SessionOut)
 def end_session(session_id: str, store: StoreDep) -> SessionOut:
     """Close the session.
@@ -258,6 +273,7 @@ def end_session(session_id: str, store: StoreDep) -> SessionOut:
     return SessionOut(**updated)
 
 
+@cho_phep_demo
 @router.post("/sessions/{session_id}/cancel", response_model=SessionOut)
 def cancel_session(session_id: str, store: StoreDep) -> SessionOut:
     """Close a session that never went on air, explicitly.

@@ -133,7 +133,10 @@ cho chạy, nhưng nó **nói thẳng trước khi lên sóng** rằng bảo đ�
 
 - Hai người: một dẫn (chỉ nhìn màn hình `/host`), một vận hành (nhìn bàn điều khiển,
   ngồi khuất tầm mắt người dẫn).
-- `INGEST_TOKEN` bật (bảo vệ endpoint ghi) khi chạy trên môi trường thật.
+- `INGEST_TOKEN` bật khi chạy trên môi trường thật — nó bảo vệ **cả 15 endpoint ghi**
+  (không chỉ đường nạp bình luận). Máy chủ chạy thí nghiệm thật nên đặt thêm
+  `PUBLIC_DEMO_WRITES=false` để khoá sạch đường ghi; để `true` chỉ khi cần cho người
+  ngoài bấm thử trên phiên demo. Xem `docs/competition/sang-tao-tre-2026/08-VA-XAC-THUC.md`.
 - `RESULTS_FREEZE_UNTIL` đặt đúng ngày đóng băng — trước ngày đó hệ thống **từ chối
   hiển thị** ước lượng tác động, chỉ trả số vận hành. Cấu hình sai định dạng thì
   **khóa luôn** cho tới khi sửa.
@@ -467,7 +470,7 @@ phản biện hỏi.
 | 2 | `YOUTUBE_API_KEY` (Google Cloud, miễn phí) | Kỹ sư | ~10 phút | Phải dùng đường yt-dlp — **trái Điều khoản YouTube**, trễ ~24 giây, và phải khai báo phương pháp nếu dữ liệu vào bài |
 | 3 | **Facebook Page token** + đủ **hai** quyền | Kỹ sư + KOL | ~25 phút | Đọc được **0 bình luận** trên Facebook |
 | 4 | Đặt `NEXT_PUBLIC_PUBLIC_API_BASE` = tên miền công khai, rồi **build lại web** (`docker compose build web`) | Kỹ sư | 10 phút | Link đo hiện ra vẫn trỏ `localhost` → người xem bấm không ra gì |
-| 5 | Đặt `INGEST_TOKEN` (bảo vệ endpoint ghi) | Kỹ sư | 5 phút | Bất kỳ ai trên Internet bơm được bình luận giả vào phiên |
+| 5 | Đặt `INGEST_TOKEN` (bảo vệ **cả 15** endpoint ghi) + chọn `PUBLIC_DEMO_WRITES` | Kỹ sư | 5 phút | Bất kỳ ai trên Internet bơm được bình luận giả, **kết thúc được phiên đang chạy**, bắn can thiệp, hoặc bắt máy chủ tải video bất kỳ |
 | 6 | Đặt `RESULTS_FREEZE_UNTIL` = ngày đóng băng dữ liệu | Trưởng phân tích | 2 phút | Nhìn trộm kết quả giữa chừng → mất tính tiền đăng ký |
 | 7 | Sao lưu CSDL ra **ngoài máy** (script `backup.sh` đang ghi vào `./backups` cục bộ) | Kỹ sư | 30 phút | Mất máy là mất sạch |
 | 8 | **Chốt giao thức làm mù với KOL**: ai dẫn, ai vận hành, máy vận hành đặt ở đâu | Chủ dự án | 1 buổi họp | Người dẫn hào hứng hơn ở khối BẬT → đo tâm lý người dẫn, không đo hệ thống. Đây là lỗi **không sửa được sau khi đã chạy** |
@@ -522,7 +525,7 @@ dùng được. Ước lượng công sức là **ước lượng thô của k�
 
 | # | Thiếu gì | Hôm nay ra sao | Cần làm gì | Ước lượng |
 |---|---|---|---|---:|
-| **1** | **Đăng nhập + tài khoản + tách dữ liệu theo chủ** | **Không có gì.** Không có trang đăng nhập. Danh mục sản phẩm **dùng chung toàn hệ thống** — đã kiểm chứng: phiên 2 thấy nguyên sản phẩm của phiên 1. Bảo vệ duy nhất là `INGEST_TOKEN` (một token dùng chung cho endpoint ghi) | Mô hình người dùng/tổ chức; thêm `owner_id` vào sản phẩm/phiên/link đo + migration; lọc theo chủ ở **mọi** truy vấn; đăng nhập | **2–3 tuần-người**. Chặn cứng việc mở cho nhiều người dùng |
+| **1** | **Đăng nhập + tài khoản + tách dữ liệu theo chủ** | **Không có gì.** Không có trang đăng nhập. Danh mục sản phẩm **dùng chung toàn hệ thống** — đã kiểm chứng: phiên 2 thấy nguyên sản phẩm của phiên 1. Bảo vệ duy nhất là `INGEST_TOKEN` (một token dùng chung cho **mọi** endpoint ghi, cộng ranh giới phiên-demo cho khách không token — `src/livelift/api/auth.py`); vẫn **không** có khái niệm chủ sở hữu | Mô hình người dùng/tổ chức; thêm `owner_id` vào sản phẩm/phiên/link đo + migration; lọc theo chủ ở **mọi** truy vấn; đăng nhập | **2–3 tuần-người**. Chặn cứng việc mở cho nhiều người dùng |
 | **2** | **Kết nối nền tảng bằng vài cú bấm** | Phải dán token vào `.env` **rồi khởi động lại tiến trình**. Shopee còn khó hơn: token sống **4 giờ**, phiên dài phải làm mới giữa chừng | OAuth callback cho Facebook/Shopee; lưu token mã hóa theo tài khoản; tự làm mới; trang "Kết nối tài khoản" | **~2 tuần-người mỗi nền tảng** |
 | **3** | **Bộ thu tự khởi động khi bấm "Lên sóng"** | Là **một lệnh terminal riêng**, cần **video id** của buổi live (người dùng phải tự tìm), một tiến trình cho mỗi phiên, không có giám sát trên giao diện | Ô dán **link buổi live** → tự trích id; trình quản lý tiến trình/hàng đợi; heartbeat và lỗi hiển thị trên màn hình vận hành | **1,5–2 tuần-người** |
 | **4** | **Bộ thực thi tự động (chế độ "auto" thật)** | `mode='auto'` **chỉ là cái nhãn** — không có scheduler, không có worker nào đọc nó. Người vận hành bấm **8 lần/phiên 90 phút** | Worker bám lịch khối, gọi `execute` đầu mỗi khối BẬT, ghi `exposure_event`, có đường hủy an toàn | **~1 tuần-người** |

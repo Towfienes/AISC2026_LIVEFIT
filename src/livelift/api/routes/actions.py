@@ -18,6 +18,7 @@ import random
 from fastapi import APIRouter, HTTPException
 
 from livelift.api import service
+from livelift.api.auth import cho_phep_demo
 from livelift.api.cards import MAX_CARDS, build_candidates, pin_cards_blocked_reason
 from livelift.api.schemas import (
     CandidateOut,
@@ -164,6 +165,7 @@ def scope_candidates_to_product(
     return [c for c in candidates if intervals_overlap(target, c)]
 
 
+@cho_phep_demo
 @router.post("/sessions/{session_id}/actions/execute", response_model=ExecuteOut)
 def execute_action(session_id: str, body: ExecuteRequest, store: StoreDep) -> ExecuteOut:
     """Execute a pin through the system (source='model').
@@ -280,6 +282,7 @@ def execute_action(session_id: str, body: ExecuteRequest, store: StoreDep) -> Ex
     )
 
 
+@cho_phep_demo
 @router.post("/sessions/{session_id}/actions/override", response_model=OverrideOut)
 def override_action(session_id: str, body: OverrideRequest, store: StoreDep) -> OverrideOut:
     """Manual intervention (source='human'). The reason field is restricted to

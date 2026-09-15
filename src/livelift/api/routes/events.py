@@ -11,8 +11,15 @@ the existing row instead of inserting a duplicate, so a runner restart or a
 spool replay is safe. Duplicate deliveries are not re-published to WebSocket
 subscribers.
 
-Auth: when the INGEST_TOKEN setting is non-empty, both POST endpoints require
-``Authorization: Bearer <token>``. Read endpoints stay open.
+Auth: when the INGEST_TOKEN setting is non-empty, every POST endpoint here
+requires ``Authorization: Bearer <token>``. Read endpoints stay open.
+
+Từ 14/09/2026 phép kiểm tra ấy KHÔNG còn nằm trong tệp này: nó là
+:func:`livelift.api.auth.require_write_auth`, gắn một lần ở cấp ứng dụng cho
+cả 15 đường ghi. Ba đường ở đây khai báo mức :data:`~livelift.api.auth.
+MUC_TOKEN` (``@chi_token``) — LUÔN đòi token, không có ngoại lệ "phiên demo":
+đây là đường nạp dữ liệu của bộ thu, và một bình luận giả bơm vào phiên thật
+là một điểm dữ liệu sai trong bài báo, không phải một trò nghịch vô hại.
 
 Kho chết giữa phiên (sự cố 13/09/2026 — gói D-ĐỘ-BỀN). Khi PostgreSQL biến
 mất trong lúc phiên đang phát, mọi lời gọi store ở đây ném lỗi kết nối và
@@ -32,14 +39,13 @@ import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import timedelta
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, HTTPException
 
 from livelift.api import service
+from livelift.api.auth import chi_token
 from livelift.api.schemas import CommentIn, CommentOut, ReactionIn, ReactionOut, TickIn, TickOut
 from livelift.api.service import StoreDep
-from livelift.config import get_settings
 from livelift.ingest.pii import scrub
 from livelift.nlp.intent import classify_with_confidence
 
@@ -132,34 +138,8 @@ def storage_guard(what: str, session_id: str) -> Iterator[None]:
         ) from exc
 
 
-def require_ingest_auth(
-    authorization: Annotated[str | None, Header()] = None,
-) -> None:
-    """Reject write requests without the bearer token when INGEST_TOKEN is set.
-
-    Empty token (default) disables the check entirely — dev, demo, and tests
-    keep working with no header.
-    """
-    token = get_settings().ingest_token
-    if not token:
-        return
-    if authorization != f"Bearer {token}":
-        raise HTTPException(
-            status_code=401,
-            detail=(
-                "Thiếu hoặc sai token ingest — cần header 'Authorization: Bearer <INGEST_TOKEN>'"
-            ),
-        )
-
-
-IngestAuth = Depends(require_ingest_auth)
-
-
-@router.post(
-    "/sessions/{session_id}/comments",
-    response_model=CommentOut,
-    dependencies=[IngestAuth],
-)
+@chi_token
+@router.post("/sessions/{session_id}/comments", response_model=CommentOut)
 def post_comment(session_id: str, body: CommentIn, store: StoreDep) -> CommentOut:
     """Store a comment. The raw text is scrubbed BEFORE any persistence or
     logging; only the scrubbed text exists beyond this function's locals.
@@ -236,11 +216,8 @@ def list_comments(session_id: str, store: StoreDep) -> list[CommentOut]:
         ]
 
 
-@router.post(
-    "/sessions/{session_id}/ticks",
-    response_model=TickOut,
-    dependencies=[IngestAuth],
-)
+@chi_token
+@router.post("/sessions/{session_id}/ticks", response_model=TickOut)
 def post_tick(session_id: str, body: TickIn, store: StoreDep) -> TickOut:
     with storage_guard("Lượt xem (tick)", session_id):
         return _store_tick(session_id, body, store)
@@ -279,11 +256,8 @@ def list_ticks(session_id: str, store: StoreDep) -> list[TickOut]:
         return [TickOut(**{**t, "session_id": session_id}) for t in store.list_ticks(session_id)]
 
 
-@router.post(
-    "/sessions/{session_id}/reactions",
-    response_model=ReactionOut,
-    dependencies=[IngestAuth],
-)
+@chi_token
+@router.post("/sessions/{session_id}/reactions", response_model=ReactionOut)
 def post_reaction(session_id: str, body: ReactionIn, store: StoreDep) -> ReactionOut:
     """Store one paid/visible audience event (Super Chat, gift, sticker,
     membership, like — migration 0007).

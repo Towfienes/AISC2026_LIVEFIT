@@ -87,11 +87,29 @@ def _get(api: str, path: str):
         return json.loads(r.read().decode("utf-8"))
 
 
+def _headers_ghi() -> dict[str, str]:
+    """Header cho lời gọi GHI.
+
+    ``POST /replays/youtube`` ở mức bảo vệ NGẶT NHẤT (nó bắt máy chủ tải nội
+    dung bên ngoài — xem ``src/livelift/api/auth.py``), nên khi API đích có
+    đặt ``INGEST_TOKEN`` thì script này phải đính token, đúng như bộ thu và
+    ``spool_replay`` vẫn làm. API chạy cục bộ không đặt token ⇒ không có
+    header nào, hành vi y như cũ.
+    """
+    from livelift.config import get_settings
+
+    token = get_settings().ingest_token
+    head = {"Content-Type": "application/json"}
+    if token:
+        head["Authorization"] = f"Bearer {token}"
+    return head
+
+
 def _post(api: str, path: str, payload: dict):
     req = urllib.request.Request(  # noqa: S310 — scheme checked in _require_http
         _require_http(api) + path,
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers=_headers_ghi(),
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=300) as r:  # noqa: S310 — same

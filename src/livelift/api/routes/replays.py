@@ -35,6 +35,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
 from livelift.api import service
+from livelift.api.auth import chi_token
 from livelift.api.service import StoreDep
 from livelift.api.store import Store
 from livelift.ingest.pii import scrub
@@ -259,6 +260,7 @@ def _run_job(job_id: str, url: str, store: Store) -> None:
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
+@chi_token
 @router.post("/replays/youtube", response_model=ReplayJobAccepted, status_code=202)
 def start_replay_analysis(
     body: ReplayRequest, background: BackgroundTasks, store: StoreDep

@@ -1,0 +1,36 @@
+{
+  "sklearn_version": "1.9.0",
+  "trained_at_utc": "2026-09-14T07:21:26+00:00",
+  "n_samples": 2513,
+  "labels": [
+    "hoi_gia",
+    "hoi_size",
+    "che_dat",
+    "chot_don",
+    "van_chuyen",
+    "chao_hoi",
+    "cam_on_khen",
+    "hoi_sanpham",
+    "hoi_daily",
+    "bao_gia_shop",
+    "khac"
+  ],
+  "sources": {
+    "gold_human": 393,
+    "authored_11": 320,
+    "llm_lot1": 1800
+  },
+  "seed": 2026,
+  "style_features": [
+    "caps_ratio",
+    "digit_ratio",
+    "emoji_ratio",
+    "len_log",
+    "n_price_marks",
+    "has_pipe_sep",
+    "is_shouted_pricesheet",
+    "has_question_mark",
+    "n_pii_placeholders"
+  ],
+  "eval": "leave-one-session-out trên data/labeling/lot2-da-nguon-10-09"
+}

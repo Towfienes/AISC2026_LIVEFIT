@@ -59,6 +59,26 @@ curl -s http://127.0.0.1:8000/sessions/b519f75c-09ab-4cb4-8dff-f5c492c142be/comm
 Khi store là Postgres (dữ liệu nằm trong DB thật), bỏ bước 1 và dùng thẳng cờ
 `--session b519f75c-09ab-4cb4-8dff-f5c492c142be` thay cho `--input`.
 
+### Trạng thái nhãn của lô 1 (cập nhật 14/09/2026)
+
+| | |
+|---|---|
+| File nhãn | `train_llm.jsonl` — **1.800 dòng** `{id, text, label, stratum, session, labeler}` |
+| Người/máy gán | **LLM (Claude), một mô hình, KHÔNG có đồng thuận 2 model, KHÔNG có người duyệt** |
+| Bộ nhãn | 11 lớp |
+| Dùng vào | **CHỈ huấn luyện.** Không một con số đánh giá nào đo trên nhãn do AI sinh |
+| Kê khai | `docs/competition/sang-tao-tre-2026/03-NLP-NANG-CAP.md` §7 (Điều 5 §5–6) |
+
+Phân bố: `khac` 1.149 · `cam_on_khen` 382 · `chao_hoi` 173 · `hoi_daily` 40 ·
+`bao_gia_shop` 33 · `hoi_sanpham` 18 · `van_chuyen` 3 · `chot_don` 1 · `hoi_gia` 1 ·
+`hoi_size` 0 · `che_dat` 0.
+
+> **Lô này nghèo ý định mua.** Phiên `b519f75c` là "mega live tâm sự": 1.800 dòng chỉ
+> chứa **2** dòng ý định mua. Nó dạy được xã giao (`chao_hoi`, `cam_on_khen`), bảng giá
+> shop (`bao_gia_shop`) và câu hỏi đại lý (`hoi_daily` — **nguồn duy nhất của lớp này
+> trong toàn bộ dữ liệu**), nhưng **không dạy được ý định mua**. Đó là lý do bảng
+> ablation A4 cho thấy bỏ bộ biên soạn đi thì macro-F1 sập 0,200.
+
 ### Bước tiếp theo cho lô này
 
 ```bash
@@ -97,9 +117,19 @@ không theo model. Chi tiết trong `lot2-da-nguon-10-09/README.md`.
 **Không bao giờ** ước lượng prevalence từ tầng `uncertain` hay từ cả lô gộp:
 tầng đó cố ý lấy thiên lệch về những câu model kém nhất.
 
-## Nợ phải trả trước khi huấn luyện lại
+## Nợ phải trả trước khi huấn luyện lại — ✅ ĐÃ TRẢ 14/09/2026
 
 `src/livelift/nlp/data/intent_dataset.jsonl` còn **60 dòng `khac`** viết theo bộ
 6 lớp cũ; khoảng **34/60** thuộc lớp khác theo guideline 11 lớp. Phải gán nhãn
 lại chúng **trước** khi train, nếu không model học hai luật mâu thuẫn cùng lúc.
 Chi tiết: `docs/benchmarks/live-fire-achan.md` §5.3.
+
+**Đã trả:** `scripts/gan_lai_nhan_11.py` gán lại **42/60 dòng** (11 → `cam_on_khen`,
+4 → `chao_hoi`, 27 → `hoi_sanpham`; 18 dòng còn lại đúng là `khac`) và ghi ra
+`src/livelift/nlp/data/intent_dataset_11.jsonl`. File gốc **không bị sửa** — nó là
+baseline tiền đăng ký. Ước lượng cũ "34/60" hơi thấp: con số thật là 42.
+
+```bash
+.venv/Scripts/python scripts/gan_lai_nhan_11.py --kiem-tra   # chỉ kiểm tra
+.venv/Scripts/python scripts/gan_lai_nhan_11.py              # ghi file
+```

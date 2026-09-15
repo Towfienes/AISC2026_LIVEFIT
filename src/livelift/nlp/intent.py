@@ -15,11 +15,19 @@ matches wins, otherwise ``khac``.
 Only scrubbed text should ever reach this function in the ingest path — the
 classifier itself never stores or logs its input.
 
-Both classifiers here emit only :data:`~livelift.nlp.labels.TRAINED_LABELS`
-(the six pre-registered classes). The five classes added to the ANNOTATION set
-after the 08/09 live-fire (``chao_hoi``, ``cam_on_khen``, ``hoi_sanpham``,
-``hoi_daily``, ``bao_gia_shop``) have no training data yet, so no model here
-can produce them — see docs/benchmarks/live-fire-achan.md.
+The keyword baseline and the DEFAULT artifact emit only
+:data:`~livelift.nlp.labels.TRAINED_LABELS` (the six pre-registered classes).
+
+Since 14/09/2026 there is a second artifact, ``intent_clf_v2.joblib``, trained on
+2,513 rows (393 human-labelled real comments + 320 re-labelled authored rows +
+1,800 LLM-labelled real comments) that DOES produce all eleven annotation
+classes. It is selected with ``LIVELIFT_INTENT_MODEL=v2`` and is deliberately
+not the default yet — promoting it changes ``TRAINED_LABELS`` from 6 to 11,
+which several gates still encode. Honest measurement on real chat
+(leave-one-session-out over three live sessions): macro-F1 0.211 -> 0.565,
+accuracy 0.338 -> 0.741, action-label precision 23.0% -> 66.7%. Method,
+ablation and remaining limitations:
+docs/competition/sang-tao-tre-2026/03-NLP-NANG-CAP.md.
 """
 
 from __future__ import annotations
@@ -166,7 +174,28 @@ def classify_keywords(text: str) -> str:
 MIN_CONFIDENCE = 0.45
 """Below this the model abstains to "khac" — out-of-domain guard (see classify)."""
 
-_MODEL_PATH = __import__("pathlib").Path(__file__).parent / "model" / "intent_clf.joblib"
+INTENT_MODEL_ENV = "LIVELIFT_INTENT_MODEL"
+"""Chọn artifact khi khởi động: ``v1`` (mặc định) hay ``v2``.
+
+``v1`` — ``intent_clf.joblib``, 6 lớp, huấn luyện trên 320 câu tự biên soạn. Đây là
+**baseline tiền đăng ký**: mọi con số cũ đo trên nó, nên nó vẫn là mặc định và
+không bao giờ bị ghi đè.
+
+``v2`` — ``intent_clf_v2.joblib``, **11 lớp**, huấn luyện trên 2.513 mẫu (393 nhãn
+người gán + 320 câu biên soạn đã gán lại + 1.800 nhãn LLM trên bình luận thật).
+Đo bằng leave-one-session-out trên chat thật: macro-F1 **0,211 → 0,565**, accuracy
+**0,338 → 0,741**, precision nhãn hành động **23,0% → 66,7%**
+(``docs/competition/sang-tao-tre-2026/03-NLP-NANG-CAP.md``).
+
+Vì sao là **cờ bật tay** chứ không phải mặc định: đổi mặc định kéo theo đổi
+``TRAINED_LABELS`` (6 → 11) và mọi cổng đang khoá con số cũ theo bộ 6 lớp. Đó là
+một lần thăng cấp có chủ ý, làm trong một thay đổi riêng, không phải tác dụng phụ
+của việc thêm một artifact. Quy trình thăng cấp đầy đủ ghi ở §11 của tài liệu trên.
+"""
+
+_VARIANT = __import__("os").getenv(INTENT_MODEL_ENV, "v1").strip().lower()
+_MODEL_FILENAME = "intent_clf_v2.joblib" if _VARIANT == "v2" else "intent_clf.joblib"
+_MODEL_PATH = __import__("pathlib").Path(__file__).parent / "model" / _MODEL_FILENAME
 _META_PATH = _MODEL_PATH.with_suffix(".meta.json")
 _model = None
 _model_tried = False

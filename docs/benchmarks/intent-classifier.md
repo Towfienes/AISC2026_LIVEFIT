@@ -1,12 +1,31 @@
 # Benchmark: Bộ phân loại ý định bình luận tiếng Việt
 
 *Cập nhật 08/09/2026 · sinh lại bằng `python -m livelift.nlp.train_intent`*
+*Bổ sung 14/09/2026 — xem khối 🆕 ngay dưới trước khi đọc phần còn lại.*
 
 > ⚠️ **ĐỌC TRƯỚC KHI TRÍCH BẤT KỲ CON SỐ NÀO.** Con số 0.870 dưới đây đo trên bộ
 > **tự biên soạn**, cùng phân phối với dữ liệu huấn luyện. Trên chat bán hàng
 > **thật**, cùng mô hình đó đạt **macro-F1 0.271** và precision gộp **11%** —
 > đo ngày 08/09 trên 6.586 bình luận thật, xem
 > [live-fire-achan.md](live-fire-achan.md). **Không được nêu 0.870 một mình.**
+
+> 🆕 **14/09/2026 — đã có khung đo chạy lại được và một bản nâng cấp.**
+> Toàn bộ trang này mô tả **bộ 6 lớp và artifact `intent_clf.joblib`**, vẫn là mặc
+> định của sản phẩm. Song song đó:
+>
+> | | Cũ (`intent_clf.joblib`) | Mới (`intent_clf_v2.joblib`) |
+> |---|---:|---:|
+> | macro-F1 trên chat thật, leave-one-session-out, 393 dòng người gán | **0,211** (KTC95 0,172–0,247) | **0,565** (KTC95 0,491–0,649) |
+> | Accuracy | 0,338 | 0,741 |
+> | Precision nhãn hành động | 23,0% (54/235) | 66,7% (40/60) |
+> | Số lớp dự đoán được | 6 | 11 |
+>
+> **Con số 0,271 ở trên KHÔNG tái lập được đến từng dòng** (file nhãn của 200 dòng
+> ngày 08/09 không được lưu). Con số "TRƯỚC" chính thức từ nay là **0,211**, đo bằng
+> `python -m livelift.nlp.eval_intent` trên lô nhãn tay 10/09 còn nguyên vẹn.
+> Phương pháp, bảng baseline, bảng ablation, phân tích lỗi và hạn chế:
+> [`docs/competition/sang-tao-tre-2026/03-NLP-NANG-CAP.md`](../competition/sang-tao-tre-2026/03-NLP-NANG-CAP.md).
+> Số gốc: [`intent-eval/results.json`](intent-eval/results.json).
 
 ## Kết quả
 
@@ -136,13 +155,24 @@ Phân biệt hai tập lớp:
 5. Bình luận đã lọc PII — `[SĐT]`, `[ĐỊA CHỈ]`, `[TÊN]` là bình thường.
 6. Mất dấu / teencode / viết tắt / emoji — vẫn gán như thường.
 
-### ⚠ Nợ bắt buộc trả trước khi huấn luyện lại
+### ✅ Nợ bắt buộc trả trước khi huấn luyện lại — ĐÃ TRẢ 14/09/2026
 
 **60 dòng `khac` trong `data/intent_dataset.jsonl` phải được gán nhãn lại.**
 Chúng được viết khi `khac` còn ôm cả chào hỏi/khen/hỏi sản phẩm, nên nay khoảng
 **34/60 (~57%)** mâu thuẫn trực tiếp với guideline này (`chào shop buổi tối`,
 `chị chủ xinh quá`, `hạn sử dụng tới khi nào ạ` đang mang nhãn `khac`). Train
 trước khi sửa = dạy model đúng sự lẫn lộn mà 5 lớp mới sinh ra để dẹp.
+
+**Đã trả:** `scripts/gan_lai_nhan_11.py` → `data/intent_dataset_11.jsonl`. Con số
+thật là **42/60 (70%)**, cao hơn ước lượng 34/60 ghi ở đây: 11 dòng sang
+`cam_on_khen`, 4 sang `chao_hoi`, 27 sang `hoi_sanpham`. Bảng gán lại nằm trong mã
+nguồn (review được từng dòng), và test `test_relabel_table_is_reproducible_from_the_script`
+bắt buộc file dữ liệu phải là kết quả của bảng đó. File gốc **không bị sửa** — nó
+là baseline tiền đăng ký của mọi con số cũ.
+
+Đo được đóng góp của việc trả nợ này (ablation A7 vs A8, chấm trên cùng không gian
+6 lớp): macro-F1 **0,574 → 0,609**, accuracy **0,850 → 0,880**. Tức bộ nhãn 11 lớp
+làm mô hình bớt sai **ngay trên bài toán 6 lớp cũ**.
 
 ### Giới hạn phải nói khi trình bày
 

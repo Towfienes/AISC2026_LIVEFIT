@@ -1,0 +1,105 @@
+# PROD — lớp phủ cho máy chủ công khai chạy liên tục nhiều ngày.
+#
+# Cách dùng (LUÔN kèm docker-compose.yml, theo đúng thứ tự này):
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Hoặc đặt một lần trong .env rồi gõ `docker compose up -d` như thường:
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml
+#   (Windows dùng ';' thay ':', hoặc đặt COMPOSE_PATH_SEPARATOR=:)
+#
+# Tệp này KHÔNG thêm phân hệ mới, KHÔNG đổi logic và KHÔNG đổi thẻ ảnh — chỉ
+# siết hai thứ quyết định việc sản phẩm còn sống sau 48 giờ hay không:
+#
+#   1. XOAY VÒNG NHẬT KÝ. Mặc định Docker ghi nhật ký json-file KHÔNG giới hạn
+#      dung lượng. Một phiên live sinh hàng nghìn dòng; chạy vài tuần là ổ đĩa
+#      VPS đầy, và khi ổ đầy thì PostgreSQL dừng ghi TRƯỚC KHI có ai kịp nhận
+#      ra. Đây là cách chết âm thầm hay gặp nhất của một máy chủ demo dài ngày,
+#      và nó rơi đúng vào "lỗi chủ quan" mà thể lệ §8 tính điểm 0.
+#      10 MB x 3 tệp x 6 phân hệ = tối đa ~180 MB nhật ký, có trần cứng.
+#
+#   2. TRẦN BỘ NHỚ. Không có trần thì một truy vấn nặng hoặc một rò rỉ bộ nhớ
+#      sẽ ăn hết RAM, và OOM-killer của Linux chọn nạn nhân theo điểm số của
+#      nó — thường là PostgreSQL, tức là phân hệ đắt nhất. Có trần thì container
+#      gây chuyện tự chết một mình, `restart: unless-stopped` dựng lại, và các
+#      phân hệ còn lại không hề hấn. Con số bên dưới vừa một VPS 4 GB (khuyến
+#      nghị); bảng cho VPS 2 GB nằm trong docs/competition/sang-tao-tre-2026/
+#      04-TRIEN-KHAI.md §5.
+#
+# ---------------------------------------------------------------------------
+# VIỆC CÒN LẠI SAU LẦN DỰNG ĐẦU TIÊN: GHIM ẢNH BẰNG DIGEST
+# ---------------------------------------------------------------------------
+# `timescale/timescaledb:latest-pg16`, `redis:7-alpine` và `caddy:2-alpine` là
+# những thẻ TRÔI: một lần `docker compose pull` giữa kỳ thi có thể đổi hành vi
+# dưới chân mình. Cách chữa đúng là ghim bằng DIGEST — nhưng digest chỉ lấy
+# được trên máy ĐÃ kéo ảnh về, nên CỐ Ý không viết sẵn ở đây: một thẻ bịa ra
+# sẽ làm hỏng đúng cái lệnh `docker compose up` mà tệp này sinh ra để bảo vệ.
+#
+# Sau khi dựng thành công lần đầu, chạy đúng lệnh này trên máy chủ:
+#
+#   docker compose images --format json | \
+#     python3 -c "import json,sys; [print(f\"{i['Repository']}:{i['Tag']}@{i['Digest']}\") for i in json.load(sys.stdin)]"
+#
+# rồi dán kết quả vào khối `image:` tương ứng bên dưới, ví dụ:
+#
+#   db:
+#     image: timescale/timescaledb:latest-pg16@sha256:<digest thật>
+#
+# Từ lúc đó, mọi lần dựng lại cho ra đúng một bộ ảnh — kể cả khi thượng nguồn
+# đẩy bản mới. Đây là bước bắt buộc trong bảng kiểm trước 48 giờ.
+
+services:
+  db:
+    mem_limit: 1g
+    logging: &nhat_ky
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  redis:
+    mem_limit: 192m
+    # maxmemory ĐẶT THẤP HƠN trần container để redis tự dọn khoá cũ theo LRU
+    # thay vì bị OOM-killer bắn chết. allkeys-lru hợp với vai trò của redis ở
+    # đây (bộ đệm/điều phối), KHÔNG phải kho bền vững — kho bền vững là
+    # PostgreSQL.
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--maxmemory",
+        "150mb",
+        "--maxmemory-policy",
+        "allkeys-lru",
+      ]
+    logging: *nhat_ky
+
+  migrate:
+    logging: *nhat_ky
+
+  api:
+    # Neo YAML không đi xuyên tệp, nên khối environment phải viết lại ĐỦ —
+    # thiếu STORE_BACKEND là API chạy trên RAM mà vẫn báo xanh (sự cố
+    # 25/08/2026). Khác bản gốc đúng một chỗ: LIVELIFT_ENV cứng thành `prod`.
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-livelift}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-livelift}
+      REDIS_URL: redis://redis:6379/0
+      LIVELIFT_ENV: prod
+      STORE_BACKEND: postgres
+    # 768m: ảnh api kéo theo lightgbm + numpy/scipy; cần đo lại bằng
+    # `docker stats` sau 24 giờ chạy thật rồi siết cho khớp.
+    mem_limit: 768m
+    logging: *nhat_ky
+
+  web:
+    # `next start` phục vụ bundle đã build sẵn — rất nhẹ, không biên dịch nữa.
+    mem_limit: 384m
+    logging: *nhat_ky
+
+  caddy:
+    mem_limit: 128m
+    logging: *nhat_ky
+
+  backup:
+    mem_limit: 256m
+    logging: *nhat_ky

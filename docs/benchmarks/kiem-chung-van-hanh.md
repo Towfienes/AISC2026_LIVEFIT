@@ -323,8 +323,9 @@ hiện sẵn ba lựa chọn này dưới dạng nút bấm — chủ shop khôn
 thật hay thử:
 
 ```python
-ended = [s for s in store.list_sessions()
-         if s.get("status") == "ended" and not _is_analysis_only(s)]
+ended = [
+    s for s in store.list_sessions() if s.get("status") == "ended" and not _is_analysis_only(s)
+]
 ```
 
 Hai phiên dò lỗi của gói này (`probe409`, `probe-pin`) — mỗi phiên sống 1 giây,

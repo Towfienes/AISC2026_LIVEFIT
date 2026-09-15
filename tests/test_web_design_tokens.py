@@ -333,10 +333,22 @@ def test_focus_ring_is_defined_for_keyboard_only():
 def test_every_focusable_element_shows_a_focus_ring():
     """Term had tabIndex + outline-none: a focus stop nobody could see."""
     shared = ("focus-ring", "fieldCls", "inputCls", "buttonCls")
+
+    # global-error.tsx là ngoại lệ CÓ CHỦ Ý, không phải chỗ bị quên. Nó thay thế
+    # luôn layout gốc và phải đọc được ngay cả khi globals.css không nạp được
+    # (sự cố 13/09/2026: layout.css trả 404), nên nó KHÔNG được dùng lớp CSS nào
+    # — kể cả `focus-ring`. Vòng focus ở đó đặt bằng bộ chọn theo thẻ trong một
+    # khối <style> nội tuyến; `test_global_error_co_vong_focus_rieng` canh việc
+    # khối đó còn tồn tại. Hai bất biến này từng đá nhau và làm đỏ bộ test
+    # ngày 14/09/2026; lời giải là ghi rõ ngoại lệ, không phải nới lỏng test.
+    ngoai_le = {"src/app/global-error.tsx"}
+
     offenders: list[str] = []
     for path in TSX:
         src = path.read_text(encoding="utf-8")
         rel = path.relative_to(WEB).as_posix()
+        if rel in ngoai_le:
+            continue
         for m in re.finditer(r"<(button|select|input|summary|textarea|Link)[\s\n]", src):
             tag = _opening_tag(src, m.start())
             if not any(token in tag for token in shared):
@@ -382,3 +394,24 @@ def test_segmented_controls_are_big_enough_to_hit():
         assert "focus-ring-inset" in src, (
             f"{name}: nhóm overflow-hidden cần vòng focus inset, nếu không sẽ bị cắt mất"
         )
+
+
+def test_global_error_co_vong_focus_rieng():
+    """Ngoại lệ của `test_every_focusable_element_shows_a_focus_ring` phải có giá.
+
+    global-error.tsx được miễn dùng lớp `focus-ring` vì nó không được phụ thuộc
+    globals.css. Đổi lại, nó phải TỰ mang vòng focus trong một khối <style> nội
+    tuyến — nếu không, miễn trừ đó biến thành một lỗ hổng WCAG 2.4.7 im lặng.
+    """
+    src = (SRC / "app" / "global-error.tsx").read_text(encoding="utf-8")
+    assert "<style" in src, "global-error.tsx mất khối <style> nội tuyến"
+    assert "focus-visible" in src, (
+        "global-error.tsx không còn luật :focus-visible nào — người dùng bàn phím "
+        "không thấy mình đang ở đâu"
+    )
+    ly_do = (
+        "luật focus phải theo THẺ (button/a), không theo lớp — lớp CSS ở đây vô "
+        "nghĩa vì tệp này chạy đúng lúc CSS hỏng"
+    )
+    assert "button:focus-visible" in src, ly_do
+    assert "a:focus-visible" in src, ly_do

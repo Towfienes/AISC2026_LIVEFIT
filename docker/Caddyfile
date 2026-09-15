@@ -11,6 +11,30 @@
 # FastAPI phục vụ ở gốc nên tiền tố /api bị cắt trước khi chuyển tiếp.
 
 {$DOMAIN:http://localhost} {
+	# --- Nén: giảm băng thông cho máy chủ 1 vCPU và người xem dùng 3G/4G ---
+	encode zstd gzip
+
+	# --- Header bảo mật (áp cho MỌI phản hồi, kể cả trang lỗi) -------------
+	header {
+		# Trình duyệt không được tự đoán kiểu tệp (chống MIME sniffing).
+		X-Content-Type-Options "nosniff"
+		# Không cho nhúng LiveLift trong iframe của trang khác (chống clickjacking).
+		X-Frame-Options "DENY"
+		# Rò rỉ ít nhất có thể khi người xem bấm shortlink sang shop.
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# Không xin quyền thiết bị — ứng dụng không dùng camera/mic/định vị.
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+		# HSTS — an toàn khi đặt vô điều kiện. RFC 6797 §8.1 buộc trình duyệt
+		# BỎ QUA header này khi nhận qua HTTP không mã hoá, nên ở chế độ dev
+		# (DOMAIN trống → http://localhost) nó không gây tác dụng phụ nào;
+		# chỉ khi Caddy phục vụ HTTPS thật thì trình duyệt mới ghi nhận.
+		# Nhờ vậy không cần bộ so khớp CEL, bớt một chỗ có thể sai cú pháp.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		# Xóa header tiết lộ ngăn xếp phía sau.
+		-Server
+		-X-Powered-By
+	}
+
 	# Shortlink đo click /r/{code} — biến kết quả chính của thí nghiệm.
 	handle /r/* {
 		reverse_proxy api:8000
@@ -18,16 +42,28 @@
 
 	# REST API cho trình duyệt: /api/... → (cắt /api) → api:8000/...
 	handle_path /api/* {
-		reverse_proxy api:8000
+		reverse_proxy api:8000 {
+			# Hạn giờ đọc/ghi: API tự có hạn giờ kho dữ liệu (STORE_*_TIMEOUT_S,
+			# xem .env.example), nhưng nếu tiến trình api TREO hẳn thì không hạn
+			# nào bên trong nó chạy nữa. 30 giây là lưới cuối để một yêu cầu chết
+			# không giữ mãi một kết nối của Caddy.
+			transport http {
+				dial_timeout 5s
+				response_header_timeout 30s
+			}
+		}
 	}
 
 	# WebSocket cập nhật trực tiếp — web nối tới {API}/ws/{session_id};
 	# reverse_proxy tự nâng cấp kết nối WebSocket.
+	# CỐ Ý không đặt hạn giờ ở đây: WebSocket phải mở suốt phiên live (90 phút).
 	handle /ws/* {
 		reverse_proxy api:8000
 	}
 
 	# Tài liệu OpenAPI — tiện kiểm tra nhanh trên môi trường thật.
+	# Mã nguồn phát hành AGPL-3.0 công khai nên /openapi.json không tiết lộ gì
+	# mà kho mã không có sẵn; giữ mở để giám khảo tự kiểm chứng API.
 	handle /docs {
 		reverse_proxy api:8000
 	}
@@ -38,5 +74,46 @@
 	# Mọi đường dẫn còn lại: giao diện Next.js.
 	handle {
 		reverse_proxy web:3000
+	}
+
+	# --- Trang lỗi của CỔNG VÀO -------------------------------------------
+	# Khi `api` hoặc `web` chết/đang khởi động lại, Caddy mặc định trả một
+	# trang 502 trắng trơn của Go — trước hội đồng chấm đó là “sản phẩm sập”.
+	# Khối này trả một trang tiếng Việt nói rõ đang xảy ra chuyện gì và tự tải
+	# lại sau 10 giây, nên khi container hồi phục thì màn hình tự trở lại.
+	# Chỉ MỘT khối, không bộ so khớp CEL: `handle_errors` của Caddy chỉ kích
+	# hoạt khi CHÍNH Caddy gặp lỗi — điển hình là reverse_proxy không nối được
+	# tới api/web (502/503). Mã 404 do api hay web tự trả về KHÔNG đi qua đây
+	# mà được chuyển thẳng cho trình duyệt, nên không sợ trang lỗi HTML này đè
+	# lên một câu trả lời 404 hợp lệ của API.
+	handle_errors {
+		header Content-Type "text/html; charset=utf-8"
+		header Retry-After "10"
+		# CỐ Ý không dùng khối <style>, và trong phần HTML không có một cặp
+		# ngoặc nhọn nào ngoài placeholder err.status_code. Lý do: Caddy có
+		# thay thế placeholder NGAY CẢ bên trong heredoc, nên một khai báo CSS
+		# thông thường (tên thẻ rồi mở ngoặc nhọn) sẽ bị đọc nhầm thành
+		# placeholder, và trang lỗi hỏng đúng lúc cần nó nhất. Toàn bộ định
+		# dạng vì thế đặt bằng thuộc tính style= nội tuyến.
+		respond <<HTML
+			<!doctype html>
+			<html lang="vi">
+			<head>
+			<meta charset="utf-8">
+			<meta name="viewport" content="width=device-width,initial-scale=1">
+			<meta http-equiv="refresh" content="10">
+			<title>LiveLift — đang khởi động lại</title>
+			</head>
+			<body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#07080d;color:#f4f5f8;font-family:'Be Vietnam Pro',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;line-height:1.55">
+			<main style="max-width:34rem">
+			<p style="font-size:15px;letter-spacing:.06em;text-transform:uppercase;color:#7d8494;margin:0">LiveLift</p>
+			<h1 style="font-size:20px;font-weight:600;margin:8px 0 0">Dịch vụ đang khởi động lại</h1>
+			<div style="margin-top:20px;border:1px solid rgba(250,178,25,.4);background:rgba(250,178,25,.1);border-radius:6px;padding:10px 12px;font-size:16px;color:#b6bcc8">Một phân hệ phía sau vừa khởi động lại và chưa nhận yêu cầu. <strong style="color:#f4f5f8">Dữ liệu đã lưu không bị ảnh hưởng</strong> — cơ sở dữ liệu chạy tách rời và có ổ đĩa riêng.</div>
+			<p style="font-size:16px;color:#b6bcc8;margin-top:20px">Trang này <strong style="color:#f4f5f8">tự tải lại sau 10 giây</strong>. Bình thường mỗi lần khởi động lại mất dưới 30 giây.</p>
+			<p style="font-size:16px;color:#b6bcc8">Nếu sau 2 phút vẫn thấy màn hình này, người trực kỹ thuật chạy <code style="font-family:ui-monospace,Consolas,monospace;color:#f4f5f8">docker compose ps</code> rồi <code style="font-family:ui-monospace,Consolas,monospace;color:#f4f5f8">docker compose logs --tail=50</code>.</p>
+			<p style="font-size:13px;color:#7d8494;margin-top:32px">Mã lỗi cổng vào: {err.status_code}</p>
+			</main></body>
+			</html>
+			HTML 503
 	}
 }

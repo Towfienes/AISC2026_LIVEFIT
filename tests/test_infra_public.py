@@ -238,3 +238,149 @@ def test_runbook_flags_exist_on_the_real_clis():
     assert "--api-base" in _option_strings(replay_parser()), (
         "runbook dẫn --api-base nhưng spool_replay không có"
     )
+
+
+# ---------------------------------------------------------------------------
+# 5. Chống sập khi demo (gói triển khai, 14/09/2026)
+#
+# Thể lệ Bảng C §8: sản phẩm phải truy cập được ổn định ít nhất 48 GIỜ trước
+# thời điểm kiểm tra; không truy cập được DO LỖI CHỦ QUAN thì điểm vận hành có
+# thể bị tính 0. Bốn gate dưới đây khoá lại đúng bốn thứ đã thiếu trước hôm ấy,
+# mỗi thứ là một cách chết đã biết chứ không phải sở thích cấu hình.
+# ---------------------------------------------------------------------------
+
+PROD = ROOT / "docker-compose.prod.yml"
+
+
+def test_api_web_caddy_deu_co_healthcheck(compose):
+    """`restart: unless-stopped` chỉ cứu tiến trình THOÁT, không cứu tiến trình TREO.
+
+    Container treo vẫn hiện `Up` trong `docker compose ps` — kiểu hỏng khó chịu
+    nhất giữa buổi chấm, vì mọi thứ trông vẫn bình thường.
+    """
+    for name in ("db", "redis", "api", "web", "caddy"):
+        svc = compose["services"][name]
+        assert "healthcheck" in svc, (
+            f"service {name} không có healthcheck — một lần treo là không ai biết"
+        )
+        assert svc["healthcheck"].get("test"), f"healthcheck của {name} rỗng"
+
+
+def test_healthcheck_khong_dung_cong_cu_ma_anh_khong_co(compose):
+    """python:3.11-slim và node:20-alpine đều KHÔNG có curl/wget.
+
+    Một healthcheck gọi `curl` trong hai ảnh ấy sẽ luôn trả mã khác 0, tức là
+    container bị đánh dấu unhealthy vĩnh viễn — tệ hơn là không có healthcheck,
+    vì nó dạy người trực bỏ qua cột STATUS.
+    """
+    for name in ("api", "web"):
+        test = " ".join(str(x) for x in compose["services"][name]["healthcheck"]["test"])
+        assert "curl" not in test, (
+            f"healthcheck của {name} gọi curl — ảnh nền không cài curl, sẽ unhealthy vĩnh viễn"
+        )
+
+
+def test_caddy_healthcheck_hoi_admin_api_khong_hoi_cong_80(compose):
+    """Cổng 80 phản ánh sức khoẻ của api/web PHÍA SAU, không phải của Caddy.
+
+    `web` chết ⇒ cổng 80 trả 503 ⇒ Caddy bị đánh dấu unhealthy OAN, trong khi nó
+    đang làm đúng việc của mình là phục vụ trang lỗi tiếng Việt. Admin API
+    (127.0.0.1:2019, chỉ nghe trong container) mới trả lời đúng câu hỏi
+    "có nên khởi động lại caddy không".
+    """
+    test = " ".join(str(x) for x in compose["services"]["caddy"]["healthcheck"]["test"])
+    assert "2019" in test, "healthcheck của caddy phải hỏi admin API 2019, không hỏi cổng 80"
+
+
+def test_caddyfile_co_header_bao_mat_va_trang_loi():
+    text = CADDYFILE.read_text(encoding="utf-8")
+    for header in (
+        "X-Content-Type-Options",
+        "X-Frame-Options",
+        "Referrer-Policy",
+        "Strict-Transport-Security",
+    ):
+        assert header in text, f"Caddyfile thiếu header bảo mật {header}"
+    assert "handle_errors" in text, (
+        "Caddyfile thiếu handle_errors — api/web chết là hội đồng thấy trang 502 trắng của Go"
+    )
+
+
+def test_trang_loi_caddy_khong_co_ngoac_nhon_ngoai_placeholder_that():
+    """Caddy thay thế placeholder {...} NGAY CẢ bên trong heredoc.
+
+    Một khai báo CSS thông thường (tên thẻ rồi mở ngoặc nhọn) sẽ bị đọc nhầm
+    thành placeholder và trang lỗi hỏng ĐÚNG LÚC cần nó nhất. Vì vậy phần HTML
+    của handle_errors phải sạch ngoặc nhọn, trừ các placeholder có chủ ý.
+    """
+    text = CADDYFILE.read_text(encoding="utf-8")
+    # Chỉ soi RUỘT heredoc (giữa `respond <<HTML` và dấu đóng `HTML <mã>`),
+    # không soi cả khối handle_errors — ngoặc mở của chính khối ấy là cú pháp
+    # Caddyfile hợp lệ, không phải placeholder.
+    khoi = re.search(r"respond <<HTML\n(.*?)\n\s*HTML \d+", text, re.S)
+    assert khoi, "không tìm thấy heredoc trang lỗi trong Caddyfile"
+    than = khoi.group(1)
+    la = [m for m in re.findall(r"\{[^{}]*\}", than) if m != "{err.status_code}"]
+    assert not la, f"trang lỗi Caddy có ngoặc nhọn lạ, Caddy sẽ hiểu là placeholder: {la}"
+
+
+def test_prod_overlay_xoay_vong_nhat_ky_va_chan_bo_nho():
+    """Ổ đĩa đầy vì nhật ký là cách chết âm thầm hay gặp nhất của máy chủ demo dài ngày.
+
+    Mặc định Docker ghi json-file KHÔNG giới hạn; khi ổ đầy thì PostgreSQL dừng
+    ghi TRƯỚC KHI có ai kịp nhận ra.
+    """
+    prod = yaml.safe_load(PROD.read_text(encoding="utf-8"))
+    for name, svc in prod["services"].items():
+        assert "logging" in svc, f"prod: service {name} không giới hạn nhật ký — ổ đĩa sẽ đầy"
+        opts = svc["logging"]["options"]
+        assert opts.get("max-size"), f"prod: nhật ký của {name} thiếu max-size"
+        assert opts.get("max-file"), f"prod: nhật ký của {name} thiếu max-file"
+    # migrate chạy một lần rồi thoát nên không cần trần bộ nhớ.
+    for name in ("db", "redis", "api", "web", "caddy", "backup"):
+        assert prod["services"][name].get("mem_limit"), (
+            f"prod: service {name} không có mem_limit — OOM-killer sẽ chọn nạn nhân thay bạn"
+        )
+
+
+def test_prod_overlay_giu_store_backend_postgres():
+    """Neo YAML KHÔNG đi xuyên tệp.
+
+    Lớp phủ prod ghi đè cả khối `environment` của api, nên nếu quên chép lại
+    STORE_BACKEND thì API chạy vui vẻ trên RAM mà vẫn báo xanh — đúng sự cố
+    25/08/2026, và một lần khởi động lại là mất sạch.
+    """
+    prod = yaml.safe_load(PROD.read_text(encoding="utf-8"))
+    env = prod["services"]["api"]["environment"]
+    assert env.get("STORE_BACKEND") == "postgres", (
+        "prod: api thiếu STORE_BACKEND=postgres — dữ liệu sẽ nằm trong RAM"
+    )
+    assert env.get("LIVELIFT_ENV") == "prod", "prod: api phải chạy LIVELIFT_ENV=prod"
+
+
+def test_web_co_du_ba_trang_loi():
+    """Thiếu ba tệp này thì một lỗi render bất kỳ hiện vết ngăn xếp (bản dev)
+    hoặc một trang tiếng Anh trống trơn (bản prod) — trước mặt hội đồng chấm."""
+    app = ROOT / "web" / "src" / "app"
+    for ten in ("error.tsx", "global-error.tsx", "not-found.tsx"):
+        assert (app / ten).is_file(), (
+            f"web/src/app/{ten} không tồn tại — Next sẽ dùng trang mặc định"
+        )
+
+
+def test_global_error_khong_phu_thuoc_tailwind():
+    """global-error.tsx thay thế luôn layout gốc, nên nó phải đọc được NGAY CẢ
+    khi CSS không nạp được — đúng kịch bản sự cố 13/09/2026 (layout.css trả 404)."""
+    text = (ROOT / "web" / "src" / "app" / "global-error.tsx").read_text(encoding="utf-8")
+    assert 'className="' not in text, (
+        "global-error.tsx dùng lớp Tailwind — vô dụng khi chính CSS là thứ hỏng; "
+        "đặt màu/khoảng cách bằng style nội tuyến"
+    )
+    assert "backgroundColor" in text, "global-error.tsx phải tự đặt màu nền bằng style nội tuyến"
+
+
+def test_env_example_tai_lieu_hoa_cors_origins():
+    """CORS_ORIGINS được main.py đọc nhưng từng KHÔNG có trong .env.example,
+    nên một bản triển khai thật sẽ im lặng giữ mặc định localhost."""
+    text = (ROOT / ".env.example").read_text(encoding="utf-8")
+    assert re.search(r"^CORS_ORIGINS=", text, re.M), ".env.example thiếu biến CORS_ORIGINS"

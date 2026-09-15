@@ -26,6 +26,7 @@ import asyncio
 from dataclasses import dataclass, field
 
 from livelift.config import get_settings
+from livelift.console import configure
 from livelift.ingest.shopee import (
     COMMENT_WINDOW_S,
     MAX_SAFE_POLL_S,
@@ -242,6 +243,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Sự cố 27/08 (sổ sự cố): console Windows mặc định cp1252, mọi dòng
+    # tiếng Việt bên dưới — kể cả `--help` và thông báo lỗi của argparse —
+    # ném UnicodeEncodeError và script chết. Gọi TRƯỚC parse_args, đúng quy
+    # ước của scripts/chay_local.py.
+    configure()
     args = build_parser().parse_args(argv)
     kq = asyncio.run(kiem_tra(args.session_id))
     print()

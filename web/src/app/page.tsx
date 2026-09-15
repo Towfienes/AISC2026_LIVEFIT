@@ -66,12 +66,12 @@ const JOB_STATUS_VI: Record<ReplayJob["status"], string> = {
  *   19.126 bình luận — lô đo có hệ thống 10/09/2026
  *                      (docs/benchmarks/live-fire-da-nguon.md §1)
  *   16 buổi live     — cùng lô đo đó, cùng tài liệu
- *   993 kiểm thử     — `pytest -m "not slow"`, chạy 14/09/2026, exit 0
+ *   1157 kiểm thử     — `pytest -m "not slow"`, chạy 14/09/2026, exit 0
  */
 const PROOF: { value: string; label: string }[] = [
   { value: "19.126", label: "bình luận thật đã phân tích" },
   { value: "16", label: "buổi live thật đã chạy qua hệ thống" },
-  { value: "993", label: "kiểm thử tự động đang xanh" },
+  { value: "1157", label: "kiểm thử tự động đang xanh" },
 ];
 
 /* ---- icon SVG inline, stroke 1.8, style Lucide (CẤM emoji toàn app) ------ */

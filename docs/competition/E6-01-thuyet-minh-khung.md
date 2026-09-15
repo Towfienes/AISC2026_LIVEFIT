@@ -35,7 +35,7 @@ dưới đây vào đúng mẫu, (3) mọi con số tra `FACT-SHEET.md`, (4) rev
 |---|---|
 | Phiên live thật end-to-end | ⬜ CHẠY TRƯỚC 12/09 — screenshot dashboard + số chi phí/người xem đo được |
 | Live-fire dữ liệu thật | 14.903 bình luận VOD 262 phút qua toàn pipeline |
-| Ước lượng viên tự chứng minh | A/A 200 lặp: bác bỏ 4,5%, coverage 95,5% |
+| Ước lượng viên tự chứng minh | A/A 200 lặp: bác bỏ 3,50%, coverage 96,50% |
 | Mô phỏng hiệu chỉnh dữ liệu thật | KuaiLive 1,16M phòng live shop (SIGIR 2026) |
 | NLP tiếng Việt | intent F1 0,870 (bộ biên soạn — caveat trung thực) + lọc PII đã vá đối kháng |
 | Kỷ luật kỹ thuật | 157+ test, 13 sự cố root-cause, tiền đăng ký sẽ khóa bằng commit |

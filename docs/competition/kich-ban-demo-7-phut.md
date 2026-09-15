@@ -265,8 +265,8 @@ sức phát hiện thì báo cáo sẽ luôn nói "không có tác động", b�
 **"Sao chưa chạy phiên thật nào mà đã đi thi?"**
 Vì thứ nhóm em mang đi thi là phương pháp đo và hạ tầng thực hiện nó, cộng bằng
 chứng rằng bộ ước lượng đã hiệu chỉnh đúng: A/A 200 lần lặp cho tỷ lệ bác bỏ
-4,5% so với mức danh nghĩa 5%, độ phủ khoảng tin cậy 95,5%, thu hồi tác động
-biết trước lệch −0,3%. Chạy phiên thật trước khi bộ ước lượng hiệu chỉnh xong
+3,50% so với mức danh nghĩa 5%, độ phủ khoảng tin cậy 96,50%, thu hồi tác động
+biết trước lệch −0,84%. Chạy phiên thật trước khi bộ ước lượng hiệu chỉnh xong
 thì con số đầu tiên thu được cũng không tin được.
 
 **"TikTok là nền tảng lớn nhất, sao không làm TikTok?"**

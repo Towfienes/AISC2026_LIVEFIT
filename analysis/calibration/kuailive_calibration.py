@@ -51,8 +51,7 @@ def load_shop_rooms() -> pd.DataFrame:
             rooms.append(shop)
     df = pd.concat(rooms, ignore_index=True).drop_duplicates("live_id")
     df["duration_min"] = (df["end_timestamp"] - df["start_timestamp"]) / 60_000.0
-    df = df[(df["duration_min"] > 5) & (df["duration_min"] < 24 * 60)]
-    return df
+    return df[(df["duration_min"] > 5) & (df["duration_min"] < 24 * 60)]
 
 
 def dwell_for_rooms(shop_ids: set[int]) -> np.ndarray:
@@ -124,7 +123,7 @@ def main() -> int:
         "",
         f"- Phòng livestream **bán hàng (shop)**: **{len(rooms):,}** phòng",
         f"- Lượt vào phòng shop có thời gian xem: **{len(dwell):,}**",
-        f"- Tổng thời gian xem: **{total_viewer_min/60:,.0f} giờ·người xem**",
+        f"- Tổng thời gian xem: **{total_viewer_min / 60:,.0f} giờ·người xem**",
         f"- Bình luận trong phòng shop: **{n_comments:,}** · Thả tim: **{n_likes:,}**",
         "",
         "## Phân phối đo được",
@@ -132,19 +131,19 @@ def main() -> int:
         "| Đại lượng | p25 | trung vị | trung bình | p75 | p90 |",
         "|---|---|---|---|---|---|",
         (
-            f"| Thời lượng phiên shop (phút) | {q(dur,25):.0f} | {q(dur,50):.0f} "
-            f"| {dur.mean():.0f} | {q(dur,75):.0f} | {q(dur,90):.0f} |"
+            f"| Thời lượng phiên shop (phút) | {q(dur, 25):.0f} | {q(dur, 50):.0f} "
+            f"| {dur.mean():.0f} | {q(dur, 75):.0f} | {q(dur, 90):.0f} |"
         ),
         (
-            f"| Thời gian ở lại mỗi lượt vào (phút) | {q(dwell_min,25):.2f} "
-            f"| {q(dwell_min,50):.2f} | {dwell_min.mean():.2f} "
-            f"| {q(dwell_min,75):.2f} | {q(dwell_min,90):.2f} |"
+            f"| Thời gian ở lại mỗi lượt vào (phút) | {q(dwell_min, 25):.2f} "
+            f"| {q(dwell_min, 50):.2f} | {dwell_min.mean():.2f} "
+            f"| {q(dwell_min, 75):.2f} | {q(dwell_min, 90):.2f} |"
         ),
         (
             f"| — riêng người xem GẮN BÓ (ở lại > 1 phút, "
-            f"{(dwell_min > 1).mean():.0%} số lượt) | {q(dwell_min[dwell_min > 1],25):.1f} "
-            f"| {q(dwell_min[dwell_min > 1],50):.1f} | {dwell_min[dwell_min > 1].mean():.1f} "
-            f"| {q(dwell_min[dwell_min > 1],75):.1f} | {q(dwell_min[dwell_min > 1],90):.1f} |"
+            f"{(dwell_min > 1).mean():.0%} số lượt) | {q(dwell_min[dwell_min > 1], 25):.1f} "
+            f"| {q(dwell_min[dwell_min > 1], 50):.1f} | {dwell_min[dwell_min > 1].mean():.1f} "
+            f"| {q(dwell_min[dwell_min > 1], 75):.1f} | {q(dwell_min[dwell_min > 1], 90):.1f} |"
         ),
         "",
         f"- Tốc độ bình luận: **{comment_rate:.3f} / người xem·phút**",
@@ -170,10 +169,10 @@ def main() -> int:
         "## Hệ quả cho thiết kế thí nghiệm",
         "",
         (
-            f"- **Phân phối ở lại cực lệch phải**: trung vị chỉ {q(dwell_min,50)*60:.0f} giây "
+            f"- **Phân phối ở lại cực lệch phải**: trung vị chỉ {q(dwell_min, 50) * 60:.0f} giây "
             f"(người dùng Kuaishou lướt phòng live như lướt feed), nhưng nhóm gắn bó "
             f"(>1 phút, {(dwell_min > 1).mean():.0%} số lượt) ở lại trung vị "
-            f"{q(dwell_min[dwell_min > 1],50):.1f} phút. Với Facebook Live của nhóm — nơi "
+            f"{q(dwell_min[dwell_min > 1], 50):.1f} phút. Với Facebook Live của nhóm — nơi "
             "người xem chủ động mở phiên — nhóm gắn bó là nhóm tham chiếu đúng."
         ),
         (
@@ -198,7 +197,7 @@ def main() -> int:
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text("\n".join(lines), encoding="utf-8")
     print(f"\nĐã ghi {OUT.relative_to(ROOT)}")
-    print(f"  stay: median {q(dwell_min,50):.2f} min, mean {rec_stay:.2f} min")
+    print(f"  stay: median {q(dwell_min, 50):.2f} min, mean {rec_stay:.2f} min")
     print(f"  comment {comment_rate:.3f}/viewer-min, like {like_rate:.3f}/viewer-min")
     return 0
 

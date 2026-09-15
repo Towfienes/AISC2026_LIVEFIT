@@ -33,6 +33,7 @@ from typing import Any
 import httpx
 
 from livelift.config import get_settings
+from livelift.console import configure
 from livelift.ingest.facebook import (
     GRAPH_BASE,
     TOKEN_SUBCODE_HINTS,
@@ -465,6 +466,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Sự cố 27/08 (sổ sự cố): console Windows mặc định cp1252 nên báo cáo
+    # tiếng Việt của script này (`ket_qua.van_ban()`) ném UnicodeEncodeError
+    # và chết ngay trước khi in kết luận. Gọi TRƯỚC parse_args, đúng quy ước
+    # của scripts/chay_local.py.
+    configure()
     args = build_parser().parse_args(argv)
     settings = get_settings()
     token = args.token if args.token is not None else settings.facebook_page_access_token

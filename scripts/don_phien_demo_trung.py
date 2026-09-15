@@ -31,6 +31,9 @@ from pathlib import Path
 
 MAC_DINH = Path("data/snapshot/livelift-store.json")
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+from livelift.console import configure  # noqa: E402
+
 #: Các bộ sưu tập trong ảnh chụp được khoá theo ``session_id``.
 THEO_PHIEN = (
     "sessions",
@@ -67,6 +70,11 @@ def tim_ban_trung(sessions: dict) -> dict[str, list[str]]:
 
 
 def main() -> int:
+    # Sự cố 27/08 (sổ sự cố): console Windows mặc định cp1252, mọi dòng
+    # tiếng Việt bên dưới — kể cả `--help` và thông báo lỗi của argparse —
+    # ném UnicodeEncodeError và script chết. Gọi TRƯỚC parse_args, đúng quy
+    # ước của scripts/chay_local.py.
+    configure()
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--anh-chup", type=Path, default=MAC_DINH)
     ap.add_argument("--lam-that", action="store_true", help="ghi đè ảnh chụp")

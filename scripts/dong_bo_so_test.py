@@ -27,6 +27,9 @@ import sys
 from pathlib import Path
 
 GOC = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(GOC / "src"))
+
+from livelift.console import configure  # noqa: E402
 
 
 def dem(marker: str) -> int:
@@ -48,6 +51,13 @@ def dem(marker: str) -> int:
 
 
 def main() -> int:
+    # Sự cố 27/08 lặp lại ở tệp này: console Windows mặc định cp1252 nên mọi
+    # dòng tiếng Việt bên dưới (kể cả `--help`, vốn in chính docstring này)
+    # ném UnicodeEncodeError và script chết trước khi báo được con số. Đây là
+    # bước (2) của checklist 15 phút trước hội đồng
+    # (docs/competition/kich-ban-demo-7-phut.md) — nó chết là hội đồng thấy
+    # traceback. Gọi TRƯỚC parse_args, đúng quy ước của chay_local.py.
+    configure()
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--ghi", action="store_true", help="ghi đè các tệp")
     ap.add_argument("--xem-truoc", action="store_true", help="chỉ in ra")

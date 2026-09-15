@@ -1,0 +1,46 @@
+{
+  "ngay_do": "2026-09-14",
+  "ban_git": "dd66b38+ban-lam-viec-co-thay-doi",
+  "alpha": 0.05,
+  "nghien_cuu": {
+    "aa": {
+      "mo_ta": "Hiệu chuẩn A/A — không có tác động thật, tỷ lệ bác bỏ phải bằng alpha",
+      "cong": "test_aa_false_positive_rate_near_alpha",
+      "tham_so": {
+        "n_reps": 200,
+        "n_sessions_per_rep": 6,
+        "session_minutes": 60,
+        "n_draws": 300,
+        "master_seed": 11,
+        "treatment_effect": 0.0
+      },
+      "ty_le_bac_bo": 0.035,
+      "so_lan_bac_bo": "7/200",
+      "p_nhi_thuc_bac_bo": 0.4168,
+      "do_phu_ktc": 0.965,
+      "so_lan_phu": "193/200",
+      "p_nhi_thuc_do_phu": 0.4168,
+      "do_lech_tuong_doi": 0.0
+    },
+    "thu_hoi": {
+      "mo_ta": "Thu hồi tác động biết trước — độ lệch và độ phủ KTC",
+      "cong": "test_effect_recovery_bias_and_coverage",
+      "tham_so": {
+        "n_reps": 40,
+        "n_sessions_per_rep": 8,
+        "session_minutes": 90,
+        "n_draws": 300,
+        "master_seed": 13,
+        "treatment_effect": 0.3
+      },
+      "ty_le_bac_bo": 1.0,
+      "so_lan_bac_bo": "40/40",
+      "p_nhi_thuc_bac_bo": 0.0,
+      "do_phu_ktc": 0.925,
+      "so_lan_phu": "37/40",
+      "p_nhi_thuc_do_phu": 0.4518,
+      "do_lech_tuong_doi": -0.0084
+    }
+  },
+  "ghi_chu": "Sinh bằng scripts/do_lai_so_hieu_chuan.py. Đây là NGUỒN DUY NHẤT cho các con số hiệu chuẩn trong mọi tài liệu. Sửa tay tệp này là sai quy trình — chạy lại script."
+}

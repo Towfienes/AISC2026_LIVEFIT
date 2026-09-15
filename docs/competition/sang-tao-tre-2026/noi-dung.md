@@ -29,7 +29,7 @@ LiveLift xây đúng lớp hạ tầng còn thiếu đó — lớp đo lường 
 
 ## 1.3 Bài toán có gốc học thuật, không phải nhóm tự nghĩ ra
 
-Xie, Sharma và Mehra (*Production and Operations Management* 34(12), 2025) nghiên cứu đúng câu hỏi vận hành này — trình bày một sản phẩm bao lâu thì bán tốt hơn — và tìm ra quan hệ hình chữ U ngược giữa thời lượng ghim và doanh thu. Nhưng dữ liệu của họ là **hồi cứu**, không gán ngẫu nhiên. Wang và cộng sự (*Information Systems Research* 36(4), 2025) có thí nghiệm ngẫu nhiên thật, đo được doanh số tăng 3,00% và tỷ lệ trả hàng giảm 12,55% — nhưng họ bốc thăm theo người dùng và chạy **từ bên trong nền tảng**.
+Xie, Sharma và Mehra (*Production and Operations Management* 34(12), 2025) nghiên cứu đúng câu hỏi vận hành này — trình bày một sản phẩm bao lâu thì bán tốt hơn — và tìm ra một **đánh đổi**: trình bày một sản phẩm lâu hơn thì doanh thu của sản phẩm đó cao hơn, nhưng thời lượng trình bày trung bình tăng thì doanh thu cả phiên lại giảm. Một đánh đổi như vậy không có đáp án chung — mỗi nhà bán phải tự đo trên phòng live của mình. Nhưng dữ liệu của họ là **hồi cứu** từ hai nền tảng Trung Quốc, không gán ngẫu nhiên. Wang và cộng sự (*Information Systems Research* 36(4), 2025) có thí nghiệm ngẫu nhiên thật, đo được doanh số tăng 3,00% và tỷ lệ trả hàng giảm 12,55% — nhưng họ bốc thăm theo người dùng và chạy **từ bên trong nền tảng**.
 
 Khoảng trống: **chưa có công bố nào làm thí nghiệm ngẫu nhiên bên trong một phiên live, từ phía người đi thuê sân.** Đó là chỗ LiveLift đứng.
 

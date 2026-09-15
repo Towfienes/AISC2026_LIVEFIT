@@ -13,9 +13,10 @@ dưới đây vào đúng mẫu, (3) mọi con số tra `FACT-SHEET.md`, (4) rev
   toán đẩy 500 người xem, hay do host kể chuyện hay? Không ai biết. "Kinh nghiệm"
   cả ngành phần lớn là tương quan giả.*
 - Số thị trường: 2,5 triệu phiên/tháng, >50k nhà bán (FACT-SHEET §3).
-- Bằng chứng bình duyệt bài toán là thật: POM 2025 — thời lượng ghim vs doanh thu
-  phiên có dạng chữ U ngược → "ghim gì, lúc nào, bao lâu" là bài toán tối ưu chưa có
-  lời giải per-session.
+- Bằng chứng bình duyệt bài toán là thật: POM 2025 — trình bày sản phẩm lâu hơn thì
+  doanh thu sản phẩm cao hơn, nhưng thời lượng trung bình tăng thì doanh thu cả phiên
+  giảm (đính chính 15/09: không phải "chữ U ngược") → "ghim gì, lúc nào, bao lâu" là
+  một đánh đổi chưa có lời giải per-session.
 - Khoảng trống: mọi công cụ hiện có (Chanmama, Feigua, Kalodata, cả AI của TikTok/
   Taobao) chỉ quan sát hồi cứu hoặc gợi ý **không đo nhân quả**.
 

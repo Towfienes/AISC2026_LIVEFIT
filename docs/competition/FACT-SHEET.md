@@ -50,7 +50,7 @@ Sửa số ở đây trước, rồi đồng bộ ra các tài liệu khác — 
 | TikTok Shop VN | 42% GMV e-commerce, +148% YoY (H1/2025) | khảo sát SOTA 06/09 |
 | Tỷ lệ chuyển đổi livestream vs feed | ~7,8% vs 2,1% (3,7×) | khảo sát SOTA 06/09 |
 | Live commerce SEA | ~14% GMV sàn (~17,6 tỷ USD) | khảo sát SOTA 06/09 |
-| Bằng chứng bình duyệt bài toán ghim | Xie–Sharma–Mehra, POM 2025: thời lượng pin vs doanh thu phiên có dạng **chữ U ngược** | slide động cơ |
+| Bằng chứng bình duyệt bài toán ghim | Xie–Sharma–Mehra, *POM* 34(12), 2025, DOI 10.1177/10591478251314455: trình bày sản phẩm **lâu hơn → doanh thu sản phẩm cao hơn**, nhưng thời lượng trình bày **trung bình tăng → doanh thu cả phiên giảm** (một đánh đổi, dữ liệu hồi cứu 2 nền tảng Trung Quốc). ⚠️ Đính chính 15/09: các bản trước ghi "chữ U ngược" — **sai**, tóm tắt bài báo mô tả hai quan hệ đơn điệu | tóm tắt trên Crossref |
 
 ## 4. Giá gói (TRẠNG THÁI: giả thuyết — chưa phỏng vấn WTP nào)
 

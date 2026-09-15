@@ -200,7 +200,7 @@ flowchart LR
 | **Lọc PII** | recall ≥ 95%/loại | gate `test_pii_filter.py` |
 | **Hiệu chỉnh KuaiLive** | 1,16M phòng shop; đơn vị ms **chứng minh bằng ràng buộc vật lý** | `analysis/calibration/` |
 | **Live-fire VOD thật** | **19.126 bình luận · 16 buổi live · 7 ngành hàng** chạy trọn qua API (lô 10/09/2026 thay lô 06/09 cũ 14.903) | `docs/benchmarks/live-fire-da-nguon.md` |
-| **Kiểm toán đối kháng** | 16/16 phát hiện xử lý (2 FATAL) · đợt 2 (06/09): 5 nhóm lỗi chặn phiên-thật đã sửa | **46 sự cố** đủ root cause + gate (đếm 15/09/2026) |
+| **Kiểm toán đối kháng** | 16/16 phát hiện xử lý (2 FATAL) · đợt 2 (06/09): 5 nhóm lỗi chặn phiên-thật đã sửa | **47 sự cố** đủ root cause + gate (đếm 15/09/2026) |
 
 ## 📁 Cấu trúc kho mã
 
@@ -236,7 +236,7 @@ flowchart LR
 │   ├── huong-dan-facebook-token.md  # lấy Page token (~25 phút, không cần App Review)
 │   ├── benchmarks/          # số sinh lại được (intent, KuaiLive)
 │   ├── research/            # 7 báo cáo nghiên cứu đa nguồn
-│   └── incident-log.md      # 46 sự cố: root cause + gate chặn tái diễn
+│   └── incident-log.md      # 47 sự cố: root cause + gate chặn tái diễn
 ├── PREREGISTRATION.md       # tiền đăng ký — KHÓA trước chuỗi khẳng định
 ├── HARNESS.md               # quy trình phát triển & quality gates   ← đọc thứ ba
 ├── CONTRIBUTING.md · CITATION.cff · LICENSE (AGPL-3.0)

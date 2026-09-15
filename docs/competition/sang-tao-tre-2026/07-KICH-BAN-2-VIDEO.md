@@ -48,7 +48,7 @@ Quay màn hình liền mạch một lượt, **không cắt ghép giữa các b�
 | 2:30–3:00 | **Làm mù người dẫn** | Mở song song `/host` cạnh `/desk` | "Cùng một phiên. Người dẫn không thấy khối nào bật, khối nào tắt — nếu thấy, phép đo sẽ đo tâm lý người dẫn thay vì đo can thiệp." |
 | 3:00–3:40 | **Kết quả xử lý** | Trang `/report` với **ba trạng thái**: đủ bằng chứng / không đủ bằng chứng / chưa đủ dữ liệu | "Không phải phiên nào cũng ra một con số. Ép ra con số khi dữ liệu không đủ là nói dối người dùng." |
 | 3:40–4:10 | **Khả năng tích hợp** | Nạp thật từ một VOD YouTube qua API chính chủ; chỉ endpoint link đo `/r/{code}` | "Thêm một nền tảng chỉ là thêm một adapter nạp. Lõi phân tích không đổi." |
-| 4:10–4:40 | **Kiểm chứng** | Chạy `pytest -m "not slow"` cho chạy lên màn hình; mở `docs/incident-log.md` | "1.174 kiểm thử. 46 sự cố có phân tích nguyên nhân gốc — kể cả sự cố tự bác bỏ mô hình của chính nhóm." |
+| 4:10–4:40 | **Kiểm chứng** | Chạy `pytest -m "not slow"` cho chạy lên màn hình; mở `docs/incident-log.md` | "1.174 kiểm thử. 47 sự cố có phân tích nguyên nhân gốc — kể cả sự cố tự bác bỏ mô hình của chính nhóm." |
 | 4:40–5:00 | **Ứng dụng** | Địa chỉ demo công khai trên trình duyệt sạch | "Các thầy cô mở được ngay tại địa chỉ này." |
 
 **Chuẩn bị bắt buộc trước khi bấm ghi** (≥15 phút):

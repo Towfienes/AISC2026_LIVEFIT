@@ -37,7 +37,7 @@ Khoảng trống: **chưa có công bố nào làm thí nghiệm ngẫu nhiên b
 
 Trong thời đại AI, cái nguy hiểm không phải là thiếu số liệu — mà là **có số liệu sai mà vẫn tin**. Khoảng trống đó đang được lấp bằng một nền kinh tế "bí kíp livestream" mua đi bán lại, mà phần lớn là sự trùng hợp được đặt tên.
 
-Xây một sản phẩm đo lường thì dễ; xây một sản phẩm **chịu được việc người khác kiểm chứng** mới khó. Vì vậy dự án này tự chứng minh trước, rồi mới nói về dữ liệu thật — và để chứng minh nhóm nói thật, chính hệ thống này đã **tự bác bỏ một con số đẹp của chính nhóm**: bộ phân loại ý định đạt macro-F1 0,870 trên bộ tự biên soạn nhưng chỉ còn **0,211** trên chat thật, thua cả cách đoán bừa. Nhóm đã đo, đã ghi vào sổ sự cố công khai, và không giấu. Toàn bộ hồ sơ này viết theo nguyên tắc đó.
+Xây một sản phẩm đo lường thì dễ; xây một sản phẩm **chịu được việc người khác kiểm chứng** mới khó. Vì vậy dự án này tự chứng minh trước, rồi mới nói về dữ liệu thật — và để chứng minh nhóm nói thật, chính hệ thống này đã **tự bác bỏ một con số đẹp của chính nhóm**: bộ phân loại ý định đạt macro-F1 0,870 trên bộ câu mẫu do AI soạn nhưng chỉ còn **0,211** trên chat thật, thua cả cách đoán bừa. Nhóm đã đo, đã ghi vào sổ sự cố công khai, và không giấu. Toàn bộ hồ sơ này viết theo nguyên tắc đó.
 
 # 2. Mục tiêu, phạm vi và đối tượng ứng dụng của sản phẩm
 
@@ -54,7 +54,7 @@ Sáu mục tiêu cụ thể và trạng thái trung thực tại ngày nộp h�
 | MT3. Chạy ≥18 phiên thí nghiệm thật có gán ngẫu nhiên | **0 phiên** tính đến 14/09/2026 | **Chưa đạt** — khoảng cách lớn nhất của dự án |
 | MT4. Hạ tầng nạp dữ liệu thật chạy đúng, tái lập được | 19.126 bình luận · 16 buổi live · 7 ngành hàng; chạy lại sau 2 ngày trùng từng con số | **Đạt** |
 | MT5. Quyền riêng tư và liêm chính cưỡng chế bằng máy | Cổng tự động đòi recall ≥95% cho số điện thoại, email, địa chỉ và ≥70% cho tên người; phiên chưa có lịch gán kèm `design_hash` bị API chặn HTTP 409 | **Một phần** — mẫu thử của cổng không có handle có dấu nên bỏ lọt; đã sửa 15/09 (mục 3.2) |
-| MT6. Tự bác bỏ số của chính mình | Phân loại ý định macro-F1 0,870 trên bộ tự biên soạn nhưng **0,211 trên chat thật** — công bố cả hai, rồi nâng lên 0,565 (mục 8.3) | **Đạt** |
+| MT6. Tự bác bỏ số của chính mình | Phân loại ý định macro-F1 0,870 trên bộ câu mẫu do AI soạn nhưng **0,211 trên chat thật** — công bố cả hai, rồi nâng lên 0,565 (mục 8.3) | **Đạt** |
 
 MT3 là mục tiêu chưa đạt và nhóm nêu nó ở ngay trang đầu thay vì giấu xuống mục hạn chế. Lý do trình bày ở mục 11.
 
@@ -81,8 +81,8 @@ Nhóm khớp nhất là **nhà bán vừa**. Ngoài thương mại, phương ph�
 | Loại dữ liệu | Nguồn | Cách thu thập | Quy mô | Cơ sở được phép dùng |
 |---|---|---|---|---|
 | Bình luận livestream tiếng Việt | **Chat replay của các buổi phát trực tiếp công khai đã kết thúc (VOD) trên YouTube** | Tải bằng **yt-dlp** (mã nguồn mở), nạp qua `POST /replays/youtube` | 19.126 bình luận · 16 buổi · 7 ngành hàng | Nội dung công khai, dùng **phi thương mại** cho đánh giá; đã ẩn danh; **không phát hành lại**. Hạn chế pháp lý nêu ở 3.3 |
-| Nhãn ý định mua (tự biên soạn) | Nhóm tự viết | Ba thành viên soạn theo hướng dẫn gán nhãn chung | 320 câu, 5-fold CV | Do nhóm tự tạo |
-| Nhãn ý định trên chat thật | Bình luận thật đã ẩn danh | Gán nhãn tay, đối chiếu chéo | 200 bình luận (tập kiểm tra giữ riêng) | Đã qua bộ lọc PII trước khi gán |
+| Câu mẫu ý định mua (do AI soạn) | Claude (Anthropic) | AI soạn ngày 01/09/2026 theo bộ nhãn nhóm thiết kế; nhóm rà soát | 320 câu, 5-fold CV | Dữ liệu tổng hợp, không chứa dữ liệu cá nhân; kê khai là sản phẩm AI |
+| Nhãn tham chiếu trên chat thật | Bình luận thật đã qua bộ lọc PII | **Tác tử AI (Claude) gán ngày 09/09/2026**; chưa có nhãn người độc lập | 393 bình luận, 3 buổi (tập kiểm tra giữ riêng) | Kê khai là nhãn do AI gán; gán lại bằng người là việc đang làm |
 | Sự kiện nhấp link đo | Hệ thống của chính nhóm | Endpoint `GET /r/{code}` tự vận hành | Theo phiên | Dữ liệu do hệ thống sinh ra |
 | Dữ liệu mô phỏng | Bộ mô phỏng của nhóm | Sinh bằng `livelift.sim` | Hàng trăm nghìn khối | Hoàn toàn tổng hợp |
 | KuaiLive (hiệu chỉnh mô phỏng) | Bộ dữ liệu công bố kèm bài SIGIR 2026 | Dùng để hiệu chỉnh tham số mô phỏng | 1,16 triệu phòng live | Bộ dữ liệu nghiên cứu công khai |
@@ -153,9 +153,9 @@ Hệ thống có **ba lõi kỹ thuật**, mỗi lõi giải một bài toán kh
 | Thành phần | Phương pháp | Vai trò |
 |---|---|---|
 | Lọc PII | Luật + từ điển địa danh + chuẩn hóa NFKC/keycap | Khử nhận dạng trước khi lưu; cổng recall ≥95% (điện thoại/email/địa chỉ), ≥70% (tên người) |
-| Phân loại ý định | **11 lớp**; TF-IDF n-gram ký tự + hồi quy logistic, huấn luyện trên câu tự biên soạn + nhãn LLM trên chat thật | Ước lượng tín hiệu ý định mua theo khối |
+| Phân loại ý định | **11 lớp**; TF-IDF n-gram ký tự + hồi quy logistic, huấn luyện trên câu mẫu do AI soạn + nhãn LLM trên chat thật | Ước lượng tín hiệu ý định mua theo khối |
 | Khung đánh giá | Leave-one-session-out theo buổi live + KTC bootstrap + 3 baseline bắt buộc | Chống rò rỉ theo phiên — cái bẫy lớn nhất của bài toán này |
-| Kiểm soát đầu ra | Gắn nhãn **"chưa dùng cho quyết định"**; tín hiệu ý định **không** đi vào phần phân tích nhân quả | Thà không dùng còn hơn dùng sai |
+| Kiểm soát đầu ra | Tín hiệu ý định **không** đi vào phần phân tích nhân quả. Lớp chặn tín hiệu theo tỷ lệ nền của từng buổi **chưa có trong mã** | Thà không dùng còn hơn dùng sai |
 
 Nhóm **đã thử và bỏ** cơ chế từ chối trả lời theo ngưỡng tin cậy: khi chọn ngưỡng một cách trung thực (không nhìn tập kiểm tra) nó làm macro-F1 giảm 0,073, vì ngưỡng hiệu chuẩn ở buổi live này không chuyển giao sang buổi khác. Chi tiết ở mục 9.4.
 
@@ -181,7 +181,7 @@ Tập kiểm tra được tách theo **buổi live**, không tách theo dòng. N
 
 1. **Dựng khung đánh giá TRƯỚC khi sửa mô hình.** Đây là quyết định quan trọng nhất của cả quy trình: cải tiến trước rồi mới đo thì không cách nào biết cải tiến là thật hay chỉ là chọn được con số đẹp. Khung gồm 3 baseline bắt buộc (đoán lớp đa số · từ khóa · mô hình đang chạy), chia leave-one-session-out, và KTC bootstrap 2.000 lần.
 2. **Xây lại bộ nhãn.** Mở rộng 6 → **11 lớp** sau khi đo trên chat thật cho thấy hơn 40% bình luận là **xã giao và bảng giá của chính shop** — hai lớp không có trong bộ nhãn cũ, nên mô hình buộc phải ép chúng vào các lớp mua hàng. Định nghĩa lớp và hướng dẫn gán nhãn gom về một chỗ (`nlp/labels.py`).
-3. **Gán nhãn, tách vai rõ ràng.** 393 dòng chat thật **do người gán, gán mù**, chỉ dùng làm **tập kiểm tra**. 320 câu tự biên soạn và 1.800 nhãn **do LLM sinh** chỉ dùng **huấn luyện**, được đánh dấu riêng và kê khai theo Điều 5 Thể lệ — không trộn lẫn với nhãn người.
+3. **Gán nhãn — và một điều nhóm phải nói rõ.** Cả ba nguồn nhãn hiện có **đều do AI tạo**: 393 dòng chat thật dùng làm **tập kiểm tra** do một tác tử Claude gán ngày 09/09; 320 câu mẫu do Claude soạn ngày 01/09; 1.800 nhãn huấn luyện do LLM gán. Nhóm chỉ thiết kế bộ nhãn và rà soát. Vì vậy mọi con số ở mục 8.3 và 9 đo **mức đồng thuận với nhãn tham chiếu do AI gán**, chưa phải độ chính xác so với con người. Gán lại tập kiểm tra bằng hai thành viên độc lập trên bảng xáo trộn, rồi đo độ đồng thuận κ, là việc đang làm.
 4. **Huấn luyện và đo lại.** Đặc trưng TF-IDF n-gram ký tự (chịu được teencode, thiếu dấu, viết dính) + hồi quy logistic. Mỗi thay đổi đo lại bằng cùng một lệnh; kết quả ghi tự động ra `docs/benchmarks/intent-eval/results.json` và `results.md`.
 5. **Ablation.** Tắt lần lượt từng thành phần để biết cái nào thật sự đóng góp — kể cả khi câu trả lời là "không đóng góp gì" (mục 9.4).
 
@@ -209,14 +209,14 @@ Nguyên nhân gốc: cổng Monte-Carlo chỉ *in* số khi nó đỏ; khi xanh 
 
 ## 7.2 Tầng 2 — Mô hình AI có đúng không
 
-Macro-F1, F1 theo từng lớp, ma trận nhầm lẫn, và **khoảng tin cậy bootstrap cho macro-F1** — vì một con số không kèm sai số thì không kiểm chứng được. Bắt buộc chấm trên **hai tập**: bộ tự biên soạn và **chat thật giữ riêng theo buổi**.
+Macro-F1, F1 theo từng lớp, ma trận nhầm lẫn, và **khoảng tin cậy bootstrap cho macro-F1** — vì một con số không kèm sai số thì không kiểm chứng được. Bắt buộc chấm trên **hai tập**: bộ câu mẫu và **chat thật giữ riêng theo buổi**.
 
 ## 7.3 Tầng 3 — Hệ thống có chạy được không
 
 | Chỉ số | Kết quả |
 |---|---|
 | Kiểm thử tự động | **1.174** (1.157 nhanh + 17 cổng Monte-Carlo), đếm 15/09/2026 |
-| Sự cố có phân tích nguyên nhân gốc | **46**, ghi trong `docs/incident-log.md` |
+| Sự cố có phân tích nguyên nhân gốc | **47**, ghi trong `docs/incident-log.md` |
 | Thông lượng nạp bình luận | ~900 bình luận/giây |
 | Độ trễ nạp (YouTube) | p50 24 giây · p90 37 giây |
 | Tính tất định | Chạy lại một buổi sau 2 ngày: trùng từng con số |
@@ -230,7 +230,7 @@ Ngày 10/09/2026 nhóm chạy toàn bộ đường ống trên **19.126 bình lu
 
 ## 8.2 Kết quả tự bác bỏ — phần nhóm coi là giá trị nhất
 
-Cùng đợt live-fire đó **bác bỏ chính tuyên bố của nhóm về mô hình AI**. Bộ phân loại ý định đạt macro-F1 **0,870** trên 320 câu tự biên soạn, nhưng chỉ **0,211** trên chat thật — **thua cả baseline "luôn đoán lớp đa số"**. Nhóm truy ra ba cơ chế sai:
+Cùng đợt live-fire đó **bác bỏ chính tuyên bố của nhóm về mô hình AI**. Bộ phân loại ý định đạt macro-F1 **0,870** trên 320 câu mẫu do AI soạn, nhưng chỉ **0,211** trên chat thật — **thua cả baseline "luôn đoán lớp đa số"**. Nhóm truy ra ba cơ chế sai:
 
 1. **Thiếu lớp** — khoảng 40% bình luận livestream Việt Nam là xã giao, một lớp không có trong bộ nhãn ban đầu (đo độc lập lần hai trên 3 người bán khác cho kết quả tương tự).
 2. **Đa nghĩa tiếng Việt** — "bao nhiêu" có thể là hỏi giá, hỏi số lượng còn lại, hoặc nói đùa.
@@ -240,7 +240,7 @@ Một phát hiện thứ hai còn quan trọng hơn với người dùng: **rada
 
 ## 8.3 Kết quả sau cải tiến — đo lại bằng phương pháp chặt hơn
 
-Nhóm dựng lại khung đánh giá trước khi sửa bất cứ thứ gì: tập kiểm tra **393 bình luận thật do người gán nhãn**, chia **leave-one-session-out theo buổi live**, khoảng tin cậy bootstrap. Kết quả:
+Nhóm dựng lại khung đánh giá trước khi sửa bất cứ thứ gì: tập kiểm tra **393 bình luận thật với nhãn tham chiếu do tác tử AI gán** (mục 6.2), chia **leave-one-session-out theo buổi live**, khoảng tin cậy bootstrap. Kết quả:
 
 | | Trước cải tiến | Sau cải tiến |
 |---|---:|---:|
@@ -252,7 +252,7 @@ Hai khoảng tin cậy **không chồng lấn**. Chi tiết baseline và ablatio
 
 **Một đính chính nhóm phải nêu:** con số 0,271 từng công bố **không tái lập được** — tệp nhãn 200 dòng dùng hồi 08/09 không được lưu lại. Vì vậy con số "trước cải tiến" chính thức từ nay là **0,211**, đo trên tập nhãn hiện có và chạy lại được bằng một lệnh (`python -m livelift.nlp.eval_intent`). Nhóm chọn công bố số tái lập được thay vì giữ một con số đẹp hơn mà không ai kiểm lại được.
 
-**Bệnh gốc chưa khỏi:** precision vẫn đi theo tỷ lệ nền của từng buổi — với buổi có 0% ý định mua, mô hình vẫn sai cả 11 dự đoán. Đây là lý do radar ý định trong sản phẩm được gắn nhãn **"chưa dùng cho quyết định"**, và không có con số nào của nó đi vào phần phân tích nhân quả.
+**Bệnh gốc chưa khỏi:** precision vẫn đi theo tỷ lệ nền của từng buổi — với buổi có 0% ý định mua, mô hình vẫn sai cả 11 dự đoán. Đây là lý do không có con số nào của radar ý định đi vào phần phân tích nhân quả. Một lớp chặn tín hiệu theo tỷ lệ nền của từng buổi **chưa có trong mã** và là việc cần làm.
 
 ## 8.3 Ưu điểm
 
@@ -288,16 +288,18 @@ Khoảng trống LiveLift nhắm vào nằm đúng ở ô cuối: **năng lực 
 
 ## 9.2 So sánh phương án ước lượng (mô phỏng có đáp án)
 
-| Phương án | Phủ KTC 95% | Nhận xét |
+| Phương án | Trạng thái kiểm chứng | Nhận xét |
 |---|---|---|
-| Diff-in-means không hiệu chỉnh | thấp hơn danh nghĩa | Bỏ qua tương quan trong phiên |
-| Horvitz–Thompson | ≈ danh nghĩa | Tương đương diff-in-means tại p = 0,5 |
-| OLS + FE phiên + Lin | ≈ danh nghĩa | Giảm phương sai, cần giả định thêm |
-| **RI studentized + Fisher CI** | **96,50%** | Không cần giả định phân phối — **chọn làm chính** |
+| **RI studentized + Fisher CI** (chính) | A/A: bác bỏ 3,50%, phủ 96,50% · thu hồi tác động: lệch −0,84%, phủ 92,50% (`so-hieu-chuan.json`) | Không cần giả định phân phối |
+| Horvitz–Thompson (Hájek) | Trùng đại số với diff-in-means tại p = 0,5 — không phải một ước lượng độc lập | Giữ để kiểm tra chéo |
+| OLS + FE phiên + Lin | **Chưa đo độ phủ bằng mô phỏng** | Giảm phương sai, cần giả định thêm |
+| Diff-in-means không hiệu chỉnh | **Chưa đo độ phủ bằng mô phỏng** | Bỏ qua tương quan trong phiên |
+
+Bản trước của bảng này ghi "thấp hơn / xấp xỉ danh nghĩa" cho ba dòng dưới mà **không có phép đo nào đứng sau**; nhóm đã gỡ và ghi đúng trạng thái. Đo so sánh độ phủ của cả bốn phương án trên cùng mô phỏng là việc đang làm.
 
 ## 9.3 So sánh với baseline trên chat thật
 
-Tập kiểm tra: **393 bình luận thật do người gán nhãn**, chia **leave-one-session-out theo buổi live** — không buổi nào nằm cả ở tập huấn luyện lẫn tập kiểm tra. Khoảng tin cậy bootstrap 2.000 lần.
+Tập kiểm tra: **393 bình luận thật, nhãn tham chiếu do tác tử AI gán** (chưa có nhãn người độc lập), chia **leave-one-session-out theo buổi live** — không buổi nào nằm cả ở tập huấn luyện lẫn tập kiểm tra. Khoảng tin cậy bootstrap 2.000 lần.
 
 | Hệ thống | macro-F1 | KTC 95% | Accuracy | Precision nhãn hành động |
 |---|---:|---|---:|---:|
@@ -314,7 +316,7 @@ Khoảng tin cậy của B2 và C2 **không chồng lấn** — cải tiến là
 | Bỏ thành phần nào ra khỏi bản đầy đủ | macro-F1 | Chênh lệch |
 |---|---:|---:|
 | **A0 · bản đầy đủ** | **0,565** | — |
-| − bộ 320 câu tự biên soạn | 0,365 | **−0,200** |
+| − bộ 320 câu mẫu (do AI soạn) | 0,365 | **−0,200** |
 | − nhãn LLM trên chat thật | 0,557 | −0,008 |
 | − chuẩn hóa văn bản (NFKC/teencode/emoji) | 0,564 | −0,001 |
 | − đặc trưng "ai đang nói" | 0,576 | **+0,011** |
@@ -324,7 +326,7 @@ Khoảng tin cậy của B2 và C2 **không chồng lấn** — cải tiến là
 | bộ nhãn 11 lớp (gộp về 6 khi chấm) | **0,609** | **+0,035** |
 
 **Đọc bảng này trung thực:**
-- Thứ đóng góp nhiều nhất là **bộ câu tự biên soạn** (bỏ đi mất 0,200) — dữ liệu do người làm cẩn thận vẫn là xương sống, LLM chỉ bổ sung.
+- Thứ đóng góp nhiều nhất là **bộ 320 câu mẫu** (bỏ đi mất 0,200). Bộ này cũng do AI soạn, nên kết luận đúng là: dữ liệu mẫu có chủ đích tốt hơn dữ liệu thật gán vội — chưa phải "dữ liệu người làm".
 - Bộ **nhãn 11 lớp thắng ngay cả khi chấm trên thang 6 lớp cũ** (0,609 so với 0,574), tức cái lợi đến từ việc *có chỗ đặt* cho hơn 40% chat là xã giao và bảng giá của shop, chứ không phải do đổi cách chấm.
 - **Ba thành phần nhóm kỳ vọng có ích thì không có ích**: chuẩn hóa văn bản gần như bằng không (đặc trưng n-gram ký tự đã dung sai sẵn), đặc trưng "ai đang nói" **làm xấu đi**, và cơ chế từ chối trả lời với ngưỡng chọn trung thực (không nhìn tập kiểm tra) **làm xấu đi rõ rệt** — hiệu chuẩn ngưỡng không chuyển giao được sang buổi live mới.
 
@@ -405,7 +407,7 @@ Nhóm kiểm chứng bằng cách **phá thật rồi xem hệ thống có sốn
 |---|---|---|
 | Rò rỉ dữ liệu cá nhân của người xem | Vi phạm Luật 91/2025/QH15 | Khử PII trước khi ghi đĩa; cổng recall ≥95%; không lưu định danh người bình luận |
 | Người dùng tin vào kết quả không đủ lực thống kê | Quyết định kinh doanh sai | Luôn trả khoảng tin cậy; báo rõ khi MDE lớn hơn tác động quan tâm |
-| Mô hình AI trả lời sai được dùng để ra quyết định | Thiệt hại cho nhà bán | Công bố macro-F1 trên chat thật (0,211 → 0,565) **theo cặp với số trên bộ tự soạn**; radar ý định gắn nhãn "chưa dùng cho quyết định"; tín hiệu ý định không vào phần phân tích nhân quả |
+| Mô hình AI trả lời sai được dùng để ra quyết định | Thiệt hại cho nhà bán | Công bố macro-F1 trên chat thật (0,211 → 0,565, đo so với nhãn tham chiếu do AI gán) **theo cặp với số trên bộ câu mẫu**; tín hiệu ý định không vào phần phân tích nhân quả; lớp chặn theo tỷ lệ nền **chưa có** |
 | Nhìn lén kết quả rồi dừng phiên khi số đẹp | Kết quả mất giá trị khoa học | Khóa `RESULTS_FREEZE_UNTIL` *fail-closed* |
 | Người dẫn biết nhánh gán | Thiên lệch phép đo | Màn hình `/host` làm mù |
 | Lệ thuộc điều khoản dịch vụ của nền tảng | Mất nguồn dữ liệu | Chỉ dùng API chính thức trên đường chạy mặc định; ghi rõ nền tảng nào chưa vào được |
@@ -421,7 +423,7 @@ Ba văn bản chi phối sản phẩm này, và nhóm đối chiếu từng cái
 
 Trên nền đó, nhóm xác định **ba cam kết**, cả ba đều có cơ chế thực thi chứ không chỉ là tuyên bố:
 
-1. **Không tuyên bố quá năng lực thật.** Số xấu công bố cùng số đẹp, luôn theo cặp. Quy tắc nội bộ: không bao giờ trích riêng macro-F1 trên bộ tự biên soạn mà không kèm số trên chat thật.
+1. **Không tuyên bố quá năng lực thật.** Số xấu công bố cùng số đẹp, luôn theo cặp. Quy tắc nội bộ: không bao giờ trích riêng macro-F1 trên bộ câu mẫu mà không kèm số trên chat thật.
 2. **Kiểm soát đầu ra.** Mô hình được phép nói "không chắc". Ba trạng thái kết quả — đủ bằng chứng / không đủ bằng chứng / chưa đủ dữ liệu — thay vì ép mọi phiên ra một con số.
 3. **Con người giữ quyền quyết định.** LiveLift **không** tự động hóa việc ghim sản phẩm. Hệ thống đưa bằng chứng, người bán quyết định.
 

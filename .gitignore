@@ -6,6 +6,8 @@ __pycache__/
 build/
 dist/
 .venv/
+# venv riêng chỉ có python-docx, dùng để dựng hồ sơ dự thi
+.venv-docx/
 venv/
 .pytest_cache/
 .mypy_cache/
@@ -53,3 +55,7 @@ backups/
 # scratch working files
 audit_findings.txt
 research_specs.txt
+
+# Thông tin cá nhân của đội thi (ngày sinh, MSSV, SĐT) — không bao giờ commit.
+# Tạo từ docs/competition/thong-tin-doi.example.json.
+docs/competition/thong-tin-doi.local.json

@@ -64,17 +64,20 @@ FONT = "Times New Roman"
 CO = Pt(13)
 CO_BANG = Pt(11)
 
+# Thông tin thành viên đọc từ docs/competition/thong-tin-doi.local.json (đã
+# gitignore). Đến 15/09/2026 chúng bị chép cứng ở đây — ngày sinh, MSSV, số điện
+# thoại của cả ba người trong một kho mã sắp mở công khai. Xem thong_tin_doi.py.
+sys.path.insert(0, str(DAY.parent))
+import thong_tin_doi  # noqa: E402
+
+_DOI = thong_tin_doi.doc()
 THANHVIEN = [
-    ("Ngô Bình Minh", "524H0169", "Công nghệ thông tin", "Đại học Tôn Đức Thắng",
-     "ngobinhminh2322006@gmail.com", "23/02/2006"),
-    ("Lê Xuân Khánh", "524H0055", "Công nghệ thông tin", "Đại học Tôn Đức Thắng",
-     "khanhle14062006@gmail.com", "14/06/2006"),
-    ("Ngô Lâm Tiến", "524H0195", "Công nghệ thông tin", "Đại học Tôn Đức Thắng",
-     "ngolamtien1706@gmail.com", "17/06/2006"),
+    (tv["ho_ten"], tv["mssv"], tv["khoa"], tv["truong"], tv["email"], tv["ngay_sinh"])
+    for tv in _DOI["thanh_vien"]
 ]
-TEN_DOI = "LiveLift"
-TRUONG_NHOM = "Ngô Bình Minh"
-SDT = "0905484286"
+TEN_DOI = _DOI["ten_doi"]
+TRUONG_NHOM = _DOI["thanh_vien"][_DOI["truong_nhom"]]["ho_ten"]
+SDT = _DOI["thanh_vien"][_DOI["truong_nhom"]]["dien_thoai"]
 
 # KHÔNG có cơ chế vá số ở đây, và đó là chủ ý.
 #
@@ -103,9 +106,21 @@ def set_font(run, *, bold=False, size=CO, italic=False, mono=False):
     return run
 
 
-def para(doc, text="", *, bold=False, size=CO, italic=False, align=None,
-         space_before=0, space_after=6, indent=None, mono=False, spacing=1.5,
-         giu_voi_doan_sau=False):
+def para(
+    doc,
+    text="",
+    *,
+    bold=False,
+    size=CO,
+    italic=False,
+    align=None,
+    space_before=0,
+    space_after=6,
+    indent=None,
+    mono=False,
+    spacing=1.5,
+    giu_voi_doan_sau=False,
+):
     p = doc.add_paragraph()
     pf = p.paragraph_format
     pf.line_spacing = 1.0 if mono else spacing
@@ -177,8 +192,7 @@ def add_table(doc, rows):
             cp.paragraph_format.space_after = Pt(1)
             cp.paragraph_format.space_before = Pt(1)
             # Mẫu để mặc định canh giữa; ô nhiều chữ canh giữa rất khó đọc.
-            cp.alignment = (WD_ALIGN_PARAGRAPH.CENTER if i == 0
-                            else WD_ALIGN_PARAGRAPH.LEFT)
+            cp.alignment = WD_ALIGN_PARAGRAPH.CENTER if i == 0 else WD_ALIGN_PARAGRAPH.LEFT
             # PHẢI đặt tường minh về 0. File mẫu đặt `<w:ind w:firstLine="567"/>`
             # ở docDefaults, tức thụt dòng đầu 1 cm cho MỌI đoạn — kể cả đoạn
             # nằm trong ô bảng. Với văn xuôi thì đó là thụt đầu dòng bình thường
@@ -246,8 +260,7 @@ def render_body(doc, body):
         m = re.match(r"^(\s*)[-•]\s+(.*)$", line)
         if m:
             depth = min(len(m.group(1)) // 2, 2)
-            rich_para(doc, "• " + m.group(2), indent=18 + depth * 16,
-                      space_after=2, hanging=True)
+            rich_para(doc, "• " + m.group(2), indent=18 + depth * 16, space_after=2, hanging=True)
             i += 1
             continue
 
@@ -278,8 +291,14 @@ def dien_phan_i(doc):
             r._element.getparent().remove(r._element)
         set_font(p.add_run(moi), bold=bool(keep_bold))
 
-    tbl = next((t for t in doc.tables
-                if t.rows and "Thành viên" in "".join(c.text for c in t.rows[0].cells)), None)
+    tbl = next(
+        (
+            t
+            for t in doc.tables
+            if t.rows and "Thành viên" in "".join(c.text for c in t.rows[0].cells)
+        ),
+        None,
+    )
     if tbl is None:
         sys.exit("Không tìm thấy bảng thành viên trong mẫu")
     for ri in range(1, min(7, len(tbl.rows))):
@@ -312,7 +331,7 @@ def main():
                 break
     if start is None:
         sys.exit("Không tìm thấy mốc PHẦN II trong mẫu")
-    for child in list(body)[start + 1:]:
+    for child in list(body)[start + 1 :]:
         if child.tag != qn("w:sectPr"):
             body.remove(child)
 
@@ -320,11 +339,25 @@ def main():
     # mọi đoạn/bảng mới vào TRƯỚC thẻ này nên thứ tự vẫn đúng.
     for s in secs:
         if s.get("level", 1) == 1:
-            para(doc, s["heading"].upper(), bold=True, size=Pt(14),
-                 space_before=10, space_after=4, giu_voi_doan_sau=True)
+            para(
+                doc,
+                s["heading"].upper(),
+                bold=True,
+                size=Pt(14),
+                space_before=10,
+                space_after=4,
+                giu_voi_doan_sau=True,
+            )
         else:
-            para(doc, s["heading"], bold=True, size=Pt(13),
-                 space_before=8, space_after=4, giu_voi_doan_sau=True)
+            para(
+                doc,
+                s["heading"],
+                bold=True,
+                size=Pt(13),
+                space_before=8,
+                space_after=4,
+                giu_voi_doan_sau=True,
+            )
         render_body(doc, s["body"])
 
     doc.save(str(RA))

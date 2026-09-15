@@ -1,0 +1,40 @@
+{
+  "_huong_dan": "Chép tệp này thành thong-tin-doi.local.json (đã gitignore) rồi điền. KHÔNG điền thông tin thật vào tệp .example.",
+  "ten_doi": "LiveLift",
+  "truong_nhom": 0,
+  "thanh_vien": [
+    {
+      "ho_ten": "⬜",
+      "ngay_sinh": "⬜",
+      "mssv": "⬜",
+      "nganh": "Công nghệ thông tin",
+      "khoa": "Công nghệ thông tin",
+      "truong": "Đại học Tôn Đức Thắng",
+      "noi_o": "⬜ Phường …, TP. Hồ Chí Minh",
+      "dien_thoai": "⬜",
+      "email": "⬜"
+    },
+    {
+      "ho_ten": "⬜",
+      "ngay_sinh": "⬜",
+      "mssv": "⬜",
+      "nganh": "Công nghệ thông tin",
+      "khoa": "Công nghệ thông tin",
+      "truong": "Đại học Tôn Đức Thắng",
+      "noi_o": "⬜ Phường …, TP. Hồ Chí Minh",
+      "dien_thoai": "⬜",
+      "email": "⬜"
+    },
+    {
+      "ho_ten": "⬜",
+      "ngay_sinh": "⬜",
+      "mssv": "⬜",
+      "nganh": "Công nghệ thông tin",
+      "khoa": "Công nghệ thông tin",
+      "truong": "Đại học Tôn Đức Thắng",
+      "noi_o": "⬜ Phường …, TP. Hồ Chí Minh",
+      "dien_thoai": "⬜",
+      "email": "⬜"
+    }
+  ]
+}

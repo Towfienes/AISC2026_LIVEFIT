@@ -148,6 +148,9 @@ tài liệu hóa → đừng xây phụ thuộc vào nó. Không có quà/đơn 
 
 ### 1.6 Công cụ đọc chat TikTok LIVE trên thực tế (TikFinity / Streamer.bot / Apify / Euler Stream)
 
+> **Chỉ để đối chiếu thị trường — LiveLift không dùng.** Ngày 17/09/2026 đội quyết định không đọc
+> bình luận kiểu người xem bằng bất kỳ công cụ nào dưới đây (`docs/HUONG-DAN-LAY-KHOA-API.md` mục 0.1).
+
 **Kết luận: mọi công cụ phổ biến đều đi cùng MỘT đường — WebSocket "webcast" không chính thức của TikTok, URL
 được ký bởi sign server của Euler Stream. Không có API chính thức nào cho chat TikTok LIVE.**
 

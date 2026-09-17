@@ -146,6 +146,8 @@ nhận** (6 P1, 29 P2), gồm cả 7 lỗi quan sát trực tiếp trên trình 
 ## 3. Chạy với phiên live Facebook, YouTube, TikTok, Shopee như thế nào
 
 Nguyên tắc: **chỉ đọc buổi live của chính mình hoặc của người đã ủy quyền, qua API chính thức**.
+Đội đã quyết định không đọc bình luận kiểu người xem. Cách lấy khoá từng nền tảng:
+`docs/HUONG-DAN-LAY-KHOA-API.md`; việc cần làm theo ưu tiên: `docs/VIEC-CAN-LAM.md`.
 
 | Nền tảng | Đọc bình luận | Người xem | Đơn hàng | Ghim qua API | Cần chuẩn bị |
 |---|---|---|---|---|---|

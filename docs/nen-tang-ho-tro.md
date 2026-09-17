@@ -37,6 +37,11 @@ Phần từ §1 trở xuống giữ nguyên là bản đo 11/09 để còn đố
 | 5 | **Facebook:** mặc định `live_filter=filter_low_quality` **âm thầm lọc bớt bình luận** — bộ thu phải gửi `live_filter=no_filter`. Page webhook `live_videos` báo được lúc live bắt đầu. Luồng SSE `live_comments` không còn tài liệu | Không dựa vào SSE. Điều kiện phát live qua phần mềm: tài khoản ≥ 60 ngày, Page ≥ 100 người theo dõi |
 | 6 | **SerpAPI KHÔNG phải nguồn dữ liệu livestream.** Không engine nào đọc chat live, người xem đồng thời, quà hay đơn; không có engine TikTok/Shopee/Lazada. Giá trị thật duy nhất: Google Trends và Google Shopping để chọn hàng ghim và khung giờ phát, gói Free (250 lượt/tháng) là đủ | Không đưa SerpAPI vào đường nạp dữ liệu. Công cụ đọc chat TikTok trên thị trường (TikFinity, Apify, Euler Stream) đều dùng WebSocket không chính thức — rủi ro điều khoản cao, không dùng cho dữ liệu nghiên cứu |
 
+**Quyết định 17/09/2026 — không đọc bình luận kiểu người xem.** LiveLift không thu bình luận
+bằng tiện ích trình duyệt, Playwright/Selenium mở trang live, WebSocket dịch ngược, nhận dạng chữ
+từ màn hình hay dịch vụ cào trả phí. Chỉ API chính thức, trên tài khoản của nhóm hoặc đối tác đã
+đồng ý. Lý do và cách lấy khoá từng nền tảng: `docs/HUONG-DAN-LAY-KHOA-API.md`.
+
 **Nguồn mô phỏng để kiểm thử đầu-cuối (17/09/2026).** Khi chưa có khoá nền tảng nào, bộ thu có
 thêm nguồn `mo_phong`: phát lại một kịch bản bình luận **tổng hợp** như một buổi live thật, đi hết
 đường ống lọc PII → phân loại ý định → WebSocket → Bàn trợ live. Máy chủ chỉ cho dùng nguồn này trên

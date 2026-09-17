@@ -786,6 +786,10 @@ Hướng dẫn kiểm thử bằng lệnh cho người kỹ thuật:
 
 ## 10. Bật bộ thu bình luận
 
+> Chưa có khoá của nền tảng? Cách lấy từng loại khoá, điền vào `.env` và kiểm tra nằm ở
+> **[HUONG-DAN-LAY-KHOA-API.md](HUONG-DAN-LAY-KHOA-API.md)**. LiveLift chỉ đọc bình luận qua API
+> chính thức, trên tài khoản của nhóm hoặc đối tác đã đồng ý — không đọc kiểu người xem.
+
 Không có bộ thu thì ô **Bình luận / phút** và **Người xem** ghi *THIẾU nguồn*,
 radar trống. Từ 17/09/2026 bộ thu chạy ngay trong máy chủ — **bấm nút là thu**,
 không phải mở cửa sổ lệnh. Văn bản bình luận được lọc thông tin cá nhân trước
@@ -839,7 +843,7 @@ bao giờ hiện giá trị khoá).
 
 | Nền tảng | Máy chủ cần (tên biến trong `.env`) |
 |---|---|
-| YouTube Live | `YOUTUBE_API_KEY` (đường chính thức). Đường dự phòng yt-dlp không cần khoá nhưng trái Điều khoản YouTube |
+| YouTube Live | `YOUTUBE_API_KEY` (đường chính thức). Đường dự phòng yt-dlp không cần khoá nhưng trái Điều khoản YouTube — **không dùng cho buổi live thật** |
 | Facebook Live (Page của bạn) | `FACEBOOK_PAGE_ID` và `FACEBOOK_PAGE_ACCESS_TOKEN` — token cần quyền `pages_read_engagement` **và** `pages_read_user_content` |
 | Shopee Live (shop của bạn) | `SHOPEE_PARTNER_ID`, `SHOPEE_PARTNER_KEY`, `SHOPEE_USER_ID`, `SHOPEE_ACCESS_TOKEN` (token Shopee chỉ sống 4 giờ) |
 | TikTok LIVE | Không có — TikTok không có API công khai cho bình luận live |

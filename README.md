@@ -20,6 +20,8 @@ hành động *tạo ra giá trị* với *sự trùng hợp thời điểm*.
 [**Kết quả đã kiểm chứng**](#-kết-quả-đã-kiểm-chứng) ·
 [**Phương pháp**](#-phương-pháp-khoa-học) ·
 [**Tổng kết & lộ trình**](docs/TONG-KET-DU-AN.md) ·
+[**Việc cần làm**](docs/VIEC-CAN-LAM.md) ·
+[**Lấy khoá API nền tảng**](docs/HUONG-DAN-LAY-KHOA-API.md) ·
 [**Đóng góp**](CONTRIBUTING.md)
 
 Dự thi **AISC'26 — Data Driven Business** · Việt Nam · Chung kết 11/2026
@@ -228,6 +230,8 @@ flowchart LR
 ├── ops/                     # runbook phiên live, mẫu nhật ký, thư đối tác
 ├── docs/
 │   ├── TONG-KET-DU-AN.md    # ĐÃ ĐẠT · CẦN LÀM · TẦM NHÌN   ← đọc thứ hai
+│   ├── VIEC-CAN-LAM.md      # việc cần làm theo ưu tiên, người phụ trách, tiêu chí xong
+│   ├── HUONG-DAN-LAY-KHOA-API.md # lấy khoá YouTube / Facebook / Shopee / TikTok Shop
 │   ├── HUONG-DAN-SU-DUNG.md # hướng dẫn bấm từng nút cho người dùng (có ảnh)
 │   ├── HUONG-DAN-TEST.md    # kiểm thử từng khả năng
 │   ├── img/                 # ảnh chụp màn hình thật dùng trong hướng dẫn

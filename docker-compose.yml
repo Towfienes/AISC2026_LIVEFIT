@@ -74,6 +74,11 @@ services:
       SHOPEE_ACCESS_TOKEN: ${SHOPEE_ACCESS_TOKEN:-}
       SHOPEE_REFRESH_TOKEN: ${SHOPEE_REFRESH_TOKEN:-}
       SHOPEE_REGION: ${SHOPEE_REGION:-global}
+      # TikTok Shop — API chính thức, hậu kiểm LIVE theo phút (17/09/2026).
+      TIKTOK_SHOP_APP_KEY: ${TIKTOK_SHOP_APP_KEY:-}
+      TIKTOK_SHOP_APP_SECRET: ${TIKTOK_SHOP_APP_SECRET:-}
+      TIKTOK_SHOP_ACCESS_TOKEN: ${TIKTOK_SHOP_ACCESS_TOKEN:-}
+      TIKTOK_SHOP_SHOP_CIPHER: ${TIKTOK_SHOP_SHOP_CIPHER:-}
     depends_on:
       db:
         condition: service_healthy

@@ -1,0 +1,86 @@
+{
+  "_nguon": {
+    "tai_lieu": [
+      "https://developers.google.com/youtube/v3/live/docs/liveChatMessages (Last updated 2026-09-14; truy cập 17/09/2026)",
+      "https://youtube.googleapis.com/$discovery/rest?version=v3 (revision 20260914; truy cập 17/09/2026)"
+    ],
+    "ghi_chu": "Dữ liệu GIẢ hoàn toàn (id, tên, số điện thoại đều bịa) — không có dữ liệu người thật. tombstone: 'Only the snippet.liveChatId, snippet.type, and snippet.publishedAt fields are present'. userBannedEvent: authorChannelId là người kiểm duyệt; bannedUserDetails chứa tên người bị cấm; banDurationSeconds là chuỗi uint64 (Discovery). sponsorOnlyModeStartedEvent 'has no display content'. chatEndedEvent không có displayMessage. Mục cuối là loại GIẢ ĐỊNH chưa có trong tài liệu để kiểm parser không vỡ khi YouTube thêm loại mới."
+  },
+  "kind": "youtube#liveChatMessageListResponse",
+  "etag": "etag-trang-gia",
+  "nextPageToken": "TOKEN_GIA_TRANG_TIEP",
+  "pollingIntervalMillis": 5123,
+  "pageInfo": {
+    "totalResults": 5,
+    "resultsPerPage": 5
+  },
+  "items": [
+    {
+      "kind": "youtube#liveChatMessage",
+      "etag": "etag-MSG_GIA_DA_XOA",
+      "id": "MSG_GIA_DA_XOA",
+      "snippet": {
+        "type": "tombstone",
+        "liveChatId": "LIVECHAT_GIA_1",
+        "publishedAt": "2026-09-20T13:03:00.000Z"
+      }
+    },
+    {
+      "kind": "youtube#liveChatMessage",
+      "etag": "etag-MSG_GIA_CAM",
+      "id": "MSG_GIA_CAM",
+      "snippet": {
+        "type": "userBannedEvent",
+        "liveChatId": "LIVECHAT_GIA_1",
+        "authorChannelId": "UC_GIA_KIEM_DUYET",
+        "hasDisplayContent": true,
+        "displayMessage": "Le Van Bi Cam Gia da bi chan 300 giay",
+        "userBannedDetails": {
+          "bannedUserDetails": {
+            "channelId": "UC_GIA_BI_CAM",
+            "channelUrl": "http://www.youtube.com/channel/UC_GIA_BI_CAM",
+            "displayName": "Le Van Bi Cam Gia",
+            "profileImageUrl": "https://example.invalid/bi-cam-gia.jpg"
+          },
+          "banType": "temporary",
+          "banDurationSeconds": "300"
+        },
+        "publishedAt": "2026-09-20T13:03:05.000Z"
+      }
+    },
+    {
+      "kind": "youtube#liveChatMessage",
+      "etag": "etag-MSG_GIA_CHE_DO_HOI_VIEN",
+      "id": "MSG_GIA_CHE_DO_HOI_VIEN",
+      "snippet": {
+        "type": "sponsorOnlyModeStartedEvent",
+        "liveChatId": "LIVECHAT_GIA_1",
+        "hasDisplayContent": false,
+        "publishedAt": "2026-09-20T13:03:10.000Z"
+      }
+    },
+    {
+      "kind": "youtube#liveChatMessage",
+      "etag": "etag-MSG_GIA_LOAI_MOI",
+      "id": "MSG_GIA_LOAI_MOI",
+      "snippet": {
+        "type": "suKienTuongLaiGia",
+        "liveChatId": "LIVECHAT_GIA_1",
+        "hasDisplayContent": true,
+        "displayMessage": "noi dung loai moi gia",
+        "publishedAt": "2026-09-20T13:03:15.000Z"
+      }
+    },
+    {
+      "kind": "youtube#liveChatMessage",
+      "etag": "etag-MSG_GIA_HET_CHAT",
+      "id": "MSG_GIA_HET_CHAT",
+      "snippet": {
+        "type": "chatEndedEvent",
+        "liveChatId": "LIVECHAT_GIA_1",
+        "hasDisplayContent": false,
+        "publishedAt": "2026-09-20T13:03:20.000Z"
+      }
+    }
+  ]
+}

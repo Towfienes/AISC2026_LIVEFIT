@@ -34,6 +34,18 @@ NHANH = {
 }
 
 
+@pytest.fixture(autouse=True, scope="module")
+def _nap_san_bo_phan_loai():
+    """Nạp mô hình ý định TRƯỚC khi đo thời gian.
+
+    Bình luận đầu tiên của một tiến trình nguội tốn ~4 giây để nạp mô hình
+    (kiểm toán 18/09/2026) — đủ để các phép chờ 3 giây trong tệp này hết giờ
+    một cách ngẫu nhiên. Máy chủ thật nạp sẵn trong lifespan; test nạp ở đây."""
+    from livelift.nlp.intent import classify_with_confidence
+
+    classify_with_confidence("khởi động bộ phân loại")
+
+
 def _phien(store: InMemoryStore, platform: str = "youtube") -> str:
     sid = str(uuid.uuid4())
     now = datetime.now(UTC)
@@ -411,3 +423,75 @@ def test_trang_thai_endpoint_co_truong_hang_doi(truong):
     from livelift.api.routes.ingest import IngestStatus
 
     assert truong in IngestStatus.model_fields
+
+
+# ---------------------------------------------------------------------------
+# 4. Chờ buổi live: nhịp dò giãn dần để không đốt quota nền tảng
+# ---------------------------------------------------------------------------
+
+
+class ClientChuaPhat:
+    """Nền tảng báo chưa phát ``chua_phat`` lần rồi mới có bình luận."""
+
+    dem = {"chua_phat": 0}
+
+    def __init__(self, chua_phat: int) -> None:
+        self.con_lai = chua_phat
+        self.last_error: str | None = None
+
+    async def iter_comments(self, source_id: str):
+        if ClientChuaPhat.dem["chua_phat"] > 0:
+            ClientChuaPhat.dem["chua_phat"] -= 1
+            raise RuntimeError(f"video {source_id} has no active live chat (not live?)")
+        yield _binh_luan("sau-khi-len-song")
+
+    async def iter_viewers(self, source_id: str):
+        await asyncio.sleep(3600)
+        yield RawTick(platform="youtube", ts_utc=datetime.now(UTC), viewers=1)
+
+    async def aclose(self) -> None:
+        return None
+
+
+def test_nhip_do_khi_cho_len_song_gian_dan_de_do_quota(monkeypatch):
+    """Kiểm toán 18/09/2026: chờ ở nhịp cố định tốn quota thật.
+
+    Mỗi vòng chờ của YouTube gọi ``videos.list`` 2 lượt (360 đơn vị/giờ); quy
+    trình vận hành bật bộ thu trước 2 giờ ⇒ 720 trong 10.000 đơn vị/ngày tiêu
+    hết trước khi buổi live bắt đầu. Nhịp dò phải giãn gấp đôi tới trần.
+    """
+    ngu: list[float] = []
+    that = asyncio.sleep
+
+    async def ghi_lai(delay, *a, **kw):
+        ngu.append(float(delay))
+        return await that(0)
+
+    ClientChuaPhat.dem["chua_phat"] = 5
+    store = InMemoryStore()
+    sid = _phien(store)
+
+    async def chay():
+        monkeypatch.setattr(ingest_jobs.asyncio, "sleep", ghi_lai)
+        m = IngestManager(
+            store,
+            client_factory=lambda _p: ClientChuaPhat(5),
+            wait_for_live_s=1.0,
+            wait_for_live_cap_s=8.0,
+            restart_base_s=0.01,
+            restart_cap_s=0.02,
+            watch_every_s=0.02,
+        )
+        job = m.start(sid, "youtube", "dQw4w9WgXcQ")
+        han = time.monotonic() + 5
+        while job.dang_chay and time.monotonic() < han:
+            await that(0.01)
+        return job
+
+    job = asyncio.run(chay())
+    assert job.state == "nguon_ket_thuc", job.last_error
+    # Bỏ giấc 3600 giây của vòng người xem giả trong client thử.
+    cho = [d for d in ngu if 1.0 <= d <= 8.0]
+    assert cho[:5] == [1.0, 2.0, 4.0, 8.0, 8.0], f"nhịp chờ phải giãn tới trần: {cho[:6]}"
+    assert sum(cho[:5]) < 5 * 8.0, "giãn dần phải rẻ hơn dò ở nhịp trần ngay từ đầu"
+    assert len(store.list_comments(sid)) == 1, "lên sóng rồi thì phải thu được"

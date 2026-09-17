@@ -1,0 +1,20 @@
+{
+  "_nguon": {
+    "tai_lieu": [
+      "https://developers.google.com/youtube/v3/docs/core_errors (Last updated 2025-08-20; truy cập 17/09/2026)"
+    ],
+    "ghi_chu": "Dữ liệu GIẢ hoàn toàn (id, tên, số điện thoại đều bịa) — không có dữ liệu người thật. Dạng cũ theo bảng core_errors: keyInvalid (400). Khuôn JSON theo ví dụ của core_errors; message là mô tả của bảng."
+  },
+  "_http_status": 400,
+  "error": {
+    "code": 400,
+    "message": "The API key provided in the request is invalid, which means the API server is unable to check the quota limit for the application making the request.",
+    "errors": [
+      {
+        "message": "The API key provided in the request is invalid, which means the API server is unable to check the quota limit for the application making the request.",
+        "domain": "global",
+        "reason": "keyInvalid"
+      }
+    ]
+  }
+}

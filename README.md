@@ -12,7 +12,7 @@ hành động *tạo ra giá trị* với *sự trùng hợp thời điểm*.
 [![CI](https://github.com/bminhnemhoi/AISC2026_LIVEFIT/actions/workflows/ci.yml/badge.svg)](https://github.com/bminhnemhoi/AISC2026_LIVEFIT/actions/workflows/ci.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
-[![Tests](https://img.shields.io/badge/tests-1555%20nhanh%20%2B%2017%20Monte--Carlo-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-1803%20nhanh%20%2B%2017%20Monte--Carlo-brightgreen)](tests/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Next.js 14](https://img.shields.io/badge/Next.js-14-black?logo=next.js)](web/)
 
@@ -22,6 +22,7 @@ hành động *tạo ra giá trị* với *sự trùng hợp thời điểm*.
 [**Tổng kết & lộ trình**](docs/TONG-KET-DU-AN.md) ·
 [**Việc cần làm**](docs/VIEC-CAN-LAM.md) ·
 [**Lấy khoá API nền tảng**](docs/HUONG-DAN-LAY-KHOA-API.md) ·
+[**Nghiên cứu nền tảng & thị trường**](docs/research/) ·
 [**Đóng góp**](CONTRIBUTING.md)
 
 Dự thi **AISC'26 — Data Driven Business** · Việt Nam · Chung kết 11/2026
@@ -95,7 +96,7 @@ chưa làm được.
 python -m venv .venv && .venv\Scripts\activate      # Windows; Linux: source .venv/bin/activate
 pip install -e ".[dev,server,ml]"
 
-pytest -m "not slow"     # 1555 test nhanh (đếm 17/09/2026)
+pytest -m "not slow"     # 1803 test nhanh (đếm 18/09/2026)
 pytest -m slow           # gate thống kê Monte-Carlo (vài phút)
 ruff check src tests     # lint
 
@@ -202,7 +203,7 @@ flowchart LR
 | **Lọc PII** | recall ≥ 95%/loại | gate `test_pii_filter.py` |
 | **Hiệu chỉnh KuaiLive** | 1,16M phòng shop; đơn vị ms **chứng minh bằng ràng buộc vật lý** | `analysis/calibration/` |
 | **Live-fire VOD thật** | **19.126 bình luận · 16 buổi live · 7 ngành hàng** chạy trọn qua API (lô 10/09/2026 thay lô 06/09 cũ 14.903) | `docs/benchmarks/live-fire-da-nguon.md` |
-| **Kiểm toán đối kháng** | 16/16 phát hiện xử lý (2 FATAL) · đợt 2 (06/09): 5 nhóm lỗi chặn phiên-thật đã sửa | **58 sự cố** đủ root cause + gate (đếm 17/09/2026) |
+| **Kiểm toán đối kháng** | 16/16 phát hiện xử lý (2 FATAL) · đợt 2 (06/09): 5 nhóm lỗi chặn phiên-thật đã sửa | **60 sự cố** đủ root cause + gate (đếm 18/09/2026) |
 
 ## 📁 Cấu trúc kho mã
 
@@ -232,6 +233,9 @@ flowchart LR
 │   ├── TONG-KET-DU-AN.md    # ĐÃ ĐẠT · CẦN LÀM · TẦM NHÌN   ← đọc thứ hai
 │   ├── VIEC-CAN-LAM.md      # việc cần làm theo ưu tiên, người phụ trách, tiêu chí xong
 │   ├── HUONG-DAN-LAY-KHOA-API.md # lấy khoá YouTube / Facebook / Shopee / TikTok Shop
+│   ├── research/2026-09-17-tiktok-duong-chinh-thuc.md        # TikTok: đường API chính thức
+│   ├── research/2026-09-17-youtube-kiem-thu-chinh-thuc.md    # YouTube: cách kiểm thử
+│   ├── research/2026-09-17-thi-truong-trung-quoc-an-do-va-bai-bao-moi.md # thị trường + bài báo
 │   ├── HUONG-DAN-SU-DUNG.md # hướng dẫn bấm từng nút cho người dùng (có ảnh)
 │   ├── HUONG-DAN-TEST.md    # kiểm thử từng khả năng
 │   ├── img/                 # ảnh chụp màn hình thật dùng trong hướng dẫn
@@ -240,7 +244,7 @@ flowchart LR
 │   ├── huong-dan-facebook-token.md  # lấy Page token (~25 phút, không cần App Review)
 │   ├── benchmarks/          # số sinh lại được (intent, KuaiLive)
 │   ├── research/            # 7 báo cáo nghiên cứu đa nguồn
-│   └── incident-log.md      # 58 sự cố: root cause + gate chặn tái diễn
+│   └── incident-log.md      # 60 sự cố: root cause + gate chặn tái diễn
 ├── PREREGISTRATION.md       # tiền đăng ký — KHÓA trước chuỗi khẳng định
 ├── HARNESS.md               # quy trình phát triển & quality gates   ← đọc thứ ba
 ├── CONTRIBUTING.md · CITATION.cff · LICENSE (AGPL-3.0)
@@ -266,7 +270,7 @@ Chi tiết thành tựu, việc còn lại (P0/P1/P2), nợ kỹ thuật không 
 ## 🧑‍💻 Quy trình & đóng góp
 
 Vòng lặp: *hiểu → nghiên cứu (có trích dẫn) → thiết kế test trước → code thuần ở lõi
-→ gate tự động → root cause mọi lỗi → sổ sự cố*. Quality gates: 1555 test nhanh · gate
+→ gate tự động → root cause mọi lỗi → sổ sự cố*. Quality gates: 1803 test nhanh · gate
 thống kê Monte-Carlo · recall PII · cân bằng gán 1000 lịch · **contract test web↔API**
 · cách ly collectors · ruff.
 

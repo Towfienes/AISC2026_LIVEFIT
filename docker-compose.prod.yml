@@ -105,6 +105,10 @@ services:
       SHOPEE_ACCESS_TOKEN: ${SHOPEE_ACCESS_TOKEN:-}
       SHOPEE_REFRESH_TOKEN: ${SHOPEE_REFRESH_TOKEN:-}
       SHOPEE_REGION: ${SHOPEE_REGION:-global}
+      TIKTOK_SHOP_APP_KEY: ${TIKTOK_SHOP_APP_KEY:-}
+      TIKTOK_SHOP_APP_SECRET: ${TIKTOK_SHOP_APP_SECRET:-}
+      TIKTOK_SHOP_ACCESS_TOKEN: ${TIKTOK_SHOP_ACCESS_TOKEN:-}
+      TIKTOK_SHOP_SHOP_CIPHER: ${TIKTOK_SHOP_SHOP_CIPHER:-}
     # 768m: ảnh api kéo theo lightgbm + numpy/scipy; cần đo lại bằng
     # `docker stats` sau 24 giờ chạy thật rồi siết cho khớp.
     mem_limit: 768m

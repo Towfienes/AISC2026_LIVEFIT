@@ -1,0 +1,21 @@
+{
+  "_nguon": {
+    "tai_lieu": [
+      "Đo trực tiếp 17/09/2026 22:16–22:17 giờ VN bằng key GIẢ, không key thật (báo cáo nghiên cứu L2 §1.7, kiểm chứng lại bằng curl 15:34 GMT cùng ngày)"
+    ],
+    "ghi_chu": "Dữ liệu GIẢ hoàn toàn (id, tên, số điện thoại đều bịa) — không có dữ liệu người thật. Nguyên văn phản hồi khi gọi videos.list KHÔNG kèm key."
+  },
+  "_http_status": 403,
+  "error": {
+    "code": 403,
+    "message": "Method doesn't allow unregistered callers (callers without established identity). Please use API Key or other form of API consumer identity to call this API.",
+    "errors": [
+      {
+        "message": "Method doesn't allow unregistered callers (callers without established identity). Please use API Key or other form of API consumer identity to call this API.",
+        "domain": "global",
+        "reason": "forbidden"
+      }
+    ],
+    "status": "PERMISSION_DENIED"
+  }
+}

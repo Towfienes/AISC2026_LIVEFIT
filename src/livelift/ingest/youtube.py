@@ -56,15 +56,38 @@ def _auth_error_message(status: int) -> str:
     )
 
 
+#: ``snippet.type`` values that are a viewer's chat TEXT, i.e. a comment.
+#:
+#: Hợp đồng kiểm 17/09/2026 (tests/test_youtube_hop_dong.py) theo trang
+#: https://developers.google.com/youtube/v3/live/docs/liveChatMessages (cập nhật
+#: 2026-09-14): ``textMessageEvent`` — "A user has sent a text message". Mọi loại
+#: khác cũng có ``displayMessage`` nhưng KHÔNG phải bình luận: Super Chat, Super
+#: Sticker, quà Jewels (``giftEvent``), hội viên/tặng hội viên, cột mốc hội viên,
+#: ``userBannedEvent`` (tác giả là người kiểm duyệt, chi tiết chứa tên người bị
+#: cấm), poll, ``chatEndedEvent``, ``tombstone``. Trước đây parser lấy
+#: ``displayMessage`` của MỌI loại nên các sự kiện đó lẫn vào radar ý định và
+#: nhịp bình luận. Nay chúng bị bỏ CÓ CHỦ ĐÍCH ở đây — cùng quy ước với backend
+#: yt-dlp (``youtube_ytdlp.parse_live_chat_actions`` chỉ nhận tin nhắn văn bản);
+#: sự kiện trả phí thuộc tín hiệu "reactions", chưa nối cho đường API chính thức.
+COMMENT_TYPES: frozenset[str] = frozenset({"textMessageEvent"})
+
+
 def parse_live_chat_message(item: dict[str, Any]) -> RawComment | None:
     """Parse one ``liveChatMessage`` resource into a :class:`RawComment`.
 
     Pure function. Returns ``None`` for items without display content
-    (deleted messages, non-text events). ``authorDetails`` is present in the
-    resource but deliberately ignored — the author id is dropped here, at
-    normalization, and never reaches storage or transmission.
+    (deleted messages) and for every ``snippet.type`` outside
+    :data:`COMMENT_TYPES` (paid, membership, moderation, poll and system
+    events are not comments). An item without ``snippet.type`` keeps the old
+    behavior (read ``displayMessage``) — the docs say the field is always
+    present, so this only tolerates hand-built payloads. ``authorDetails`` is
+    present in the resource but deliberately ignored — the author id is
+    dropped here, at normalization, and never reaches storage or transmission.
     """
     snippet = item.get("snippet") or {}
+    msg_type = snippet.get("type")
+    if msg_type is not None and msg_type not in COMMENT_TYPES:
+        return None
     text = snippet.get("displayMessage")
     published = snippet.get("publishedAt")
     ext_id = item.get("id")

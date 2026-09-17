@@ -1,0 +1,31 @@
+{
+  "_nguon": {
+    "tai_lieu": [
+      "https://github.com/googleapis/googleapis/blob/master/google/api/error_reason.proto (truy cập 17/09/2026)"
+    ],
+    "ghi_chu": "Dữ liệu GIẢ hoàn toàn (id, tên, số điện thoại đều bịa) — không có dữ liệu người thật. details[] API_KEY_SERVICE_BLOCKED ('violates API key API restrictions') theo error_reason.proto. Phần errors[]/message/status là GIẢ ĐỊNH theo cùng khuôn với phản hồi key sai đo thật."
+  },
+  "_http_status": 403,
+  "error": {
+    "code": 403,
+    "message": "Requests to this API are blocked.",
+    "errors": [
+      {
+        "message": "Requests to this API are blocked.",
+        "domain": "global",
+        "reason": "forbidden"
+      }
+    ],
+    "status": "PERMISSION_DENIED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+        "reason": "API_KEY_SERVICE_BLOCKED",
+        "domain": "googleapis.com",
+        "metadata": {
+          "service": "youtube.googleapis.com"
+        }
+      }
+    ]
+  }
+}

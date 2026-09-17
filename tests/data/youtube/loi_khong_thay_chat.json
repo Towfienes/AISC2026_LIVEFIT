@@ -1,0 +1,21 @@
+{
+  "_nguon": {
+    "tai_lieu": [
+      "https://developers.google.com/youtube/v3/live/docs/liveChatMessages/list (Last updated 2026-09-14; truy cập 17/09/2026)",
+      "https://developers.google.com/youtube/v3/docs/core_errors (Last updated 2025-08-20; truy cập 17/09/2026)"
+    ],
+    "ghi_chu": "Dữ liệu GIẢ hoàn toàn (id, tên, số điện thoại đều bịa) — không có dữ liệu người thật. Mã HTTP và reason 'liveChatNotFound' theo bảng Errors của trang list (rateLimitExceeded không ghi mã ở trang list; trang streamList ghi 403). message là mô tả của bảng; domain 'global' là GIẢ ĐỊNH theo khuôn core_errors."
+  },
+  "_http_status": 404,
+  "error": {
+    "code": 404,
+    "message": "The live chat that you are trying to retrieve cannot be found. Check the value of the request's liveChatId parameter to ensure that it is correct.",
+    "errors": [
+      {
+        "message": "The live chat that you are trying to retrieve cannot be found. Check the value of the request's liveChatId parameter to ensure that it is correct.",
+        "domain": "global",
+        "reason": "liveChatNotFound"
+      }
+    ]
+  }
+}

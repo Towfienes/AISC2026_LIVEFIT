@@ -1,0 +1,160 @@
+{
+  "_nguon": {
+    "url": [
+      "https://partner.tiktokshop.com/docv2/page/common-errors",
+      "https://partner.tiktokshop.com/docv2/page/6a2fcefe4dcf9be6fd930820",
+      "https://partner.tiktokshop.com/docv2/page/get-live-room-core-stats-202502",
+      "https://partner.tiktokshop.com/docv2/page/6960bc30ea9d0304fa4027f7",
+      "https://partner.tiktokshop.com/docv2/page/6507ead7b99d5302be949ba9"
+    ],
+    "ngay_truy_cap": "2026-09-17",
+    "ghi_chu": "Mã và thông điệp chép nguyên văn từ bảng lỗi của tài liệu (update_time lần lượt 06/07/2026, 15/06/2026, 20/07/2026; 36009003 lấy từ bảng lỗi của Get Shop LIVE Performance Overview /analytics/202509/shop_lives/overview_performance, update_time 10/09/2026, và Get Authorized Shops). NGOẠI LỆ: mục có khóa 'bien_the' KHÔNG phải nguyên văn tài liệu — đó là thông điệp của bảng lỗi viết lại bằng dấu nháy đơn, vì phản hồi THẬT của cổng API ngày 17/09/2026 dùng nháy đơn (xem loi_tham_do_that_17092026.json). http_status chỉ ghi khi tài liệu nêu; ở chỗ tài liệu không nêu, test dùng HTTP 200 hoặc giá trị ghi trong 'http_status_gia'. 66009315 được tài liệu ghi cho nhóm live_rooms/*; bảng mã lỗi riêng của ba endpoint shop_lives/* để trống. 'loai' là phân loại MONG ĐỢI của LiveLift."
+  },
+  "loi": [
+    {
+      "code": 36009002,
+      "http_status": 429,
+      "loai": "rate_limit",
+      "message": "Too many requests. You've made too many requests in a short period of time."
+    },
+    {
+      "code": 36009037,
+      "http_status": 429,
+      "loai": "rate_limit",
+      "message": "Too many requests. Current sandbox user made too many requests in a short period of time."
+    },
+    {
+      "code": 105005,
+      "http_status_gia": 200,
+      "loai": "permission",
+      "message": "Access denied. The app is not authorized to access the endpoint because the access scopes granted for the app or the access token do not contain the required access scope for the endpoint."
+    },
+    {
+      "code": 66009315,
+      "http_status_gia": 200,
+      "loai": "permission",
+      "message": "No permission for the action."
+    },
+    {
+      "code": 36009033,
+      "http_status_gia": 200,
+      "loai": "permission",
+      "message": "Access denied. Your IP address is not in the IP allow list configured for this app."
+    },
+    {
+      "code": 36009043,
+      "http_status": 401,
+      "loai": "permission",
+      "message": "Your shop has been deactivated or is closing. Access denied."
+    },
+    {
+      "code": 36009044,
+      "http_status": 401,
+      "loai": "permission",
+      "message": "Your seller account has been deactivated. Access denied."
+    },
+    {
+      "code": 105002,
+      "http_status_gia": 200,
+      "loai": "auth",
+      "message": "Expired credentials. The `access_token` or `x-tts-access-token` header has expired."
+    },
+    {
+      "code": 106001,
+      "http_status_gia": 200,
+      "loai": "auth",
+      "message": "Invalid credentials. The `sign` query parameter is invalid."
+    },
+    {
+      "code": 101000,
+      "http_status_gia": 200,
+      "loai": "auth",
+      "message": "Invalid query or header. The `category_asset_cipher` query parameter or `x-tts-access-token` header is invalid."
+    },
+    {
+      "code": 36009004,
+      "http_status_gia": 200,
+      "loai": "auth",
+      "message": "Missing credentials. The request does not include a required signature in the query."
+    },
+    {
+      "code": 36009004,
+      "http_status_gia": 200,
+      "loai": "auth",
+      "message": "Invalid credentials. The `x-tts-access-token` header is invalid."
+    },
+    {
+      "code": 36009004,
+      "http_status_gia": 200,
+      "loai": "auth",
+      "message": "Invalid credentials. The `access_token` header is invalid."
+    },
+    {
+      "code": 36009004,
+      "http_status_gia": 400,
+      "loai": "auth",
+      "bien_the": "nháy đơn như phản hồi thật của cổng API 17/09/2026, kèm đuôi 'For more details'",
+      "message": "Invalid credentials. The 'access_token' header is invalid. For more details: https://m.tiktok.shop/s/AIu6dbFhs2XW"
+    },
+    {
+      "code": 36009004,
+      "http_status_gia": 200,
+      "loai": "auth",
+      "message": "Invalid credentials. Invalid `app_key` query parameter."
+    },
+    {
+      "code": 36009004,
+      "http_status_gia": 200,
+      "loai": "auth",
+      "message": "Invalid timestamp. The value of the `timestamp` query parameter must not be earlier than 5 minutes before the current time."
+    },
+    {
+      "code": 36009004,
+      "http_status_gia": 200,
+      "loai": "auth",
+      "message": "Invalid timestamp. The value of the `timestamp` query parameter must not exceed the current time by more than 30 seconds."
+    },
+    {
+      "code": 36009004,
+      "http_status_gia": 200,
+      "loai": "config",
+      "message": "Unexpected identifier. The `shop_cipher` query parameter is not required for this request."
+    },
+    {
+      "code": 36009004,
+      "http_status_gia": 200,
+      "loai": "config",
+      "message": "Invalid identifier. The `shop_id` query parameter is invalid."
+    },
+    {
+      "code": 106013,
+      "http_status_gia": 200,
+      "loai": "config",
+      "message": "Missing identifier. The `shop_cipher` query parameter is required to identify the target shop."
+    },
+    {
+      "code": 36009014,
+      "http_status_gia": 200,
+      "loai": "config",
+      "message": "Invalid API version. The `version` value is invalid or unsupported."
+    },
+    {
+      "code": 36009009,
+      "http_status_gia": 200,
+      "loai": "config",
+      "message": "Invalid path. The specified path does not match any available endpoint."
+    },
+    {
+      "code": 36009007,
+      "http_status_gia": 200,
+      "loai": "transient",
+      "message": "Request timeout. The request to the endpoint timed out."
+    },
+    {
+      "code": 36009003,
+      "http_status_gia": 200,
+      "loai": "transient",
+      "message": "Internal error. Please try again. If the issue persists after multiple attempts, please contact platform support."
+    }
+  ]
+}

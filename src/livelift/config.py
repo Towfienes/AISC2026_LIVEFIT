@@ -173,6 +173,26 @@ class Settings(BaseSettings):
     # Shopee KHÔNG có host riêng cho .vn — VN đi qua partner.shopeemobile.com.
     shopee_region: str = "global"
 
+    # --- TikTok Shop — API CHÍNH THỨC, hậu kiểm LIVE theo phút (17/09/2026) --
+    # Dùng bởi livelift.ingest.tiktok_shop và scripts/kiem_tra_tiktok_shop.py.
+    # CHỈ số liệu sau khi phiên kết thúc (performance_per_minutes), KHÔNG có
+    # nội dung bình luận, KHÔNG ghim sản phẩm. Chưa nối vào bộ thu nền/web.
+    # Không có biến vùng: mọi mẫu yêu cầu trong tài liệu dùng một tên miền
+    # https://open-api.tiktokglobalshop.com.
+    # App Key / App Secret: Partner Center → App & Service → app của nhóm/đối
+    # tác. App Secret là khóa HMAC ký mọi yêu cầu — không bao giờ gửi đi.
+    tiktok_shop_app_key: str = ""
+    tiktok_shop_app_secret: str = ""
+    # Token NGƯỜI BÁN (user_type = 0) từ luồng ủy quyền shop, đổi ở
+    # https://auth.tiktok-shops.com/api/v2/token/get (grant_type=authorized_code).
+    # Sống mặc định 7 ngày; LiveLift CHƯA tự làm mới. Gửi trong header
+    # x-tts-access-token, không nằm trong URL. Cần scope "TikTok Shop Analytics"
+    # (data.shop_analytics.public.read).
+    tiktok_shop_access_token: str = ""
+    # Định danh shop đã mã hóa, bắt buộc với cả ba endpoint LIVE analytics. Lấy
+    # từ GET /authorization/202309/shops (Get Authorized Shops).
+    tiktok_shop_shop_cipher: str = ""
+
 
 def _prefer_ipv4_loopback(url: str) -> str:
     """Rewrite a ``localhost`` host to ``127.0.0.1``.

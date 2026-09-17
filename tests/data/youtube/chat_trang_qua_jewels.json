@@ -1,0 +1,94 @@
+{
+  "_nguon": {
+    "tai_lieu": [
+      "https://developers.google.com/youtube/v3/live/docs/liveChatMessages (Last updated 2026-09-14; truy cập 17/09/2026)",
+      "https://youtube.googleapis.com/$discovery/rest?version=v3 (revision 20260914; truy cập 17/09/2026)",
+      "https://developers.google.com/youtube/v3/live/revision_history (mục March 26, 2026; truy cập 17/09/2026)"
+    ],
+    "ghi_chu": "Dữ liệu GIẢ hoàn toàn (id, tên, số điện thoại đều bịa) — không có dữ liệu người thật. Ba nguồn chính thức mâu thuẫn: trang HTML ghi snippet.giftEventDetails.giftMetadata.{…, giftDuration{seconds,nanos}}; Discovery ghi snippet.giftDetails phẳng với giftDuration kiểu chuỗi google-duration. Mục 1 theo Discovery, mục 2 theo HTML, mục 3 lặp lại id mục 1 với comboCount 3 theo ghi chú 'For giftEvents, the same ID may be reused to update the combo count.' Dạng 'giftEventDetails.jewelsAmount' (thiếu giftMetadata) không khớp nguồn nào nên không dựng."
+  },
+  "kind": "youtube#liveChatMessageListResponse",
+  "etag": "etag-trang-gia",
+  "nextPageToken": "TOKEN_GIA_TRANG_TIEP",
+  "pollingIntervalMillis": 5123,
+  "pageInfo": {
+    "totalResults": 3,
+    "resultsPerPage": 3
+  },
+  "items": [
+    {
+      "kind": "youtube#liveChatMessage",
+      "etag": "etag-MSG_GIA_QUA_1",
+      "id": "MSG_GIA_QUA_1",
+      "snippet": {
+        "type": "giftEvent",
+        "liveChatId": "LIVECHAT_GIA_1",
+        "authorChannelId": "UC_GIA_NGUOI_TANG_5",
+        "hasDisplayContent": true,
+        "displayMessage": "Vu Thi Gia tang Hoa",
+        "giftDetails": {
+          "jewelsAmount": 10,
+          "giftName": "Hoa gia",
+          "giftUrl": "https://example.invalid/qua-gia.png",
+          "giftDuration": "5s",
+          "hasVisualEffect": false,
+          "comboCount": 1,
+          "altText": "hoa",
+          "language": "vi"
+        },
+        "publishedAt": "2026-09-20T13:02:00.000Z"
+      }
+    },
+    {
+      "kind": "youtube#liveChatMessage",
+      "etag": "etag-MSG_GIA_QUA_2",
+      "id": "MSG_GIA_QUA_2",
+      "snippet": {
+        "type": "giftEvent",
+        "liveChatId": "LIVECHAT_GIA_1",
+        "authorChannelId": "UC_GIA_NGUOI_TANG_5",
+        "hasDisplayContent": true,
+        "displayMessage": "Vu Thi Gia tang Tim",
+        "giftEventDetails": {
+          "giftMetadata": {
+            "jewelsAmount": 20,
+            "giftName": "Tim gia",
+            "giftUrl": "https://example.invalid/tim-gia.png",
+            "giftDuration": {
+              "seconds": 5,
+              "nanos": 0
+            },
+            "hasVisualEffect": true,
+            "comboCount": 0,
+            "altText": "tim",
+            "language": "vi"
+          }
+        },
+        "publishedAt": "2026-09-20T13:02:05.000Z"
+      }
+    },
+    {
+      "kind": "youtube#liveChatMessage",
+      "etag": "etag-MSG_GIA_QUA_1-combo",
+      "id": "MSG_GIA_QUA_1",
+      "snippet": {
+        "type": "giftEvent",
+        "liveChatId": "LIVECHAT_GIA_1",
+        "authorChannelId": "UC_GIA_NGUOI_TANG_5",
+        "hasDisplayContent": true,
+        "displayMessage": "Vu Thi Gia tang Hoa",
+        "giftDetails": {
+          "jewelsAmount": 10,
+          "giftName": "Hoa gia",
+          "giftUrl": "https://example.invalid/qua-gia.png",
+          "giftDuration": "5s",
+          "hasVisualEffect": false,
+          "comboCount": 3,
+          "altText": "hoa",
+          "language": "vi"
+        },
+        "publishedAt": "2026-09-20T13:02:00.000Z"
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+[
+  {
+    "_nguon": {
+      "tai_lieu": [
+        "Đo trực tiếp 17/09/2026 22:16–22:17 giờ VN bằng key GIẢ, không key thật (báo cáo nghiên cứu L2 §1.7, kiểm chứng lại bằng curl 15:34 GMT cùng ngày)"
+      ],
+      "ghi_chu": "Dữ liệu GIẢ hoàn toàn (id, tên, số điện thoại đều bịa) — không có dữ liệu người thật. Endpoint streaming GET youtube.googleapis.com/youtube/v3/liveChat/messages/stream trả thân lỗi BỌC TRONG MẢNG JSON (Transfer-Encoding: chunked)."
+    },
+    "_http_status": 400,
+    "error": {
+      "code": 400,
+      "message": "API key not valid. Please pass a valid API key.",
+      "errors": [
+        {
+          "message": "API key not valid. Please pass a valid API key.",
+          "domain": "global",
+          "reason": "badRequest"
+        }
+      ],
+      "status": "INVALID_ARGUMENT",
+      "details": [
+        {
+          "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+          "reason": "API_KEY_INVALID",
+          "domain": "googleapis.com",
+          "metadata": {
+            "service": "youtube.googleapis.com"
+          }
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,32 @@
+{
+  "_nguon": {
+    "tai_lieu": [
+      "https://developers.google.com/youtube/v3/docs/videos (Last updated 2026-09-14; truy cập 17/09/2026)",
+      "https://developers.google.com/youtube/v3/docs/videos/list (truy cập 17/09/2026)",
+      "https://youtube.googleapis.com/$discovery/rest?version=v3 (revision 20260914; truy cập 17/09/2026)"
+    ],
+    "ghi_chu": "Dữ liệu GIẢ hoàn toàn (id, tên, số điện thoại đều bịa) — không có dữ liệu người thật. liveStreamingDetails 'will only be present in a video resource if the video is an upcoming, live, or completed live broadcast' — video tải lên thường không có."
+  },
+  "kind": "youtube#videoListResponse",
+  "etag": "etag-danh-sach-gia",
+  "items": [
+    {
+      "kind": "youtube#video",
+      "etag": "etag-video-gia",
+      "id": "LiveLiftGia",
+      "snippet": {
+        "publishedAt": "2026-09-20T12:50:00Z",
+        "channelId": "UC_GIA_KENH_NHOM",
+        "title": "Phien thu LiveLift (gia)",
+        "liveBroadcastContent": "none"
+      },
+      "status": {
+        "privacyStatus": "public"
+      }
+    }
+  ],
+  "pageInfo": {
+    "totalResults": 1,
+    "resultsPerPage": 1
+  }
+}

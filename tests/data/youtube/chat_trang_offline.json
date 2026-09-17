@@ -1,0 +1,35 @@
+{
+  "_nguon": {
+    "tai_lieu": [
+      "https://developers.google.com/youtube/v3/live/docs/liveChatMessages/list (Last updated 2026-09-14; truy cập 17/09/2026)"
+    ],
+    "ghi_chu": "Dữ liệu GIẢ hoàn toàn (id, tên, số điện thoại đều bịa) — không có dữ liệu người thật. offlineAt: 'The date and time when the underlying livestream went offline. This property is only present if the stream is already offline.'"
+  },
+  "kind": "youtube#liveChatMessageListResponse",
+  "etag": "etag-trang-gia",
+  "nextPageToken": "TOKEN_GIA_TRANG_TIEP",
+  "pollingIntervalMillis": 5123,
+  "offlineAt": "2026-09-20T14:30:00.000Z",
+  "pageInfo": {
+    "totalResults": 1,
+    "resultsPerPage": 1
+  },
+  "items": [
+    {
+      "kind": "youtube#liveChatMessage",
+      "etag": "etag-MSG_GIA_CUOI",
+      "id": "MSG_GIA_CUOI",
+      "snippet": {
+        "type": "textMessageEvent",
+        "liveChatId": "LIVECHAT_GIA_1",
+        "authorChannelId": "UC_GIA_NGUOI_XEM_1",
+        "hasDisplayContent": true,
+        "displayMessage": "cam on shop",
+        "textMessageDetails": {
+          "messageText": "cam on shop"
+        },
+        "publishedAt": "2026-09-20T14:29:59.000Z"
+      }
+    }
+  ]
+}

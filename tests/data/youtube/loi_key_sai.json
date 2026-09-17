@@ -1,0 +1,38 @@
+{
+  "_nguon": {
+    "tai_lieu": [
+      "Đo trực tiếp 17/09/2026 22:16–22:17 giờ VN bằng key GIẢ, không key thật (báo cáo nghiên cứu L2 §1.7, kiểm chứng lại bằng curl 15:34 GMT cùng ngày)",
+      "https://developers.google.com/youtube/v3/docs/core_errors (Last updated 2025-08-20; truy cập 17/09/2026)",
+      "https://github.com/googleapis/googleapis/blob/master/google/api/error_reason.proto (truy cập 17/09/2026)"
+    ],
+    "ghi_chu": "Dữ liệu GIẢ hoàn toàn (id, tên, số điện thoại đều bịa) — không có dữ liệu người thật. Nguyên văn phản hồi với key giả: errors[].reason là 'badRequest' (KHÔNG phải 'keyInvalid' như core_errors), lý do thật nằm ở details[] ErrorInfo 'API_KEY_INVALID' (error_reason.proto: 'the provided API key is invalid')."
+  },
+  "_http_status": 400,
+  "error": {
+    "code": 400,
+    "message": "API key not valid. Please pass a valid API key.",
+    "errors": [
+      {
+        "message": "API key not valid. Please pass a valid API key.",
+        "domain": "global",
+        "reason": "badRequest"
+      }
+    ],
+    "status": "INVALID_ARGUMENT",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+        "reason": "API_KEY_INVALID",
+        "domain": "googleapis.com",
+        "metadata": {
+          "service": "youtube.googleapis.com"
+        }
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.LocalizedMessage",
+        "locale": "en-US",
+        "message": "API key not valid. Please pass a valid API key."
+      }
+    ]
+  }
+}

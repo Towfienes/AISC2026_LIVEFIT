@@ -1,0 +1,103 @@
+{
+  "_nguon": {
+    "url": "https://partner.tiktokshop.com/docv2/page/get-shop-live-performance-list-202509",
+    "endpoint": "GET /analytics/202509/shop_lives/performance",
+    "update_time_tai_lieu": "2026-07-14",
+    "ngay_truy_cap": "2026-09-17",
+    "ghi_chu": "Dữ liệu TỔNG HỢP cho kiểm thử, KHÔNG phải dữ liệu thật của shop nào. Cấu trúc (tên trường, lồng nhau, kiểu) chép theo 'Response Sample' của trang tài liệu; giá trị số, mã phiên, thời điểm, tiêu đề là giả. Khóa '_nguon' không thuộc phản hồi thật — bộ nạp trong test bỏ nó trước khi phục vụ."
+  },
+  "code": 0,
+  "data": {
+    "live_stream_sessions": [
+      {
+        "id": "7512345678901234567",
+        "title": "Phiên thử (dữ liệu giả)",
+        "username": "tai_khoan_shop_gia",
+        "start_time": "1789477200",
+        "end_time": "1789479000",
+        "sales_performance": {
+          "gmv": {
+            "amount": "1350000",
+            "currency": "VND"
+          },
+          "products_added": 4,
+          "different_products_sold": 2,
+          "created_sku_orders": 10,
+          "sku_orders": 9,
+          "items_sold": 11,
+          "customers": 9,
+          "avg_price": {
+            "amount": "150000",
+            "currency": "VND"
+          },
+          "click_to_order_rate": "5%",
+          "24h_live_gmv": {
+            "amount": "1350000",
+            "currency": "VND"
+          }
+        },
+        "interaction_performance": {
+          "acu": 20,
+          "pcu": 45,
+          "viewers": 310,
+          "views": 520,
+          "avg_viewing_duration": "46",
+          "comments": 88,
+          "shares": 3,
+          "likes": 640,
+          "new_followers": 5,
+          "product_impressions": 900,
+          "product_clicks": 120,
+          "click_through_rate": "7.50%"
+        }
+      },
+      {
+        "id": "7512345678901234568",
+        "title": "Phiên thử (dữ liệu giả)",
+        "username": "tai_khoan_shop_gia",
+        "start_time": "1789387200",
+        "end_time": "1789391100",
+        "sales_performance": {
+          "gmv": {
+            "amount": "600000",
+            "currency": "VND"
+          },
+          "products_added": 4,
+          "different_products_sold": 2,
+          "created_sku_orders": 5,
+          "sku_orders": 4,
+          "items_sold": 6,
+          "customers": 4,
+          "avg_price": {
+            "amount": "150000",
+            "currency": "VND"
+          },
+          "click_to_order_rate": "5%",
+          "24h_live_gmv": {
+            "amount": "600000",
+            "currency": "VND"
+          }
+        },
+        "interaction_performance": {
+          "acu": 20,
+          "pcu": 45,
+          "viewers": 310,
+          "views": 520,
+          "avg_viewing_duration": "46",
+          "comments": 88,
+          "shares": 3,
+          "likes": 640,
+          "new_followers": 5,
+          "product_impressions": 900,
+          "product_clicks": 70,
+          "click_through_rate": "7.50%"
+        }
+      }
+    ],
+    "latest_available_date": "2026-09-16",
+    "next_page_token": "cGFnZV9udW1iZXI9Mg==",
+    "total_count": 3
+  },
+  "message": "Success",
+  "request_id": "20260917100000GIA0000000000000001"
+}

@@ -1,0 +1,15 @@
+{
+  "_nguon": {
+    "tai_lieu": [
+      "https://developers.google.com/youtube/v3/docs/videos/list (truy cập 17/09/2026)"
+    ],
+    "ghi_chu": "Dữ liệu GIẢ hoàn toàn (id, tên, số điện thoại đều bịa) — không có dữ liệu người thật. GIẢ ĐỊNH: id không tồn tại/không đọc được bằng API key trả items rỗng. Tài liệu videos.list cũng liệt kê lỗi 404 videoNotFound; công cụ kiểm tra xử lý cả hai."
+  },
+  "kind": "youtube#videoListResponse",
+  "etag": "etag-danh-sach-rong-gia",
+  "items": [],
+  "pageInfo": {
+    "totalResults": 0,
+    "resultsPerPage": 0
+  }
+}

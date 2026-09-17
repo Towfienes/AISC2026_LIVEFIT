@@ -1,0 +1,83 @@
+{
+  "_nguon": {
+    "url": "https://partner.tiktokshop.com/docv2/page/get-shop-live-products-performance-list-202512",
+    "endpoint": "GET /analytics/202512/shop/{live_id}/products_performance",
+    "update_time_tai_lieu": "2026-08-26",
+    "luu_y": "Tên trường 'produt_clicks' viết sai chính tả NGUYÊN VĂN theo tài liệu.",
+    "ngay_truy_cap": "2026-09-17",
+    "ghi_chu": "Dữ liệu TỔNG HỢP cho kiểm thử, KHÔNG phải dữ liệu thật của shop nào. Cấu trúc (tên trường, lồng nhau, kiểu) chép theo 'Response Sample' của trang tài liệu; giá trị số, mã phiên, thời điểm, tiêu đề là giả. Khóa '_nguon' không thuộc phản hồi thật — bộ nạp trong test bỏ nó trước khi phục vụ."
+  },
+  "code": 0,
+  "data": {
+    "products": [
+      {
+        "id": "1731736614984300001",
+        "name": "Áo thun mẫu (dữ liệu giả)",
+        "sales": {
+          "direct_gmv": {
+            "currency": "VND",
+            "amount": "900000"
+          },
+          "items_sold": 6,
+          "customers": 6,
+          "created_sku_orders": 7,
+          "avg_price": {
+            "currency": "VND",
+            "amount": "150000"
+          },
+          "sku_orders": 6,
+          "main_orders": 6,
+          "payment_rate": "0.8888"
+        },
+        "traffic": {
+          "product_impressions": 1200,
+          "ctr": "0.0908",
+          "add_to_cart_count": 14,
+          "click_to_order_rate": {
+            "sku_order_ctor": "0.0178",
+            "main_order_ctor": "0.0178"
+          },
+          "gpm": {
+            "watch_gpm": "49.81"
+          },
+          "produt_clicks": 80
+        }
+      },
+      {
+        "id": "1731736614984300002",
+        "name": "Nón mẫu (dữ liệu giả)",
+        "sales": {
+          "direct_gmv": {
+            "currency": "VND",
+            "amount": "450000"
+          },
+          "items_sold": 3,
+          "customers": 3,
+          "created_sku_orders": 4,
+          "avg_price": {
+            "currency": "VND",
+            "amount": "150000"
+          },
+          "sku_orders": 3,
+          "main_orders": 3,
+          "payment_rate": "0.8888"
+        },
+        "traffic": {
+          "product_impressions": 1200,
+          "ctr": "0.0908",
+          "add_to_cart_count": 14,
+          "click_to_order_rate": {
+            "sku_order_ctor": "0.0178",
+            "main_order_ctor": "0.0178"
+          },
+          "gpm": {
+            "watch_gpm": "49.81"
+          },
+          "produt_clicks": 40
+        }
+      }
+    ]
+  },
+  "message": "Success",
+  "request_id": "20260917100000GIA0000000000000201"
+}

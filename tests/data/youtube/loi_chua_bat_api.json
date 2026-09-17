@@ -1,0 +1,33 @@
+{
+  "_nguon": {
+    "tai_lieu": [
+      "https://developers.google.com/youtube/v3/docs/core_errors (Last updated 2025-08-20; truy cập 17/09/2026)",
+      "https://github.com/googleapis/googleapis/blob/master/google/api/error_reason.proto (truy cập 17/09/2026)"
+    ],
+    "ghi_chu": "Dữ liệu GIẢ hoàn toàn (id, tên, số điện thoại đều bịa) — không có dữ liệu người thật. accessNotConfigured (403) theo core_errors; details[] SERVICE_DISABLED theo error_reason.proto (metadata consumer/service). Câu message có link bật API lấy theo mẫu diễn đàn (github.com/youtube/api-samples/issues/129) — GIẢ ĐỊNH, số dự án bịa."
+  },
+  "_http_status": 403,
+  "error": {
+    "code": 403,
+    "message": "YouTube Data API v3 has not been used in project 123456789012 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/youtube.googleapis.com/overview?project=123456789012 then retry.",
+    "errors": [
+      {
+        "message": "YouTube Data API v3 has not been used in project 123456789012 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/youtube.googleapis.com/overview?project=123456789012 then retry.",
+        "domain": "usageLimits",
+        "reason": "accessNotConfigured"
+      }
+    ],
+    "status": "PERMISSION_DENIED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+        "reason": "SERVICE_DISABLED",
+        "domain": "googleapis.com",
+        "metadata": {
+          "consumer": "projects/123456789012",
+          "service": "youtube.googleapis.com"
+        }
+      }
+    ]
+  }
+}

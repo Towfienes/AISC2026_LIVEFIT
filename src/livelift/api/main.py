@@ -6,6 +6,7 @@ Env:  STORE_BACKEND=memory (default) | postgres  ·  see .env.example
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -42,6 +43,23 @@ from livelift.api.store import (
 log = logging.getLogger("livelift.api")
 
 
+async def _nap_san_bo_phan_loai() -> None:
+    """Nạp mô hình ý định trong luồng phụ, im lặng nếu hỏng.
+
+    Hỏng thì không được làm chết máy chủ: đường phân loại vẫn tự nạp lại ở lần
+    dùng đầu tiên và tự rơi về bộ từ khoá khi không có mô hình."""
+
+    def _nap() -> None:
+        from livelift.nlp.intent import classify_with_confidence
+
+        classify_with_confidence("khởi động bộ phân loại")
+
+    try:
+        await asyncio.to_thread(_nap)
+    except Exception as exc:  # noqa: BLE001 — khởi động không được chết vì việc phụ
+        log.warning("Không nạp sẵn được bộ phân loại ý định: %s", type(exc).__name__)
+
+
 def create_app(
     store: Store | None = None, ingest_client_factory: ClientFactory | None = None
 ) -> FastAPI:
@@ -58,6 +76,11 @@ def create_app(
         # ever called /actions/execute, so every auto session ended with
         # compliance 0.0 and no estimate, silently (incident 12/09).
         app.state.autopilot_task = autopilot.start(app.state.store)
+        # Nạp sẵn bộ phân loại ý định (kiểm toán 18/09/2026). Mô hình nạp LƯỜI ở
+        # lần phân loại đầu tiên, đo được ~4 giây trong tiến trình nguội — đúng
+        # vào bình luận ĐẦU của buổi live, khi người vận hành đang nhìn xem bộ
+        # thu có chạy không. Nạp ở luồng phụ nên không chặn khởi động.
+        app.state.nlp_warmup_task = asyncio.create_task(_nap_san_bo_phan_loai())
         # Bộ thu bình luận chạy nền (kiểm toán 17/09/2026): bật/tắt từ trình
         # duyệt thay cho lệnh terminal. Tệp trạng thái chỉ dùng cho kho do ứng
         # dụng tự dựng — cùng lý do với ảnh chụp ở trên.

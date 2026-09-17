@@ -1,0 +1,21 @@
+{
+  "_nguon": {
+    "tai_lieu": [
+      "https://developers.google.com/youtube/v3/docs/errors (Last updated 2026-09-14; truy cập 17/09/2026)",
+      "https://developers.google.com/youtube/v3/docs/core_errors (Last updated 2025-08-20; truy cập 17/09/2026)"
+    ],
+    "ghi_chu": "Dữ liệu GIẢ hoàn toàn (id, tên, số điện thoại đều bịa) — không có dữ liệu người thật. quotaExceeded (403), domain youtube.quota; message theo trang errors. Khuôn theo mẫu diễn đàn forum.bubble.io/t/youtube-api-quotaexceeded-error/304619 (29/01/2024)."
+  },
+  "_http_status": 403,
+  "error": {
+    "code": 403,
+    "message": "The request cannot be completed because you have exceeded your quota.",
+    "errors": [
+      {
+        "message": "The request cannot be completed because you have exceeded your quota.",
+        "domain": "youtube.quota",
+        "reason": "quotaExceeded"
+      }
+    ]
+  }
+}

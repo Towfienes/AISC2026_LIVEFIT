@@ -1,0 +1,211 @@
+{
+  "_nguon": {
+    "tai_lieu": [
+      "https://developers.google.com/youtube/v3/live/docs/liveChatMessages (Last updated 2026-09-14; truy cập 17/09/2026)",
+      "https://youtube.googleapis.com/$discovery/rest?version=v3 (revision 20260914; truy cập 17/09/2026)"
+    ],
+    "ghi_chu": "Dữ liệu GIẢ hoàn toàn (id, tên, số điện thoại đều bịa) — không có dữ liệu người thật. Trường theo 'Resource representation' (superChatDetails, superStickerDetails, newSponsorDetails, memberMilestoneChatDetails, membershipGiftingDetails, giftMembershipReceivedDetails, pollDetails). amountMicros là CHUỖI (Discovery: type string, format uint64). superStickerMetadata có cả hai tên ngôn ngữ: 'altTextLanguage' (Discovery) và 'language' (trang HTML). Poll theo Discovery (status ở pollDetails, options là mảng) và KHÔNG có tally vì 'The tally is only present if the API request is authorized by the channel owner' (gọi bằng API key). Nội dung displayMessage của các sự kiện này KHÔNG được tài liệu mô tả: chuỗi ở đây là bịa, cố ý chứa tên giả để kiểm không rò."
+  },
+  "kind": "youtube#liveChatMessageListResponse",
+  "etag": "etag-trang-gia",
+  "nextPageToken": "TOKEN_GIA_TRANG_TIEP",
+  "pollingIntervalMillis": 5123,
+  "activePollItem": {
+    "kind": "youtube#liveChatMessage",
+    "etag": "etag-MSG_GIA_POLL",
+    "id": "MSG_GIA_POLL",
+    "snippet": {
+      "type": "pollEvent",
+      "liveChatId": "LIVECHAT_GIA_1",
+      "authorChannelId": "UC_GIA_KENH_NHOM",
+      "hasDisplayContent": true,
+      "displayMessage": "Ban thich mau nao?",
+      "pollDetails": {
+        "status": "active",
+        "metadata": {
+          "questionText": "Ban thich mau nao?",
+          "options": [
+            {
+              "optionText": "Den"
+            },
+            {
+              "optionText": "Trang"
+            }
+          ]
+        }
+      },
+      "publishedAt": "2026-09-20T13:01:30.000Z"
+    }
+  },
+  "pageInfo": {
+    "totalResults": 8,
+    "resultsPerPage": 8
+  },
+  "items": [
+    {
+      "kind": "youtube#liveChatMessage",
+      "etag": "etag-MSG_GIA_SUPER_CHAT",
+      "id": "MSG_GIA_SUPER_CHAT",
+      "snippet": {
+        "type": "superChatEvent",
+        "liveChatId": "LIVECHAT_GIA_1",
+        "authorChannelId": "UC_GIA_NGUOI_TANG_1",
+        "hasDisplayContent": true,
+        "displayMessage": "Tran Thi Gia: chot 2 cai nha shop",
+        "superChatDetails": {
+          "amountMicros": "20000000000",
+          "currency": "VND",
+          "amountDisplayString": "₫20,000",
+          "userComment": "chot 2 cai nha shop",
+          "tier": 2
+        },
+        "publishedAt": "2026-09-20T13:01:00.000Z"
+      }
+    },
+    {
+      "kind": "youtube#liveChatMessage",
+      "etag": "etag-MSG_GIA_STICKER_DISCOVERY",
+      "id": "MSG_GIA_STICKER_DISCOVERY",
+      "snippet": {
+        "type": "superStickerEvent",
+        "liveChatId": "LIVECHAT_GIA_1",
+        "authorChannelId": "UC_GIA_NGUOI_TANG_2",
+        "hasDisplayContent": true,
+        "displayMessage": "Tran Thi Gia gui Super Sticker",
+        "superStickerDetails": {
+          "superStickerMetadata": {
+            "stickerId": "STICKER_GIA_1",
+            "altText": "cam on shop",
+            "altTextLanguage": "vi"
+          },
+          "amountMicros": "15000000000",
+          "currency": "VND",
+          "amountDisplayString": "₫15,000",
+          "tier": 1
+        },
+        "publishedAt": "2026-09-20T13:01:05.000Z"
+      }
+    },
+    {
+      "kind": "youtube#liveChatMessage",
+      "etag": "etag-MSG_GIA_STICKER_HTML",
+      "id": "MSG_GIA_STICKER_HTML",
+      "snippet": {
+        "type": "superStickerEvent",
+        "liveChatId": "LIVECHAT_GIA_1",
+        "authorChannelId": "UC_GIA_NGUOI_TANG_2",
+        "hasDisplayContent": true,
+        "displayMessage": "Tran Thi Gia gui Super Sticker",
+        "superStickerDetails": {
+          "superStickerMetadata": {
+            "stickerId": "STICKER_GIA_2",
+            "altText": "tim",
+            "language": "vi"
+          },
+          "amountMicros": "15000000000",
+          "currency": "VND",
+          "amountDisplayString": "₫15,000",
+          "tier": 1
+        },
+        "publishedAt": "2026-09-20T13:01:06.000Z"
+      }
+    },
+    {
+      "kind": "youtube#liveChatMessage",
+      "etag": "etag-MSG_GIA_HOI_VIEN_MOI",
+      "id": "MSG_GIA_HOI_VIEN_MOI",
+      "snippet": {
+        "type": "newSponsorEvent",
+        "liveChatId": "LIVECHAT_GIA_1",
+        "authorChannelId": "UC_GIA_NGUOI_TANG_3",
+        "hasDisplayContent": true,
+        "displayMessage": "Chao mung Le Van Gia la hoi vien",
+        "newSponsorDetails": {
+          "memberLevelName": "Hoi vien gia",
+          "isUpgrade": false
+        },
+        "publishedAt": "2026-09-20T13:01:10.000Z"
+      }
+    },
+    {
+      "kind": "youtube#liveChatMessage",
+      "etag": "etag-MSG_GIA_COT_MOC",
+      "id": "MSG_GIA_COT_MOC",
+      "snippet": {
+        "type": "memberMilestoneChatEvent",
+        "liveChatId": "LIVECHAT_GIA_1",
+        "authorChannelId": "UC_GIA_NGUOI_TANG_3",
+        "hasDisplayContent": true,
+        "displayMessage": "3 thang roi shop oi",
+        "memberMilestoneChatDetails": {
+          "userComment": "3 thang roi shop oi",
+          "memberMonth": 3,
+          "memberLevelName": "Hoi vien gia"
+        },
+        "publishedAt": "2026-09-20T13:01:15.000Z"
+      }
+    },
+    {
+      "kind": "youtube#liveChatMessage",
+      "etag": "etag-MSG_GIA_TANG_HOI_VIEN",
+      "id": "MSG_GIA_TANG_HOI_VIEN",
+      "snippet": {
+        "type": "membershipGiftingEvent",
+        "liveChatId": "LIVECHAT_GIA_1",
+        "authorChannelId": "UC_GIA_NGUOI_TANG_4",
+        "hasDisplayContent": true,
+        "displayMessage": "Pham Van Gia tang 5 goi hoi vien",
+        "membershipGiftingDetails": {
+          "giftMembershipsCount": 5,
+          "giftMembershipsLevelName": "Hoi vien gia"
+        },
+        "publishedAt": "2026-09-20T13:01:20.000Z"
+      }
+    },
+    {
+      "kind": "youtube#liveChatMessage",
+      "etag": "etag-MSG_GIA_NHAN_HOI_VIEN",
+      "id": "MSG_GIA_NHAN_HOI_VIEN",
+      "snippet": {
+        "type": "giftMembershipReceivedEvent",
+        "liveChatId": "LIVECHAT_GIA_1",
+        "authorChannelId": "UC_GIA_NGUOI_NHAN_1",
+        "hasDisplayContent": true,
+        "displayMessage": "Do Thi Gia nhan hoi vien tu Pham Van Gia",
+        "giftMembershipReceivedDetails": {
+          "memberLevelName": "Hoi vien gia",
+          "gifterChannelId": "UC_GIA_NGUOI_TANG_4",
+          "associatedMembershipGiftingMessageId": "MSG_GIA_TANG_HOI_VIEN"
+        },
+        "publishedAt": "2026-09-20T13:01:21.000Z"
+      }
+    },
+    {
+      "kind": "youtube#liveChatMessage",
+      "etag": "etag-MSG_GIA_POLL",
+      "id": "MSG_GIA_POLL",
+      "snippet": {
+        "type": "pollEvent",
+        "liveChatId": "LIVECHAT_GIA_1",
+        "authorChannelId": "UC_GIA_KENH_NHOM",
+        "hasDisplayContent": true,
+        "displayMessage": "Ban thich mau nao?",
+        "pollDetails": {
+          "status": "active",
+          "metadata": {
+            "questionText": "Ban thich mau nao?",
+            "options": [
+              {
+                "optionText": "Den"
+              },
+              {
+                "optionText": "Trang"
+              }
+            ]
+          }
+        },
+        "publishedAt": "2026-09-20T13:01:30.000Z"
+      }
+    }
+  ]
+}

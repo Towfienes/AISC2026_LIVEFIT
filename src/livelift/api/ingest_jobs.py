@@ -99,6 +99,15 @@ MAX_RESTARTS = 20
 RESTART_BASE_S = 5.0
 RESTART_CAP_S = 120.0
 WAIT_FOR_LIVE_S = 20.0
+WAIT_FOR_LIVE_CAP_S = 120.0
+"""Trần nhịp dò khi đang CHỜ buổi live bắt đầu (kiểm toán 18/09/2026).
+
+Chờ ở nhịp cố định 20 giây tốn quota thật: mỗi vòng chờ của YouTube gọi
+``videos.list`` 2 lượt, tức 360 đơn vị mỗi giờ. Bật bộ thu trước 2 giờ theo
+quy trình vận hành là 720 trong 10.000 đơn vị mỗi ngày — tiêu trước khi buổi
+live bắt đầu. Nhịp dò nay giãn gấp đôi sau mỗi lần chờ tới trần này, nên hai
+giờ chờ chỉ còn khoảng 60 lượt gọi; khi buổi live lên sóng, chậm nhất
+:data:`WAIT_FOR_LIVE_CAP_S` giây sau là bộ thu bắt được."""
 WATCH_SESSION_EVERY_S = 5.0
 DOC_NOT_KHI_HET_BUOI_S = 12.0
 """Facebook tự tìm buổi live: khi video báo đã dừng, vòng bình luận được chạy thêm
@@ -461,6 +470,7 @@ class IngestManager:
         restart_cap_s: float = RESTART_CAP_S,
         max_restarts: int = MAX_RESTARTS,
         wait_for_live_s: float = WAIT_FOR_LIVE_S,
+        wait_for_live_cap_s: float | None = None,
         watch_every_s: float = WATCH_SESSION_EVERY_S,
         doc_not_khi_het_buoi_s: float = DOC_NOT_KHI_HET_BUOI_S,
     ) -> None:
@@ -471,6 +481,11 @@ class IngestManager:
         self._restart_cap_s = restart_cap_s
         self._max_restarts = max_restarts
         self._wait_for_live_s = wait_for_live_s
+        self._wait_for_live_cap_s = (
+            wait_for_live_cap_s
+            if wait_for_live_cap_s is not None
+            else max(wait_for_live_s, min(WAIT_FOR_LIVE_CAP_S, wait_for_live_s * 6))
+        )
         self._watch_every_s = watch_every_s
         self._doc_not_khi_het_buoi_s = doc_not_khi_het_buoi_s
         self._jobs: dict[str, IngestJob] = {}
@@ -598,6 +613,9 @@ class IngestManager:
 
     async def _supervise(self, job: IngestJob) -> None:
         backoff = Backoff(base_s=self._restart_base_s, cap_s=self._restart_cap_s)
+        # Nhịp dò khi chờ buổi live: giãn dần để không đốt quota nền tảng
+        # trong lúc chưa có gì để đọc (xem WAIT_FOR_LIVE_CAP_S).
+        cho_len_song = Backoff(base_s=self._wait_for_live_s, cap_s=self._wait_for_live_cap_s)
         try:
             if await self._mo_phong_bi_chan(job):
                 job.state = "loi"
@@ -607,12 +625,16 @@ class IngestManager:
                     job.state = "phien_ket_thuc"
                     return
                 ket_qua = await self._chay_mot_lan(job)
+                if ket_qua != "cho_len_song":
+                    # Đã vào được vòng đọc (hoặc hỏng vì lý do khác): lần chờ
+                    # sau bắt đầu lại từ nhịp nhanh nhất.
+                    cho_len_song.reset()
                 if ket_qua in ("phien_ket_thuc", "nguon_ket_thuc"):
                     job.state = ket_qua
                     return
                 if ket_qua == "cho_len_song":
                     job.state = "cho_len_song"
-                    await asyncio.sleep(self._wait_for_live_s)
+                    await asyncio.sleep(cho_len_song.next_delay())
                     continue
                 if ket_qua == "loi_cau_hinh":
                     job.state = "loi"

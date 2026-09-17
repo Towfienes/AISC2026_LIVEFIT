@@ -1,0 +1,61 @@
+{
+  "_nguon": {
+    "tai_lieu": [
+      "https://developers.google.com/youtube/v3/live/docs/liveChatMessages (Last updated 2026-09-14; truy cập 17/09/2026)",
+      "https://developers.google.com/youtube/v3/live/docs/liveChatMessages/list (Last updated 2026-09-14; truy cập 17/09/2026)"
+    ],
+    "ghi_chu": "Dữ liệu GIẢ hoàn toàn (id, tên, số điện thoại đều bịa) — không có dữ liệu người thật. Khung liveChatMessageListResponse theo trang list; mục textMessageEvent theo 'Resource representation'. Bộ thu gọi part=id,snippet nên thường KHÔNG có authorDetails — mục thứ hai cố ý có authorDetails để kiểm parser bỏ qua. publishedAt theo định dạng 'YYYY-MM-DDThh:mm:ss.sZ' của tài liệu (1 và 6 chữ số lẻ)."
+  },
+  "kind": "youtube#liveChatMessageListResponse",
+  "etag": "etag-trang-gia",
+  "nextPageToken": "TOKEN_GIA_TRANG_TIEP",
+  "pollingIntervalMillis": 5123,
+  "pageInfo": {
+    "totalResults": 2,
+    "resultsPerPage": 2
+  },
+  "items": [
+    {
+      "kind": "youtube#liveChatMessage",
+      "etag": "etag-MSG_GIA_VAN_BAN_1",
+      "id": "MSG_GIA_VAN_BAN_1",
+      "snippet": {
+        "type": "textMessageEvent",
+        "liveChatId": "LIVECHAT_GIA_1",
+        "authorChannelId": "UC_GIA_NGUOI_XEM_1",
+        "hasDisplayContent": true,
+        "displayMessage": "cho em xin link ao size M, sdt 0901234567",
+        "textMessageDetails": {
+          "messageText": "cho em xin link ao size M, sdt 0901234567"
+        },
+        "publishedAt": "2026-09-20T13:00:01.123456Z"
+      }
+    },
+    {
+      "kind": "youtube#liveChatMessage",
+      "etag": "etag-MSG_GIA_VAN_BAN_2",
+      "id": "MSG_GIA_VAN_BAN_2",
+      "snippet": {
+        "type": "textMessageEvent",
+        "liveChatId": "LIVECHAT_GIA_1",
+        "authorChannelId": "UC_GIA_NGUOI_XEM_2",
+        "hasDisplayContent": true,
+        "displayMessage": "còn màu đen không shop",
+        "textMessageDetails": {
+          "messageText": "còn màu đen không shop"
+        },
+        "publishedAt": "2026-09-20T13:00:02.5Z"
+      },
+      "authorDetails": {
+        "channelId": "UC_GIA_NGUOI_XEM_2",
+        "channelUrl": "http://www.youtube.com/channel/UC_GIA_NGUOI_XEM_2",
+        "displayName": "Nguyen Van Gia",
+        "profileImageUrl": "https://example.invalid/anh-dai-dien-gia.jpg",
+        "isVerified": false,
+        "isChatOwner": false,
+        "isChatSponsor": false,
+        "isChatModerator": false
+      }
+    }
+  ]
+}

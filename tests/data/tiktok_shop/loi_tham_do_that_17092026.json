@@ -1,0 +1,42 @@
+{
+  "_nguon": {
+    "url": "https://open-api.tiktokglobalshop.com",
+    "ngay_truy_cap": "2026-09-17",
+    "ghi_chu": "Phản hồi THẬT của cổng API TikTok Shop ngày 17/09/2026 cho lời gọi thăm dò bằng danh tính GIẢ (app_key/app_secret/token/shop_cipher bịa) — không đọc dữ liệu của shop nào. Ba đường dẫn thật (shop_lives/performance v202509, shop_lives/{live_id}/performance_per_minutes v202510, shop/{live_id}/products_performance v202512) đều qua bước kiểm đường dẫn và bị chặn ở app_key (HTTP 400, 36009004); đường bịa bị chặn ở bước đường dẫn (HTTP 404, 36009009). Vì cổng từ chối app_key TRƯỚC khi kiểm chữ ký, phép thử này KHÔNG chứng minh được thuật toán ký — chỉ chứng minh endpoint tồn tại và cấu trúc phong bì lỗi. Lưu ý: thông điệp thật dùng dấu nháy đơn 'app_key' (bảng lỗi trong tài liệu dùng dấu backtick) và nối thêm 'For more details: <url>'."
+  },
+  "phan_hoi": [
+    {
+      "path": "/analytics/202510/shop_lives/7512345678901234567/performance_per_minutes",
+      "http_status": 400,
+      "loai_mong_doi": "auth",
+      "body": {
+        "code": 36009004,
+        "data": null,
+        "message": "Invalid credentials. Invalid 'app_key' query parameter. For more details: https://m.tiktok.shop/s/AIu6dbFhs2XW",
+        "request_id": "2026091716122013CBD4715CC894195E32"
+      }
+    },
+    {
+      "path": "/analytics/202509/shop_lives/performance",
+      "http_status": 400,
+      "loai_mong_doi": "auth",
+      "ghi_chu": "lần thăm dò này chỉ ghi lại code và message; trường request_id có trong phản hồi thật nhưng không được lưu nên bỏ khỏi body",
+      "body": {
+        "code": 36009004,
+        "data": null,
+        "message": "Invalid credentials. Invalid 'app_key' query parameter. For more details: https://m.tiktok.shop/s/AIu6dbFhs2XW"
+      }
+    },
+    {
+      "path": "/analytics/202510/khong_ton_tai_abc",
+      "http_status": 404,
+      "loai_mong_doi": "config",
+      "body": {
+        "code": 36009009,
+        "data": null,
+        "message": "Invalid path. The specified path does not match any available endpoint. For more details: https://m.tiktok.shop/s/AIu6dbFhs2XW",
+        "request_id": "2026091716122013CBD4715CC894195E41"
+      }
+    }
+  ]
+}

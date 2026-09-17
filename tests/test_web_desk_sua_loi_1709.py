@@ -170,7 +170,9 @@ def test_bo_test_trinh_duyet_khong_bao_gio_treo_bo_test_nhanh():
     # Bỏ docstring đầu tệp: nó TRÍCH NGUYÊN VĂN lệnh evaluate từng gây treo.
     src = raw(BROWSER_TEST)
     src = src[src.index('"""', 3) + 3 :]
-    assert re.search(r"(?m)^pytestmark = pytest\.mark\.slow$", src), (
+    # Dấu `browser` (17/09/2026) tách test trình duyệt khỏi con số "cổng
+    # Monte-Carlo" mà README công bố; `slow` vẫn phải còn để bộ nhanh bỏ qua.
+    assert re.search(r"(?m)^pytestmark = .*pytest\.mark\.slow", src), (
         "test trình duyệt phải mang dấu slow để bộ nhanh -m 'not slow' bỏ qua"
     )
     assert "set_default_timeout(PW_TIMEOUT_MS)" in src

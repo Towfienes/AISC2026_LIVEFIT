@@ -239,13 +239,13 @@ docker compose up -d
 |---|---|---|---|
 | 1 | `cp` **không có** trong PowerShell mặc định, mà repo là Windows-first ở mọi chỗ khác | P1 | Thêm `Copy-Item .env.example .env` cho Windows |
 | 2 | `docker compose up` **fail cứng** nếu không sửa `POSTGRES_PASSWORD` (`docker-compose.yml` dùng `${POSTGRES_PASSWORD:?…}`) — README chỉ ghi trong comment cuối dòng | P1 | Tách thành bước riêng, in đậm |
-| 3 | Chạy **ngoài Docker** sau `cp .env.example .env` sẽ dính `STORE_BACKEND=memory` ⇒ **mất sạch dữ liệu khi khởi động lại** — đúng sự cố FATAL 11/09 (mất 13 phiên + 17.535 bình luận) | **P0 cho người dùng mới** | Thêm cảnh báo + trỏ `docs/luu-tru-du-lieu.md` |
+| 3 | Chạy **ngoài Docker** sau `cp .env.example .env` sẽ dính `STORE_BACKEND=memory`: kho RAM **có ảnh chụp 30 giây** (mặc định bật — `store_snapshot_enabled=True` trong `config.py`, `STORE_SNAPSHOT_ENABLED=true` trong `.env.example`, có từ commit `e2be454` ngày 12/09). Tắt có trật tự thì chụp lần cuối, không mất gì; tiến trình chết đột ngột thì **mất tối đa ~30 giây** dữ liệu cuối. Chỉ Postgres (đường Docker) mới bền vững. Sự cố FATAL 11/09 (mất 13 phiên + 17.535 bình luận) xảy ra **trước** khi có ảnh chụp — chính nó là lý do thêm ảnh chụp | P2 *(bản lập 14/09 ghi P0 và "mất sạch dữ liệu khi khởi động lại" — sai, ảnh chụp đã bật mặc định từ 12/09; đính chính 17/09/2026)* | Thêm một dòng nói rõ mức mất tối đa + trỏ `docs/luu-tru-du-lieu.md` |
 | 4 | Không có **bước xác minh**. `docker-compose.yml` tự ghi "kiểm tra: `curl /health` → `durable: true`" nhưng README không nhắc | P1 | Thêm 1 dòng `curl` cuối quickstart |
 | 5 | Chiếm cổng 80/443 vô điều kiện — máy có IIS/Skype sẽ fail | P2 | Ghi chú + trỏ `docker-compose.dev-ports.yml` |
 | 6 | `scripts/chay_local.py` (bộ khởi động 1 lệnh) và `Makefile` **không xuất hiện trong README** | P2 | Thêm vào mục phát triển |
 | 7 | ~30 biến môi trường trong `.env.example` không được README nhắc — người lạ dựng được hệ thống nhưng **không nạp được dữ liệu từ nền tảng nào** | P1 | Thêm bảng "muốn nạp dữ liệu thật cần gì" |
 
-**Ưu tiên:** sửa #3 và #2 (chặn mất dữ liệu và chặn fail khởi động), rồi #1, #4, #7.
+**Ưu tiên:** sửa #2 (chặn fail khởi động), rồi #1, #4, #7, rồi #3 (nói đúng mức mất tối đa của chế độ memory). *Đính chính 17/09/2026: bản 14/09 xếp #3 lên đầu vì tưởng chế độ memory mất sạch dữ liệu khi khởi động lại — ảnh chụp 30 giây đã bật mặc định từ 12/09.*
 
 ## A.9. ✅ Những thứ đã đạt chuẩn — không cần đụng
 
@@ -464,7 +464,7 @@ Những việc dưới đây **không agent nào làm thay được** — cần 
 
 | # | Việc | Lợi ích |
 |---|---|---|
-| 1 | Sửa README theo bảng A.8 (ưu tiên #3 mất-dữ-liệu, #2 fail-khởi-động) | Người lạ chạy được thật trong 10 phút |
+| 1 | Sửa README theo bảng A.8 (ưu tiên #2 fail-khởi-động; #3 chỉ cần nói đúng mức mất tối đa ~30 giây của chế độ memory — *đính chính 17/09/2026: bản 14/09 ghi "ưu tiên #3 mất-dữ-liệu"*) | Người lạ chạy được thật trong 10 phút |
 | 2 | Dựng ảnh "bản nháp" theo B.6 (3 mốc commit) | Đáp đúng chữ "bản nháp → hoàn thiện" của mục 13 |
 | 3 | Bổ sung tên 3 thành viên vào `CITATION.cff` | Ghi nhận tác giả đầy đủ |
 | 4 | Bổ sung dẫn nguồn cho `admin_units.py` | Đóng nốt lỗ hổng dẫn nguồn cuối cùng |

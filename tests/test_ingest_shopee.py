@@ -464,6 +464,50 @@ def test_iter_comments_follows_next_offset_within_one_poll(sleeps):
     assert seen_offsets[:2] == ["0", "1"]
 
 
+def test_trang_sau_loi_tam_thoi_khong_lam_mat_trang_da_doc(sleeps):
+    """Hồi quy kiểm toán 17/09/2026: trang 1 đọc được 2 bình luận, trang 2 trả
+    HTTP 500 một lần. Trước khi sửa batch bị bỏ nhưng id đã vào seen-set, nên lần
+    poll lại coi cả hai là "đã thấy" — mất vĩnh viễn, không một dòng báo lỗi."""
+    goi = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        goi["n"] += 1
+        offset = request.url.params["offset"]
+        if offset == "0":
+            return _envelope(
+                {
+                    "next_offset": 2,
+                    "list": [dict(COMMENT_ITEM, comment_id=1), dict(COMMENT_ITEM, comment_id=2)],
+                }
+            )
+        if goi["n"] == 2:
+            return _loi("error_server", "internal", status=500)
+        if goi["n"] > 40:
+            return _envelope({"next_offset": 2, "list": [dict(COMMENT_ITEM, comment_id=3)]})
+        return _envelope({"next_offset": 2, "list": []})
+
+    client = _client(handler)
+    got = asyncio.run(_take(client.iter_comments("42", poll_s=5.0), 3))
+    assert [c.ext_id for c in got] == ["1", "2", "3"]
+
+
+def test_phien_ket_thuc_o_trang_sau_van_tra_trang_da_doc(sleeps):
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("get_session_detail"):
+            return _envelope({"status": 2})
+        if request.url.params["offset"] == "0":
+            return _envelope({"next_offset": 1, "list": [dict(COMMENT_ITEM, comment_id=5)]})
+        return _loi("common.error_param", MSG_NOT_ONGOING)
+
+    client = _client(handler)
+
+    async def tat_ca() -> list:
+        return [c async for c in client.iter_comments("42", poll_s=5.0)]
+
+    got = asyncio.run(tat_ca())
+    assert [c.ext_id for c in got] == ["5"]
+
+
 def test_slow_poll_is_refused_because_the_window_is_only_10_seconds():
     """Poll chậm hơn cửa sổ = mất bình luận vĩnh viễn. Phải NỔ, không âm thầm."""
     client = _client(lambda request: _envelope({"list": []}))

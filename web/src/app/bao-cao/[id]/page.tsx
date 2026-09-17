@@ -26,6 +26,12 @@
  *   của máy chủ). Trang lỗi không còn các nút hành động của một báo cáo
  *   (mở bàn, phát lại, in PDF) — không có báo cáo nào để hành động cả.
  * - ĐƠN HÀNG (OrdersPanel): xem tổng đơn và nhập CSV ngay trên báo cáo.
+ *
+ * PHẢN BIỆN 17/09 — NGUỒN GỐC DỮ LIỆU. Phiên CHẠY THỬ (`dry_run`) là phiên thật
+ * (`is_demo=false`) nên không có chip DEMO; báo cáo của nó từng chỉ ghi "PHIÊN
+ * THÍ NGHIỆM" và không nói bình luận do nguồn Mô phỏng soạn. Nay trang đọc cờ
+ * chạy thử từ thông tin phiên (không đọc được thì nói không rõ, không đoán là
+ * buổi thật) và số bình luận tổng hợp từ báo cáo, rồi dán nhãn cả hai.
  */
 
 import Link from "next/link";
@@ -42,7 +48,7 @@ import Callout from "@/components/ui/Callout";
 import Card from "@/components/ui/Card";
 import SectionTitle from "@/components/ui/SectionTitle";
 import Skeleton from "@/components/ui/Skeleton";
-import { getBaoCao } from "@/lib/api";
+import { getBaoCao, getSessionDetail } from "@/lib/api";
 import { fmtClock, fmtNumber } from "@/lib/format";
 import { CHART, INTENT_META, type BaoCao, type SignalStatus } from "@/lib/types";
 
@@ -173,6 +179,83 @@ function phanLoaiLoi(e: unknown): LoiBaoCao {
   return { loai: "may-chu-loi", chiTiet: kyThuat ? null : msg };
 }
 
+/**
+ * Cờ CHẠY THỬ của phiên — đọc từ `GET /sessions/{id}`, vì báo cáo không mang
+ * cờ này. `true`/`false` khi máy chủ nói rõ; "khong-ro" khi không đọc được hay
+ * máy chủ cũ không gửi — KHÔNG đoán là buổi thật.
+ */
+type CoChayThu = boolean | "khong-ro";
+
+function coChayThuTu(phien: { dry_run?: unknown } | null | undefined): CoChayThu {
+  return phien != null && typeof phien.dry_run === "boolean" ? phien.dry_run : "khong-ro";
+}
+
+/**
+ * Nguồn gốc dữ liệu của báo cáo, ngoài cờ DEMO (phản biện 17/09). Báo cáo từng
+ * chỉ ghi "PHIÊN THÍ NGHIỆM" cho một phiên CHẠY THỬ (bị loại khỏi kết quả gộp,
+ * PREREGISTRATION §8.2) và không nói bình luận của nó do nguồn Mô phỏng soạn —
+ * người đọc hiểu nhầm thành buổi thật với khách thật.
+ *
+ * `co` null = đang đọc cờ (chưa nói gì). `tongHop` null = máy chủ không gửi số
+ * bình luận tổng hợp (không suy ra 0).
+ */
+function nguonGocBaoCao(
+  bc: { is_demo: boolean; binh_luan_tong_hop?: number | null },
+  co: CoChayThu | null,
+): { chayThu: boolean; tongHop: number | null; khongRoChayThu: boolean } {
+  return {
+    chayThu: co === true,
+    tongHop: typeof bc.binh_luan_tong_hop === "number" ? bc.binh_luan_tong_hop : null,
+    // Phiên mẫu đã đeo nhãn DEMO và vốn bị loại khỏi kết quả thật.
+    khongRoChayThu: co === "khong-ro" && !bc.is_demo,
+  };
+}
+
+/**
+ * Nhãn nguồn gốc ngay dưới dòng `nhan` của báo cáo: phiên chạy thử, bình luận
+ * tổng hợp, hoặc cờ chạy thử không đọc được. Không có gì để nói thì không vẽ gì.
+ */
+function NhanNguonGoc({
+  nguonGoc,
+  tongBinhLuan,
+}: {
+  nguonGoc: ReturnType<typeof nguonGocBaoCao>;
+  tongBinhLuan: number;
+}) {
+  const soTongHop = nguonGoc.tongHop ?? 0;
+  return (
+    <>
+      {nguonGoc.chayThu || soTongHop > 0 ? (
+        <Callout tone="warn" slim className="mt-2 max-w-3xl">
+          {nguonGoc.chayThu ? (
+            <>
+              <strong>Phiên chạy thử — không tính vào kết quả gộp.</strong> Báo cáo xem lại được
+              đầy đủ, nhưng số của phiên này không được gộp vào kết quả thí nghiệm chung.{" "}
+            </>
+          ) : null}
+          {soTongHop > 0 ? (
+            <>
+              <strong>
+                {fmtNumber(soTongHop)} / {fmtNumber(tongBinhLuan)} bình luận do nguồn Mô phỏng
+                soạn
+              </strong>{" "}
+              — dữ liệu tổng hợp, không phải khách thật. Nhịp bình luận, khoảnh khắc nổi bật và
+              phân bố ý định bên dưới có đếm cả các câu này.
+            </>
+          ) : null}
+        </Callout>
+      ) : null}
+      {nguonGoc.khongRoChayThu ? (
+        <p className="mt-1 max-w-3xl text-meta leading-snug text-dim">
+          <span aria-hidden>?</span> Chưa đọc được phiên này có phải buổi chạy thử hay không —
+          máy chủ không trả thông tin phiên. Nếu là buổi chạy thử, số ở đây không được gộp vào
+          kết quả chung.
+        </p>
+      ) : null}
+    </>
+  );
+}
+
 function ReportSkeleton() {
   return (
     <div aria-busy>
@@ -200,13 +283,21 @@ export default function BaoCaoPage() {
   const [data, setData] = useState<BaoCao | null>(null);
   const [err, setErr] = useState<LoiBaoCao | null>(null);
   const [loading, setLoading] = useState(true);
+  /** Cờ chạy thử của phiên; null = chưa đọc. */
+  const [coChayThu, setCoChayThu] = useState<CoChayThu | null>(null);
 
   const load = useCallback(async () => {
     if (!sessionId) return;
     setLoading(true);
     setErr(null);
     try {
-      setData(await getBaoCao(sessionId));
+      // Thông tin phiên hỏng KHÔNG làm hỏng báo cáo — chỉ khiến cờ chạy thử là "không rõ".
+      const [bc, co] = await Promise.all([
+        getBaoCao(sessionId),
+        getSessionDetail(sessionId).then(coChayThuTu, (): CoChayThu => "khong-ro"),
+      ]);
+      setData(bc);
+      setCoChayThu(co);
     } catch (e) {
       setData(null);
       setErr(phanLoaiLoi(e));
@@ -232,6 +323,8 @@ export default function BaoCaoPage() {
   }, [sessionId]);
 
   const tq = data?.tong_quan ?? null;
+  const nguonGoc = data ? nguonGocBaoCao(data, coChayThu) : null;
+  const soTongHop = nguonGoc?.tongHop ?? 0;
   const observational = data?.loai_phien === "quan_sat";
   const kq = data?.ket_qua_thi_nghiem ?? null;
   const intentRows = data
@@ -261,6 +354,20 @@ export default function BaoCaoPage() {
                   báo cáo phiên mẫu xem được đầy đủ nhưng không bao giờ được
                   trình bày như số đo thật. */}
               {data?.is_demo ? <Badge tone="warn">DEMO — dữ liệu mẫu</Badge> : null}
+              {/* Phiên CHẠY THỬ là phiên thật (is_demo=false) nên chip DEMO không
+                  hiện — phải có nhãn riêng, không để "PHIÊN THÍ NGHIỆM" đứng một mình. */}
+              {nguonGoc?.chayThu ? (
+                <Badge tone="warn">
+                  <span aria-hidden>◐</span>
+                  CHẠY THỬ — không tính vào kết quả gộp
+                </Badge>
+              ) : null}
+              {soTongHop > 0 ? (
+                <Badge tone="warn">
+                  <span aria-hidden>◐</span>
+                  CÓ BÌNH LUẬN TỔNG HỢP
+                </Badge>
+              ) : null}
             </span>
           }
         >
@@ -269,6 +376,10 @@ export default function BaoCaoPage() {
               <p className="mt-1 text-strong text-ink">{data.tieu_de ?? data.session_id}</p>
               {/* Nhãn nguồn của TOÀN trang — nói rõ báo cáo này được phép nói gì. */}
               <p className="mt-1 max-w-3xl text-body leading-relaxed text-sec">{data.nhan}</p>
+              {/* Phiên chạy thử / bình luận tổng hợp — ngay dưới nhãn nguồn của trang. */}
+              {nguonGoc && (
+                <NhanNguonGoc nguonGoc={nguonGoc} tongBinhLuan={data.tong_quan.tong_binh_luan} />
+              )}
               {/* Nút hành động CHỈ khi đã có báo cáo: trên trang lỗi không có gì để
                   mở, phát lại hay in. */}
               <div className="mt-3 flex flex-wrap items-center gap-2 print:hidden">
@@ -384,12 +495,15 @@ export default function BaoCaoPage() {
                   label="Bình luận"
                   value={fmtNumber(tq.tong_binh_luan)}
                   hint={
-                    tq.dinh_binh_luan
+                    (tq.dinh_binh_luan
                       ? `đỉnh ${fmtNumber(Math.round(tq.dinh_binh_luan.gia_tri_per_phut))} tin/phút` +
                         (tq.dinh_binh_luan.offset_s != null
                           ? ` ở phút ${Math.floor(tq.dinh_binh_luan.offset_s / 60)}`
                           : "")
-                      : (tq.thieu.dinh_binh_luan ?? "chưa xác định được đỉnh")
+                      : (tq.thieu.dinh_binh_luan ?? "chưa xác định được đỉnh")) +
+                    (soTongHop > 0
+                      ? ` · gồm ${fmtNumber(soTongHop)} câu tổng hợp (Mô phỏng), không phải khách thật`
+                      : "")
                   }
                 />
                 <OverviewTile

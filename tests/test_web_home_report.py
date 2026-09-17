@@ -369,7 +369,13 @@ def test_e7_orders_panel_dung_hop_dong_api_va_khong_gui_tep():
     for field in ("tong_don", "tong_san_pham", "tong_doanh_thu"):
         assert f"summary.{field}" in src, f"thiếu ô {field}"
     assert "new FileReader()" in src, "chọn tệp chỉ để ĐỌC CHỮ trên trình duyệt"
-    assert "readAsText(" in src, "chọn tệp chỉ để ĐỌC CHỮ trên trình duyệt"
+    # Phản biện 17/09: đọc BYTE rồi giải mã NGAY TRÊN TRÌNH DUYỆT (TextDecoder) —
+    # readAsText(f, "utf-8") giải mã hỏng tệp CSV bảng mã 1258 của Excel mà không
+    # báo lỗi. Vẫn là đọc chữ tại chỗ, không tải tệp lên (chạy thật ở
+    # test_web_phan_bien_1709_khac.py::test_k2_*).
+    assert "readAsArrayBuffer(" in src, "chọn tệp chỉ để ĐỌC CHỮ trên trình duyệt"
+    assert "new TextDecoder(" in src, "chữ được giải mã trên trình duyệt, không gửi byte đi"
+    assert "readAsText(" not in src, 'readAsText(f, "utf-8") nuốt lỗi bảng mã im lặng'
     assert "FormData" not in src, "không bao giờ tải tệp lên"
     assert "multipart" not in src, "không bao giờ tải tệp lên"
     assert re.search(r'<input[^>]{0,160}type="file"', src), "phải chọn được tệp"

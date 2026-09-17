@@ -34,6 +34,11 @@ Vòng đời::
 * Lỗi CẤU HÌNH (thiếu khoá, token sai) ⇒ ``loi`` ngay: thử lại không sửa được
   một token hỏng, chỉ đốt quota.
 * Phiên LiveLift chuyển sang ``ended``/``cancelled`` ⇒ ``phien_ket_thuc``.
+* Facebook để trống nguồn (tự tìm): video đang đọc báo đã dừng ⇒ đọc nốt bình
+  luận cuối rồi về ``cho_len_song`` và dò lại buổi đang phát — host rớt sóng rồi
+  phát lại (live-video id mới) vẫn được thu tiếp.
+* Kho dữ liệu không trả lời ⇒ :class:`StoreSink` giữ bản ghi trong hàng đợi bộ
+  nhớ và tự ghi lại khi kho sống lại (``pending_writes``/``dropped_writes``).
 
 Quyền riêng tư (quy tắc cứng 1)
 --------------------------------
@@ -57,12 +62,15 @@ import contextlib
 import json
 import logging
 import os
+import time
+from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from livelift.api.store import StoreUnavailableError
 from livelift.ingest.base import Backoff, RawComment, RawTick
 from livelift.ingest.pii import scrub
 
@@ -92,6 +100,10 @@ RESTART_BASE_S = 5.0
 RESTART_CAP_S = 120.0
 WAIT_FOR_LIVE_S = 20.0
 WATCH_SESSION_EVERY_S = 5.0
+DOC_NOT_KHI_HET_BUOI_S = 12.0
+"""Facebook tự tìm buổi live: khi video báo đã dừng, vòng bình luận được chạy thêm
+chừng này giây (hơn hai nhịp poll 5 giây của client) để đọc nốt những bình luận
+cuối — thường là lúc chốt đơn — trước khi quay về dò buổi đang phát."""
 
 _DAU_HIEU_CHUA_PHAT: tuple[str, ...] = (
     "has no active live chat",  # YouTube Data API: video chưa/không live
@@ -140,6 +152,14 @@ def mo_ta_loi(exc: BaseException) -> str:
 # ---------------------------------------------------------------------------
 
 
+HANG_DOI_GHI_TOI_DA = 10_000
+"""Số bản ghi (bình luận đã lọc PII + số người xem) tối đa được GIỮ TRONG BỘ NHỚ
+chờ ghi lại khi kho không trả lời. Không bao giờ ghi ra đĩa hay log."""
+
+THU_LAI_KHO_DAU_S = 1.0
+THU_LAI_KHO_TRAN_S = 30.0
+
+
 class StoreSink:
     """:class:`livelift.ingest.base.IngestSink` ghi thẳng vào kho của tiến trình.
 
@@ -147,9 +167,46 @@ class StoreSink:
     không có chặng mạng nào để hỏng. Hàm lưu được gọi trong luồng phụ
     (``asyncio.to_thread``) vì kho Postgres chặn; ``Broadcaster.publish`` an toàn
     đa luồng từ 17/09/2026 nên WebSocket vẫn nhận ngay.
+
+    Kho chập chờn (kiểm toán 17/09/2026)
+    ------------------------------------
+    Client nền tảng đã đi qua một bình luận (page token, seen-set, cửa sổ 10 giây
+    của Shopee) thì KHÔNG gửi lại nó. Trước bản sửa, ``StoreUnavailableError``
+    chỉ tăng ``failures`` rồi vứt bản ghi: vài giây Postgres chập chờn là mất hẳn
+    bình luận, trong khi ``ApiSink`` của runner CLI thử lại và spool. Giờ bản ghi
+    gặp ``StoreUnavailableError`` vào một HÀNG ĐỢI TRONG BỘ NHỚ (tối đa
+    :data:`HANG_DOI_GHI_TOI_DA`) và được ghi lại theo đúng thứ tự khi kho trả lời:
+
+    * trong lúc chờ, bản ghi mới xếp thẳng vào hàng đợi — không đợi thêm một vòng
+      hết giờ của pool cho MỖI bình luận, nên vòng đọc nền tảng giữ nhịp;
+    * dò lại kho theo backoff mũ (:data:`THU_LAI_KHO_DAU_S` →
+      :data:`THU_LAI_KHO_TRAN_S`) mỗi khi có sự kiện mới hoặc khi supervisor gọi
+      :meth:`xa_hang_doi` (vòng canh phiên, kể cả lúc buổi live im lặng);
+    * ghi lại an toàn: bình luận khoá theo (platform, ext_id), tick khoá theo mốc.
+
+    Lỗi KHÁC (payload sai, phiên đã bị xoá) thử lại cũng không sửa được: đếm vào
+    ``failures`` và bỏ như trước. Hàng đợi đầy thì bản ghi mới bị bỏ và ĐẾM ở
+    ``dropped`` — không bao giờ mất im lặng.
     """
 
-    def __init__(self, store: Any, session_id: str) -> None:
+    def __init__(
+        self,
+        store: Any,
+        session_id: str,
+        *,
+        hang_doi_toi_da: int | None = None,
+        thu_lai_dau_s: float | None = None,
+        thu_lai_tran_s: float | None = None,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        # None ⇒ đọc hằng số của mô-đun LÚC TẠO (không phải lúc định nghĩa hàm),
+        # để IngestManager dựng sink mặc định mà test vẫn chỉnh được nhịp dò kho.
+        if hang_doi_toi_da is None:
+            hang_doi_toi_da = HANG_DOI_GHI_TOI_DA
+        if thu_lai_dau_s is None:
+            thu_lai_dau_s = THU_LAI_KHO_DAU_S
+        if thu_lai_tran_s is None:
+            thu_lai_tran_s = THU_LAI_KHO_TRAN_S
         self._store = store
         self._session_id = session_id
         self.comments_seen = 0
@@ -157,12 +214,24 @@ class StoreSink:
         self.comments_skipped = 0
         self.ticks_posted = 0
         self.failures = 0
+        self.dropped = 0
+        """Bản ghi bị bỏ vì hàng đợi chờ kho đã đầy — dữ liệu MẤT, phải báo."""
         self.last_error: str | None = None
         self.last_event_at: datetime | None = None
         self.last_viewers: float | None = None
+        self._hang_doi: deque[tuple[str, Any]] = deque()
+        self._hang_doi_toi_da = max(1, int(hang_doi_toi_da))
+        self._backoff = Backoff(base_s=thu_lai_dau_s, cap_s=thu_lai_tran_s)
+        self._clock = clock
+        self._do_lai_luc = 0.0
+        self._khoa = asyncio.Lock()
+
+    @property
+    def pending(self) -> int:
+        """Số bản ghi đang chờ kho trả lời để ghi lại."""
+        return len(self._hang_doi)
 
     async def post_comment(self, comment: RawComment) -> bool:
-        from livelift.api.routes.events import _store_comment
         from livelift.api.schemas import CommentIn
 
         self.comments_seen += 1
@@ -180,30 +249,114 @@ class StoreSink:
                 ts_utc=comment.ts_utc,
                 pii_kinds=sorted(loc.counts),
             )
-            await asyncio.to_thread(_store_comment, self._session_id, body, self._store)
         except Exception as exc:  # noqa: BLE001 — sink không bao giờ làm chết vòng đọc
             self.failures += 1
             self.last_error = f"Ghi bình luận thất bại: {type(exc).__name__}"
             return False
-        self.comments_posted += 1
-        self.last_event_at = _now()
-        return True
+        return await self._gui("comment", body)
 
     async def post_tick(self, tick: RawTick) -> bool:
-        from livelift.api.routes.events import _store_tick
         from livelift.api.schemas import TickIn
 
         try:
             body = TickIn(viewers=max(0.0, float(tick.viewers)), ts_utc=tick.ts_utc)
-            await asyncio.to_thread(_store_tick, self._session_id, body, self._store)
         except Exception as exc:  # noqa: BLE001
             self.failures += 1
             self.last_error = f"Ghi số người xem thất bại: {type(exc).__name__}"
             return False
-        self.ticks_posted += 1
-        self.last_viewers = float(tick.viewers)
+        return await self._gui("tick", body)
+
+    async def xa_hang_doi(self) -> None:
+        """Thử ghi lại hàng đợi nếu đã tới lượt dò kho. Không bao giờ ném lỗi."""
+        if not self._hang_doi or self._clock() < self._do_lai_luc:
+            return
+        async with self._khoa:
+            await self._xa_hang_doi_khong_khoa()
+
+    # -- nội bộ --------------------------------------------------------------
+    async def _gui(self, loai: str, body: Any) -> bool:
+        async with self._khoa:
+            if self._hang_doi and self._clock() >= self._do_lai_luc:
+                await self._xa_hang_doi_khong_khoa()
+            if self._hang_doi:
+                # Kho vẫn đang chết: giữ đúng thứ tự, không chen lên trước.
+                self._xep_hang(loai, body)
+                return False
+            try:
+                await self._ghi(loai, body)
+            except Exception as exc:  # noqa: BLE001 — sink không bao giờ làm chết vòng đọc
+                if not _la_kho_chet(exc):
+                    self.failures += 1
+                    ten = "bình luận" if loai == "comment" else "số người xem"
+                    self.last_error = f"Ghi {ten} thất bại: {type(exc).__name__}"
+                    return False
+                self._xep_hang(loai, body)
+                self._hen_do_lai()
+                return False
+            return True
+
+    async def _xa_hang_doi_khong_khoa(self) -> None:
+        while self._hang_doi:
+            loai, body = self._hang_doi[0]
+            try:
+                await self._ghi(loai, body)
+            except Exception as exc:  # noqa: BLE001
+                if _la_kho_chet(exc):
+                    self._hen_do_lai()
+                    self._bao_hang_doi()
+                    return
+                # Bản ghi này hỏng vì lý do khác: thử lại không sửa được.
+                self.failures += 1
+                self.last_error = f"Ghi lại bản ghi chờ thất bại: {type(exc).__name__}"
+            self._hang_doi.popleft()
+        self._backoff.reset()
+        self._do_lai_luc = 0.0
+        if self.dropped:
+            self._bao_hang_doi()
+        elif self.last_error is not None and self.last_error.startswith("Kho dữ liệu"):
+            self.last_error = None
+
+    async def _ghi(self, loai: str, body: Any) -> None:
+        from livelift.api.routes.events import _store_comment, _store_tick
+
+        if loai == "comment":
+            await asyncio.to_thread(_store_comment, self._session_id, body, self._store)
+            self.comments_posted += 1
+        else:
+            await asyncio.to_thread(_store_tick, self._session_id, body, self._store)
+            self.ticks_posted += 1
+            self.last_viewers = float(body.viewers)
         self.last_event_at = _now()
-        return True
+
+    def _xep_hang(self, loai: str, body: Any) -> None:
+        if len(self._hang_doi) >= self._hang_doi_toi_da:
+            self.dropped += 1
+        else:
+            self._hang_doi.append((loai, body))
+        self._bao_hang_doi()
+
+    def _hen_do_lai(self) -> None:
+        self._do_lai_luc = self._clock() + self._backoff.next_delay()
+
+    def _bao_hang_doi(self) -> None:
+        # Chỉ đếm — không bao giờ lặp lại văn bản bình luận.
+        phan: list[str] = []
+        if self._hang_doi:
+            phan.append(
+                f"Kho dữ liệu không trả lời — {len(self._hang_doi)} bản ghi đang chờ ghi lại "
+                "(giữ trong bộ nhớ, tự ghi khi kho sống lại)"
+            )
+        if self.dropped:
+            phan.append(
+                f"Kho dữ liệu không trả lời quá lâu — ĐÃ MẤT {self.dropped} bản ghi vì hàng đợi "
+                f"{self._hang_doi_toi_da} bản ghi đã đầy"
+            )
+        self.last_error = "; ".join(phan) if phan else None
+
+
+def _la_kho_chet(exc: BaseException) -> bool:
+    """Lỗi "kho không trả lời" — loại DUY NHẤT đáng giữ bản ghi để ghi lại."""
+    return isinstance(exc, StoreUnavailableError)
 
 
 # ---------------------------------------------------------------------------
@@ -283,6 +436,8 @@ class IngestJob:
             "ticks_posted": sink.ticks_posted if sink else 0,
             "last_viewers": sink.last_viewers if sink else None,
             "write_failures": sink.failures if sink else 0,
+            "pending_writes": sink.pending if sink else 0,
+            "dropped_writes": sink.dropped if sink else 0,
             "last_event_at": sink.last_event_at if sink else None,
             "seconds_since_last_event": giay_tu_su_kien,
             "last_error": self.last_error or client_err or (sink.last_error if sink else None),
@@ -307,6 +462,7 @@ class IngestManager:
         max_restarts: int = MAX_RESTARTS,
         wait_for_live_s: float = WAIT_FOR_LIVE_S,
         watch_every_s: float = WATCH_SESSION_EVERY_S,
+        doc_not_khi_het_buoi_s: float = DOC_NOT_KHI_HET_BUOI_S,
     ) -> None:
         self._store = store
         self._client_factory = client_factory or client_mac_dinh
@@ -316,6 +472,7 @@ class IngestManager:
         self._max_restarts = max_restarts
         self._wait_for_live_s = wait_for_live_s
         self._watch_every_s = watch_every_s
+        self._doc_not_khi_het_buoi_s = doc_not_khi_het_buoi_s
         self._jobs: dict[str, IngestJob] = {}
 
     # -- truy vấn ------------------------------------------------------------
@@ -506,20 +663,42 @@ class IngestManager:
 
             job.resolved_source = KICH_BAN_MAC_DINH
 
+        # Kiểm toán 17/09/2026: mã cũ xoá lỗi bằng ``if job.state != "dang_thu"``
+        # — nhưng state đã được đặt "dang_thu" TRƯỚC khi các tác vụ chạy, nên nhánh
+        # đó không bao giờ chạy. Lỗi của lượt trước (vd ConnectionError) còn mãi,
+        # hiện ra sau khi tắt bộ thu dù buổi thu khoẻ, và che lỗi hiện tại của
+        # client/sink trong ``trang_thai()``. Cờ cục bộ của lượt chạy này thay thế.
+        da_co_binh_luan = False
+        da_co_nguoi_xem = False
+
         async def binh_luan() -> None:
+            nonlocal da_co_binh_luan
             async for c in client.iter_comments(nguon):
-                if job.state != "dang_thu":
+                if not da_co_binh_luan:
+                    da_co_binh_luan = True
                     job.state = "dang_thu"
                     job.last_error = None
                 await sink.post_comment(c)
 
         async def nguoi_xem() -> None:
+            nonlocal da_co_nguoi_xem
             async for t in client.iter_viewers(nguon):
+                if not da_co_nguoi_xem:
+                    da_co_nguoi_xem = True
+                    # Nền tảng đã trả lời trong lượt này: lỗi của lượt trước hết hiệu lực.
+                    job.last_error = None
+                    job.tick_error = None
                 await sink.post_tick(t)
 
         async def canh_phien() -> None:
-            while not await self._phien_da_dong(job.session_id):
+            while True:
+                # Buổi live im lặng vẫn phải ghi lại được những gì đang chờ kho.
+                await sink.xa_hang_doi()
+                if await self._phien_da_dong(job.session_id):
+                    return
                 await asyncio.sleep(self._watch_every_s)
+
+        tu_tim_nguon = job.platform == "facebook" and not job.source_id
 
         tac_vu = {
             asyncio.create_task(binh_luan(), name="binh_luan"): "binh_luan",
@@ -552,6 +731,25 @@ class IngestManager:
                         return "loi_tam_thoi"
                     if ten == "binh_luan":
                         return "nguon_ket_thuc"
+                    if ten == "nguoi_xem" and tu_tim_nguon:
+                        # Kiểm toán 17/09/2026: ``iter_viewers`` của Facebook kết
+                        # thúc êm khi video báo LIVE_STOPPED, còn ``iter_comments``
+                        # không có điều kiện dừng nên poll video CŨ mãi. Host rớt
+                        # sóng rồi bấm phát lại là Page có live-video id MỚI; trước
+                        # bản sửa supervisor bỏ qua tín hiệu này, không bao giờ tự
+                        # tìm lại, và mọi bình luận của buổi mới bị mất trong khi
+                        # trạng thái vẫn "đang thu". Chế độ tự tìm ⇒ quay về vòng
+                        # chờ lên sóng để dò lại buổi đang phát — sau khi đọc nốt
+                        # bình luận cuối của buổi vừa dừng.
+                        doc_not = {x for x in con_lai if tac_vu[x] == "binh_luan"}
+                        if doc_not:
+                            await asyncio.wait(doc_not, timeout=self._doc_not_khi_het_buoi_s)
+                        job.resolved_source = None
+                        job.last_error = (
+                            f"Buổi live {nguon} trên Page đã dừng — đang chờ buổi phát mới "
+                            "(host phát lại thì LiveLift tự bắt, không cần bấm gì)."
+                        )
+                        return "cho_len_song"
             return "nguon_ket_thuc"
         finally:
             for t in tac_vu:

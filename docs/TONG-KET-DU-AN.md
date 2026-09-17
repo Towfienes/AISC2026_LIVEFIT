@@ -27,7 +27,7 @@ hoàn thành**.
 |---|---|---|
 | Bộ gán switchback 2 tầng theo văn liệu 2023–2025 (endpoint-double, rerandomization, jitter, burn-in thay washout) | ✅ | `core/assigner/` + 1000-lịch balance gate |
 | Kiểm định ngẫu nhiên hóa studentized, redraw bằng **hàm gán production trên toàn lịch** + Fisher CI | ✅ | `analysis/estimators.py` |
-| **Ước lượng viên được chứng minh hiệu chỉnh**: A/A 200 lặp → bác bỏ 4.5% (nhị thức p=0.872), coverage 95.5% | ✅ | gate `test_sim_validation.py` |
+| **Ước lượng viên được chứng minh hiệu chỉnh**: A/A 200 lặp → bác bỏ 3,50% (7/200, nhị thức p=0,4168), độ phủ 96,50% (đo lại 14/09/2026; số cũ 4,5%/0,872/95,5% của 30/08 không tái lập được) | ✅ | gate `test_sim_validation.py` |
 | Từ chối có kỷ luật: thiết kế không kiểm định được → `estimable=False` + lý do, **không bao giờ bịa số** | ✅ | sửa lỗi FATAL "NaN→significance" (52% dương tính giả → 6.2%) |
 | MDE gắn với **lực thống kê đo được** (margin 1.2 đo bằng sweep), within-session CV, poisson_floor | ✅ | `analysis/power.py`, gate MDE-khớp-lực |
 | Mô phỏng **hiệu chỉnh theo KuaiLive** (1.16M phòng shop thật) + đo trung thực dưới hiệu ứng lưu | ✅ | `docs/benchmarks/kuailive-calibration.md` |
@@ -82,7 +82,7 @@ file benchmark).
 |---|---|---|
 | **Hiệu chỉnh tuần 3 trên kênh THẬT**: đo t_mix (suy giảm sau bỏ ghim), dwell, CV trong-phiên, ICC phiên → chốt độ dài khối + burn-in | TN | bảng đo sẵn: hiệu ứng lưu bán rã ≥3ph làm coverage tụt 60% → nếu t_mix dài, **khối 10 phút** (poisson_floor: cắt ~35% MDE) |
 | Điền và **khóa PREREGISTRATION.md** bằng commit | TN | mẫu đã đầy đủ, chỉ điền số đo |
-| Ghi đơn hàng vào hệ thống (bảng `order_event` có, **chưa có API ghi**) → QC đối soát doanh thu chạy được | KS | thiếu là gói Performance không kiểm chứng được |
+| Ghi đơn hàng vào hệ thống → QC đối soát doanh thu chạy được. **Cập nhật 17/09/2026: ĐÃ CÓ đường ghi** — `POST /sessions/{id}/orders` (một đơn) và `POST /sessions/{id}/orders/import` (CSV từ Seller Center, chống trùng theo mã đơn), cùng ô nhập CSV ở trang Báo cáo phiên (`docs/HUONG-DAN-SU-DUNG.md` mục 11). **Còn thiếu:** tệp đơn thật của một buổi live (theo `docs/mo-hinh-van-hanh-kol.md` mục 2: chưa có đơn thật nào được nhập), màn đối soát doanh thu theo từng khối | KS | thiếu đơn thật là gói Performance vẫn chưa kiểm chứng được |
 | Chạy ingest thật với credential (YouTube API key, FB token) trên 2 phiên thử | KS | code xong, cần khóa thật |
 | Gán nhãn đợt 1 bình luận thật (~300, active learning: câu model kém chắc nhất) → retrain, cập nhật benchmark bằng số thật | NC | pipeline sẵn: `python -m livelift.nlp.train_intent` |
 

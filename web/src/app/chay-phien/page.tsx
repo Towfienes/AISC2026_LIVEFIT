@@ -132,7 +132,15 @@ interface SavedWizard {
   v: 1;
   step: Step;
   productUrls: Record<string, string>;
-  form: { title: string; platform: string; minutes: string; mode: SessionMode };
+  /** `chayThu`: null = người bán chưa tự chọn (theo mặc định `chayThuHieuLuc`).
+   *  Bản lưu cũ không có trường này. */
+  form: {
+    title: string;
+    platform: string;
+    minutes: string;
+    mode: SessionMode;
+    chayThu?: boolean | null;
+  };
   blockMin: string;
   sessionId: string | null;
   links: LinkDo[];
@@ -249,6 +257,17 @@ function tenPhienMacDinh(now: Date, platform: string, minutes: number): string {
  */
 function choPhepMoPhong(s: SessionSummary & { dry_run?: boolean }): boolean {
   return s.dry_run === true || s.is_demo === true;
+}
+
+/**
+ * Phiên sắp tạo có khai CHẠY THỬ không (phản biện 17/09: wizard từng không có
+ * cách nào tạo phiên chạy thử — buổi tập bằng sản phẩm mẫu và link example.com
+ * thành phiên THẬT, bị gộp vào kết quả, và bộ thu không bao giờ mời nguồn Mô
+ * phỏng). Người bán đã tự chọn thì theo đúng lựa chọn đó; chưa chọn thì bật sẵn
+ * khi đang dùng link mẫu — link mẫu không đo được lượt bấm thật nào.
+ */
+function chayThuHieuLuc(daChon: boolean | null | undefined, dungLinkMau: boolean): boolean {
+  return typeof daChon === "boolean" ? daChon : dungLinkMau;
 }
 
 /**
@@ -697,6 +716,8 @@ export default function ChayPhienPage() {
     platform: "youtube" as string,
     minutes: "90",
     mode: "auto" as SessionMode,
+    /** null = chưa tự chọn: mặc định theo `chayThuHieuLuc` (link mẫu ⇒ chạy thử). */
+    chayThu: null as boolean | null,
   });
 
   // Bước 3 — lịch
@@ -787,7 +808,7 @@ export default function ChayPhienPage() {
 
     if (saved) {
       setProductUrls(saved.productUrls ?? {});
-      if (saved.form) setForm(saved.form);
+      if (saved.form) setForm({ ...saved.form, chayThu: saved.form.chayThu ?? null });
       if (saved.blockMin) setBlockMin(saved.blockMin);
       // Link đo + các dấu đã-làm thuộc về MỘT phiên: URL trỏ phiên khác thì
       // không mang sang (link của phiên cũ dán vào phiên mới là đếm nhầm lượt bấm).
@@ -841,6 +862,8 @@ export default function ChayPhienPage() {
           platform: s.platform,
           minutes: String(s.planned_duration_min),
           mode: s.mode,
+          // Cờ chạy thử là của phiên trên máy chủ, không phải của bản nháp cũ.
+          chayThu: s.dry_run === true,
         }));
         if (s.status === "planned") {
           setStepState(3);
@@ -961,6 +984,9 @@ export default function ChayPhienPage() {
 
   const urlOf = (productId: string) => (productUrls[productId] ?? "").trim();
   const missingLinkProducts = products.filter((p) => !isValidProductUrl(urlOf(p.product_id)));
+  /** Có sản phẩm đang trỏ link mẫu example.com (sản phẩm mẫu hoặc "Điền link mẫu"). */
+  const dungLinkMau = products.some((p) => isSampleUrl(urlOf(p.product_id)));
+  const chayThu = chayThuHieuLuc(form.chayThu, dungLinkMau);
 
   // -------------------------------------------------------------------------
   // Bước 2: tạo phiên
@@ -974,6 +1000,8 @@ export default function ChayPhienPage() {
         title: form.title.trim() || tenPhienMacDinh(new Date(), form.platform, minutes),
         mode: form.mode,
         planned_duration_min: minutes,
+        // Khai LÚC TẠO hoặc không bao giờ (§8.2) — máy chủ không có đường sửa cờ này.
+        dry_run: chayThu,
       });
       setSession(s);
       setStepState(3);
@@ -1247,6 +1275,14 @@ export default function ChayPhienPage() {
                     <span aria-hidden>◐</span> Phiên dữ liệu mẫu — không tính vào kết quả thật
                   </span>
                 </>
+              ) : session?.dry_run ? (
+                <>
+                  {" "}
+                  ·{" "}
+                  <span className="font-semibold text-warn-ink">
+                    <span aria-hidden>◐</span> Phiên chạy thử — không tính vào kết quả gộp
+                  </span>
+                </>
               ) : null}
             </p>
 
@@ -1478,14 +1514,20 @@ export default function ChayPhienPage() {
               <Card as="section" padding="lg">
                 <h2 className="text-title text-ink">Thông tin buổi live</h2>
                 <p className="mt-1 text-body leading-snug text-sec">
-                  Ba lựa chọn bấm là xong — không có ô nào bắt buộc phải gõ.
+                  Vài lựa chọn bấm là xong — không có ô nào bắt buộc phải gõ.
                 </p>
 
                 {session ? (
                   <Callout tone="warn" className="mt-4">
                     Phiên <strong>{session.title || "chưa đặt tên"}</strong> (
-                    {session.planned_duration_min} phút · {tenNenTang(session.platform)}) đã được
-                    tạo. Muốn đổi nền tảng/thời lượng/chế độ thì huỷ phiên nháp này rồi tạo lại —
+                    {session.planned_duration_min} phút · {tenNenTang(session.platform)} ·{" "}
+                    {session.is_demo
+                      ? "dữ liệu mẫu"
+                      : session.dry_run
+                        ? "chạy thử, không tính vào kết quả"
+                        : "buổi thật, tính vào kết quả"}
+                    ) đã được tạo. Muốn đổi nền tảng/thời lượng/chế độ hay chạy thử thì huỷ phiên
+                    nháp này rồi tạo lại —
                     thông số phiên là một phần của thiết kế thí nghiệm nên không sửa tại chỗ được.
                     <div className="mt-2 flex flex-wrap gap-2">
                       <Button
@@ -1598,14 +1640,45 @@ export default function ChayPhienPage() {
                         note="Hệ thống chỉ đề xuất; sản phẩm chỉ được ghim khi bạn bấm Thực hiện — dùng khi live nhờ phòng đối tác."
                       />
                     </div>
+
+                    <p className="mt-4 text-meta font-semibold text-sec">
+                      Buổi này có tính vào kết quả không?
+                    </p>
+                    <div className="mt-1.5 flex flex-col gap-2 sm:flex-row">
+                      <ChoiceCard
+                        selected={!chayThu}
+                        onClick={() => setForm({ ...form, chayThu: false })}
+                        title="Buổi thật"
+                        note="Khách thật, link trang sản phẩm thật — số đo được gộp vào kết quả thí nghiệm."
+                      />
+                      <ChoiceCard
+                        selected={chayThu}
+                        onClick={() => setForm({ ...form, chayThu: true })}
+                        title="Chạy thử (không tính vào kết quả)"
+                        note="Để tập dượt: không gộp vào kết quả, và Bộ thu bình luận mở thêm nguồn Mô phỏng (bình luận tổng hợp, không phải khách thật)."
+                      />
+                    </div>
+                    {form.chayThu == null && dungLinkMau ? (
+                      <p className="mt-1 text-meta leading-snug text-dim">
+                        <span aria-hidden>◐</span> Chọn sẵn Chạy thử vì sản phẩm đang dùng link mẫu
+                        example.com — link mẫu không đo được lượt bấm của khách thật.
+                      </p>
+                    ) : !chayThu && dungLinkMau ? (
+                      <p className="mt-1 text-meta leading-snug text-warn-ink">
+                        <span aria-hidden>⚠</span> Sản phẩm vẫn dùng link mẫu example.com — buổi
+                        thật với link mẫu không đo được lượt bấm nào của khách. Thay bằng link thật
+                        ở bước 1 trước khi lên sóng.
+                      </p>
+                    ) : null}
                   </>
                 )}
 
                 <WhyStep>
                   Nền tảng quyết định hệ thống đọc được tín hiệu gì; thời lượng quyết định số{" "}
                   <Term tip={CAU_MOT_DONG.batTat}>khối BẬT/TẮT</Term> — càng nhiều khối kết luận
-                  càng chắc; chế độ quyết định ai bấm nút ghim. Ba thứ này phải chốt trước khi bốc
-                  thăm nên hệ thống hỏi một lần ở đây.
+                  càng chắc; chế độ quyết định ai bấm nút ghim; chạy thử hay không quyết định buổi
+                  này có được gộp vào kết quả. Những thứ này phải chốt trước khi bốc thăm (và trước
+                  khi thấy bất kỳ con số nào) nên hệ thống hỏi một lần ở đây.
                 </WhyStep>
 
                 {!session ? (
@@ -1975,6 +2048,25 @@ export default function ChayPhienPage() {
                       nền tảng cho đọc). Bật trước giờ phát cũng được — bộ thu sẽ chờ buổi live bắt
                       đầu.
                     </p>
+                    {session ? (
+                      <p className="mt-0.5 text-meta leading-snug text-dim">
+                        {choPhepMoPhong(session) ? (
+                          <>
+                            <span aria-hidden>◐</span> Phiên{" "}
+                            {session.is_demo ? "dữ liệu mẫu" : "chạy thử"} nên có thêm nguồn Mô
+                            phỏng — bình luận tổng hợp do máy soạn, không phải khách thật.
+                          </>
+                        ) : (
+                          <>
+                            Không thấy nguồn Mô phỏng vì đây là buổi thật: bình luận tổng hợp
+                            không bao giờ được trộn vào dữ liệu thật.
+                            {live
+                              ? null
+                              : " Muốn tập dượt thì huỷ phiên nháp ở bước 2 và tạo lại với lựa chọn Chạy thử."}
+                          </>
+                        )}
+                      </p>
+                    ) : null}
                     {session ? (
                       <IngestPanel
                         sessionId={session.session_id}

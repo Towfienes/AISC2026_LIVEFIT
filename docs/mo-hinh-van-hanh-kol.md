@@ -12,7 +12,7 @@ ngày 11/09/2026 — chỗ nào chưa thử thì ghi thẳng là **chưa thử**
 |---|---|
 | **Mở phiên live từ nền tảng khác rồi bật sản phẩm lên thì test được không?** | **Được một phần, và phần được phụ thuộc nền tảng.** YouTube: được. Facebook Page của chính mình: được sau ~25 phút lấy token. TikTok: **không** — không đọc được một bình luận nào. Shopee: adapter đã viết xong, chỉ thiếu tài khoản. |
 | **Nếu dùng sản phẩm thì hiện đang cần làm những gì?** | Tối thiểu để **một phiên chạy được**: tạo phiên + bốc lịch BẬT/TẮT. Chỉ hai thứ đó. Nhưng để **ra được một con số nhân quả** thì cần thêm ba thứ nữa: nguồn bình luận, **số người xem theo thời gian**, và **link đo click**. Thiếu một trong ba → hệ thống tự tuyên bố "không đo được", không bịa số. |
-| **Khi ra product, một KOL muốn dùng thì thế nào?** | Hôm nay: **không tự dùng được**. Không có đăng nhập, không có tài khoản riêng, danh mục sản phẩm dùng chung toàn hệ thống, bộ thu bình luận là một lệnh chạy trong terminal. Cần một kỹ sư ngồi cạnh. Danh sách việc phải làm để bỏ được kỹ sư đó: **mục 6**. |
+| **Khi ra product, một KOL muốn dùng thì thế nào?** | Hôm nay: **không tự dùng được**. Không có đăng nhập, không có tài khoản riêng, danh mục sản phẩm dùng chung toàn hệ thống. Bộ thu bình luận **đã bật được bằng nút trên web** (17/09/2026), nhưng khoá của từng nền tảng vẫn phải do kỹ sư dán vào `.env` rồi khởi động lại máy chủ. Cần một kỹ sư ở bước cài đặt. Danh sách việc phải làm để bỏ được kỹ sư đó: **mục 6**. |
 | **Mở một live bán hàng bất kỳ rồi bật dự án lên có được không, hay phải cấu hình?** | **Phải cấu hình.** Có đúng **một** đường dán-link-là-xong: `POST /replays/youtube` với một buổi YouTube **đã kết thúc** — không cần tài khoản gì, 1–2 phút ra báo cáo. Nhưng đó là **chế độ quan sát**: không có số nhân quả. Mọi thứ còn lại đều cần cấu hình trước phiên. |
 | **Cho chuyên nghiệp thì mới đạt hiệu quả — vậy cách dùng như nào?** | Đúng, và đây là điều quan trọng nhất trong tài liệu: **LiveLift không phải dashboard cắm-vào-là-có-số. Nó là một hệ thí nghiệm.** "Chuyên nghiệp" ở đây không có nghĩa là giao diện đẹp hơn, mà là: có người vận hành riêng tách khỏi người dẫn, có link đo riêng, phiên **≥ 90 phút**, và chấp nhận rằng một nửa thời lượng phiên hệ thống **không được can thiệp** (nhánh đối chứng). Đổi lại: một con số có khoảng tin cậy, không phải một cảm giác. |
 
@@ -174,7 +174,7 @@ thật) và thử từng giả thuyết. Kết quả:
 | Bắt buộc có link đo không? | **KHÔNG để chạy, CÓ để đo** | Ma trận tín hiệu sau phiên: `clicks → missing`, năng lực *"thí nghiệm nhân quả (BẬT/TẮT)"* → **missing**, lý do *"thiếu clicks, ticks"* |
 | Tạo link đo cho sản phẩm chưa có? | **404 "Không tìm thấy sản phẩm"** | Muốn có link đo thì **bắt buộc** phải tạo sản phẩm trước. Đây là ràng buộc thật duy nhất bắt sản phẩm phải tồn tại |
 | Phiên chỉ có bình luận, không có người xem, không có click? | Báo cáo ra `ket_qua_thi_nghiem.estimable = **false**`, kèm câu *"Chưa đủ khối đo được để ước lượng (0 khối, cần ≥ 4) — tuyên bố thiếu, không trả số"* | **Hệ thống không bịa số.** Đây là điểm mạnh nhất của nó |
-| Có đường nào ghi **đơn hàng** vào hệ thống không? | **KHÔNG.** Toàn bộ 22 đường dẫn của API, không có đường nào ghi đơn. Bảng `order_event` và hàm `add_order` **tồn tại trong mã nhưng không có ai gọi** | Năng lực *"đối soát doanh thu"* **vĩnh viễn = THIẾU** cho tới khi có endpoint. Xem mục 4 và mục 6 |
+| Có đường nào ghi **đơn hàng** vào hệ thống không? | Ngày 11/09: **KHÔNG** — bảng `order_event` và hàm `add_order` tồn tại nhưng không ai gọi. **Cập nhật 17/09/2026 (đối chiếu mã, không phải lần chạy 11/09):** đã có `POST /sessions/{id}/orders` (một đơn) và `POST /sessions/{id}/orders/import` (dán nội dung CSV), cùng ô nhập CSV trên trang báo cáo phiên | Năng lực *"đối soát doanh thu"* hết THIẾU **khi có tệp đơn thật được nhập** — hiện chưa có đơn thật nào. Xem mục 4 và mục 6 |
 | Danh mục sản phẩm có tách theo chủ/theo phiên không? | **KHÔNG.** Tạo sản phẩm ở phiên 1, phiên 2 (khác nền tảng) **vẫn thấy nguyên** trên thẻ gợi ý | Hai KOL dùng chung một máy chủ sẽ thấy hàng của nhau. **Chặn việc mở dịch vụ cho nhiều người** — mục 6, việc số 1 |
 | Link đo tạo **không kèm `session_id`** thì sao? | Bấm 2 link (một có, một không), phiên chỉ ghi nhận **1** lượt nhấp | **Cái bẫy đắt nhất của cả hệ thống.** Link thiếu `session_id` vẫn chuyển hướng bình thường, người xem không thấy gì lạ, nhưng **cú bấm biến mất khỏi thí nghiệm** |
 | Bấm link bằng `curl`? | HTTP **302** (vẫn chuyển hướng) nhưng bị gắn cờ không hợp lệ | Đúng thiết kế: redirect **không bao giờ** được hỏng vì chuyện đo đạc |
@@ -194,9 +194,9 @@ thật) và thử từng giả thuyết. Kết quả:
 | 3 | Tạo phiên, chọn thời lượng **≥ 90 phút** | KOL | ✅ |
 | 4 | Bốc lịch BẬT/TẮT, **ghi lại seed** | Hệ thống | ✅ |
 | 5 | Bấm "Bắt đầu phát sóng" → hệ thống sinh link đo `/r/{code}` cho từng sản phẩm có URL hợp lệ | Hệ thống | ✅ |
-| 6 | **Khởi động bộ thu bình luận** — một lệnh trong terminal, cần **video id** của buổi live | Kỹ sư | ⚠️ **CLI, không có nút bấm** |
+| 6 | **Bật bộ thu bình luận** — nút **"Bật bộ thu"** ở bước 4 của `/chay-phien` hoặc trên bàn trợ live, dán **link** buổi live (hệ thống tự trích video id) | Người vận hành | ✅ **nút bấm từ 17/09/2026** — cần `YOUTUBE_API_KEY` trên máy chủ (bước 1); bật trước giờ phát thì bộ thu tự chờ |
 | 7 | Trong phiên: dán link `/r/{code}` vào bình luận ghim mỗi khi giới thiệu sản phẩm | Người vận hành | ✅ (thủ công) |
-| 8 | Trong mỗi khối BẬT: bấm thẻ gợi ý ở bàn điều khiển (8 lần / 90 phút) | Người vận hành | ⚠️ **phải bấm tay** |
+| 8 | Trong mỗi khối BẬT: bấm thẻ gợi ý ở bàn điều khiển (8 lần / 90 phút) | Người vận hành / hệ thống | ✅ chế độ **Tự ghim**: bộ thực thi phía máy chủ tự chọn và ghi lệnh ghim (từ 12/09). Chế độ **Chỉ gợi ý**: bấm tay. Thao tác ghim trên app nền tảng vẫn là tay (mục 6, 4b) |
 | 9 | Kết thúc phiên → xem báo cáo | Hệ thống | ✅ |
 
 **Hai đường thu YouTube, chọn đúng:**
@@ -413,10 +413,12 @@ là *"tương tác"*, và tuyệt đối không suy ra doanh thu từ nó.
 Về nguyên tắc **đây là phương án đúng nhất**: đơn hàng là biến kết quả thật, thứ KOL
 thật sự quan tâm. Nhưng có ba rào cản, và cả ba đều thật.
 
-**Rào cản 1 — kỹ thuật, hôm nay:** **không có đường ghi đơn hàng vào hệ thống.** Bảng
-`order_event` tồn tại trong CSDL, hàm `Store.add_order` tồn tại trong mã, nhưng
-**không một dòng nào trong toàn repo gọi nó** — không endpoint, không CLI, không
-adapter. Đây là việc phải làm trước khi bàn tiếp.
+**Rào cản 1 — kỹ thuật:** ngày 11/09 **không có đường ghi đơn hàng vào hệ thống**.
+**Đã gỡ ngày 17/09/2026:** `POST /sessions/{id}/orders` và `/orders/import` nhận
+đơn tay hoặc nội dung CSV xuất từ Seller Center, chống trùng theo mã đơn, gán khối
+theo **thời điểm đặt đơn**, không đọc cột thông tin người mua; trang báo cáo phiên
+có ô nhập CSV. Chưa có tệp đơn thật nào được nhập, và chưa nền tảng nào tự đẩy đơn
+vào — rào cản 2 và 3 dưới đây vẫn nguyên.
 
 **Rào cản 2 — công suất thống kê, đã đo:** đơn hàng là biến **đếm hiếm**, phương sai
 bị nhiễu đếm chi phối. Đã tính MDE bằng đúng bộ máy lực thống kê của dự án: ở quy mô
@@ -435,8 +437,9 @@ lẫn hai nhánh** và làm nhòe hoàn toàn phép so sánh. Phải **đo độ
 nó lớn thì khối phải dài hơn (15–20 phút), số khối giảm, và công suất lại giảm theo.
 Đây là một đánh đổi có thật, không né được.
 
-**Phán quyết:** phương án đúng nhất về bản chất, **chưa dùng được hôm nay**, và khi
-dùng được thì phải kèm ba con số đo trước: λ thật, độ trễ đặt đơn, và MDE tính lại.
+**Phán quyết:** phương án đúng nhất về bản chất. Đường nhập đơn đã có (17/09),
+nhưng **chưa dùng làm biến kết quả được**: muốn dùng thì phải kèm ba con số đo
+trước — λ thật, độ trễ đặt đơn, và MDE tính lại.
 
 #### Phương án D (chỉ Shopee) — `get_session_metric`
 
@@ -455,7 +458,7 @@ phản biện hỏi.
 | Website riêng / inbox | **Click qua `/r/{code}`** | ★★★ Đúng thiết kế |
 | YouTube / Facebook + link ngoài | **Click qua `/r/{code}`** | ★★★ |
 | Shopee Live | `orders`/`gmv` sai phân theo khối | ★★ Cần khai báo phương pháp |
-| TikTok Shop | Đơn hàng nhập tay sau phiên | ★ Chưa có đường ghi; cần đo độ trễ đặt đơn |
+| TikTok Shop | Đơn hàng nhập tệp CSV sau phiên | ★ Đường nhập CSV đã có (17/09); cần đo độ trễ đặt đơn |
 | Bất kỳ, khi không có gì khác | Bình luận `chot_don` theo khối | ☆ Thứ cấp, precision dao động 1,3%–67,9% |
 
 ---
@@ -483,7 +486,7 @@ phản biện hỏi.
 | **T−24h** | Chốt danh mục sản phẩm, kiểm tồn kho, nhập vào hệ thống **kèm URL trang sản phẩm thật** | KOL | 20 phút | Không có URL → hệ thống **không tạo link đo** cho sản phẩm đó, và nó nói thẳng điều đó trên màn hình |
 | **T−24h** | **Tạo link đo `/r/{code}` cho từng sản phẩm — BẮT BUỘC có `session_id`** | Kỹ sư | 10 phút | ⚠️ **Cái bẫy số 1.** Link thiếu `session_id` vẫn chuyển hướng bình thường nhưng **cú bấm biến mất khỏi thí nghiệm**. Đã kiểm chứng: 2 cú bấm → phiên chỉ ghi nhận 1 |
 | **T−24h** | Mở thử từng link **từ 4G trên điện thoại** (không phải từ máy đang chạy hệ thống) | Kỹ sư | 5 phút | Phát hiện lỗi tên miền/HTTPS **sau khi lên sóng** là mất cả phiên |
-| **T−2h** | Khởi động bộ thu, xác nhận **heartbeat**: `posted` bám sát `seen`, `failures=0`, `lỗi gần nhất: không có` | Kỹ sư | 15 phút | Token hết hạn / cạn quota phát hiện giữa phiên = mất dữ liệu không lấy lại được |
+| **T−2h** | Bật bộ thu (nút **"Bật bộ thu"** ở bước 4 `/chay-phien`; bật trước giờ phát thì trạng thái là *"Chờ buổi live bắt đầu"*) và xác nhận máy chủ có đủ khoá — dòng trạng thái không ở **✕ Bộ thu dừng vì lỗi**. Đường CLI (`livelift.ingest.runner`) vẫn dùng được: xác nhận **heartbeat** `posted` bám sát `seen`, `failures=0` | Kỹ sư / người vận hành | 15 phút | Token hết hạn / cạn quota phát hiện giữa phiên = mất dữ liệu không lấy lại được |
 | **T−2h** | Bơm 3 bình luận thử có số điện thoại giả → phải ra `[SĐT]` | Kỹ sư | 5 phút | Bộ lọc PII hỏng mà không ai biết = sự cố dữ liệu cá nhân |
 | **T−1h** | **Bốc lịch BẬT/TẮT và lưu. Ghi lại `seed` và `design_hash`** | Trưởng phân tích | 5 phút | Không có lịch thì API **chặn phát sóng** (409). Không ghi seed thì không tái lập được |
 | **T−1h** | **Đọc cảnh báo thiết kế nếu có.** Phiên < 90 phút sẽ có cảnh báo tiếng Việt ngay tại đây | Trưởng phân tích | 2 phút | Phát hiện thiết kế không đủ mạnh **lúc phân tích** thay vì lúc còn sửa được |
@@ -497,12 +500,12 @@ phản biện hỏi.
 | Việc | Ai | Nhịp | Bỏ qua thì hỏng gì |
 |---|---|---|---|
 | Dẫn phiên, **chỉ nhìn màn hình `/host`** | KOL | liên tục | Nhìn bàn điều khiển = biết mình đang ở khối nào = hỏng làm mù |
-| **Bấm thẻ gợi ý trong mỗi khối BẬT** | Người vận hành | **8 lần / phiên 90 phút** | Tuân thủ tụt → ước lượng ITT bị suy giảm. Không có bộ tự động nào làm thay (mục 6, việc 4) |
+| **Bấm thẻ gợi ý trong mỗi khối BẬT** (chế độ Chỉ gợi ý) — hoặc theo dõi khung *Tự lái phía máy chủ* (chế độ Tự ghim) | Người vận hành | **8 lần / phiên 90 phút** | Tuân thủ tụt → ước lượng ITT bị suy giảm. Bộ thực thi tự động có từ 12/09 nhưng tắt được và chỉ an toàn với 1 tiến trình (mục 6, việc 4) — bàn báo động khi phiên auto im lặng |
 | Dán link đo `/r/{code}` vào bình luận ghim khi giới thiệu sản phẩm | Người vận hành | mỗi lần đổi sản phẩm | Không dán = không có click = không có biến kết quả |
 | **Không đọc to trạng thái khối, không đếm ngược chuyển khối** | Người vận hành | liên tục | Hỏng làm mù |
 | Khối TẮT: **làm y như thường lệ**, không bình luận gì về hệ thống | Cả hai | ~một nửa phiên | Nhánh đối chứng bị nhiễm = mất điểm so sánh |
 | Can thiệp tay **chỉ với 3 lý do**: `hết hàng`, `sai giá`, `sự cố kỹ thuật` | Người can thiệp | khi cần | API **từ chối** lý do khác. Can thiệp bừa = hỏng tuân thủ |
-| Theo dõi heartbeat của bộ thu | Kỹ sư | mỗi 60 giây | Bộ thu chết mà không biết = mất bình luận cả đoạn |
+| Theo dõi dòng trạng thái khung *Bộ thu bình luận* trên bàn (● đang thu · ↻ đang thử lại · ✕ dừng vì lỗi; cảnh báo khi 2 phút không có bình luận mới) — hoặc heartbeat nếu chạy CLI | Người vận hành / kỹ sư | liếc thường xuyên | Bộ thu chết mà không biết = mất bình luận cả đoạn |
 | Nếu bộ thu chết: **khởi động lại ngay**, rồi gửi lại phần đệm (`spool_replay`) | Kỹ sư | ngay lập tức | Gửi trùng **an toàn** (có khóa idempotency) — nên cứ chạy lại, đừng ngần ngại |
 
 ### 5.4 SAU PHIÊN
@@ -523,22 +526,30 @@ phản biện hỏi.
 dùng được. Ước lượng công sức là **ước lượng thô của kỹ sư, chưa đo** — ghi ra để xếp
 ưu tiên, không phải để cam kết tiến độ.
 
+*Cập nhật 17/09/2026 — đối chiếu với mã sau đợt kiểm toán (commit `9e343ca`,
+`abbbeb1`), không phải lần chạy thật 11/09. Việc nào đã có ghi **ĐÃ CÓ** kèm phần
+còn thiếu; việc không đổi giữ nguyên chữ cũ.*
+
 | # | Thiếu gì | Hôm nay ra sao | Cần làm gì | Ước lượng |
 |---|---|---|---|---:|
 | **1** | **Đăng nhập + tài khoản + tách dữ liệu theo chủ** | **Không có gì.** Không có trang đăng nhập. Danh mục sản phẩm **dùng chung toàn hệ thống** — đã kiểm chứng: phiên 2 thấy nguyên sản phẩm của phiên 1. Bảo vệ duy nhất là `INGEST_TOKEN` (một token dùng chung cho **mọi** endpoint ghi, cộng ranh giới phiên-demo cho khách không token — `src/livelift/api/auth.py`); vẫn **không** có khái niệm chủ sở hữu | Mô hình người dùng/tổ chức; thêm `owner_id` vào sản phẩm/phiên/link đo + migration; lọc theo chủ ở **mọi** truy vấn; đăng nhập | **2–3 tuần-người**. Chặn cứng việc mở cho nhiều người dùng |
-| **2** | **Kết nối nền tảng bằng vài cú bấm** | Phải dán token vào `.env` **rồi khởi động lại tiến trình**. Shopee còn khó hơn: token sống **4 giờ**, phiên dài phải làm mới giữa chừng | OAuth callback cho Facebook/Shopee; lưu token mã hóa theo tài khoản; tự làm mới; trang "Kết nối tài khoản" | **~2 tuần-người mỗi nền tảng** |
-| **3** | **Bộ thu tự khởi động khi bấm "Lên sóng"** | Là **một lệnh terminal riêng**, cần **video id** của buổi live (người dùng phải tự tìm), một tiến trình cho mỗi phiên, không có giám sát trên giao diện | Ô dán **link buổi live** → tự trích id; trình quản lý tiến trình/hàng đợi; heartbeat và lỗi hiển thị trên màn hình vận hành | **1,5–2 tuần-người** |
-| **4** | **Bộ thực thi tự động (chế độ "auto" thật)** | `mode='auto'` **chỉ là cái nhãn** — không có scheduler, không có worker nào đọc nó. Người vận hành bấm **8 lần/phiên 90 phút** | Worker bám lịch khối, gọi `execute` đầu mỗi khối BẬT, ghi `exposure_event`, có đường hủy an toàn | **~1 tuần-người** |
+| **2** | **Kết nối nền tảng bằng vài cú bấm** | Phải dán token vào `.env` **rồi khởi động lại tiến trình**. Shopee còn khó hơn: token sống **4 giờ**, chưa có đường tự làm mới — phiên dài phải làm mới giữa chừng. Từ 17/09 trang Bắt đầu (`GET /platforms`) nói rõ nền tảng nào sẵn sàng và **còn thiếu biến nào** — chỉ tên biến, không lộ giá trị | OAuth callback cho Facebook/Shopee; lưu token mã hóa theo tài khoản; tự làm mới; trang "Kết nối tài khoản" | **~2 tuần-người mỗi nền tảng** |
+| **3** | **Bộ thu bình luận không cần terminal** | **ĐÃ CÓ (17/09/2026):** bộ thu chạy **nền trong API** (`POST /sessions/{id}/ingest`), bật/tắt bằng nút ở bàn trợ live và bước 4 `/chay-phien`; dán **link** YouTube (tự trích id), Facebook để trống thì tự tìm buổi đang phát trên Page; tự chờ buổi live bắt đầu, tự thử lại khi lỗi tạm thời, tự dừng khi phiên kết thúc, tự nối lại khi API khởi động lại; trạng thái và lý do lỗi hiện trên màn hình vận hành; có nguồn **mô phỏng** (dữ liệu tổng hợp) chỉ cho phiên chạy thử/phiên mẫu. **Còn thiếu:** không tự bật khi bấm "Bắt đầu phát sóng" (phải bấm riêng); Shopee vẫn phải dán `session_id`; web không gửi token nên bản đặt `INGEST_TOKEN` không bật được từ trình duyệt; chỉ an toàn với **1 tiến trình** API; khoá nền tảng trong `.env` của nhóm còn rỗng nên đường có khoá **chưa chạy thật** | Tự bật bộ thu khi lên sóng; phát hiện live bắt đầu từ phía nền tảng (webhook `live_videos` của Facebook, `videos.list` của YouTube); cho web gửi token ghi theo phiên đăng nhập (phụ thuộc việc 1); khoá tư vấn Postgres để chạy nhiều worker | **chưa ước lượng lại** |
+| **4** | **Bộ thực thi tự động (chế độ "auto" thật)** | **ĐÃ CÓ (12/09/2026):** worker phía máy chủ (`api/autopilot.py`) bám lịch khối, ghim đầu khối BẬT qua đúng đường `execute`, báo động khi phiên auto im lặng quá 5 phút. **Còn thiếu:** tắt được bằng `LIVELIFT_AUTOPILOT=0`; chỉ an toàn với **1 tiến trình** API; không ghim hộ trên nền tảng (4b) | Khoá tư vấn Postgres để chạy nhiều worker; nối `update_show_item` của Shopee nếu muốn ghim thật trên Shopee | **chưa ước lượng lại** |
 | **4b** | ⚠️ **Giới hạn KHÔNG phần mềm nào vượt được** | **LiveLift không ghim hộ trên nền tảng.** Nó nói *"ghim cái này bây giờ"*; việc bấm ghim trên app TikTok/Facebook/YouTube vẫn là **thao tác tay của con người**. Không có API nào cho phép điều khiển việc ghim sản phẩm trong live của bên thứ ba | Không làm gì được. **Phải nói thẳng với KOL ngay từ đầu** | — |
 | **5** | **Chế độ "KOL solo"** | Giao thức làm mù cần **hai người**. KOL tự dẫn + tự bấm sẽ nhìn thấy bàn điều khiển → **biết mình đang ở khối nào** → hỏng làm mù | Phụ thuộc việc 4: máy tự quyết, KOL **chỉ** nhìn `/host` (màn hình đó đã được thiết kế đúng — chỉ 4 trường, không rò khối) | gộp vào việc 4 |
-| **6** | **Đường ghi đơn hàng** | Bảng `order_event` + `Store.add_order` **tồn tại nhưng không ai gọi**. Năng lực "đối soát doanh thu" vĩnh viễn = THIẾU | Endpoint ghi đơn + nhập CSV từ báo cáo nền tảng + gán khối theo dấu thời gian + màn hình đối soát | **3–5 ngày-người** cho đường nhập CSV |
+| **6** | **Đường ghi đơn hàng** | **ĐÃ CÓ (17/09/2026):** `POST /sessions/{id}/orders` (một đơn) và `POST /sessions/{id}/orders/import` (nội dung CSV, tối đa 2 MB / 5.000 dòng), chống trùng theo mã đơn, gán khối theo thời điểm đặt đơn, không đọc cột người mua; trang báo cáo phiên có ô chọn tệp/dán CSV và hiện tổng đơn, doanh thu, lỗi theo dòng. **Còn thiếu:** không nền tảng nào tự đẩy đơn vào (phải xuất tệp từ Seller Center rồi nhập tay); không có mã đơn thì nhập lại sẽ tính trùng; chưa có tệp đơn thật nào được nhập, nên "đối soát doanh thu" vẫn THIẾU trên mọi phiên thật; chưa có màn hình đối soát riêng theo khối | Nhập đơn qua API nền tảng khi có (Shopee `get_session_metric`, TikTok Shop số liệu sau phiên); màn hình đối soát theo khối | **chưa ước lượng lại** |
 | **7** | **Triển khai trên mạng thay vì máy cá nhân** | `docker-compose` + Caddy **đã sẵn sàng** (`DOMAIN` → HTTPS tự động). Thiếu: VPS thật, DNS, sao lưu ngoài máy | Thuê VPS, trỏ DNS, chạy, kiểm link đo từ 4G | **~1 ngày** + chi phí VPS. **Rẻ nhất, và nó đang chặn toàn bộ việc đo click** |
-| **8** | **Hướng dẫn trong sản phẩm** | `/chay-phien` đã làm được sản phẩm → phiên → lịch → lên sóng, **không cần terminal**. Thiếu: ô dán link live, hướng dẫn dán link đo vào đâu, nút "kiểm tra link của bạn từ mạng ngoài", cảnh báo nổi bật khi phiên < 90 phút | Bổ sung vào chính trang đó | **3–5 ngày-người** |
+| **8** | **Hướng dẫn trong sản phẩm** | `/chay-phien` đã làm được sản phẩm → phiên → lịch → lên sóng, **không cần terminal**. **Đã có:** ô dán link live (khung bộ thu ở bước 4), checklist link đo *"chép rồi dán vào bình luận ghim"* kèm cảnh báo khi link trỏ về máy này, cảnh báo ngay lúc chọn phiên < 90 phút. **Còn thiếu:** nút "kiểm tra link của bạn từ mạng ngoài"; ô đánh dấu phiên **chạy thử** (`dry_run`) — hiện chỉ tạo được qua API | Bổ sung vào chính trang đó | **chưa ước lượng lại** |
 | **9** | **Gộp nhiều nền tảng trong một buổi phát** | Không có khái niệm "buổi phát" trên "phiên"; hai lịch bốc thăm sẽ xung đột | Tầng "buổi phát" + một lịch dùng chung + nhiều nguồn tín hiệu | **chưa thiết kế** — cần quyết định phương pháp trước khi ước lượng |
 
 **Đường ngắn nhất để có một KOL thật dùng được, theo đúng thứ tự:**
-**7 → 2 → 3 → 1 → 4 → 6.** Việc 7 (dựng trên mạng) rẻ nhất và đang chặn nhiều nhất;
-việc 1 (tài khoản) là cái chặn *cuối cùng* trước khi mời được người ngoài nhóm.
+**7 → 2 → 1.** Việc 7 (dựng trên mạng) rẻ nhất và đang chặn nhiều nhất; việc 1 (tài
+khoản) là cái chặn *cuối cùng* trước khi mời được người ngoài nhóm. Việc 3, 4, 6 đã
+có phần lõi (12/09 và 17/09). Lưu ý một chỗ vướng giữa việc 7 và việc 3: máy chủ
+công khai **phải** đặt `INGEST_TOKEN` (5.1, việc 5), mà web chưa gửi token — nên
+trên máy chủ đó nút *Bật bộ thu* bị từ chối và kỹ sư vẫn phải chạy bộ thu bằng CLI
+(runner tự đính token) cho tới khi có việc 1.
 
 ---
 

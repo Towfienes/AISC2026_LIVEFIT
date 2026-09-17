@@ -58,8 +58,9 @@ Ba đặc tính của API này định hình toàn bộ thiết kế dưới đ�
    ``HTTPStatusError`` và token sẽ lọt vào traceback/log.
    Riêng log của ``httpx``: ở mức INFO nó tự in dòng ``HTTP Request: GET <URL>``
    với URL đầy đủ; runner CLI bật INFO nên token từng lọt thẳng ra màn hình
-   (đo 17/09/2026). :class:`_GiauBiMatShopeeTrongLog` che ``access_token``/
-   ``refresh_token``/``sign`` trong các dòng đó trước khi ra bất kỳ handler nào.
+   (đo 17/09/2026). Bộ lọc log chung ở :mod:`livelift.ingest.base` che
+   ``access_token``/``refresh_token``/``sign`` (và ``key=`` của YouTube) trong
+   các dòng đó trước khi ra bất kỳ handler nào.
 3. **Có tín hiệu chuyển đổi thật.** ``get_session_metric`` trả ``gmv``,
    ``orders``, ``atc``, ``ctr``, ``ccu``, ``peak_ccu`` — thứ mà YouTube và
    TikTok **không** có. Đây là lý do Shopee đáng đầu tư: nó là nền tảng duy
@@ -79,7 +80,6 @@ import asyncio
 import hashlib
 import hmac
 import logging
-import re
 import time
 from collections import deque
 from collections.abc import AsyncIterator, Iterable, Mapping
@@ -90,44 +90,13 @@ from urllib.parse import urlsplit
 import httpx
 
 from livelift.config import get_settings
+
+# Nhập base cũng là cài bộ lọc che bí mật trong log httpx (access_token/sign
+# của Shopee, key= của YouTube) — kiểm toán 17/09/2026 chuyển nó từ tệp này
+# sang base.py để phủ MỌI nền tảng.
 from livelift.ingest.base import Backoff, RawComment, RawTick
 
 logger = logging.getLogger(__name__)
-
-#: Tham số bí mật mà lược đồ ký của Shopee ép nằm trong query string.
-_BI_MAT_TRONG_QUERY = re.compile(r"(?i)\b(access_token|refresh_token|sign)=[^&\s\"'<>]*")
-
-
-class _GiauBiMatShopeeTrongLog(logging.Filter):
-    """Che ``access_token``/``refresh_token``/``sign`` trong log của ``httpx``.
-
-    ``httpx`` ghi ``HTTP Request: GET <URL đầy đủ>`` ở mức INFO. Với Shopee, URL
-    đó chứa token (bắt buộc theo lược đồ ký), và runner CLI chạy ở mức INFO — nên
-    trước bộ lọc này token của shop hiện nguyên văn trong terminal và trong mọi
-    log bị dán vào nhật ký sự cố. Bộ lọc gắn vào logger ``httpx`` nên chạy TRƯỚC
-    mọi handler; không bao giờ chặn bản ghi, chỉ sửa chữ.
-    """
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        try:
-            message = record.getMessage()
-        except Exception:  # noqa: BLE001 — bản ghi hỏng: để logging tự báo
-            return True
-        redacted = _BI_MAT_TRONG_QUERY.sub(r"\1=***", message)
-        if redacted != message:
-            record.msg = redacted
-            record.args = None
-        return True
-
-
-def _cai_bo_loc_log_httpx() -> None:
-    """Gắn :class:`_GiauBiMatShopeeTrongLog` vào logger ``httpx`` (một lần)."""
-    httpx_logger = logging.getLogger("httpx")
-    if not any(type(f).__name__ == _GiauBiMatShopeeTrongLog.__name__ for f in httpx_logger.filters):
-        httpx_logger.addFilter(_GiauBiMatShopeeTrongLog())
-
-
-_cai_bo_loc_log_httpx()
 
 #: Cổng API theo vùng (src/schemas/region.ts của SDK Shopee, tra 11/09/2026).
 #: Việt Nam dùng cổng GLOBAL — Shopee **không** có host riêng cho .vn.
@@ -727,7 +696,9 @@ class ShopeeLiveClient:
         while True:
             offset = 0
             batch: list[RawComment] = []
-            failed = False
+            loi_tam_thoi: ShopeeApiError | None = None
+            loi_dung: ShopeeApiError | None = None
+            da_ket_thuc = False
             for _page in range(MAX_PAGES_PER_POLL):
                 try:
                     data = await self._get(
@@ -736,15 +707,17 @@ class ShopeeLiveClient:
                 except ShopeeNotLiveError as exc:
                     if await self._session_has_ended(session_id):
                         logger.info("phiên Shopee Live đã kết thúc (status=2) — dừng thu bình luận")
-                        return
-                    self.last_error = str(exc)
-                    raise
+                        da_ket_thuc = True
+                    else:
+                        self.last_error = str(exc)
+                        loi_dung = exc
+                    break
                 except (ShopeeRegionError, ShopeeSessionError) as exc:
                     self.last_error = str(exc)
-                    raise
+                    loi_dung = exc
+                    break
                 except ShopeeApiError as exc:
-                    await self._handle_poll_error("poll bình luận", exc, backoff)
-                    failed = True
+                    loi_tam_thoi = exc
                     break
                 items = data.get("list") or []
                 batch.extend(self._new_comments(items, seen, seen_set))
@@ -758,12 +731,25 @@ class ShopeeLiveClient:
                     "quá đông; dữ liệu vẫn đủ nhưng hãy ghi nhận vào nhật ký phiên.",
                     MAX_PAGES_PER_POLL,
                 )
-            if failed:
-                continue
-            self.last_error = None
-            backoff.reset()
+            if loi_tam_thoi is None and loi_dung is None:
+                self.last_error = None
+                backoff.reset()
+
+            # Trả những gì ĐÃ đọc được kể cả khi một trang sau hỏng (kiểm toán
+            # 17/09/2026). ``_new_comments`` đã đưa các id này vào seen-set, nên
+            # bỏ batch ở đây là mất chúng vĩnh viễn: lần poll lại đọc đúng cửa
+            # sổ 10 giây đó và coi mọi bình luận trên trang đầu là "đã thấy" —
+            # cùng loại lỗi đã sửa cho Facebook.
             for comment in sorted(batch, key=lambda c: c.ts_utc):
                 yield comment
+
+            if da_ket_thuc:
+                return
+            if loi_dung is not None:
+                raise loi_dung
+            if loi_tam_thoi is not None:
+                await self._handle_poll_error("poll bình luận", loi_tam_thoi, backoff)
+                continue
             await asyncio.sleep(poll_s)
 
     # -- viewers -----------------------------------------------------------

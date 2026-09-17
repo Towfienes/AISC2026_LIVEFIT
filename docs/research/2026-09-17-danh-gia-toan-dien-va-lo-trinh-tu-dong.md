@@ -58,8 +58,8 @@ Quy ước trạng thái: **ĐÃ SỬA** (có commit + test) · **MỘT PHẦN**
 | Shopee Live ký bằng `shop_id`, và ký trên **phần đuôi** của đường dẫn | Theo tài liệu gốc (API loại "User", ký bằng `user_id` trên đường dẫn đầy đủ) sẽ bị từ chối khi chạy thật; test cũ khoá chặt cách ký sai | **ĐÃ SỬA** — vector ký tính độc lập bằng `openssl`; **chưa có cuộc gọi thật** |
 | Lệnh bộ thu Shopee chạy trước giờ phát chết với traceback | Người vận hành không biết phải làm gì | **ĐÃ SỬA** |
 | Bình luận đi qua bộ thu luôn có `pii_kinds` rỗng (lọc tại nguồn rồi máy chủ lọc lại chữ đã sạch) | Mất thông tin "loại dữ liệu cá nhân đã che" dùng cho báo cáo tuân thủ | **ĐÃ SỬA** |
-| Ô "Lượt bấm" báo "không có link đo" khi đã tạo link mà chưa ai bấm (giới hạn #8 của HDSD) | Người vận hành tưởng link chưa được tạo | ⏳ đang sửa trong đợt này |
-| Facebook đọc bình luận với bộ lọc mặc định `filter_low_quality` | Bình luận "chất lượng thấp" bị Facebook **âm thầm** lọc khỏi dữ liệu | ⏳ đang kiểm và sửa |
+| Ô "Lượt bấm" báo "không có link đo" khi đã tạo link mà chưa ai bấm (giới hạn #8 của HDSD) | Người vận hành tưởng link chưa được tạo | **ĐÃ SỬA** (`abbbeb1`) — `test_links_but_no_clicks_is_degraded_not_missing_and_never_ok`, `test_zero_links_is_missing_with_the_create_link_wording` |
+| Facebook đọc bình luận với bộ lọc mặc định `filter_low_quality` | Bình luận "chất lượng thấp" bị Facebook **âm thầm** lọc khỏi dữ liệu | **ĐÃ SỬA** (`abbbeb1`) — gửi `live_filter=no_filter` + `order=chronological`; `test_every_real_poll_request_carries_no_filter_and_chronological`; **chưa có cuộc gọi thật** |
 
 ### 2.3 Dữ liệu, NLP và khoa học
 
@@ -78,18 +78,24 @@ Quy ước trạng thái: **ĐÃ SỬA** (có commit + test) · **MỘT PHẦN**
 đọc được trong một cái liếc; cảnh báo sắp đổi khối không nhấp nháy; trạng thái rỗng của Bàn trợ live có
 hướng dẫn; màn người dẫn ở 1366 đẹp và tối giản.
 
+Cột *Lỗi* và *Mức* là ảnh chụp lúc đánh giá (trước commit `abbbeb1`). Cột *Trạng thái* cập nhật 17/09/2026
+sau `abbbeb1`, theo quy ước ở đầu mục 2, kèm tên test hồi quy. Các test này phần lớn đọc mã nguồn web
+(lớp CSS, nhánh hiển thị), một số chạy hàm thuần của web với API thật. Bố cục màn người dẫn trên điện thoại, nút thẻ #1
+ở 1366×768 và thanh điều hướng di động **đã được đo lại trên trình duyệt thật** ở vòng kiểm chứng cuối
+(mục 2.6).
+
 | Lỗi | Mức | Trạng thái |
 |---|---|---|
-| Phát lại phiên mẫu hiện băng "PHÁT LẠI DỮ LIỆU THẬT" | P0 uy tín | ⏳ |
-| Bấm thẻ A nhưng máy chủ bốc thăm ghim sản phẩm B, bàn không giải thích | P0 | ⏳ |
-| Màn người dẫn vỡ bố cục trên điện thoại (chữ chồng, giá đè chân trang) | P0 | ⏳ |
-| Màn người dẫn mở trước khi phát sóng bị khoá vào phiên khác | P0 | ⏳ |
-| Bàn trợ live ở 1366×768: nút hành động của thẻ #1 nằm dưới mép màn hình | P1 | ⏳ |
-| Bấm trong khối TẮT báo "kiểm tra kết nối API" thay vì lý do thật (giới hạn #6) | P1 | ⏳ |
-| `/replay?session=` mở nhầm buổi (giới hạn #5); hai khung dưới luôn rỗng | P1 | ⏳ |
-| Kết thúc phiên sớm, đồng hồ vẫn ghi "BẬT — chuyển khối sau…" | P1 | ⏳ |
-| Wizard bước 3 là tường chữ thuật ngữ và tự mâu thuẫn độ dài khối | P1 | ⏳ |
-| Thanh điều hướng trên điện thoại cắt chữ, đẩy chip chế độ ra ngoài; favicon 404 | P2 | ⏳ |
+| Phát lại phiên mẫu hiện băng "PHÁT LẠI DỮ LIỆU THẬT" | P0 uy tín | **ĐÃ SỬA** — nhãn theo `is_demo` của máy chủ; `test_d1_phien_demo_tu_may_chu_duoc_ghi_du_lieu_mau`, `test_d1_dang_tai_thi_khong_khang_dinh_du_lieu_that` |
+| Bấm thẻ A nhưng máy chủ bốc thăm ghim sản phẩm B, bàn không giải thích | P0 | **ĐÃ SỬA** — bàn nói rõ sản phẩm máy chủ đã bốc; `test_c3_boc_tham_that_cua_may_chu_duoc_noi_ro`, `test_c3_khong_boc_tham_thi_im_lang_khac_the_thi_noi` |
+| Màn người dẫn vỡ bố cục trên điện thoại (chữ chồng, giá đè chân trang) | P0 | **ĐÃ SỬA** (test đọc mã, chưa chụp lại ảnh 390×844) — `test_d6_host_khong_con_khung_co_dinh_mot_man`, `test_d6_ten_hang_nho_o_man_hep_va_len_bac_hien_thi_o_man_rong` |
+| Màn người dẫn mở trước khi phát sóng bị khoá vào phiên khác | P0 | **ĐÃ SỬA** — đọc `?session=`, không có thì chọn lại phiên đang phát mỗi lần poll; màn vẫn bị làm mù; `test_d7_ma_trong_link_uu_tien_tuyet_doi`, `test_d7_chon_lai_phien_moi_lan_poll_khong_phai_mot_lan_luc_tai`, `test_d7_man_host_van_bi_lam_mu` |
+| Bàn trợ live ở 1366×768: nút hành động của thẻ #1 nằm dưới mép màn hình | P1 | **ĐÃ SỬA** (test đọc mã, chưa chụp lại ảnh 1366×768) — `test_c5_dau_trang_gon_khi_dang_phat`, `test_c5_the_lich_cao_vua_noi_dung_va_hero_hai_cot` |
+| Bấm trong khối TẮT báo "kiểm tra kết nối API" thay vì lý do thật (giới hạn #6) | P1 | **ĐÃ SỬA** — hiện nguyên câu máy chủ, khoá nút theo lịch; `test_c1_409_khoi_tat_hien_nguyen_cau_may_chu`, `test_c1_chi_loi_mang_that_moi_noi_kiem_tra_ket_noi`, `test_c2_khoa_nut_theo_lich_that` |
+| `/replay?session=` mở nhầm buổi (giới hạn #5); hai khung dưới luôn rỗng | P1 | **ĐÃ SỬA** — `test_d2_hook_uu_tien_ma_trong_link_va_mac_dinh_la_buoi_moi_nhat`, `test_d3_the_xep_lai_khong_bia_so`, `test_d3_cau_rong_noi_dung_ly_do_khong_day_nguoi_dung_di_tim` |
+| Kết thúc phiên sớm, đồng hồ vẫn ghi "BẬT — chuyển khối sau…" | P1 | **ĐÃ SỬA** — hiện "ĐÃ KẾT THÚC" + nút xem báo cáo; `test_c4_hero_da_ket_thuc_thang_moi_trang_thai_khoi`, `test_c4_trang_thai_phien_theo_ca_poll_khong_chi_websocket` |
+| Wizard bước 3 là tường chữ thuật ngữ và tự mâu thuẫn độ dài khối | P1 | **ĐÃ SỬA** — một câu tóm tắt khớp lịch thật, chi tiết kỹ thuật gập lại; `test_h3_buoc_3_mot_cau_tom_tat_va_khuyen_nghi_doi_thoi_luong`, `test_h3_tom_tat_khop_lich_that_30_phut`, `test_h3_chi_tiet_ky_thuat_nam_sau_details` |
+| Thanh điều hướng trên điện thoại cắt chữ, đẩy chip chế độ ra ngoài; favicon 404 | P2 | **ĐÃ SỬA** (test đọc mã, chưa chụp lại ảnh 390×844) — `test_e2_topnav_khong_con_la_dai_cuon_ngang`, `test_e2_chip_che_do_luon_thay_tren_moi_do_rong`, `test_e1_app_co_bieu_tuong_svg_mau_brand_tren_nen_toi` |
 
 ### 2.5 Vận hành và hồ sơ
 
@@ -97,6 +103,43 @@ hướng dẫn; màn người dẫn ở 1366 đẹp và tối giản.
   bằng chứng.
 - Toàn bộ commit mang một tác giả "LiveLift Team": thể lệ chấm lịch sử commit thật.
 - Transcript Claude Code tự xoá sau 30 ngày, cần đặt `cleanupPeriodDays` để giữ Prompt Log.
+
+
+### 2.6 Vòng kiểm chứng cuối — trình duyệt thật và phản biện hai phiếu
+
+Sau khi sửa các lỗi ở mục 2.2 và 2.4, sản phẩm đi qua một vòng kiểm chứng độc lập gồm hai phần.
+
+**Kiểm thử đầu-cuối trên bản build production** (`next build` + `next start`, Chromium thật, đo bằng
+toạ độ phần tử chứ không chỉ nhìn ảnh):
+
+| Luồng | Kết quả | Bằng chứng đo được |
+|---|---|---|
+| Nút hành động thẻ #1 ở 1366×768 | Đạt | Nút nằm ở y = 597–635 px, trong khung 768 px đầu, không cần cuộn |
+| Bộ thu nguồn Mô phỏng trên phiên chạy thử | Đạt | Bình luận đầu tiên lên bàn sau 1,1 giây; bộ đếm 1 → 20 trong 16 giây; SĐT giả hiện `[SĐT]` |
+| Chặn Mô phỏng trên phiên thật | Đạt | Không có tuỳ chọn trên giao diện; gọi thẳng API nhận 422 |
+| Ghim trong khối BẬT, máy chủ bốc thăm | Đạt | Bàn ghi rõ "bốc thăm công bằng giữa 2 sản phẩm…, thẻ bạn bấm là …" |
+| Khối TẮT | Đạt | Không còn nút Thực hiện; API 409; bàn không nói "kiểm tra kết nối" |
+| Màn người dẫn 390×844 và 1366×768 | Đạt | Tên hàng, giá, tồn kho, đồng hồ không chồng nhau, đều trong khung; hiện hàng vừa ghim sau 0,37 giây |
+| Làm mù màn người dẫn ở tầng mạng | Đạt | 114 phản hồi API không chứa `assignment`, `design_hash`, `block_index`, `propensity` |
+| Kết thúc phiên, báo cáo, nhập CSV | Đạt | Nhập mới 2 · Lỗi 1 (đúng dòng ngày sai) · doanh thu 375.000 ₫; nhập lại ra Trùng 2 |
+| Trang Bắt đầu, Kết quả, báo cáo mã sai | Đạt | Bảng nền tảng đúng; "KHÔNG CÓ PHIÊN NÀY" |
+| Nút "Bắt đầu xem thử" khi mất API | **Trượt → ĐÃ SỬA** | Mở phiên mô phỏng phía trình duyệt nhưng ghi "DỮ LIỆU THẬT" |
+| Ô "Bình luận / phút" khi bộ thu đang chạy | **Trượt → ĐÃ SỬA** | Luôn 0 dù bình luận đang về (tick không mang nhịp bình luận) |
+
+**Phản biện theo bốn góc** (bảo mật và riêng tư, đúng đắn backend, logic web, hai gói chưa phản biện).
+Mỗi phát hiện phải được **hai** người hoài nghi độc lập cùng xác nhận mới được giữ. Kết quả: **35 lỗi xác
+nhận** (6 P1, 29 P2), gồm cả 7 lỗi quan sát trực tiếp trên trình duyệt và 7 lỗi tài liệu. **Cả 35 đã
+được xử lý**, mỗi lỗi có test hồi quy; các lỗi đáng chú ý nhất:
+
+| Lỗi | Hậu quả nếu không sửa |
+|---|---|
+| Nhấp đúp nút "Kết thúc phiên" vượt qua bước xác nhận (P1) | Kết thúc buổi live ngoài ý muốn, không hoàn tác được; đo được 36/36 lần trên Chrome |
+| Facebook tự tìm buổi live chỉ dò một lần (P1) | Host phát lại là mất toàn bộ bình luận mà màn hình vẫn ghi "Đang thu" |
+| Bình luận Mô phỏng do AI soạn lọt vào lô xuất gán nhãn NLP (P1) | Dữ liệu tổng hợp trộn vào tập huấn luyện, mất dấu nguồn gốc |
+| Bộ thu nền vứt bình luận khi kho chập chờn | Mất dữ liệu âm thầm; nay giữ hàng đợi và ghi lại theo đúng thứ tự |
+| Nhập CSV nhận đơn ngoài khung giờ phiên; khách vãng lai bơm 5.000 dòng mỗi lượt | Doanh thu gán sai phiên; ngập kho trên bản trưng bày |
+| Log của bộ thu in nguyên `YOUTUBE_API_KEY` | Lộ khoá trong nhật ký |
+| Màn người dẫn không tham số tự nhảy sang phiên mới hơn giữa buổi | Người dẫn đọc giá của hàng mẫu giữa buổi live thật |
 
 ---
 

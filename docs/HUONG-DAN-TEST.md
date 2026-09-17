@@ -236,6 +236,9 @@ nhập YouTube), rồi `docker compose up -d`. Cookie chỉ được đọc cụ
 
 ## 5. Bảng khả năng hiện tại — trung thực
 
+*Mục này cập nhật 17/09/2026, đối chiếu mã nguồn sau đợt kiểm toán 17/09. Phần
+còn lại của tài liệu giữ nguyên bản 27/08.*
+
 ### Dùng được ngay trên giao diện
 - Xem thử bằng dữ liệu mô phỏng (1 cú bấm)
 - Bàn điều khiển 3 vùng, dải khối BẬT/TẮT, thẻ hành động
@@ -245,6 +248,19 @@ nhập YouTube), rồi `docker compose up -d`. Cookie chỉ được đọc cụ
 
 - **Chạy trọn một phiên thí nghiệm** (`/chay-phien`): tạo sản phẩm → tạo phiên →
   bốc lịch gán → phát sóng → kết thúc, kèm link đo lượt nhấp tự sinh
+- **Bật bộ thu bình luận** bằng nút **"Bật bộ thu"** ở Bàn trợ live và bước 4 của
+  Chuẩn bị phiên (`POST /sessions/{id}/ingest`). Chưa có khoá nền tảng nào thì chọn
+  nguồn **Mô phỏng** trên phiên chạy thử (`docs/HUONG-DAN-SU-DUNG.md` mục 10 và 12)
+- **Nhập đơn hàng / doanh thu từ tệp CSV** xuất ở Seller Center: trang **Báo cáo
+  phiên**, mục **"Đơn hàng của phiên"** → nút **"Nhập đơn"**
+  (`POST /sessions/{id}/orders/import`, chống trùng theo mã đơn; ghi từng đơn qua
+  `POST /sessions/{id}/orders`) — `docs/HUONG-DAN-SU-DUNG.md` mục 11
+
+> Máy chủ đặt `INGEST_TOKEN` (bản công khai) thì web chưa gửi được token: nút
+> **"Bật bộ thu"** luôn bị từ chối (401 *"Thiếu hoặc sai token ingest…"*), bộ thu
+> phải chạy bằng `python -m livelift.ingest.runner` (tự đính token từ `.env`); nút
+> **"Nhập đơn"** bị từ chối với phiên thật, chỉ nhập được vào phiên dữ liệu mẫu khi
+> chế độ trưng bày công khai bật (`docs/HUONG-DAN-SU-DUNG.md` giới hạn #10 và #11).
 
 ### Chỉ dùng được bằng lệnh (chưa có nút)
 - Chấm chất lượng dữ liệu (`livelift-qc`) — chạy sau mỗi phiên
@@ -255,7 +271,8 @@ nhập YouTube), rồi `docker compose up -d`. Cookie chỉ được đọc cụ
 > dùng hằng ngày — để ở CLI là hợp lý.
 
 ### Chưa có
-- Nhập đơn hàng / doanh thu (bảng `order_event` tồn tại nhưng không có API ghi)
+- Đơn hàng **tự về** từ nền tảng (hiện chỉ nhập tay bằng tệp CSV — xem mục trên)
+  và màn đối soát doanh thu theo từng khối BẬT/TẮT
 - Mô hình dự báo người xem (Model A — theo kế hoạch tuần 3–4, cần dữ liệu phiên thật)
 - Phân loại ý định bằng ViSoBERT (đang dùng baseline từ khóa; cần 2–3k bình luận thật)
 

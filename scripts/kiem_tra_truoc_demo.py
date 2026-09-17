@@ -314,7 +314,21 @@ def thu_che_do_du_lieu(s: Soat, doc: dict) -> None:
         return
 
     tong = (so_demo or 0) + (so_that or 0)
-    if tong == 0:
+    if che_do == "unknown" or doc.get("mode_counts") is None:
+        # Kho không trả lời nên /health KHÔNG đếm được phiên (mode_counts=null).
+        # Số 0 ở đây là "không biết", không phải "kho trống": báo trống rồi
+        # khuyên nạp demo là chỉ sai bệnh, và nạp vào một kho đang chết cũng
+        # không làm được. Lỗi kho thật đã có dòng "Kho đang trả lời" báo TRƯỢT.
+        s.them(
+            "Trang có dữ liệu để xem",
+            KHONG_DO,
+            f"mode={che_do!r}, chưa đếm được phiên — kho dữ liệu không trả lời, "
+            "không kết luận được kho trống hay có dữ liệu",
+            chan=False,
+            cach_sua="Sửa kho trước (xem dòng 'Kho đang trả lời' và storage_warning của "
+            "/health), rồi chạy lại phép soát. Đừng nạp demo khi chưa biết kho có gì.",
+        )
+    elif tong == 0:
         s.them(
             "Trang có dữ liệu để xem",
             TRUOT,
@@ -334,15 +348,20 @@ def thu_che_do_du_lieu(s: Soat, doc: dict) -> None:
         s.them(
             "Nhãn DEMO/THẬT",
             DAT,
-            "mode=demo — giao diện sẽ hiện huy hiệu vàng 'DEMO' ở mọi trang",
+            "mode=demo — chip thanh điều hướng hiện 'KHO: DỮ LIỆU MẪU'",
         )
     elif che_do == "real":
-        s.them("Nhãn DEMO/THẬT", DAT, "mode=real — giao diện hiện 'PHIÊN THẬT'")
+        s.them(
+            "Nhãn DEMO/THẬT",
+            DAT,
+            "mode=real — chip thanh điều hướng hiện 'KHO: DỮ LIỆU THẬT' "
+            "(kho chưa có phiên nào thì 'KHO TRỐNG')",
+        )
     elif che_do == "mixed":
         s.them(
             "Nhãn DEMO/THẬT",
             DAT,
-            "mode=mixed — giao diện hiện 'THẬT + DEMO', từng phiên có nhãn riêng",
+            "mode=mixed — chip thanh điều hướng hiện 'KHO: THẬT + MẪU', từng phiên có nhãn riêng",
         )
     else:
         s.them(
@@ -350,7 +369,8 @@ def thu_che_do_du_lieu(s: Soat, doc: dict) -> None:
             CANH_BAO,
             f"mode={che_do!r} — không xác định được chế độ",
             chan=False,
-            cach_sua="ModeChip rơi về nhãn DEMO khi không chắc (an toàn), nhưng nên tìm "
+            cach_sua="mode='unknown' (kho không trả lời) thì chip hiện 'KHO: CHƯA ĐẾM ĐƯỢC'; "
+            "giá trị lạ khác thì ModeChip giữ nhãn an toàn 'KHO: DỮ LIỆU MẪU'. Nên tìm "
             "nguyên nhân trước buổi chấm.",
         )
 

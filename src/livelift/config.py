@@ -93,6 +93,9 @@ class Settings(BaseSettings):
     # /demo/seed và /demo/seed-vang sinh hàng nghìn bản ghi mỗi lần gọi nên
     # có trần riêng, tính theo giờ.
     demo_seed_rate_limit_per_hour: int = 6
+    # POST /sessions/{id}/orders/import: một lượt ghi tới hàng trăm đơn, nên
+    # cũng có trần riêng theo giờ (kiểm toán 17/09/2026). Đặt 0 để tắt.
+    order_import_rate_limit_per_hour: int = 12
 
     # --- Địa chỉ thật của người gọi sau proxy (kiểm toán 17/09/2026) --------
     # Chỉ tin X-Forwarded-For khi kết nối TRỰC TIẾP đến từ một proxy trong danh

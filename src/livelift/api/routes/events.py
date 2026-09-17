@@ -36,9 +36,11 @@ tạm thời và giữ bản ghi lại, còn 4xx-payload thì vứt đi.
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterator
+from bisect import bisect_left
+from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
-from datetime import timedelta
+from datetime import datetime, timedelta
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
@@ -258,6 +260,56 @@ def _valid_clicks_by_bucket(session: dict, clicks: list[dict]) -> dict:
     return counts
 
 
+def nhip_binh_luan_theo_moc(
+    buckets: Iterable[datetime], comments: list[dict[str, Any]], now: datetime
+) -> dict[datetime, float]:
+    """Bình luận/phút của từng mốc 30 giây, ĐẾM từ bảng bình luận.
+
+    Kiểm toán 17/09/2026: mọi client live (YouTube, Facebook, Shopee, mô phỏng)
+    chỉ gửi số người xem trong tick, nên ``comment_rate`` của phiên live luôn là
+    giá trị mặc định 0.0. Ô "Bình luận / phút" của Bàn trợ live in số 0 cạnh một
+    feed đầy bình luận, biểu đồ nhịp vẽ đường phẳng, và báo cáo kết luận "nhịp
+    chat tương đối đều" từ chuỗi toàn 0 — số bịa. Cũng như lượt bấm
+    (:func:`_valid_clicks_by_bucket`), nguồn sự thật là bảng sự kiện.
+
+    Cửa sổ đo luôn dài đúng 30 giây và KẾT THÚC ở cuối mốc — hoặc ở ``now`` nếu
+    mốc chưa trôi hết (mốc đang chạy dở). Nhờ vậy điểm mới nhất là "30 giây gần
+    nhất" thật, không phải nửa mốc bị nhân đôi thành nửa nhịp.
+    """
+    moc = TICK_S
+    thoi_diem = sorted(c["ts"] for c in comments if c.get("ts") is not None)
+    ket: dict[datetime, float] = {}
+    for b in buckets:
+        cuoi = b + timedelta(seconds=moc)
+        if b <= now < cuoi:
+            cuoi = now
+        dau = cuoi - timedelta(seconds=moc)
+        so = bisect_left(thoi_diem, cuoi) - bisect_left(thoi_diem, dau)
+        ket[b] = so * 60.0 / moc
+    return ket
+
+
+def gan_nhip_binh_luan(
+    ticks: list[dict[str, Any]], comments: list[dict[str, Any]], now: datetime | None = None
+) -> list[dict[str, Any]]:
+    """Bản sao của ``ticks`` với ``comment_rate`` đo từ bảng bình luận.
+
+    Giá trị đã lưu > 0 được GIỮ nguyên: máy sinh demo và đường nhập replay tự
+    điền nhịp (và phải cho ra đúng những con số đã công bố); chỉ chỗ 0 mặc định
+    của tick live mới được thay bằng số đếm.
+    """
+    if not ticks:
+        return []
+    nhip = nhip_binh_luan_theo_moc(
+        [t["ts_bucket"] for t in ticks], comments, now or service.now_utc()
+    )
+    out = []
+    for t in ticks:
+        da_luu = float(t.get("comment_rate") or 0.0)
+        out.append({**t, "comment_rate": da_luu if da_luu > 0 else nhip.get(t["ts_bucket"], 0.0)})
+    return out
+
+
 def _store_tick(session_id: str, body: TickIn, store: StoreDep) -> TickOut:
     session = service.require_session(store, session_id)
     ts = body.ts_utc or service.now_utc()
@@ -276,7 +328,10 @@ def _store_tick(session_id: str, body: TickIn, store: StoreDep) -> TickOut:
         "pinned_product_id": pinned,
     }
     stored = store.add_tick(session_id, row)
-    out = TickOut(session_id=session_id, **{k: stored[k] for k in row})
+    # Nhịp bình luận KHÔNG ghi vào dòng tick (đọc lại lúc trả về, như lượt bấm):
+    # bình luận của mốc còn tiếp tục đến sau khi tick đã ghi.
+    (co_nhip,) = gan_nhip_binh_luan([dict(stored)], store.list_comments(session_id))
+    out = TickOut(session_id=session_id, **{k: co_nhip[k] for k in row})
     store.publish(session_id, {"type": "tick", "data": out.model_dump(mode="json")})
     return out
 
@@ -289,6 +344,8 @@ def list_ticks(session_id: str, store: StoreDep) -> list[TickOut]:
         # click lúc trả về. max() giữ nguyên số của phiên demo (máy sinh điền
         # sẵn click_count VÀ ghi dòng click) mà không cộng đôi.
         theo_moc = _valid_clicks_by_bucket(session, store.list_clicks(session_id))
+        # comment_rate: cùng lý do, đếm từ bảng bình luận (gan_nhip_binh_luan).
+        ticks = gan_nhip_binh_luan(store.list_ticks(session_id), store.list_comments(session_id))
         return [
             TickOut(
                 **{
@@ -299,7 +356,7 @@ def list_ticks(session_id: str, store: StoreDep) -> list[TickOut]:
                     ),
                 }
             )
-            for t in store.list_ticks(session_id)
+            for t in ticks
         ]
 
 

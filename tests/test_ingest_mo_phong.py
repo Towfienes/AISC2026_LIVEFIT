@@ -555,3 +555,76 @@ def test_route_platforms_co_mo_phong_luon_san_sang(ung_dung):
     assert muc["mo_phong"]["ready"] is True
     assert muc["mo_phong"]["mode"] == "du_phong"
     assert list(muc)[-1] == "mo_phong", "công cụ kiểm thử đứng cuối, sau các nền tảng thật"
+
+
+# ---------------------------------------------------------------------------
+# Kiểm toán 17/09/2026 — câu tổng hợp không được vào lô gán nhãn/huấn luyện
+# ---------------------------------------------------------------------------
+
+
+def _phien_chay_thu_co_ca_that_va_mo_phong() -> tuple[InMemoryStore, str, int]:
+    """Phiên CHẠY THỬ (is_demo=False) có một bình luận thật và cả buổi mô phỏng."""
+    store = InMemoryStore()
+    sid = _phien(store, dry_run=True)
+    store.add_comment(
+        sid,
+        {
+            "comment_id": "that-1",
+            "session_id": sid,
+            "block_id": None,
+            "ts": datetime.now(UTC),
+            "platform": "youtube",
+            "ext_id": "yt-that-1",
+            "text_scrubbed": "shop ơi áo này còn màu be không",
+            "pii_kinds": [],
+            "intent_label": None,
+            "intent_confidence": 0.3,
+            "sentiment": None,
+        },
+    )
+
+    async def chay():
+        m = IngestManager(store, client_factory=lambda _p: MoPhongLiveClient(he_so=1e5), **NHANH)
+        job = m.start(sid, "mo_phong", "ngan")
+        await _cho(lambda: not job.dang_chay)
+        return job
+
+    job = asyncio.run(chay())
+    so_mo_phong = job.trang_thai()["comments_posted"]
+    assert so_mo_phong > 0
+    return store, sid, so_mo_phong
+
+
+def test_lo_gan_nhan_khong_bao_gio_chua_binh_luan_mo_phong():
+    """Trước khi sửa: ``collect_from_store`` chỉ bỏ phiên ``is_demo``; phiên chạy
+    thử là phiên THẬT nên cả buổi câu do AI soạn đi thẳng vào ``batch.jsonl``."""
+    from livelift.nlp.label_llm import collect_from_store, normalize_input_rows, prepare_batch
+
+    store, sid, _ = _phien_chay_thu_co_ca_that_va_mo_phong()
+    assert {c["platform"] for c in store.list_comments(sid)} == {"sim", "youtube"}
+
+    quet_toan_kho = collect_from_store(store)
+    assert [r["id"] for r in quet_toan_kho] == ["that-1"]
+    theo_phien = collect_from_store(store, session_id=sid)
+    assert [r["id"] for r in theo_phien] == ["that-1"]
+    batch, _ = prepare_batch(quet_toan_kho)
+    assert [r["id"] for r in batch] == ["that-1"]
+
+    # --input với bản dump dòng kho cũng không phải đường vòng.
+    tu_tep = normalize_input_rows(store.list_comments(sid))
+    assert [r["id"] for r in tu_tep] == ["that-1"]
+
+
+def test_bao_cao_phien_chay_thu_dem_binh_luan_tong_hop(ung_dung):
+    client, store = ung_dung
+    sid = _tao_phien(client, dry_run=True)
+    r = client.post(
+        f"/sessions/{sid}/ingest", json={"platform": "mo_phong", "source": "ngan x1000"}
+    )
+    assert r.status_code == 202, r.text
+    st = _cho_http(client, sid, lambda s: not s["running"])
+    assert st["comments_posted"] > 0
+
+    bc = client.get(f"/sessions/{sid}/bao-cao").json()
+    assert bc["is_demo"] is False, "phiên chạy thử vẫn là phiên thật — cờ riêng mới nói được"
+    assert bc["binh_luan_tong_hop"] == st["comments_posted"]

@@ -6,12 +6,13 @@
  * The page only touches useHost(), whose return type (HostState) is the
  * blinding boundary: product name, price, stock, total elapsed time. Nothing
  * else is imported here — no desk hook, no blocks, no chart. `degraded`,
- * `sessionNotFound` và `sampleData` là trạng thái ĐƯỜNG TRUYỀN/NHÃN, không
- * phải dữ liệu thí nghiệm.
+ * `sessionNotFound`, `offAir`, `concurrentLive` và `sampleData` là trạng thái
+ * PHIÊN/ĐƯỜNG TRUYỀN/NHÃN, không phải dữ liệu thí nghiệm.
  *
- * Gói D: `/host?session=<id>` mở ĐÚNG phiên đó (ưu tiên tuyệt đối); `/host`
- * trơn thì mỗi lần poll chọn lại phiên đang live — mở màn người dẫn trước khi
- * bấm "Bắt đầu phát sóng" không còn bị khoá vào phiên khác. Tham số đọc bằng
+ * Gói D + kiểm toán 17/09: `/host?session=<id>` mở ĐÚNG phiên đó (ưu tiên
+ * tuyệt đối; phiên chưa/không còn live thì nói thế, không chiếu hàng ghim cũ);
+ * `/host` trơn thì giữ phiên live đang chiếu, bỏ phiên mẫu khi có phiên thật,
+ * và chỉ chọn lại khi phiên đang chiếu hết live (xem pickHostSession). Tham số đọc bằng
  * `useSearchParams`, nên phần đọc nằm trong ranh giới Suspense (build
  * production của Next 14 bắt buộc).
  */
@@ -32,15 +33,16 @@ export default function HostPage() {
 
 function HostScreen() {
   const searchParams = useSearchParams();
-  const { host, connection, degraded, sessionNotFound, sampleData } = useHost(
-    searchParams.get("session"),
-  );
+  const { host, connection, degraded, sessionNotFound, offAir, concurrentLive, sampleData } =
+    useHost(searchParams.get("session"));
   return (
     <HostView
       host={host}
       connection={connection}
       degraded={degraded}
       sessionNotFound={sessionNotFound}
+      offAir={offAir}
+      concurrentLive={concurrentLive}
       sampleData={sampleData}
     />
   );

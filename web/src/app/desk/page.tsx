@@ -53,7 +53,7 @@ import IngestPanel from "@/components/IngestPanel";
 import LiveVideo from "@/components/LiveVideo";
 import RhythmChart from "@/components/RhythmChart";
 import SignalTiles, { buildSignalTiles } from "@/components/SignalTiles";
-import StatusBar from "@/components/StatusBar";
+import StatusBar, { sessionShortName } from "@/components/StatusBar";
 import PageHeader from "@/components/PageHeader";
 import TopNav from "@/components/TopNav";
 import Badge from "@/components/ui/Badge";
@@ -159,6 +159,127 @@ function commandAlert(lead: string, e: unknown, ifNetwork: string, otherwise: st
   const network = e instanceof DeskCommandError ? e.network : isNetworkError(e);
   const detail = sentence(e instanceof Error && e.message ? e.message : "Máy chủ không nhận lệnh");
   return `${lead}: ${detail} ${network ? ifNetwork : otherwise}`.trim();
+}
+
+/**
+ * Câu gắn TÊN phiên vào một lỗi vận hành về muộn (sửa lỗi P2 17/09).
+ *
+ * Lệnh gửi cho phiên A, người vận hành đổi sang phiên B trước khi máy chủ trả
+ * lời: ô lỗi vẫn phải hiện (lỗi lệnh không được biến mất âm thầm), nhưng phải
+ * nói rõ lỗi thuộc phiên nào — "Thẻ đã được trả lại danh sách" đọc trên phiên
+ * B là một câu sai nếu không kèm tên phiên A.
+ */
+function alertForSession(message: string, sentName: string | null, stillViewing: boolean): string {
+  if (stillViewing) return message;
+  return `Phiên “${sentName ?? "trước đó"}” (không phải phiên đang xem): ${message}`;
+}
+
+/** Một lỗi vận hành, GẮN với phiên của lệnh đã gây ra nó. */
+interface DeskAlert {
+  sessionId: string;
+  sessionName: string | null;
+  message: string;
+}
+
+/**
+ * Câu của ô lỗi cho phiên ĐANG XEM (sửa lỗi P2 17/09). Tính lúc VẼ, không lúc
+ * lỗi về: lỗi của phiên A đã hiện rồi người vận hành mới đổi sang phiên B thì
+ * câu cũng phải tự gắn tên phiên A — và bỏ tên đi khi quay lại phiên A. Ô lỗi
+ * không bị xoá khi đổi phiên: lỗi lệnh không được biến mất âm thầm.
+ */
+function alertText(a: DeskAlert | null, viewing: string | null): string | null {
+  if (!a) return null;
+  return alertForSession(a.message, a.sessionName, a.sessionId === viewing);
+}
+
+/**
+ * Nguyên văn `pin_cards_blocked_reason` của máy chủ (src/livelift/api/cards.py)
+ * cho phiên đã đóng — máy chủ trả 0 thẻ kèm đúng câu này.
+ */
+const CLOSED_CARDS_NOTE: Record<"ended" | "cancelled", string> = {
+  ended: "phiên đã kết thúc — không còn khối nào đang phát để ghim hàng",
+  cancelled: "phiên đã huỷ — không phát sóng nên không có thao tác nào để mời",
+};
+
+/**
+ * Thẻ hành động được MỜI bấm trên bàn (sửa lỗi P2 17/09).
+ *
+ * Bấm "Kết thúc ngay" xong, hero đổi sang ĐÃ KẾT THÚC nhưng các thẻ của lần
+ * poll trước vẫn đứng đó với nút "Thực hiện"/"Bỏ qua" còn bấm được tới lần
+ * poll kế (bấm chỉ nhận 409). Máy chủ không mời thẻ nào cho phiên đã đóng —
+ * bàn áp đúng luật đó NGAY khi biết trạng thái, không chờ poll.
+ */
+function offeredCards<T>(cards: T[], status: string | null): T[] {
+  return status === "ended" || status === "cancelled" ? [] : cards;
+}
+
+/** Lý do không có thẻ: câu của máy chủ trước, phiên đã đóng thì câu tương ứng. */
+function cardsNoteFor(serverNote: string | null, status: string | null): string | null {
+  if (serverNote != null) return serverNote;
+  return status === "ended" || status === "cancelled" ? CLOSED_CARDS_NOTE[status] : null;
+}
+
+/** Nguồn trực tiếp mà bàn đã THẤY dữ liệu về (qua poll 5 giây hoặc WebSocket). */
+interface FeedsSeen {
+  ticks: boolean;
+  viewers: boolean;
+  comments: boolean;
+  clicks: boolean;
+}
+
+function feedsSeen(
+  ticks: { viewers: number; click_count: number }[],
+  comments: unknown[],
+): FeedsSeen {
+  return {
+    ticks: ticks.length > 0,
+    viewers: ticks.some((t) => t.viewers > 0),
+    comments: comments.length > 0,
+    clicks: ticks.some((t) => t.click_count > 0),
+  };
+}
+
+/** Dòng của ma trận tín hiệu chấm điểm từng nguồn trực tiếp. */
+const FEED_SIGNAL: Record<keyof FeedsSeen, string> = {
+  ticks: "ticks",
+  viewers: "ticks",
+  comments: "comments",
+  clicks: "clicks",
+};
+
+/**
+ * Ma trận tín hiệu đang TỤT LẠI so với dữ liệu bàn vừa nhận (sửa lỗi P2 17/09).
+ *
+ * Bấm "Bật bộ thu" xong 16 giây, khung bộ thu đã in "82 người xem" mà ô NGƯỜI
+ * XEM và biểu đồ vẫn "THIẾU nguồn — không có dữ liệu người xem theo thời gian":
+ * ma trận chỉ tải lại mỗi 30 giây. Một nguồn vừa chuyển từ CHƯA CÓ sang CÓ dữ
+ * liệu trên bàn mà dòng tương ứng của ma trận chưa "ok" (hoặc chưa có ma trận)
+ * ⇒ tải lại ma trận NGAY. Ma trận vẫn là nguồn sự thật duy nhất của các ô.
+ */
+function matrixLagsFeeds(signals: SignalCoverage | null, prev: FeedsSeen, next: FeedsSeen): boolean {
+  return (Object.keys(FEED_SIGNAL) as (keyof FeedsSeen)[]).some((k) => {
+    if (prev[k] || !next[k]) return false;
+    if (signals == null) return true;
+    const row = signals.signals.find((s) => s.name === FEED_SIGNAL[k]);
+    return row == null || row.status !== "ok";
+  });
+}
+
+const MATRIX_POLL_MS = 30000;
+const MATRIX_POLL_FAST_MS = 10000;
+
+/**
+ * Nhịp tải lại ma trận: 30 giây khi đã ổn định; 10 giây khi phiên ĐANG PHÁT mà
+ * người xem hoặc bình luận còn THIẾU nguồn (bộ thu có thể được bật bất cứ lúc
+ * nào, và ô THIẾU cạnh một khung bộ thu đang chạy là hai câu mâu thuẫn).
+ */
+function matrixPollMs(signals: SignalCoverage | null, status: string | null): number {
+  if (status !== "live") return MATRIX_POLL_MS;
+  if (signals == null) return MATRIX_POLL_FAST_MS;
+  const lacking = signals.signals.some(
+    (s) => (s.name === "ticks" || s.name === "comments") && s.status === "missing",
+  );
+  return lacking ? MATRIX_POLL_FAST_MS : MATRIX_POLL_MS;
 }
 
 /** Clicks landed in the last 60 s — ticks are 30 s buckets, so this is the tail. */
@@ -301,19 +422,32 @@ function EmptyDesk({
 export default function DeskPage() {
   const [demoMode, setDemoMode] = useState(false);
   const [showAnyway, setShowAnyway] = useState(false);
-  const [endBusy, setEndBusy] = useState(false);
+  /** Phiên đang chờ máy chủ kết thúc — theo PHIÊN, không phải một cờ chung. */
+  const [endingId, setEndingId] = useState<string | null>(null);
   /**
    * Lỗi vận hành đang chờ người xử lý. Một ô duy nhất trên StatusBar cho cả
    * lệnh Thực hiện lẫn Kết thúc phiên: hai chỗ báo lỗi khác nhau là hai chỗ có
-   * thể bỏ sót.
+   * thể bỏ sót. Gắn theo PHIÊN của lệnh — xem alertText.
    */
-  const [alert, setAlert] = useState<string | null>(null);
+  const [alert, setAlert] = useState<DeskAlert | null>(null);
   /**
    * Xác nhận sau một lệnh Thực hiện THÀNH CÔNG mà kết quả khác điều người vận
    * hành vừa bấm (máy chủ bốc thăm công bằng giữa các thẻ ngang nhau — gói C3).
    * Nằm ngay trong cột hành động, cạnh chỗ vừa bấm; người vận hành tự đóng.
+   *
+   * GẮN THEO PHIÊN (sửa lỗi P2 17/09): phản hồi của lệnh gửi cho phiên A có
+   * thể về SAU khi người vận hành đã đổi sang phiên B. Lưu theo mã phiên thì
+   * câu "đã ghim X" chỉ hiện trên đúng phiên A, không bao giờ trên phiên B.
    */
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notices, setNotices] = useState<Record<string, string>>({});
+  const setNoticeFor = (sid: string, text: string | null) =>
+    setNotices((prev) => {
+      if (!text && !(sid in prev)) return prev;
+      const next = { ...prev };
+      if (text) next[sid] = text;
+      else delete next[sid];
+      return next;
+    });
   /**
    * Deep link `/desk?session=ID` (gói WIZARD, spec UX-FLOW luồng 3): wizard
    * Chuẩn bị phiên chuyển sang đây ngay sau khi bấm "Bắt đầu phát sóng" và
@@ -327,12 +461,16 @@ export default function DeskPage() {
       : new URLSearchParams(window.location.search).get("session"),
   );
   const desk = useDesk({ forceMock: demoMode, preferredSessionId });
+  const notice = desk.sessionId ? (notices[desk.sessionId] ?? null) : null;
+  const sessionStatus = desk.session?.status ?? null;
+  /** Sửa lỗi P2 17/09: phiên đã đóng không còn thẻ nào được mời bấm. */
+  const cards = offeredCards(desk.cards, sessionStatus);
 
   const clicksPerMin = useMemo(
     () => clicksInLastMinute(desk.ticks, desk.elapsedS),
     [desk.ticks, desk.elapsedS],
   );
-  const cardList = useIsOverflowing(desk.cards.length);
+  const cardList = useIsOverflowing(cards.length);
 
   /**
    * Gói UI-KOL: session detail (video id for the embed), the signal matrix
@@ -343,14 +481,25 @@ export default function DeskPage() {
   const [videoDetail, setVideoDetail] = useState<SessionDetail | null>(null);
   const [signalCov, setSignalCov] = useState<SignalCoverage | null>(null);
   const [reactionsTotal, setReactionsTotal] = useState<number | null>(null);
+  /** Nhịp tải lại ma trận hiện tại — vòng hẹn giờ đọc lúc đặt lần kế. */
+  const matrixDelayRef = useRef(MATRIX_POLL_MS);
+  matrixDelayRef.current = matrixPollMs(signalCov, sessionStatus);
+  /** Tải lại ma trận NGAY (null khi không có máy chủ thật / chưa chọn phiên). */
+  const pullMatrixRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     setVideoDetail(null);
     setSignalCov(null);
     setReactionsTotal(null);
+    pullMatrixRef.current = null;
     if (desk.connection !== "live" || !desk.sessionId) return;
     const sid = desk.sessionId;
     let cancelled = false;
+    // Lần tải theo nhịp và lần tải NGAY có thể về lệch thứ tự: chỉ nhận câu
+    // trả lời của lần gửi mới nhất, không để ma trận cũ đè ma trận mới.
+    let sentSeq = 0;
+    let covSeq = 0;
+    let reactSeq = 0;
     getSessionDetail(sid)
       .then((d) => {
         if (!cancelled) setVideoDetail(d);
@@ -359,29 +508,64 @@ export default function DeskPage() {
         // không tải được chi tiết phiên: khung video hiện trạng thái thiếu
       });
     const pullMatrix = () => {
+      const seq = ++sentSeq;
       getSignalCoverage(sid)
         .then((c) => {
-          if (!cancelled) setSignalCov(c);
+          if (cancelled || seq < covSeq) return;
+          covSeq = seq;
+          setSignalCov(c);
         })
         .catch(() => {
           // ma trận chưa tải được: ô tín hiệu giữ trạng thái "—", không đoán
         });
       getReactions(sid)
         .then((rs) => {
-          if (!cancelled) setReactionsTotal(rs.length);
+          if (cancelled || seq < reactSeq) return;
+          reactSeq = seq;
+          setReactionsTotal(rs.length);
         })
         .catch(() => {
           // thiếu số đếm thì ô Tim & quà hiện "—" thay vì một số bịa
         });
     };
     pullMatrix();
-    // Ma trận đổi chậm (nguồn xuất hiện/mất theo phút) — 30 giây là đủ tươi.
-    const timer = setInterval(pullMatrix, 30000);
+    pullMatrixRef.current = pullMatrix;
+    // Ma trận đổi chậm khi nguồn đã ổn định (30 giây); phiên đang phát còn
+    // thiếu nguồn thì 10 giây — xem matrixPollMs.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const loop = () => {
+      timer = setTimeout(() => {
+        pullMatrix();
+        loop();
+      }, matrixDelayRef.current);
+    };
+    loop();
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      clearTimeout(timer);
+      pullMatrixRef.current = null;
     };
   }, [desk.connection, desk.sessionId]);
+
+  /**
+   * Sửa lỗi P2 17/09: một nguồn vừa CÓ dữ liệu trên bàn (điểm đo đầu tiên,
+   * bình luận đầu tiên, lượt bấm đầu tiên) mà ma trận còn chấm nó chưa "ok" ⇒
+   * tải lại ma trận ngay, không để ô THIẾU nguồn đứng cạnh khung bộ thu đang
+   * in số người xem tới 30 giây.
+   */
+  const feeds = feedsSeen(desk.ticks, desk.comments);
+  const feedsRef = useRef<FeedsSeen>(feeds);
+  useEffect(() => {
+    const prev = feedsRef.current;
+    const next: FeedsSeen = {
+      ticks: feeds.ticks,
+      viewers: feeds.viewers,
+      comments: feeds.comments,
+      clicks: feeds.clicks,
+    };
+    feedsRef.current = next;
+    if (matrixLagsFeeds(signalCov, prev, next)) pullMatrixRef.current?.();
+  }, [feeds.ticks, feeds.viewers, feeds.comments, feeds.clicks, signalCov]);
 
   /**
    * Cùng luật không-bịa-số cho lượt bấm: khi ma trận tín hiệu nói phiên KHÔNG
@@ -460,18 +644,28 @@ export default function DeskPage() {
    * ghim một sản phẩm khác thẻ vừa bấm; nói rõ để không ai ghim tay lại.
    */
   const runCard = (card: ActionCardData) => {
+    // Phiên LÚC BẤM: phản hồi về muộn (≤ 3,5 giây) sau khi đã đổi phiên vẫn
+    // phải gắn vào đúng phiên này — sửa lỗi P2 17/09.
+    const sentFor = desk.sessionId;
+    const sentName = desk.session ? sessionShortName(desk.session) : null;
+    if (!sentFor) return;
     setAlert(null);
-    setNotice(null);
-    const sent = desk.execute(card).then((outcome) => setNotice(executeNotice(outcome)));
+    setNoticeFor(sentFor, null);
+    const sent = desk.execute(card).then((outcome) => {
+      const text = executeNotice(outcome);
+      if (text) setNoticeFor(sentFor, text);
+    });
     sent.catch((e: unknown) => {
-      setAlert(
-        commandAlert(
+      setAlert({
+        sessionId: sentFor,
+        sessionName: sentName,
+        message: commandAlert(
           `Không thực hiện được thẻ “${card.headline}”`,
           e,
           "Thẻ đã được trả lại danh sách — kiểm tra kết nối rồi bấm Thực hiện lại.",
           "Thẻ đã được trả lại danh sách.",
         ),
-      );
+      });
     });
   };
 
@@ -480,13 +674,18 @@ export default function DeskPage() {
    * tới được đây nghĩa là người vận hành đã bấm "Kết thúc ngay".
    */
   const endSession = () => {
-    setEndBusy(true);
+    const sentFor = desk.sessionId;
+    const sentName = desk.session ? sessionShortName(desk.session) : null;
+    if (!sentFor) return;
+    setEndingId(sentFor);
     setAlert(null);
     desk
       .endSession()
       .catch((e: unknown) => {
-        setAlert(
-          commandAlert(
+        setAlert({
+          sessionId: sentFor,
+          sessionName: sentName,
+          message: commandAlert(
             "Không kết thúc được phiên",
             e,
             "Kiểm tra kết nối rồi bấm Kết thúc phiên lại.",
@@ -494,28 +693,24 @@ export default function DeskPage() {
             // cuối…") — không đoán thêm phiên còn phát hay không.
             "",
           ),
-        );
+        });
       })
-      .finally(() => setEndBusy(false));
+      .finally(() => setEndingId((cur) => (cur === sentFor ? null : cur)));
   };
-
-  // Lời xác nhận thuộc về đúng một phiên.
-  useEffect(() => {
-    setNotice(null);
-  }, [desk.sessionId]);
 
   /**
    * Gói C2: khoá nút hành động trong khối TẮT / khoảng trôi / ngoài lịch —
    * đúng ba trường hợp máy chủ trả 409. Bàn trợ live vốn đã hiện BẬT/TẮT cỡ
    * chữ lớn nên khoá ở đây không lộ thêm gì; màn người dẫn không dùng thẻ này.
    */
-  const sessionEnded = desk.session?.status === "ended";
+  const sessionEnded = sessionStatus === "ended";
   const blockView = deriveCurrentBlock(desk.blocks, desk.currentBlock, desk.elapsedS);
   const cardLock = sessionEnded
     ? null
     : actionLockReason(blockView, desk.blocks.length > 0 || desk.currentBlock != null);
-  const onAir = desk.session?.status === "live";
-  const sessionClosed = sessionEnded || desk.session?.status === "cancelled";
+  const onAir = sessionStatus === "live";
+  const sessionClosed = sessionEnded || sessionStatus === "cancelled";
+  const cardsNote = cardsNoteFor(desk.cardsNote, sessionStatus);
   /** Gói C7: khung Bộ thu bình luận — máy chủ thật, phiên chưa đóng. */
   const showIngest = desk.connection === "live" && desk.sessionId != null && !sessionClosed;
 
@@ -582,8 +777,8 @@ export default function DeskPage() {
               canToggleMode={desk.canToggleMode}
               onEndSession={endSession}
               canEndSession={desk.canEndSession}
-              endBusy={endBusy}
-              alert={alert}
+              endBusy={endingId != null && endingId === desk.sessionId}
+              alert={alertText(alert, desk.sessionId)}
               onDismissAlert={() => setAlert(null)}
             />
 
@@ -646,7 +841,9 @@ export default function DeskPage() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => setNotice(null)}
+                      onClick={() => {
+                        if (desk.sessionId) setNoticeFor(desk.sessionId, null);
+                      }}
                       aria-label="Đóng xác nhận ghim"
                     >
                       Đóng
@@ -662,12 +859,12 @@ export default function DeskPage() {
                     ref={cardList.ref}
                     className="absolute inset-0 flex flex-col justify-start gap-2 overflow-y-auto pr-1"
                   >
-                    {desk.cards.length === 0 ? (
+                    {cards.length === 0 ? (
                       <div className="px-2 py-4">
                         <p className="text-body text-sec">
                           {observational
                             ? "Phiên quan sát — không có thẻ hành động."
-                            : (desk.cardsNote ?? "Chưa có gợi ý cho thời điểm này.")}
+                            : (cardsNote ?? "Chưa có gợi ý cho thời điểm này.")}
                         </p>
                         <p className="mt-1 text-body leading-snug text-dim">
                           {observational
@@ -675,7 +872,7 @@ export default function DeskPage() {
                               "ghim được sản phẩm nào và cũng không có link đo để xếp hạng, nên sẽ " +
                               "không có thẻ nào xuất hiện. Dải tín hiệu và nhịp bình luận bên trái " +
                               "vẫn là số liệu thật của buổi đó."
-                            : desk.cardsNote != null
+                            : cardsNote != null
                               ? "Đây là trạng thái theo thiết kế, không phải lỗi tải dữ liệu."
                               : "Thẻ mới sẽ tự hiện khi hệ thống đủ số liệu — thường trong vài phút " +
                                 "đầu phiên. Trong lúc đó cứ vận hành như thường lệ; bạn không cần chờ " +
@@ -683,7 +880,7 @@ export default function DeskPage() {
                         </p>
                       </div>
                     ) : (
-                      desk.cards.map((c, i) => (
+                      cards.map((c, i) => (
                         <ActionCard
                           key={c.card_id}
                           card={c}
@@ -691,8 +888,8 @@ export default function DeskPage() {
                           emphasized={i === 0}
                           executed={desk.executedCardIds.has(c.card_id)}
                           locked={cardLock}
-                          noForecastBasis={forecastLacksData(c, desk.cards, { clicksObserved })}
-                          peerCount={desk.cards.length}
+                          noForecastBasis={forecastLacksData(c, cards, { clicksObserved })}
+                          peerCount={cards.length}
                           onExecute={() => runCard(c)}
                           onSkip={() => desk.skip(c.card_id)}
                         />
@@ -705,7 +902,7 @@ export default function DeskPage() {
                 {cardList.overflowing && (
                   <p className="mt-2 shrink-0 text-meta text-dim">
                     <span aria-hidden>↓ </span>Còn thẻ bên dưới — cuộn để xem hết{" "}
-                    {desk.cards.length} thẻ.
+                    {cards.length} thẻ.
                   </p>
                 )}
                 <p className="mt-2 shrink-0 border-t border-hairline pt-2 text-body leading-snug text-dim">

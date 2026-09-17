@@ -34,6 +34,18 @@
  * 4. KHUNG ĐẦU KHÔNG TRỐNG: vừa tải xong bản ghi, vị trí phát được đặt ở
  *    `firstFrameOffset` — phút đầu tiên biểu đồ vẽ được đường (và bình luận
  *    đầu tiên nếu nó tới sớm) thay vì 00:00 với bốn khung rỗng.
+ *
+ * KIỂM TOÁN 17/09 — hai lỗi nữa:
+ * 5. HAI ĐIỂM PHÚT THẬT: `firstFrameOffset` từng lấy tick đầu có
+ *    `offset_s >= 60` — bộ thu bật muộn 10 phút (tick đầu ở 600) thì khung đầu
+ *    chỉ có MỘT phút số liệu và biểu đồ vẫn trống. Nay lấy tick đầu tiên thuộc
+ *    phút SAU phút của tick sớm nhất.
+ * 6. "BẮT ĐẦU XEM THỬ" LÀ BẢN MÔ PHỎNG: trang chủ (kho suy giảm) hứa bản xem
+ *    thử ngoại tuyến rồi mở `/replay?session=mock-ended-01`, nhưng hook chỉ
+ *    rơi về mô phỏng khi máy chủ hỏng hoặc chưa có buổi kết thúc — máy chủ
+ *    sống thì mã mock bị bỏ qua và trang mở một buổi THẬT của người bán kèm
+ *    nhãn "DỮ LIỆU THẬT". Nay mã mang tiền tố `mock-` (mã máy chủ luôn là
+ *    UUID) buộc chạy bản mô phỏng, lý do `"sample"`, không gọi máy chủ.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -73,8 +85,33 @@ const DEFAULT_SPEED: ReplaySpeed = 30;
 /** Khung đầu chỉ tự tua tới bình luận đầu tiên nếu nó nằm trong 5 phút đầu. */
 const FIRST_FRAME_MAX_COMMENT_S = 300;
 
-/** Vì sao trang đang chạy bản ghi mô phỏng thay cho dữ liệu máy chủ. */
-export type MockReason = "forced" | "server" | "no_ended";
+/**
+ * Vì sao trang đang chạy bản ghi mô phỏng thay cho dữ liệu máy chủ.
+ * `"sample"`: link xin ĐÚNG bản xem thử ngoại tuyến (`?session=mock-…`).
+ */
+export type MockReason = "forced" | "server" | "no_ended" | "sample";
+
+/** Tiền tố mã phiên của bản ghi mô phỏng phía web (mock.ts). */
+const SAMPLE_ID_PREFIX = "mock-";
+
+/**
+ * Link xin bản ghi mô phỏng ngoại tuyến? Mã máy chủ là UUID nên không bao giờ
+ * trùng tiền tố này — nhận ra nó là đủ để KHÔNG mở nhầm một buổi thật.
+ */
+export function isSampleSessionId(id: string | null | undefined): boolean {
+  return typeof id === "string" && id.startsWith(SAMPLE_ID_PREFIX);
+}
+
+/**
+ * Lý do mô phỏng khi link đổi sang `?session=mock-…`. Trang ĐÃ chạy mô phỏng
+ * (mất máy chủ / chưa có buổi kết thúc) mà người xem chọn một bản khác trong ô
+ * chọn phiên — `selectSession` ghi mã mock vào link — thì GIỮ lý do cũ (null =
+ * không đổi): đổi sang "sample" sẽ xoá câu "chưa kết nối được máy chủ" khỏi
+ * dải băng trong khi máy chủ vẫn chưa nối được.
+ */
+export function sampleLinkMockReason(connection: ConnectionKind): MockReason | null {
+  return connection === "mock" ? null : "sample";
+}
 
 /** Trạng thái của mã phiên trong link `?session=`. */
 export type RequestedStatus = "none" | "ok" | "not_ended" | "not_found";
@@ -163,11 +200,23 @@ export function pickReplaySession(
  * Vị trí phát khi vừa mở bản ghi: phút đầu tiên biểu đồ nhịp có đủ HAI điểm
  * phút để vẽ đường, dời thêm tới bình luận đầu tiên nếu nó tới trong 5 phút
  * đầu. Bản ghi không có gì thì đứng ở 0.
+ *
+ * Biểu đồ gộp tick theo `Math.floor(offset_s / 60)` và cần ≥ 2 nhóm, nên
+ * "điểm phút thứ hai" là tick sớm nhất thuộc phút LỚN HƠN phút của tick sớm
+ * nhất — KHÔNG phải tick đầu có offset ≥ 60 (bộ thu bật muộn thì tick đầu đã
+ * ở phút 10 và một mình nó chỉ là một điểm).
  */
 export function firstFrameOffset(rec: SessionRecording): number {
   const candidates: number[] = [];
-  const secondMinuteTick = rec.ticks.find((x) => x.offset_s >= 60);
-  if (secondMinuteTick) candidates.push(secondMinuteTick.offset_s);
+  let firstMinute = Number.POSITIVE_INFINITY;
+  for (const x of rec.ticks) firstMinute = Math.min(firstMinute, Math.floor(x.offset_s / 60));
+  let secondMinuteTick = Number.POSITIVE_INFINITY;
+  for (const x of rec.ticks) {
+    if (Math.floor(x.offset_s / 60) > firstMinute) {
+      secondMinuteTick = Math.min(secondMinuteTick, x.offset_s);
+    }
+  }
+  if (Number.isFinite(secondMinuteTick)) candidates.push(secondMinuteTick);
   let firstComment = Number.POSITIVE_INFINITY;
   for (const c of rec.comments) firstComment = Math.min(firstComment, c.offset_s);
   if (firstComment <= FIRST_FRAME_MAX_COMMENT_S) candidates.push(firstComment);
@@ -321,6 +370,12 @@ export function useReplay(requestedSessionId?: string | null): ReplayState {
   const [speed, setSpeed] = useState<ReplaySpeed>(DEFAULT_SPEED);
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const requestedRef = useRef(requestedId);
+  // Cập nhật NGAY trong lần render: hiệu ứng tải danh sách bên dưới chạy trước
+  // hiệu ứng đổi-mã, nên phải đọc được mã MỚI của link.
+  requestedRef.current = requestedId;
+  const wantSample = isSampleSessionId(requestedId);
+  const connectionRef = useRef(connection);
+  connectionRef.current = connection;
 
   const switchToMock = useCallback((reason: MockReason) => {
     const ended = endedNewestFirst(MOCK_SESSIONS);
@@ -337,7 +392,15 @@ export function useReplay(requestedSessionId?: string | null): ReplayState {
       switchToMock("forced");
       return;
     }
+    // Link xin bản xem thử ngoại tuyến: KHÔNG hỏi máy chủ — máy chủ sống thì
+    // pickReplaySession sẽ bỏ qua mã mock và mở một buổi THẬT (lỗi 17/09).
+    if (wantSample) {
+      const reason = sampleLinkMockReason(connectionRef.current);
+      if (reason) switchToMock(reason);
+      return;
+    }
     let cancelled = false;
+    setConnection("connecting");
     listSessions(2500)
       .then((list) => {
         if (cancelled) return;
@@ -357,11 +420,10 @@ export function useReplay(requestedSessionId?: string | null): ReplayState {
     return () => {
       cancelled = true;
     };
-  }, [switchToMock]);
+  }, [switchToMock, wantSample]);
 
   // `?session=` đổi sau khi trang đã mở (điều hướng phía client): chọn lại.
   useEffect(() => {
-    requestedRef.current = requestedId;
     if (!requestedId || sessions.length === 0) return;
     const hit = sessions.find((s) => s.session_id === requestedId);
     if (hit) setSessionId(hit.session_id);

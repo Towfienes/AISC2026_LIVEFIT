@@ -330,6 +330,15 @@ _NHOM_GIEO = frozenset({"/demo/seed", "/demo/seed-vang"})
 """Hai đường gieo dữ liệu mẫu: mỗi lần gọi sinh hàng nghìn bản ghi, nên chúng
 có trần RIÊNG, tính theo giờ, chứ không nằm chung với trần theo phút."""
 
+_NHOM_NHAP_DON = frozenset({"/sessions/{session_id}/orders/import"})
+"""Nhập đơn CSV: MỘT lượt gọi ghi tới hàng nghìn đơn (kiểm toán 17/09/2026).
+
+Cùng lý do với :data:`_NHOM_GIEO`. Trước khi tách, đường này nằm chung trần 30
+lượt/phút của nhóm "ghi": một khách không token bơm được 145.000 đơn vào một
+phiên mẫu trong vài giây. Nó có trần theo giờ và bộ đếm RIÊNG (không ăn lượt của
+nút gieo demo); số dòng mỗi lượt của khách còn bị hạ thêm ở chính route
+(:data:`livelift.api.routes.orders.MAX_CSV_ROWS_KHACH`)."""
+
 
 # ---------------------------------------------------------------------------
 # Dependency: một hàm, áp cho mọi route
@@ -389,6 +398,13 @@ def _ap_gioi_han(conn: HTTPConnection) -> None:
     path = getattr(route, "path_format", conn.scope.get("path", ""))
     if path in _NHOM_GIEO:
         nhom, gioi_han, cua_so_s, don_vi = "gieo", cfg.demo_seed_rate_limit_per_hour, 3600.0, "giờ"
+    elif path in _NHOM_NHAP_DON:
+        nhom, gioi_han, cua_so_s, don_vi = (
+            "nhap_don",
+            cfg.order_import_rate_limit_per_hour,
+            3600.0,
+            "giờ",
+        )
     else:
         nhom, gioi_han, cua_so_s, don_vi = "ghi", cfg.write_rate_limit_per_min, 60.0, "phút"
 

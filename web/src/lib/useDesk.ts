@@ -349,6 +349,9 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
     // Trạng thái tự lái + lý do thẻ rỗng cũng thuộc về đúng một phiên.
     setAutopilot(null);
     setCardsNote(null);
+    // Sản phẩm đang ghim cũng thuộc về đúng một phiên: sản phẩm của phiên cũ
+    // không được đứng trên hero phiên mới trong lúc chờ poll đầu tiên.
+    setPinned(null);
   }, [sessionId]);
 
   // -------------------------------------------------------------------------
@@ -600,10 +603,20 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
   productsRef.current = products;
   const cardsRef = useRef(cards);
   cardsRef.current = cards;
+  /**
+   * Phiên ĐANG XEM lúc này — khác `sessionId` mà closure của một lệnh đã giữ
+   * lúc bấm. Lệnh Thực hiện chờ máy chủ tới 3,5 giây; người vận hành đổi ô chọn
+   * phiên trong lúc đó thì phản hồi về muộn KHÔNG được sửa state của phiên mới
+   * (sửa lỗi P2 17/09: sản phẩm vừa ghim ở phiên A hiện trên hero phiên B).
+   */
+  const sessionIdRef = useRef(sessionId);
+  sessionIdRef.current = sessionId;
 
   const execute = useCallback(
     async (card: ActionCardData): Promise<ExecuteOutcome | null> => {
       if (!sessionId) return null;
+      const sentFor = sessionId;
+      const stillViewing = () => sessionIdRef.current === sentFor;
       setExecutedIds((prev) => new Set(prev).add(card.card_id));
       // Tên sản phẩm máy chủ đã ghim: danh mục trước, rồi các thẻ đang hiện;
       // không tìm thấy thì in mã — không bịa tên.
@@ -632,11 +645,15 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
         // (bấm thẻ A, ghim sản phẩm B).
         raw = await apiExecute(sessionId, card.card_id, card.product_id);
       } catch (e) {
-        setExecutedIds((prev) => {
-          const next = new Set(prev);
-          next.delete(card.card_id);
-          return next;
-        });
+        // Đã đổi phiên: tập "đã thực hiện" đã được làm mới cho phiên kia (mã
+        // thẻ "card-1-P2" trùng nhau giữa các phiên) — không xoá nhầm dấu ✓.
+        if (stillViewing()) {
+          setExecutedIds((prev) => {
+            const next = new Set(prev);
+            next.delete(card.card_id);
+            return next;
+          });
+        }
         // Giữ NGUYÊN câu tiếng Việt của máy chủ (409 khối TẮT, hết hàng…);
         // chỉ lỗi mạng thật mới thành "mất kết nối".
         throw toCommandError(e, "Máy chủ không nhận lệnh ghim.");
@@ -648,8 +665,9 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
       const pinnedProduct = productsRef.current.find(
         (x) => x.product_id === outcome.pinnedProductId,
       );
-      // Hiện ngay sản phẩm máy chủ đã ghim, không chờ poll 5 giây kế tiếp.
-      if (pinnedProduct) setPinned(pinnedProduct);
+      // Hiện ngay sản phẩm máy chủ đã ghim, không chờ poll 5 giây kế tiếp —
+      // CHỈ khi người vận hành vẫn đang xem đúng phiên đã gửi lệnh.
+      if (pinnedProduct && stillViewing()) setPinned(pinnedProduct);
       return outcome;
     },
     [sessionId, connection],

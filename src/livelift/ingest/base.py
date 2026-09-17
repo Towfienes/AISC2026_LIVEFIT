@@ -59,6 +59,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -71,6 +72,57 @@ import httpx
 from livelift.ingest.pii import scrub
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Bí mật trong URL không được ra log của httpx — MỌI nền tảng
+# ---------------------------------------------------------------------------
+
+_BI_MAT_TRONG_QUERY = re.compile(
+    r"(?i)\b(access_token|refresh_token|sign|key|api_key|apikey|client_secret|app_secret"
+    r"|appsecret_proof)=[^&\s\"'<>]*"
+)
+"""Tham số bí mật mà các nền tảng đặt trong query string.
+
+* Shopee: ``access_token``/``sign`` bắt buộc nằm trong query (lược đồ ký HMAC).
+* YouTube Data API: khoá ``YOUTUBE_API_KEY`` đi bằng tham số ``key=``
+  (``youtube.py``). Trước kiểm toán 17/09/2026 bộ lọc chỉ nằm trong
+  ``shopee.py`` và chỉ biết ba tên của Shopee, nên runner CLI (mức INFO) vẫn in
+  nguyên ``key=AIza...`` ra terminal mỗi lần poll người xem.
+
+``\b`` giữ cho ``pageToken=``/``nextPageToken=`` (không bí mật) không bị đụng."""
+
+
+class _GiauBiMatTrongLogHttpx(logging.Filter):
+    """Che giá trị các tham số trong :data:`_BI_MAT_TRONG_QUERY` ở log ``httpx``.
+
+    ``httpx`` ghi ``HTTP Request: GET <URL đầy đủ>`` ở mức INFO; runner CLI chạy
+    ở mức INFO, và log đó hay bị dán vào nhật ký sự cố. Bộ lọc gắn vào logger
+    ``httpx`` nên chạy TRƯỚC mọi handler; không bao giờ chặn bản ghi, chỉ sửa chữ.
+    Nó nằm ở ``base.py`` — mô-đun mọi client nền tảng đều import — để không nền
+    tảng nào phải nhớ tự cài.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        try:
+            message = record.getMessage()
+        except Exception:  # noqa: BLE001 — bản ghi hỏng: để logging tự báo
+            return True
+        redacted = _BI_MAT_TRONG_QUERY.sub(r"\1=***", message)
+        if redacted != message:
+            record.msg = redacted
+            record.args = None
+        return True
+
+
+def _cai_bo_loc_log_httpx() -> None:
+    """Gắn :class:`_GiauBiMatTrongLogHttpx` vào logger ``httpx`` (một lần)."""
+    httpx_logger = logging.getLogger("httpx")
+    if not any(isinstance(f, _GiauBiMatTrongLogHttpx) for f in httpx_logger.filters):
+        httpx_logger.addFilter(_GiauBiMatTrongLogHttpx())
+
+
+_cai_bo_loc_log_httpx()
 
 # HTTP statuses that mean "fix your credentials/quota", where retrying fast
 # only burns quota and floods logs (401 unauthorized, 403 forbidden/quota).

@@ -63,6 +63,7 @@ addopts = "-q --strict-markers"
 markers = [
     "slow: long-running statistical validation (deselect with '-m \"not slow\"')",
     "db: requires a running PostgreSQL (docker compose up db)",
+    "browser: drives a real headless browser (Playwright + node); always paired with slow",
 ]
 
 [tool.ruff]

@@ -14,9 +14,28 @@
  *  - Không bao giờ bịa số: chưa có dữ liệu thì nói chưa có.
  *  - Thiếu khoá trên máy chủ ⇒ nói tên biến còn thiếu, khoá nút, không để người
  *    dùng bấm rồi mới nhận lỗi.
+ *
+ * Phản biện 17/09 (ba lỗi, sửa tận gốc ở đây — không trông vào nơi đặt panel):
+ *  - MỖI PHIÊN MỘT BỘ NHỚ. Nền tảng, link đã gõ, form mở, cờ đang bận đều là
+ *    của MỘT phiên. Bàn trợ live đổi phiên bằng ô chọn mà không gắn lại panel,
+ *    nên link buổi live của phiên A từng được điền sẵn cho phiên B (bấm là B
+ *    thu bình luận của buổi A), và ô chọn hiện "YouTube" trong khi gửi đi
+ *    "mo_phong". Nay `IngestPanel` gắn phần có trạng thái theo `key={sessionId}`:
+ *    đổi phiên là bộ nhớ mới hoàn toàn, và phản hồi về muộn của phiên cũ rơi vào
+ *    một panel đã gỡ (bị bỏ qua, có thêm cờ `conSong`).
+ *  - NỀN TẢNG ĐANG CHỌN PHẢI NẰM TRONG DANH SÁCH ĐƯỢC MỜI. `mucDangChon` chỉ trả
+ *    mục khi nền tảng đó còn được phép; không thì nút khoá và nền tảng được chọn
+ *    lại theo mặc định.
+ *  - KHÔNG ĐỌC ĐƯỢC THÌ NÓI KHÔNG ĐỌC ĐƯỢC. Danh sách nền tảng tải hỏng từng biến
+ *    thành danh sách rỗng: ô chọn trống, nút khoá, không một câu giải thích, và
+ *    không bao giờ thử lại. Nay có câu lỗi + nút Thử lại + tự đọc lại; nền tảng
+ *    đang chọn chưa sẵn sàng thì cũng đọc lại (người kỹ thuật vừa điền .env và
+ *    khởi động lại máy chủ).
+ *  - NGUỒN LUÔN ĐƯỢC NÓI TÊN khi bộ thu đã bật — nguồn Mô phỏng nói rõ là bình
+ *    luận tổng hợp, không phải khách thật (luật không khai sai nguồn dữ liệu).
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { getIngestStatus, getPlatforms, startIngest, stopIngest } from "@/lib/api";
 import { fmtNumber } from "@/lib/format";
@@ -28,9 +47,21 @@ import { cx } from "./ui/cx";
 import { fieldCls } from "./ui/field";
 
 const POLL_MS = 4000;
+/** Nhịp đọc lại danh sách nền tảng khi chưa đọc được / nền tảng chưa sẵn sàng. */
+const POLL_NEN_TANG_MS = 8000;
 const STALE_S = 120;
 
 const THU_DUOC: readonly string[] = ["youtube", "facebook", "shopee", "mo_phong"];
+
+const NEN_TANG_MO_PHONG = "mo_phong";
+
+/** Tên dự phòng khi chưa đọc được danh sách nền tảng của máy chủ. */
+const TEN_NGUON: Record<string, string> = {
+  youtube: "YouTube Live",
+  facebook: "Facebook Live",
+  shopee: "Shopee Live",
+  mo_phong: "Mô phỏng",
+};
 
 const NHAN: Record<IngestState, { ky_hieu: string; chu: string; mau: string }> = {
   chua_bat: { ky_hieu: "○", chu: "Chưa bật bộ thu", mau: "text-sec" },
@@ -43,6 +74,73 @@ const NHAN: Record<IngestState, { ky_hieu: string; chu: string; mau: string }> =
   nguon_ket_thuc: { ky_hieu: "○", chu: "Buổi live đã tắt — bộ thu dừng", mau: "text-sec" },
   loi: { ky_hieu: "✕", chu: "Bộ thu dừng vì lỗi", mau: "text-crit-ink" },
 };
+
+/** Nền tảng được mời chọn: nguồn mô phỏng chỉ khi phiên cho phép. */
+function nenTangChoPhep(allowSimulated: boolean): readonly string[] {
+  return allowSimulated ? THU_DUOC : THU_DUOC.filter((p) => p !== NEN_TANG_MO_PHONG);
+}
+
+/**
+ * Mục nền tảng đang chọn — CHỈ khi nền tảng đó còn nằm trong danh sách được mời
+ * chọn. Không khớp thì null: nút Bật khoá, không gửi đi một nền tảng mà ô chọn
+ * không hiện.
+ */
+function mucDangChon(
+  platforms: readonly PlatformReadiness[] | null,
+  platform: string,
+  choPhep: readonly string[],
+): PlatformReadiness | null {
+  if (!platforms || !platform || !choPhep.includes(platform)) return null;
+  return platforms.find((p) => p.platform === platform) ?? null;
+}
+
+/**
+ * Nền tảng chọn sẵn: của phiên nếu được phép và máy chủ có bộ thu cho nó; không
+ * thì nền tảng sẵn sàng đầu tiên; không thì nền tảng được phép đầu tiên máy chủ
+ * có. Chuỗi rỗng khi chưa đọc được danh sách — không đoán.
+ */
+function nenTangMacDinh(
+  platforms: readonly PlatformReadiness[] | null,
+  sessionPlatform: string | null | undefined,
+  choPhep: readonly string[],
+): string {
+  if (!platforms) return "";
+  const coTrenMayChu = platforms.filter((p) => choPhep.includes(p.platform));
+  if (sessionPlatform && coTrenMayChu.some((p) => p.platform === sessionPlatform)) {
+    return sessionPlatform;
+  }
+  return (coTrenMayChu.find((p) => p.ready) ?? coTrenMayChu[0])?.platform ?? "";
+}
+
+/**
+ * Tên nguồn của bộ thu đang/đã chạy, cho dòng trạng thái. `tongHop` = bình
+ * luận do máy soạn (nguồn Mô phỏng) — phải nói ra, không để người xem bàn đọc
+ * nhầm thành khách thật.
+ */
+function nhanNguon(
+  platform: string | null | undefined,
+  platforms: readonly PlatformReadiness[] | null,
+): { ten: string; tongHop: boolean } | null {
+  if (!platform) return null;
+  const tongHop = platform === NEN_TANG_MO_PHONG;
+  if (tongHop) return { ten: "Mô phỏng — bình luận tổng hợp, không phải khách thật", tongHop };
+  const ten = platforms?.find((p) => p.platform === platform)?.ten ?? TEN_NGUON[platform];
+  return { ten: ten ?? platform, tongHop };
+}
+
+/**
+ * Có đọc lại danh sách nền tảng theo nhịp không: khi chưa đọc được (lần đầu hỏng
+ * hay đang hỏng), hoặc khi nền tảng đang chọn chưa sẵn sàng (người kỹ thuật có
+ * thể vừa điền khoá và khởi động lại máy chủ). Lỗi một lần lúc gắn KHÔNG được là
+ * lỗi vĩnh viễn.
+ */
+function canDocLaiNenTang(
+  platforms: readonly PlatformReadiness[] | null,
+  loiDoc: boolean,
+  chon: PlatformReadiness | null,
+): boolean {
+  return platforms == null || loiDoc || (chon != null && !chon.ready);
+}
 
 interface Props {
   sessionId: string | null;
@@ -59,7 +157,14 @@ interface Props {
   className?: string;
 }
 
-export default function IngestPanel({
+export default function IngestPanel(props: Props) {
+  if (!props.sessionId) return null;
+  // Trạng thái của bộ thu thuộc về MỘT phiên: gắn theo mã phiên để đổi phiên là
+  // gắn lại từ đầu — không mang nền tảng, link, form mở hay cờ bận sang phiên khác.
+  return <BoThuPhien key={props.sessionId} {...props} sessionId={props.sessionId} />;
+}
+
+function BoThuPhien({
   sessionId,
   sessionPlatform,
   sessionStatus,
@@ -67,96 +172,115 @@ export default function IngestPanel({
   allowSimulated = false,
   hideTitle = false,
   className,
-}: Props) {
+}: Props & { sessionId: string }) {
   const [platforms, setPlatforms] = useState<PlatformReadiness[] | null>(null);
+  const [platformsErr, setPlatformsErr] = useState(false);
   const [status, setStatus] = useState<IngestStatus | null>(null);
   const [platform, setPlatform] = useState<string>("");
   const [source, setSource] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [moForm, setMoForm] = useState(false);
-
-  const phienDong = sessionStatus === "ended" || sessionStatus === "cancelled";
+  /** Panel còn gắn — phản hồi về sau khi gỡ (đổi phiên) không được ghi đè gì. */
+  const conSong = useRef(true);
 
   useEffect(() => {
-    let alive = true;
-    getPlatforms()
-      .then((list) => alive && setPlatforms(list))
-      .catch(() => alive && setPlatforms([]));
+    conSong.current = true;
     return () => {
-      alive = false;
+      conSong.current = false;
     };
   }, []);
 
-  const choPhep = useMemo(
-    () => (allowSimulated ? THU_DUOC : THU_DUOC.filter((p) => p !== "mo_phong")),
-    [allowSimulated],
-  );
+  const phienDong = sessionStatus === "ended" || sessionStatus === "cancelled";
+
+  const taiNenTang = useCallback(async () => {
+    try {
+      const list = await getPlatforms();
+      if (!conSong.current) return;
+      setPlatforms(list);
+      setPlatformsErr(false);
+    } catch {
+      if (!conSong.current) return;
+      // Đã có danh sách thì giữ (lỗi thoáng qua); chưa có thì nói không đọc được.
+      setPlatformsErr(true);
+    }
+  }, []);
 
   useEffect(() => {
-    if (platform || !platforms) return;
-    const macDinh =
-      sessionPlatform && choPhep.includes(sessionPlatform)
-        ? sessionPlatform
-        : (platforms.find((p) => p.ready && choPhep.includes(p.platform))?.platform ?? "youtube");
-    setPlatform(macDinh);
-  }, [platforms, platform, sessionPlatform, choPhep]);
+    void taiNenTang();
+  }, [taiNenTang]);
+
+  const choPhep = useMemo(() => nenTangChoPhep(allowSimulated), [allowSimulated]);
+
+  const chon = useMemo(
+    () => mucDangChon(platforms, platform, choPhep),
+    [platforms, platform, choPhep],
+  );
+
+  // Chưa chọn, hoặc nền tảng đang chọn không còn được mời (phiên hết cho phép mô
+  // phỏng) hay máy chủ không có ⇒ chọn lại theo mặc định.
+  useEffect(() => {
+    if (!platforms || chon) return;
+    const macDinh = nenTangMacDinh(platforms, sessionPlatform, choPhep);
+    if (macDinh !== platform) setPlatform(macDinh);
+  }, [platforms, chon, platform, sessionPlatform, choPhep]);
+
+  // Đọc lại danh sách nền tảng khi chưa đọc được, hoặc khi nền tảng đang chọn
+  // chưa sẵn sàng (máy chủ có thể vừa được điền khoá và khởi động lại).
+  const canDocLai = canDocLaiNenTang(platforms, platformsErr, chon);
+  useEffect(() => {
+    if (!canDocLai) return;
+    const t = setInterval(() => void taiNenTang(), POLL_NEN_TANG_MS);
+    return () => clearInterval(t);
+  }, [canDocLai, taiNenTang]);
 
   const refresh = useCallback(async () => {
-    if (!sessionId) return;
     try {
-      setStatus(await getIngestStatus(sessionId));
+      const st = await getIngestStatus(sessionId);
+      if (conSong.current) setStatus(st);
     } catch {
       // Mất kết nối tạm thời: giữ trạng thái cũ, lần poll sau thử lại.
     }
   }, [sessionId]);
 
   useEffect(() => {
-    setStatus(null);
-    setError(null);
-    if (!sessionId) return;
     void refresh();
     const t = setInterval(() => void refresh(), POLL_MS);
     return () => clearInterval(t);
-  }, [sessionId, refresh]);
-
-  const chon = useMemo(
-    () => platforms?.find((p) => p.platform === platform) ?? null,
-    [platforms, platform],
-  );
+  }, [refresh]);
 
   const batDau = async () => {
-    if (!sessionId || !platform) return;
+    if (!chon) return;
     setBusy(true);
     setError(null);
     try {
       const st = await startIngest(sessionId, {
-        platform: platform as IngestPlatform,
+        platform: chon.platform as IngestPlatform,
         source: source.trim(),
       });
+      if (!conSong.current) return;
       setStatus(st);
       setMoForm(false);
     } catch (e) {
+      if (!conSong.current) return;
       setError(e instanceof Error ? e.message : "Không bật được bộ thu.");
     } finally {
-      setBusy(false);
+      if (conSong.current) setBusy(false);
     }
   };
 
   const tat = async () => {
-    if (!sessionId) return;
     setBusy(true);
     setError(null);
     try {
-      setStatus(await stopIngest(sessionId));
+      const st = await stopIngest(sessionId);
+      if (conSong.current) setStatus(st);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Không tắt được bộ thu.");
+      if (conSong.current) setError(e instanceof Error ? e.message : "Không tắt được bộ thu.");
     } finally {
-      setBusy(false);
+      if (conSong.current) setBusy(false);
     }
   };
-
-  if (!sessionId) return null;
 
   const state: IngestState = status?.state ?? "chua_bat";
   const nhan = NHAN[state] ?? NHAN.chua_bat;
@@ -166,6 +290,7 @@ export default function IngestPanel({
     state === "dang_thu" &&
     status?.seconds_since_last_event != null &&
     status.seconds_since_last_event > STALE_S;
+  const nguon = status && state !== "chua_bat" ? nhanNguon(status.platform, platforms) : null;
 
   const dongTrangThai = (
     <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1" aria-live="polite">
@@ -173,6 +298,17 @@ export default function IngestPanel({
         <span aria-hidden>{nhan.ky_hieu}</span>
         {nhan.chu}
       </span>
+      {nguon ? (
+        <span
+          className={cx(
+            "inline-flex items-center gap-1 text-meta",
+            nguon.tongHop ? "font-semibold text-warn-ink" : "text-sec",
+          )}
+        >
+          {nguon.tongHop ? <span aria-hidden>◐</span> : null}
+          Nguồn: {nguon.ten}
+        </span>
+      ) : null}
       {status && state !== "chua_bat" && (
         <span className="text-meta text-sec">
           {fmtNumber(status.comments_posted)} bình luận
@@ -185,6 +321,7 @@ export default function IngestPanel({
   );
 
   const hienForm = !dangChay && !phienDong && (!compact || moForm || state === "chua_bat");
+  const luaChon = (platforms ?? []).filter((p) => choPhep.includes(p.platform));
 
   return (
     <section
@@ -224,6 +361,18 @@ export default function IngestPanel({
       {status?.last_error && state !== "dang_thu" && (
         <p className="mt-1 text-meta text-sec">{status.last_error}</p>
       )}
+      {(status?.pending_writes ?? 0) > 0 && (
+        <p className="mt-1 text-meta text-warn-ink">
+          ⚠ Kho dữ liệu đang trục trặc: {fmtNumber(status?.pending_writes ?? 0)} bản ghi đang chờ
+          ghi lại. Bộ thu vẫn đọc bình luận; đừng tắt máy chủ lúc này.
+        </p>
+      )}
+      {(status?.dropped_writes ?? 0) > 0 && (
+        <p className="mt-1 text-meta text-crit-ink">
+          ✕ Đã mất {fmtNumber(status?.dropped_writes ?? 0)} bản ghi vì kho dữ liệu hỏng quá lâu —
+          phần số liệu này của phiên không đầy đủ.
+        </p>
+      )}
 
       {hienForm && (
         <form
@@ -237,17 +386,21 @@ export default function IngestPanel({
             Nền tảng
             <select
               className={cx(fieldCls, "px-2 text-body")}
-              value={platform}
+              value={chon ? platform : ""}
               onChange={(e) => setPlatform(e.target.value)}
+              disabled={luaChon.length === 0}
             >
-              {(platforms ?? [])
-                .filter((p) => choPhep.includes(p.platform))
-                .map((p) => (
-                  <option key={p.platform} value={p.platform}>
-                    {p.ten}
-                    {p.ready ? "" : " — chưa sẵn sàng"}
-                  </option>
-                ))}
+              {chon ? null : (
+                <option value="" disabled>
+                  {platforms == null ? "Đang đọc…" : "Chọn nền tảng"}
+                </option>
+              )}
+              {luaChon.map((p) => (
+                <option key={p.platform} value={p.platform}>
+                  {p.ten}
+                  {p.ready ? "" : " — chưa sẵn sàng"}
+                </option>
+              ))}
             </select>
           </label>
           <label className="flex min-w-[16rem] flex-1 flex-col gap-1 text-meta text-sec">
@@ -267,15 +420,45 @@ export default function IngestPanel({
         </form>
       )}
 
+      {hienForm && platforms == null && !platformsErr && (
+        <p className="mt-2 text-meta text-sec">
+          <span aria-hidden>◐</span> Đang hỏi máy chủ danh sách nền tảng thu được bình luận…
+        </p>
+      )}
+      {hienForm && platforms == null && platformsErr && (
+        <Callout tone="warn" slim className="mt-2">
+          <span>
+            Chưa đọc được danh sách nền tảng từ máy chủ — chưa bật được bộ thu. Trang tự thử lại
+            sau vài giây.{" "}
+          </span>
+          <Button variant="ghost" size="sm" onClick={() => void taiNenTang()}>
+            Thử lại
+          </Button>
+        </Callout>
+      )}
+      {hienForm && platforms != null && luaChon.length === 0 && (
+        <p className="mt-2 text-meta text-warn-ink">
+          <span aria-hidden>⚠</span> Máy chủ chưa có bộ thu nào dùng được cho phiên này — chưa
+          bật được bộ thu.
+        </p>
+      )}
       {hienForm && chon && !chon.ready && (
         <p className="mt-2 text-meta text-warn-ink">
           ⚠ Máy chủ chưa có khoá cho {chon.ten}: thiếu {chon.missing.join(", ")}. Nhờ người kỹ
           thuật điền vào tệp .env rồi khởi động lại máy chủ.
         </p>
       )}
-      {hienForm && chon && chon.ready && chon.mode === "du_phong" && !compact && (
-        <p className="mt-2 text-meta text-sec">{chon.note}</p>
+      {hienForm && chon && chon.ready && chon.platform === NEN_TANG_MO_PHONG && (
+        <p className="mt-2 text-meta text-warn-ink">
+          <span aria-hidden>◐</span> {chon.note}
+        </p>
       )}
+      {hienForm &&
+        chon &&
+        chon.ready &&
+        chon.mode === "du_phong" &&
+        chon.platform !== NEN_TANG_MO_PHONG &&
+        !compact && <p className="mt-2 text-meta text-sec">{chon.note}</p>}
       {error && (
         <Callout tone="critical" slim className="mt-2">
           {error}

@@ -14,12 +14,32 @@ D5  tối đa 16x, khung đầu trống, câu "bạn không cần bấm gì" c�
 D6  /host ở 390×844 chữ đè chữ (h-screen overflow-hidden + cỡ chữ cố định);
 D7  /host chọn phiên MỘT LẦN lúc tải → mở trước khi phát sóng là khoá nhầm;
 D8  câu giải thích trên /host dài và nhắc chữ "thí nghiệm".
+
+Kiểm toán 17/09 (K1–K7, cuối file) — các lỗi ĐÃ XÁC NHẬN trên hai màn này,
+khoá bằng hành vi thật (node chạy nguyên văn hàm thuần, máy chủ InMemoryStore):
+
+K1  /host trơn chọn lại "phiên live mới nhất" MỖI lần poll → phiên mẫu của nút
+    "Xem thử ngay" (hoặc phiên khách) cướp màn của buổi thật đang phát;
+K2  /host?session=<phiên đã kết thúc> vẫn in "Sản phẩm đang ghim — giới thiệu
+    ngay" với hàng ghim cũ;
+K3  câu "không tìm thấy phiên" bảo mở lại "từ bàn" — Bàn trợ live không có nút;
+K4  JS tĩnh của /host chứa assignment/block_index/propensity/design_hash (danh
+    sách khoá cấm của api.ts + bộ sinh lịch khối của mock.ts);
+K5  khung đầu tự tua không bảo đảm hai điểm phút khi bộ thu bật muộn;
+K6  "Bắt đầu xem thử" (?session=mock-ended-01) mở một buổi THẬT khi máy chủ sống;
+K7  phiên dry_run (có thể mang bình luận mô phỏng) bị in "PHÁT LẠI DỮ LIỆU THẬT".
 """
 
 from __future__ import annotations
 
+import json
+import os
 import re
+import shutil
+import subprocess
 from pathlib import Path
+
+import pytest
 
 WEB = Path(__file__).resolve().parents[1] / "web"
 SRC = WEB / "src"
@@ -31,6 +51,11 @@ HOST_VIEW = SRC / "components" / "HostView.tsx"
 USE_HOST = SRC / "lib" / "useHost.ts"
 HOST_PAGE = SRC / "app" / "host" / "page.tsx"
 TYPES_TS = SRC / "lib" / "types.ts"
+PICK_SESSION = SRC / "lib" / "pickSession.ts"
+API_TS = SRC / "lib" / "api.ts"
+MOCK_TS = SRC / "lib" / "mock.ts"
+FORMAT_TS = SRC / "lib" / "format.ts"
+LAYOUT = SRC / "app" / "layout.tsx"
 
 TYPE_TOKENS = {"meta", "label", "body", "strong", "title", "num-s", "num-m", "num-l", "num-xl"}
 
@@ -306,7 +331,10 @@ def test_d5_khung_dau_tu_tua_toi_phut_co_so_lieu_va_nhac_bam_phat():
         "cả bản ghi máy chủ lẫn bản mô phỏng phải mở ở phút đầu có số liệu, không ở 00:00 trống"
     )
     first = function_body(hook, "export function firstFrameOffset(")
-    assert "offset_s >= 60" in first, "biểu đồ cần hai điểm phút — khung đầu phải qua phút 1"
+    assert "Math.floor(x.offset_s / 60) > firstMinute" in first, (
+        "biểu đồ cần hai điểm phút — khung đầu phải qua phút SAU phút của tick sớm nhất "
+        "(không phải tick đầu có offset ≥ 60: xem K5)"
+    )
     prompt = function_body(code(read(REPLAY_PAGE)), "function playPrompt(")
     assert "bấm Phát" in prompt, "dòng nhắc phải nói rõ việc cần làm: bấm Phát"
     assert "Đã tua sẵn tới" in prompt, "tự tua thì phải nói là đã tua, không để người xem ngơ ngác"
@@ -446,17 +474,22 @@ def test_d7_trang_host_doc_session_trong_suspense():
 def test_d7_chon_lai_phien_moi_lan_poll_khong_phai_mot_lan_luc_tai():
     src = code(read(USE_HOST))
     pull = pull_body(src)
-    assert "listSessions(" in pull, "danh sách phiên phải được đọc lại TRONG vòng poll"
-    assert "pickCurrentSession(" in pull, "phiên đang live phải được chọn lại TRONG vòng poll"
+    assert 'hostGet<SessionSummary[]>("/sessions"' in pull, (
+        "danh sách phiên phải được đọc lại TRONG vòng poll"
+    )
+    assert "pickHostSession(" in pull, "phiên đang live phải được xét lại TRONG vòng poll"
     loop = src[src.index("const loop = async () => {") :]
     assert "await pull()" in loop, "vòng poll phải gọi hàm chọn phiên"
     assert "setTimeout(loop" in loop, "vòng poll phải tự nối đuôi"
-    assert not re.search(r"listSessions\(2500\)\s*\.then", src), (
+    assert not re.search(r"(listSessions|hostGet)[^;]*\)\s*\.then", src), (
         "chọn phiên bằng một lời gọi .then lúc tải chính là lỗi khoá nhầm phiên"
     )
-    assert 'pickCurrentSession(list.filter((s) => s.status === "live"))' in pull, (
-        "không có tham số thì chỉ chiếu phiên ĐANG live — hàng ghim của buổi đã kết thúc "
-        "có thể khiến người dẫn giới thiệu nhầm"
+    assert "pickHostSession(list, shownSessionId, !shownReal)" in pull, (
+        "không có tham số thì chọn qua pickHostSession (chỉ phiên ĐANG live, giữ phiên "
+        "đang chiếu, bỏ phiên mẫu khi có phiên thật) — xem K1"
+    )
+    assert "pickCurrentSession" not in src, (
+        "pickCurrentSession chọn phiên live MỚI NHẤT mỗi lần poll — chính là lỗi cướp màn K1"
     )
 
 
@@ -464,11 +497,12 @@ def test_d7_ma_trong_link_uu_tien_tuyet_doi():
     src = code(read(USE_HOST))
     pull = pull_body(src)
     i_req = pull.index("if (requested) {")
-    assert i_req < pull.index("pickCurrentSession("), (
+    assert i_req < pull.index("pickHostSession("), (
         "nhánh ?session= phải được xét trước việc tự chọn phiên"
     )
-    req_block = pull[i_req : pull.index("if (!list) {")]
-    assert "getHostState(requested)" in req_block
+    # `if (!list) {` CUỐI là nhánh /host trơn; nhánh ?session= có một cái riêng ở đầu.
+    req_block = pull[i_req : pull.rindex("if (!list) {")]
+    assert "readHostState(requested)" in req_block
     assert re.search(r"return;\s*\}\s*$", req_block), (
         "nhánh ?session= phải kết thúc trong chính nó, không rơi xuống tự chọn phiên khác"
     )
@@ -501,9 +535,15 @@ def test_d7_man_host_van_bi_lam_mu():
     ret = re.search(r"return \{ ([^}]+) \};\s*\}\s*$", code(read(USE_HOST)))
     assert ret, "không đọc được giá trị trả về của useHost"
     fields = {f.strip() for f in ret.group(1).split(",")}
-    assert fields == {"host", "connection", "degraded", "sessionNotFound", "sampleData"}, (
-        f"useHost chỉ được trả HostState + cờ đường truyền/nhãn, thấy: {sorted(fields)}"
-    )
+    assert fields == {
+        "host",
+        "connection",
+        "degraded",
+        "sessionNotFound",
+        "offAir",
+        "concurrentLive",
+        "sampleData",
+    }, f"useHost chỉ được trả HostState + cờ đường truyền/nhãn, thấy: {sorted(fields)}"
     m = re.search(r"export interface HostState \{(.*?)\n\}", read(TYPES_TS), re.S)
     assert m, "không đọc được HostState"
     keys = re.findall(r"(?m)^\s+(\w+)\??:", m.group(1))
@@ -526,3 +566,689 @@ def test_d8_cau_giai_thich_tren_host_ngan_va_khong_nhac_thi_nghiem():
     assert m, "không đọc được câu giải thích dưới tiêu đề"
     sentence = " ".join(m.group(1).split())
     assert len(sentence) <= 60, f"câu giải thích phải ngắn (≤ 60 ký tự), đang là: {sentence!r}"
+
+
+# ===========================================================================
+# Kiểm toán 17/09 — K1–K7: chạy THẬT hàm thuần bằng node trên dữ liệu máy chủ
+# ===========================================================================
+
+
+def extract(src: str, name: str) -> str:
+    """Tách nguyên văn một khai báo cấp cao nhất (function/const) — cùng cách
+    tests/test_web_desk_v3.py; node ≥ 22 tự bỏ chú thích kiểu."""
+    lines = src.replace("\r\n", "\n").split("\n")
+    head = re.compile(rf"^(?:export )?(?:(?:async )?function|const) {re.escape(name)}\b")
+    for i, line in enumerate(lines):
+        if not head.match(line):
+            continue
+        is_const = re.match(r"^(?:export )?const ", line) is not None
+        if is_const and line.rstrip().endswith(";"):
+            return line
+        for j in range(i + 1, len(lines)):
+            end = lines[j].rstrip()
+            if is_const and end and not end[0].isspace() and end.endswith(";"):
+                return "\n".join(lines[i : j + 1])
+            if not is_const and end == "}":
+                return "\n".join(lines[i : j + 1])
+        break
+    raise AssertionError(f"không tách được khai báo {name}")
+
+
+def node_eval(tmp_path: Path, decls: list[tuple[Path, list[str]]], expr: str):
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("không có node — bỏ qua phần chạy thử hàm thuần")
+    module = "\n\n".join(extract(read(path), n) for path, names in decls for n in names)
+    script = tmp_path / "replay_host_pure.mts"
+    script.write_text(module + f"\nconsole.log(JSON.stringify({expr}));\n", encoding="utf-8")
+    out = subprocess.run(
+        [node, "--experimental-strip-types", "--no-warnings", str(script)],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=60,
+    )
+    if out.returncode != 0 and "strip-types" in out.stderr and "bad option" in out.stderr:
+        pytest.skip("node quá cũ, chưa bỏ được chú thích kiểu")
+    assert out.returncode == 0, out.stderr
+    return json.loads(out.stdout.strip().splitlines()[-1])
+
+
+def js(value) -> str:
+    return json.dumps(value, ensure_ascii=False)
+
+
+PICK_HOST = [(PICK_SESSION, ["startedAt", "latest", "pickHostSession"])]
+
+
+@pytest.fixture
+def api():
+    from fastapi.testclient import TestClient
+
+    from livelift.api.main import create_app
+    from livelift.api.store import InMemoryStore
+
+    store = InMemoryStore()
+    with TestClient(create_app(store=store)) as client:
+        yield client, store
+
+
+def _real_live_session(client, store, minutes_ago: int) -> str:
+    """Phiên THẬT (không token = chế độ cục bộ) đang phát từ `minutes_ago` phút trước."""
+    from datetime import timedelta
+
+    from livelift.api import service
+
+    r = client.post(
+        "/sessions", json={"platform": "youtube", "mode": "suggest", "planned_duration_min": 90}
+    )
+    assert r.status_code == 200, r.text
+    sid = r.json()["session_id"]
+    assert client.post(f"/sessions/{sid}/schedule", json={"seed": 7}).status_code == 200
+    assert client.post(f"/sessions/{sid}/start").status_code == 200
+    store.update_session(sid, {"start_ts": service.now_utc() - timedelta(minutes=minutes_ago)})
+    return sid
+
+
+# ---------------------------------------------------------------------------
+# K1 — /host trơn: phiên mẫu / phiên đến sau không cướp màn buổi thật
+# ---------------------------------------------------------------------------
+
+
+def test_k1_xem_thu_ngay_khong_cuop_man_cua_buoi_that_dang_phat(api, tmp_path):
+    """Kịch bản đã tái hiện: phiên thật live 40 phút, ai đó bấm "Xem thử ngay"
+    (/demo/seed để lại phiên mẫu live với start_ts = now − 30 phút, MỚI hơn)."""
+    client, store = api
+    real = _real_live_session(client, store, minutes_ago=40)
+    seed = client.post("/demo/seed", json={"n_sessions": 1})
+    assert seed.status_code == 200, seed.text
+    rows = client.get("/sessions").json()
+    live = [r for r in rows if r["status"] == "live"]
+    assert {r["is_demo"] for r in live} == {True, False}, "kịch bản cần cả phiên thật lẫn mẫu live"
+    got = node_eval(
+        tmp_path,
+        PICK_HOST,
+        f"[pickHostSession({js(rows)}, {js(real)}), pickHostSession({js(rows)}, null)]",
+    )
+    for pick in got:
+        assert pick["session"]["session_id"] == real, (
+            "màn người dẫn nhảy sang phiên mẫu mới hơn — người dẫn giới thiệu nhầm hàng"
+        )
+        assert pick["session"]["is_demo"] is False
+        assert pick["liveCount"] == 1, "phiên mẫu không được tính là phiên cạnh tranh"
+
+
+def test_k1_giu_phien_dang_chieu_khi_co_phien_that_thu_hai_len_song(api, tmp_path):
+    client, store = api
+    first = _real_live_session(client, store, minutes_ago=40)
+    second = _real_live_session(client, store, minutes_ago=1)
+    rows = client.get("/sessions").json()
+    got = node_eval(
+        tmp_path,
+        PICK_HOST,
+        f"[pickHostSession({js(rows)}, {js(first)}), pickHostSession({js(rows)}, null)]",
+    )
+    kept, fresh = got
+    assert kept["session"]["session_id"] == first, "phiên đang chiếu còn live thì giữ nguyên"
+    assert kept["liveCount"] == 2, "hai phiên thật cùng live phải được báo, không tự đổi"
+    assert fresh["session"]["session_id"] == second, (
+        "chưa chiếu gì thì chọn phiên lên sóng GẦN NHẤT (bug đồng hồ 328 giờ)"
+    )
+
+
+def test_k1_mo_truoc_gio_phat_van_bat_duoc_phien_vua_len_song(api, tmp_path):
+    """Không được đổi lại lỗi gói D: màn mở trước giờ phát (đang chiếu phiên mẫu
+    hoặc chưa chiếu gì) phải tự sang phiên thật vừa bấm phát; phiên thật xong
+    thì màn trống, không lùi về hàng mẫu."""
+    client, store = api
+    seed = client.post("/demo/seed", json={"n_sessions": 1}).json()
+    demo_live = seed["replay_session_id"]
+    before = client.get("/sessions").json()
+    real = _real_live_session(client, store, minutes_ago=0)
+    during = client.get("/sessions").json()
+    assert client.post(f"/sessions/{real}/end").status_code == 200
+    after = client.get("/sessions").json()
+    got = node_eval(
+        tmp_path,
+        PICK_HOST,
+        "["
+        f"pickHostSession({js(before)}, null),"
+        f"pickHostSession({js(during)}, {js(demo_live)}),"
+        f"pickHostSession({js(after)}, {js(real)}, false),"
+        f"pickHostSession({js(after)}, null, true)"
+        "]",
+    )
+    only_demo, demo_to_real, real_ended, fresh_tab = got
+    assert only_demo["session"]["session_id"] == demo_live, "chưa có phiên thật: chiếu phiên mẫu"
+    assert demo_to_real["session"]["session_id"] == real, "phiên thật lên sóng thay phiên mẫu"
+    assert real_ended["session"] is None, (
+        "màn đã chiếu phiên thật: buổi thật xong thì trống, không nhảy sang hàng mẫu"
+    )
+    assert fresh_tab["session"]["session_id"] == demo_live
+
+
+def test_k1_hook_giu_phien_va_bao_nhieu_phien_cung_live():
+    src = code(read(USE_HOST))
+    pull = pull_body(src)
+    assert "setConcurrentLive(picked.liveCount >= 2 ? picked.liveCount : 0)" in pull
+    assert "if (h != null && isDemo === false) shownReal = true;" in src, (
+        "màn phải nhớ đã từng chiếu phiên thật để không lùi về phiên mẫu"
+    )
+    view = code(read(HOST_VIEW))
+    i = view.index("concurrentLive >= 2 ?")
+    assert "⚠" in view[i : i + 400], "cảnh báo nhiều phiên phải có HÌNH + chữ"
+    assert "không tự đổi" in view[i : i + 600]
+    page = code(read(HOST_PAGE))
+    assert "concurrentLive={concurrentLive}" in page
+    assert "offAir={offAir}" in page
+
+
+# ---------------------------------------------------------------------------
+# K2 — /host?session=<phiên không live>: không in hàng ghim cũ
+# ---------------------------------------------------------------------------
+
+
+def test_k2_phien_da_ket_thuc_con_hang_ghim_nhung_man_khong_doc(api, tmp_path):
+    client, _store = api
+    seed = client.post("/demo/seed", json={"n_sessions": 1}).json()
+    ended = seed["session_ids"][0]
+    row = next(r for r in client.get("/sessions").json() if r["session_id"] == ended)
+    assert row["status"] == "ended"
+    host = client.get(f"/sessions/{ended}/state?role=host").json()
+    assert host["pinned_product"], (
+        "tiền đề: máy chủ VẪN trả hàng ghim cuối của phiên đã xong — web phải tự chặn"
+    )
+    got = node_eval(
+        tmp_path,
+        [(USE_HOST, ["offAirOf"])],
+        "['live','ended','cancelled','planned','scheduled'].map(offAirOf)",
+    )
+    assert got == [None, "ended", "cancelled", "not_started", "not_started"], (
+        "phiên huỷ (đóng mà chưa từng lên sóng) không được gọi là 'đã kết thúc'"
+    )
+
+    pull = pull_body(code(read(USE_HOST)))
+    req = pull[pull.index("if (requested) {") : pull.index("pickHostSession(")]
+    i_off = req.index("const off = offAirOf(row.status);")
+    i_read = req.index("readHostState(requested)")
+    assert i_off < i_read, "trạng thái phiên phải được xét TRƯỚC khi đọc hàng ghim"
+    guard = req[i_off:i_read]
+    assert "setOffAir(off);" in guard
+    assert re.search(r"show\(null, null, row\.is_demo\);\s*return;", guard), (
+        "phiên không live thì dừng ở đó — không bao giờ gọi /state?role=host"
+    )
+
+
+def test_k2_man_noi_ro_phien_da_ket_thuc_hoac_chua_len_song(tmp_path):
+    got = node_eval(
+        tmp_path,
+        [(HOST_VIEW, ["REOPEN_HINT", "emptyStateText"])],
+        "[emptyStateText('live', false, 'ended'), emptyStateText('live', false, 'not_started'),"
+        " emptyStateText('live', false, null), emptyStateText('connecting', false, 'ended'),"
+        " emptyStateText('live', false, 'cancelled')]",
+    )
+    ended, not_started, idle, connecting, cancelled = got
+    assert "đã kết thúc" in ended["title"]
+    assert ended["icon"], "trạng thái phải có HÌNH + chữ"
+    assert "giới thiệu nhầm" in ended["detail"]
+    assert "chưa lên sóng" in not_started["title"]
+    assert not_started["icon"]
+    assert "người trực" in not_started["detail"], (
+        "người dẫn không bấm 'Bắt đầu phát sóng' — câu phải nói ai bấm"
+    )
+    assert "đã huỷ" in cancelled["title"]
+    assert "kết thúc" not in cancelled["title"], "phiên huỷ chưa từng phát — không 'kết thúc'"
+    assert "chưa từng lên sóng" in cancelled["detail"]
+    assert cancelled["icon"], "trạng thái phải có HÌNH + chữ"
+    assert idle["title"] == "Chưa ghim sản phẩm"
+    assert connecting["title"] == "Đang kết nối…"
+    for state in got:
+        assert "giới thiệu ngay" not in state["title"], "màn trống không được mượn nhãn hàng ghim"
+
+
+# ---------------------------------------------------------------------------
+# K3 — câu "không tìm thấy phiên" chỉ tới đúng chỗ có nút
+# ---------------------------------------------------------------------------
+
+
+def test_k3_khong_bao_mo_lai_tu_ban_tro_live(tmp_path):
+    got = node_eval(
+        tmp_path,
+        [(HOST_VIEW, ["REOPEN_HINT", "emptyStateText"])],
+        "emptyStateText('live', true, null)",
+    )
+    assert got["title"] == "Không tìm thấy phiên trong link"
+    assert "từ bàn" not in got["detail"], "Bàn trợ live không có nút mở màn người dẫn"
+    assert "Chuẩn bị phiên" in got["detail"]
+    assert "bước 4" in got["detail"]
+    assert got["icon"]
+    wizard = read(SRC / "app" / "chay-phien" / "page.tsx")
+    assert "Mở màn hình người dẫn" in wizard, "câu dẫn phải khớp nhãn nút ở trang Chuẩn bị phiên"
+    assert "Mở màn hình người dẫn" in got["detail"]
+
+
+# ---------------------------------------------------------------------------
+# K4 — JS tải về máy người dẫn không chứa khoá khối (tầng mạng, sự cố 27/08)
+# ---------------------------------------------------------------------------
+
+_IMPORT_RE = re.compile(
+    r"""(?:^|\n)\s*(?:import|export)\s+(type\s+)?(?:[^"';]*?\s+from\s+)?["']([^"']+)["']"""
+    r"""|import\(\s*["']([^"']+)["']\s*\)"""
+)
+
+
+def _resolve(spec: str, here: Path) -> Path | None:
+    if spec.startswith("@/"):
+        base = SRC / spec[2:]
+    elif spec.startswith("."):
+        base = Path(os.path.normpath(here.parent / spec))
+    else:
+        return None  # gói ngoài (react, next) — không phải mã của dự án
+    for cand in (base, base.with_name(base.name + ".ts"), base.with_name(base.name + ".tsx")):
+        if cand.is_file():
+            return cand
+    return None
+
+
+def host_module_graph() -> set[Path]:
+    """Mọi module của dự án mà trang /host (và layout gốc) tải ở runtime —
+    bỏ `import type` vì chúng bị xoá khi build."""
+    seen: set[Path] = set()
+    todo = [HOST_PAGE, LAYOUT]
+    while todo:
+        path = todo.pop()
+        if path in seen or path.suffix not in (".ts", ".tsx"):
+            continue
+        seen.add(path)
+        for m in _IMPORT_RE.finditer(code(read(path))):
+            if m.group(1):
+                continue
+            target = _resolve(m.group(2) or m.group(3), path)
+            if target is not None:
+                todo.append(target)
+    return seen
+
+
+HOST_BUNDLE_FORBIDDEN = (
+    "assignment",
+    "block_index",
+    "propensity",
+    "design_hash",
+    "current_block",
+    "seconds_remaining",
+    "role=operator",
+)
+
+
+def test_k4_do_thi_import_cua_host_khong_co_api_ts_va_mock_ts():
+    graph = host_module_graph()
+    names = {p.relative_to(SRC).as_posix() for p in graph}
+    assert "lib/useHost.ts" in names, names
+    assert "components/HostView.tsx" in names, names
+    assert "lib/pickSession.ts" in names, "trình đọc import phải đi được xuống module con"
+    assert "lib/api.ts" not in names, (
+        "api.ts mang danh sách khoá cấm + mọi đường operator — JS tĩnh của /host từng chứa "
+        "'assignment', 'design_hash' (đo trên bản build 17/09)"
+    )
+    assert "lib/mock.ts" not in names, (
+        "mock.ts mang bộ sinh lịch khối (block_index/assignment/propensity)"
+    )
+
+
+def test_k4_ma_trong_do_thi_import_cua_host_khong_nhac_khoa_khoi():
+    offenders = []
+    for path in sorted(host_module_graph()):
+        src = code(read(path))
+        offenders += [f"{path.relative_to(SRC)}: {k}" for k in HOST_BUNDLE_FORBIDDEN if k in src]
+    assert not offenders, "mã tải về máy người dẫn nhắc khoá khối:\n" + "\n".join(offenders)
+
+
+def test_k4_doc_import_bat_duoc_api_ts_neu_ai_do_import_lai():
+    """Tự kiểm của gate: trình đọc import phải thấy một import giá trị từ ./api."""
+    fake = 'import { useEffect } from "react";\nimport {\n  getHostState,\n} from "./api";\n'
+    specs = [m.group(2) for m in _IMPORT_RE.finditer(fake) if not m.group(1)]
+    assert "./api" in specs
+    typed = 'import type { HostState } from "./types";\n'
+    assert all(m.group(1) for m in _IMPORT_RE.finditer(typed))
+
+
+def test_k4_payload_host_qua_danh_sach_cho_phep(tmp_path):
+    decls = [(USE_HOST, ["HOST_PAYLOAD_KEYS", "finiteOrNull", "toHostState"])]
+    leaked = {
+        "pinned_product": "Bình giữ nhiệt 500ml",
+        "price": 95000.0,
+        "stock": 80,
+        "elapsed_s": 12.5,
+        "extra_a": "x",
+        "extra_b": 1,
+    }
+    legacy = {"pinned_product": {"name": "Áo", "price": 5, "stock": 2}}
+    got = node_eval(
+        tmp_path,
+        decls,
+        f"[toHostState({js(leaked)}), toHostState({js(legacy)}), toHostState({{}})]",
+    )
+    full, old_shape, empty = got
+    assert full == {
+        "product_name": "Bình giữ nhiệt 500ml",
+        "price": 95000,
+        "stock": 80,
+        "elapsed_s": 12.5,
+    }, "chỉ bốn trường HostState được đi tiếp — trường lạ bị bỏ"
+    assert old_shape == {"product_name": "Áo", "price": 5, "stock": 2, "elapsed_s": 0}
+    assert empty == {"product_name": None, "price": None, "stock": None, "elapsed_s": 0}
+    assert "/state?role=host" in code(read(USE_HOST)), "màn người dẫn chỉ đọc payload role=host"
+
+
+def test_k4_duong_mang_rieng_cua_host_khop_api_ts_va_mau_khop_mock_ts():
+    host = read(USE_HOST)
+    api_src = read(API_TS)
+    expr = re.compile(r"\(process\.env\.NEXT_PUBLIC_API_URL \?\? \"([^\"]+)\"\)\.replace\(")
+    api_m = expr.search(api_src[api_src.index("export const API_BASE") :])
+    host_m = expr.search(host[host.index("const HOST_API_BASE") :])
+    assert api_m, "không đọc được địa chỉ máy chủ của api.ts"
+    assert host_m, "không đọc được địa chỉ máy chủ của useHost.ts"
+    assert api_m.group(1) == host_m.group(1), "địa chỉ máy chủ mặc định của /host lệch api.ts"
+
+    mock = read(MOCK_TS)
+    start = mock.index("export const MOCK_PRODUCTS")
+    block = mock[start : mock.index("];", start)]
+    mock_products = re.findall(
+        r'name: "([^"]+)", category: "[^"]+", price: (\d+), stock: (\d+)', block
+    )
+    host_start = host.index("const MOCK_HOST_PRODUCTS")
+    host_block = host[host_start : host.index("];", host_start)]
+    host_products = re.findall(r'name: "([^"]+)", price: (\d+), stock: (\d+)', host_block)
+    assert mock_products, "không đọc được MOCK_PRODUCTS"
+    assert host_products == mock_products, (
+        "bản mô phỏng của màn người dẫn phải cùng hàng với bản ghi bàn trợ live đang chạy"
+    )
+    assert "t % 240 === 0" in mock
+    assert "const MOCK_HOST_PIN_EVERY_S = 240;" in host
+    live = mock[mock.index('session_id: "mock-live-01"') :]
+    assert "planned_duration_min: 90," in live[:400]
+    assert "const MOCK_HOST_DURATION_S = 90 * 60;" in host
+    elapsed = function_body(mock, "export function mockElapsedS(")
+    mock_host = function_body(host, "export function mockHostState(")
+    for piece in ("Math.min(2100, Math.floor(", "* 0.4))", "Math.max(60, ", "* 6) % span)"):
+        assert piece in elapsed, f"mockElapsedS đổi nhịp: {piece}"
+        assert piece in mock_host, f"đồng hồ mô phỏng của /host lệch bàn trợ live: {piece}"
+
+
+# ---------------------------------------------------------------------------
+# K5 — khung đầu tự tua luôn có HAI điểm phút
+# ---------------------------------------------------------------------------
+
+
+def _tick(off: int) -> dict:
+    return {
+        "offset_s": off,
+        "ts_bucket": None,
+        "viewers": 50,
+        "comment_rate": 1,
+        "like_rate": 0,
+        "click_count": 0,
+        "pinned_product_id": None,
+        "baseline_viewers": None,
+        "baseline_clicks_per_min": None,
+    }
+
+
+K5_DECLS = [
+    (USE_REPLAY, ["FIRST_FRAME_MAX_COMMENT_S", "firstFrameOffset"]),
+    (RHYTHM_CHART, ["toMinutePoints"]),
+]
+
+
+def test_k5_khung_dau_co_hai_diem_phut_ke_ca_khi_bo_thu_bat_muon(tmp_path):
+    cases = {
+        "tu_dau": ([0, 30, 60, 90], []),
+        "tick_dau_90": ([90, 120, 150], []),
+        "bat_muon_10_phut": ([600, 630, 660, 690], [610]),
+        "bat_muon_2_phut": ([120, 150, 180], [130]),
+        "tick_lon_xon": ([630, 600, 690, 660], []),
+    }
+    recs = {
+        k: {
+            "ticks": [_tick(o) for o in offs],
+            "comments": [{"offset_s": c} for c in cm],
+            "duration_s": 3600,
+        }
+        for k, (offs, cm) in cases.items()
+    }
+    expr = (
+        f"Object.fromEntries(Object.entries({js(recs)}).map(([k, r]) => {{"
+        " const t = firstFrameOffset(r);"
+        " return [k, [t, toMinutePoints(r.ticks.filter((x) => x.offset_s <= t)).length]];"
+        " }))"
+    )
+    got = node_eval(tmp_path, K5_DECLS, expr)
+    for name, (t, points) in got.items():
+        assert points >= 2, f"{name}: tự tua tới {t}s mà biểu đồ chỉ có {points} điểm phút"
+    assert got["bat_muon_10_phut"][0] == 660
+    assert got["tu_dau"][0] == 60
+
+
+def test_k5_mot_phut_so_lieu_thi_khong_tu_tua(tmp_path):
+    rec = {"ticks": [_tick(600), _tick(630)], "comments": [], "duration_s": 3600}
+    assert node_eval(tmp_path, K5_DECLS, f"firstFrameOffset({js(rec)})") == 0
+
+
+def test_k5_cau_nhac_khong_noi_qua_so_lieu():
+    prompt = function_body(code(read(REPLAY_PAGE)), "function playPrompt(")
+    assert "phút đầu có số liệu" not in prompt, (
+        "tick đầu ở phút 10 thì 'phút đầu có số liệu' không đúng — nói đúng là đủ hai phút"
+    )
+    assert "đủ hai phút số liệu" in prompt
+
+
+def test_k5_cau_nhac_chi_noi_du_hai_phut_khi_bieu_do_that_su_co_hai_phut(tmp_path):
+    """Khung đầu còn có thể được tua tới BÌNH LUẬN đầu tiên khi bản ghi chưa có
+    phút số liệu thứ hai (tick chỉ ở phút 10, bình luận ở 01:40) — lúc đó biểu
+    đồ trống, nên câu nhắc không được khẳng định "đủ hai phút số liệu"."""
+    decls = [
+        (FORMAT_TS, ["fmtClock", "fmtMinSec", "fmtElapsed"]),
+        (USE_REPLAY, ["FIRST_FRAME_MAX_COMMENT_S", "firstFrameOffset"]),
+        (RHYTHM_CHART, ["toMinutePoints"]),
+        (REPLAY_PAGE, ["minutesWithData", "playPrompt"]),
+    ]
+    cases = {
+        "chi_binh_luan_truoc_tick": ([600, 630], [100]),
+        "mot_phut_tick_va_binh_luan": ([0, 30], [200]),
+        "bat_muon_du_hai_phut": ([600, 630, 660], [610]),
+        "tu_dau": ([0, 30, 60, 90], []),
+    }
+    recs = {
+        k: {
+            "ticks": [_tick(o) for o in offs],
+            "comments": [{"offset_s": c} for c in cm],
+            "duration_s": 3600,
+        }
+        for k, (offs, cm) in cases.items()
+    }
+    expr = (
+        f"Object.fromEntries(Object.entries({js(recs)}).map(([k, r]) => {{"
+        " const t = firstFrameOffset(r);"
+        " const visibleTicks = r.ticks.filter((x) => x.offset_s <= t);"
+        " const rp = { recording: r, playing: false, speed: 30, t, firstFrameS: t, visibleTicks };"
+        " return [k, [t, toMinutePoints(visibleTicks).length, playPrompt(rp)]];"
+        " }))"
+    )
+    got = node_eval(tmp_path, decls, expr)
+    for name, (t, points, prompt) in got.items():
+        assert t > 0, f"{name}: tiền đề là khung đầu đã được tự tua"
+        assert prompt.startswith("Đã tua sẵn tới"), f"{name}: {prompt!r}"
+        if points >= 2:
+            assert "đủ hai phút số liệu" in prompt, f"{name}: {prompt!r}"
+        else:
+            assert "đủ hai phút" not in prompt, (
+                f"{name}: biểu đồ có {points} điểm phút mà câu nhắc nói đủ hai phút: {prompt!r}"
+            )
+            assert "bình luận đầu tiên" in prompt
+    assert got["chi_binh_luan_truoc_tick"][:2] == [100, 0]
+    assert got["mot_phut_tick_va_binh_luan"][:2] == [200, 1]
+    assert got["bat_muon_du_hai_phut"][1] >= 2
+
+
+# ---------------------------------------------------------------------------
+# K6 — "Bắt đầu xem thử" luôn là bản mô phỏng ngoại tuyến
+# ---------------------------------------------------------------------------
+
+
+def test_k6_ma_mock_trong_link_buoc_che_do_mo_phong(tmp_path):
+    got = node_eval(
+        tmp_path,
+        [(USE_REPLAY, ["SAMPLE_ID_PREFIX", "isSampleSessionId"])],
+        "['mock-ended-01', 'mock-analysis-01', '3fa85f64-5717-4562-b3fc-2c963f66afa6', null, '']"
+        ".map(isSampleSessionId)",
+    )
+    assert got == [True, True, False, False, False]
+    home = read(SRC / "app" / "page.tsx")
+    for sid in re.findall(r"/replay\?session=([\w-]+)", home):
+        assert sid.startswith("mock-"), f"trang chủ mở bản xem thử bằng mã {sid} không có tiền tố"
+
+    hook = code(read(USE_REPLAY))
+    i_sample = hook.index("if (wantSample) {")
+    i_list = hook.index("listSessions(2500)")
+    assert i_sample < i_list, "mã mock phải được xét TRƯỚC khi hỏi máy chủ"
+    between = hook[i_sample:i_list]
+    assert re.search(
+        r"const reason = sampleLinkMockReason\(connectionRef\.current\);\s*"
+        r"if \(reason\) switchToMock\(reason\);\s*return;",
+        between,
+    ), "link xin bản xem thử thì KHÔNG gọi máy chủ — máy chủ sống sẽ mở một buổi thật"
+    assert "connectionRef.current = connection;" in hook
+    assert "}, [switchToMock, wantSample]);" in hook
+
+
+def test_k6_xem_thu_khi_may_chu_song_va_co_buoi_that_da_ket_thuc(api, tmp_path):
+    """Kịch bản E2E: máy chủ SỐNG, đã có một buổi THẬT kết thúc, bấm "Bắt đầu
+    xem thử" → /replay?session=mock-ended-01. Trước khi sửa, hook hỏi máy chủ,
+    pickReplaySession bỏ qua mã mock và mở buổi thật kèm nhãn "DỮ LIỆU THẬT"."""
+    client, store = api
+    real = _real_live_session(client, store, minutes_ago=30)
+    assert client.post(f"/sessions/{real}/end").status_code == 200
+    rows = client.get("/sessions").json()
+    assert any(r["session_id"] == real and r["status"] == "ended" for r in rows)
+    decls = [
+        (FORMAT_TS, ["TZ", "dateFmt", "fmtDateHCM"]),
+        (
+            USE_REPLAY,
+            [
+                "SAMPLE_ID_PREFIX",
+                "isSampleSessionId",
+                "sampleLinkMockReason",
+                "finishedAt",
+                "endedNewestFirst",
+                "pickReplaySession",
+            ],
+        ),
+        (REPLAY_PAGE, ["provenanceText"]),
+    ]
+    sid = "mock-ended-01"
+    expr = (
+        "(() => {"
+        f" const rows = {js(rows)};"
+        f" const oldPick = pickReplaySession(endedNewestFirst(rows), {js(sid)});"
+        f" const want = isSampleSessionId({js(sid)});"
+        " const reason = want ? sampleLinkMockReason('connecting') : null;"
+        " const rp = { connection: reason ? 'mock' : 'live', mockReason: reason };"
+        " return [oldPick && oldPick.session_id, want, reason, provenanceText(rp, oldPick),"
+        "  provenanceText({ connection: 'live', mockReason: null }, oldPick)];"
+        "})()"
+    )
+    old_pick, want, reason, banner, old_banner = node_eval(tmp_path, decls, expr)
+    assert old_pick == real, "tiền đề: đường cũ (hỏi máy chủ) mở nhầm buổi thật"
+    assert old_banner.startswith("PHÁT LẠI DỮ LIỆU THẬT"), "tiền đề: đường cũ in nhãn THẬT"
+    assert want is True
+    assert reason == "sample", "máy chủ sống vẫn phải buộc chạy bản mô phỏng"
+    assert banner.startswith("PHÁT LẠI DỮ LIỆU MÔ PHỎNG")
+    assert "THẬT" not in banner
+    page = code(read(REPLAY_PAGE))
+    assert "const isSample = isMock || shown?.is_demo === true;" in page, (
+        "chế độ mô phỏng phải kèm huy hiệu DEMO — dữ liệu mẫu"
+    )
+
+
+def test_k6_chon_ban_mo_phong_khac_khi_mat_may_chu_giu_ly_do_cu(tmp_path):
+    """Đang mô phỏng vì mất máy chủ, chọn bản khác trong ô chọn phiên →
+    `selectSession` ghi `?session=mock-…` vào link. Lý do "chưa kết nối được
+    máy chủ" không được bị thay bằng "bản xem thử"."""
+    got = node_eval(
+        tmp_path,
+        [(USE_REPLAY, ["sampleLinkMockReason"])],
+        "['connecting', 'live', 'mock'].map(sampleLinkMockReason)",
+    )
+    assert got == ["sample", "sample", None]
+    page = code(read(REPLAY_PAGE))
+    assert "router.replace(`/replay?session=${encodeURIComponent(id)}`" in page, (
+        "tiền đề: chọn phiên ghi mã vào link — mã mock làm hiệu ứng tải danh sách chạy lại"
+    )
+
+
+def test_k6_nhan_ban_xem_thu_la_mo_phong_khong_phai_that(tmp_path):
+    decls = [
+        (FORMAT_TS, ["TZ", "dateFmt", "fmtDateHCM"]),
+        (REPLAY_PAGE, ["provenanceText", "requestNotice"]),
+    ]
+    rp = {"connection": "mock", "mockReason": "sample", "requestedStatus": "ok"}
+    missing = {**rp, "requestedStatus": "not_found"}
+    got = node_eval(
+        tmp_path,
+        decls,
+        f"[provenanceText({js(rp)}, null), requestNotice({js(missing)})]",
+    )
+    banner, notice = got
+    assert banner.startswith("PHÁT LẠI DỮ LIỆU MÔ PHỎNG")
+    assert "ngoại tuyến" in banner
+    assert "máy chủ" not in notice, "bản xem thử không phải vì mất máy chủ — đừng nói sai lý do"
+
+
+# ---------------------------------------------------------------------------
+# K7 — buổi chạy thử (dry_run) không bao giờ là "DỮ LIỆU THẬT"
+# ---------------------------------------------------------------------------
+
+
+def test_k7_phien_chay_thu_nap_nguon_mo_phong_khong_in_du_lieu_that(api, tmp_path):
+    """Kịch bản đã tái hiện: dry_run → nguồn mô phỏng được phép → kết thúc →
+    /replay. Payload bình luận không mang nền tảng nên web chỉ dựa vào cờ phiên."""
+    from livelift.api.ingest_jobs import cho_phep_mo_phong
+
+    client, _store = api
+    body = {"platform": "youtube", "mode": "suggest", "planned_duration_min": 30, "dry_run": True}
+    r = client.post("/sessions", json=body)
+    assert r.status_code == 200, r.text
+    sid = r.json()["session_id"]
+    row = next(x for x in client.get("/sessions").json() if x["session_id"] == sid)
+    assert row["is_demo"] is False
+    assert row["dry_run"] is True
+    assert cho_phep_mo_phong(row), "tiền đề: phiên chạy thử được nạp bình luận mô phỏng"
+    assert not cho_phep_mo_phong({**row, "dry_run": False}), (
+        "tiền đề: phiên THẬT không bao giờ mang bình luận mô phỏng — nên chữ 'THẬT' chỉ an "
+        "toàn khi cả is_demo lẫn dry_run đều tắt"
+    )
+    ended = {**row, "status": "ended", "start_ts": "2026-09-17T09:00:00Z"}
+    real = {**ended, "dry_run": False}
+    decls = [
+        (FORMAT_TS, ["TZ", "dateFmt", "fmtDateHCM"]),
+        (REPLAY_PAGE, ["provenanceText"]),
+        (REPLAY_CONTROLS, ["sessionLabel"]),
+    ]
+    live_rp = {"connection": "live", "mockReason": None}
+    got = node_eval(
+        tmp_path,
+        decls,
+        f"[provenanceText({js(live_rp)}, {js(ended)}), provenanceText({js(live_rp)}, {js(real)}),"
+        f" sessionLabel({js(ended)})]",
+    )
+    dry, real_text, label = got
+    assert "THẬT" not in dry, f"phiên chạy thử bị in là dữ liệu thật: {dry!r}"
+    assert "CHẠY THỬ" in dry
+    assert "mô phỏng" in dry
+    assert real_text.startswith("PHÁT LẠI DỮ LIỆU THẬT"), "phiên thật vẫn được gọi đúng tên"
+    assert "chạy thử" in label
+
+    page = code(read(REPLAY_PAGE))
+    assert "const isDryRun = !isSample && shown?.dry_run === true;" in page
+    i = page.index("{isDryRun ?")
+    assert "CHẠY THỬ" in page[i : i + 120], "phiên chạy thử cần huy hiệu riêng cạnh dải băng"

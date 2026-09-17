@@ -25,11 +25,16 @@ import { fieldCls } from "./ui/field";
 
 const SPEEDS: ReplaySpeed[] = [1, 4, 16, 30, 60];
 
-/** Nhãn một dòng trong ô chọn phiên — tên, ngày, và nhãn dữ liệu mẫu. */
+/**
+ * Nhãn một dòng trong ô chọn phiên — tên, ngày, và nhãn nguồn dữ liệu: phiên
+ * mẫu là "dữ liệu mẫu", phiên chạy thử (có thể mang bình luận mô phỏng) là
+ * "chạy thử" — kiểm toán 17/09.
+ */
 function sessionLabel(s: SessionSummary): string {
   const name = s.title ?? `Phiên chưa đặt tên · ${s.session_id.slice(0, 8)}`;
   const day = s.start_ts ? ` · ${fmtDateHCM(s.start_ts)}` : "";
-  return `${name}${day}${s.is_demo ? " · dữ liệu mẫu" : ""}`;
+  const origin = s.is_demo ? " · dữ liệu mẫu" : s.dry_run ? " · chạy thử" : "";
+  return `${name}${day}${origin}`;
 }
 
 interface Props {

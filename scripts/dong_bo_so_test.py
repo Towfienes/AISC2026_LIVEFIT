@@ -35,7 +35,7 @@ from livelift.console import configure  # noqa: E402
 def dem(marker: str) -> int:
     """Số test pytest THU THẬP được cho một marker (không chạy chúng)."""
     # S603: lệnh dựng từ hằng trong tệp này cộng sys.executable, không có
-    # chuỗi nào đến từ bên ngoài; `marker` chỉ nhận hai giá trị gọi ở dưới.
+    # chuỗi nào đến từ bên ngoài; `marker` chỉ nhận các hằng gọi ở dưới.
     r = subprocess.run(  # noqa: S603
         [sys.executable, "-m", "pytest", "-m", marker, "-q", "-p", "no:warnings", "--collect-only"],
         cwd=GOC,
@@ -66,8 +66,15 @@ def main() -> int:
         ap.error("chọn --xem-truoc hoặc --ghi")
 
     nhanh = dem("not slow")
-    cham = dem("slow")
-    print(f"pytest đếm được: {nhanh} test nhanh · {cham} cổng chậm · tổng {nhanh + cham}")
+    # Badge README gọi nhóm chậm là "Monte-Carlo": chỉ đếm cổng thống kê thật.
+    # Test trình duyệt (marker `browser`, 17/09/2026) cũng chạy trong nhóm chậm
+    # nhưng KHÔNG phải cổng Monte-Carlo — gộp vào là khai sai con số công bố.
+    cham = dem("slow and not browser")
+    trinh_duyet = dem("browser")
+    print(
+        f"pytest đếm được: {nhanh} test nhanh · {cham} cổng Monte-Carlo · "
+        f"{trinh_duyet} test trình duyệt · tổng {nhanh + cham + trinh_duyet}"
+    )
 
     sua: list[tuple[Path, str, str]] = []
 

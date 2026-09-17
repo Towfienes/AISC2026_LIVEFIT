@@ -12,7 +12,7 @@ hành động *tạo ra giá trị* với *sự trùng hợp thời điểm*.
 [![CI](https://github.com/bminhnemhoi/AISC2026_LIVEFIT/actions/workflows/ci.yml/badge.svg)](https://github.com/bminhnemhoi/AISC2026_LIVEFIT/actions/workflows/ci.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
-[![Tests](https://img.shields.io/badge/tests-1157%20nhanh%20%2B%2017%20Monte--Carlo-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-1555%20nhanh%20%2B%2017%20Monte--Carlo-brightgreen)](tests/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Next.js 14](https://img.shields.io/badge/Next.js-14-black?logo=next.js)](web/)
 
@@ -44,7 +44,7 @@ LiveLift nhắm vào: không phải một dashboard đẹp hơn — một **moat
 | | |
 |---|---|
 | 🎲 **Switchback hai tầng** | Khối thời gian gán ngẫu nhiên BẬT/TẮT theo thiết kế tối ưu (Bojinov et al. 2023); tầng trong chỉ khám phá khi mô hình *thật sự* không chắc, ghi propensity chính xác |
-| 📏 **Suy diễn tự chứng minh** | Kiểm định ngẫu nhiên hóa vẽ lại bằng *chính hàm gán production*; A/A 200 lặp: bác bỏ 4.5% (danh nghĩa 5%), coverage 95.5% |
+| 📏 **Suy diễn tự chứng minh** | Kiểm định ngẫu nhiên hóa vẽ lại bằng *chính hàm gán production*; A/A 200 lặp: bác bỏ 3,50% (danh nghĩa 5%), độ phủ KTC 96,50% (đo 14/09/2026, `docs/benchmarks/so-hieu-chuan.json`) |
 | 🛡️ **Liêm chính ở cấp kiến trúc** | Số dự báo *không thể* mang khoảng tin cậy (validator từ chối); màn hình host *không thể* rò nhánh thí nghiệm (model riêng 4 trường); lịch gán lưu **trước** phát sóng, seed tái lập |
 | 🇻🇳 **Làm cho live commerce Việt** | Lọc PII tiếng Việt (SĐT viết chữ, teencode, 2 thế hệ đơn vị hành chính) recall ≥95% mỗi loại trên bộ gán nhãn 95 câu (riêng *tên người* ngưỡng ≥70% — trần của luật thuần quy tắc); phân loại ý định F1 **0,870 trên bộ biên soạn nhưng 0,271 trên chat bán hàng thật** — xem cảnh báo ở `docs/benchmarks/intent-classifier.md`; toàn bộ UI tiếng Việt thường |
 | 🔬 **Hiệu chỉnh bằng dữ liệu thật** | Mô phỏng thẩm định hiệu chỉnh theo **KuaiLive** (1,16 triệu phòng shop thật); live-fire trên VOD thật **19.126 bình luận · 16 buổi live · 7 ngành hàng** (lô đo 10/09/2026) |
@@ -93,7 +93,7 @@ chưa làm được.
 python -m venv .venv && .venv\Scripts\activate      # Windows; Linux: source .venv/bin/activate
 pip install -e ".[dev,server,ml]"
 
-pytest -m "not slow"     # 1157 test nhanh (đếm 14/09/2026)
+pytest -m "not slow"     # 1555 test nhanh (đếm 17/09/2026)
 pytest -m slow           # gate thống kê Monte-Carlo (vài phút)
 ruff check src tests     # lint
 
@@ -188,9 +188,9 @@ flowchart LR
 
 | Hạng mục | Kết quả | Kiểm chứng bằng |
 |---|---|---|
-| **Hiệu chỉnh ước lượng viên (A/A)** | bác bỏ **4.5%** (danh nghĩa 5%), nhị thức chính xác p = 0.872 | 200 lặp Monte-Carlo, gate tự động |
-| **Độ phủ KTC 95%** | **95.5%** | cùng gate |
-| **Thu hồi tác động biết trước** | sai lệch **−0.3%** | `livelift-simulate` |
+| **Hiệu chỉnh ước lượng viên (A/A)** | bác bỏ **3,50%** (7/200; danh nghĩa 5%), nhị thức chính xác p = 0,4168 | 200 lặp Monte-Carlo, gate tự động; đo lại 14/09/2026 bằng `scripts/do_lai_so_hieu_chuan.py` |
+| **Độ phủ KTC 95%** | **96,50%** (193/200) | cùng gate |
+| **Thu hồi tác động biết trước** | sai lệch **−0,84%**, phủ KTC 92,50% (37/40) | `docs/benchmarks/so-hieu-chuan.json` |
 | **Dưới hiệu ứng lưu** 2ph/3ph | lệch −20%/−30% *về phía 0* (bảo thủ), coverage 84%/60% | đo & ghi trung thực — lý do tuần 3 đo t_mix |
 | **Dưới phân cụm phiên (ICC≈0,05)** | A/A và độ phủ giữ nguyên ngưỡng cũ — switchback không phải trả giá ICC vì redraw diễn ra **trong** phiên | 2 gate slow mới; knob `session_click_sigma` |
 | **Ánh xạ knob → ICC (400 phiên)** | σ=0 → **+0,008**; σ=0,06 → **+0,048**; σ=0,3 → **+0,535**. Frailty có tác dụng phụ ICC (cv=2 → **+0,083**) và *chỉ* nó làm tăng phương sai trong-phiên — cột phân biệt hai cơ chế | `python analysis/calibration/bang_icc_mo_phong.py` → `docs/benchmarks/sim-icc-map.md` |
@@ -200,7 +200,7 @@ flowchart LR
 | **Lọc PII** | recall ≥ 95%/loại | gate `test_pii_filter.py` |
 | **Hiệu chỉnh KuaiLive** | 1,16M phòng shop; đơn vị ms **chứng minh bằng ràng buộc vật lý** | `analysis/calibration/` |
 | **Live-fire VOD thật** | **19.126 bình luận · 16 buổi live · 7 ngành hàng** chạy trọn qua API (lô 10/09/2026 thay lô 06/09 cũ 14.903) | `docs/benchmarks/live-fire-da-nguon.md` |
-| **Kiểm toán đối kháng** | 16/16 phát hiện xử lý (2 FATAL) · đợt 2 (06/09): 5 nhóm lỗi chặn phiên-thật đã sửa | **52 sự cố** đủ root cause + gate (đếm 17/09/2026) |
+| **Kiểm toán đối kháng** | 16/16 phát hiện xử lý (2 FATAL) · đợt 2 (06/09): 5 nhóm lỗi chặn phiên-thật đã sửa | **58 sự cố** đủ root cause + gate (đếm 17/09/2026) |
 
 ## 📁 Cấu trúc kho mã
 
@@ -236,7 +236,7 @@ flowchart LR
 │   ├── huong-dan-facebook-token.md  # lấy Page token (~25 phút, không cần App Review)
 │   ├── benchmarks/          # số sinh lại được (intent, KuaiLive)
 │   ├── research/            # 7 báo cáo nghiên cứu đa nguồn
-│   └── incident-log.md      # 52 sự cố: root cause + gate chặn tái diễn
+│   └── incident-log.md      # 58 sự cố: root cause + gate chặn tái diễn
 ├── PREREGISTRATION.md       # tiền đăng ký — KHÓA trước chuỗi khẳng định
 ├── HARNESS.md               # quy trình phát triển & quality gates   ← đọc thứ ba
 ├── CONTRIBUTING.md · CITATION.cff · LICENSE (AGPL-3.0)
@@ -262,7 +262,7 @@ Chi tiết thành tựu, việc còn lại (P0/P1/P2), nợ kỹ thuật không 
 ## 🧑‍💻 Quy trình & đóng góp
 
 Vòng lặp: *hiểu → nghiên cứu (có trích dẫn) → thiết kế test trước → code thuần ở lõi
-→ gate tự động → root cause mọi lỗi → sổ sự cố*. Quality gates: 1157 test nhanh · gate
+→ gate tự động → root cause mọi lỗi → sổ sự cố*. Quality gates: 1555 test nhanh · gate
 thống kê Monte-Carlo · recall PII · cân bằng gán 1000 lịch · **contract test web↔API**
 · cách ly collectors · ruff.
 

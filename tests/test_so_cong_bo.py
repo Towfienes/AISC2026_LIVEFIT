@@ -188,3 +188,18 @@ def test_moi_script_in_tieng_viet_deu_goi_console_configure(script: Path) -> Non
         f"Thêm `from livelift.console import configure` và gọi configure() ở "
         f"dòng đầu main(), TRƯỚC parse_args (xem scripts/chay_local.py)."
     )
+
+
+def test_readme_khong_con_bo_so_hieu_chuan_cu_khong_tai_lap_duoc(readme: str) -> None:
+    """Kiểm toán 17/09/2026: bộ số A/A của 30/08 (4,5% · p=0,872 · phủ 95,5% ·
+    lệch −0,3%) đã được xác nhận KHÔNG tái lập được từ 14/09 và thay ở FACT-SHEET,
+    nhưng README vẫn công bố nó ở hai chỗ. ``do_lai_so_hieu_chuan.py --kiem`` chỉ
+    đối chiếu tệp JSON, không quét tài liệu, nên không cổng nào bắt được."""
+    cu = ("4.5%", "4,5%", "0.872", "0,872", "95.5%", "95,5%", "−0.3%", "−0,3%")
+    con_lai = [
+        (i, d.strip()[:120])
+        for i, d in enumerate(readme.splitlines(), 1)
+        for so in cu
+        if so in d and "cũ" not in d and "không tái lập" not in d
+    ]
+    assert not con_lai, f"README còn trích bộ số hiệu chuẩn cũ: {con_lai}"

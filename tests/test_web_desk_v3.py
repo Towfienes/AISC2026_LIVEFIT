@@ -147,7 +147,9 @@ PURE = [
         ["LOADING_HINT", "COMMENTS_FIX", "fmtRate", "tailDelta", "buildSignalTiles"],
     ),
     (BLOCK_CLOCK, ["deriveCurrentBlock", "blockShape", "actionLockReason"]),
-    (STATUS_BAR, ["STATUS_VI", "PLATFORM_VI", "sessionOptionLabel"]),
+    # onAirWhen: giờ lên sóng dùng CHUNG cho ô chọn phiên và tên phiên trong câu
+    # xác nhận kết thúc (sửa lỗi P1 17/09) — sessionOptionLabel gọi nó.
+    (STATUS_BAR, ["STATUS_VI", "PLATFORM_VI", "onAirWhen", "sessionOptionLabel"]),
 ]
 
 
@@ -655,7 +657,14 @@ def test_c6_mot_dong_tu_cho_nut_chinh_va_dung_ham_dinh_dang_chung():
     page = code(raw(DESK_PAGE))
     tag = _opening_tag(page, page.index("<ActionCard"))
     assert "noForecastBasis={forecastLacksData(" in tag
-    assert "peerCount={desk.cards.length}" in tag
+    # peerCount = số thẻ của CHÍNH danh sách đang vẽ. Từ bản sửa lỗi P2 17/09,
+    # danh sách đó là `cards` (thẻ được mời bấm — rỗng khi phiên đã đóng), không
+    # còn là `desk.cards` thô; hai thứ trùng nhau mỗi khi có thẻ để vẽ.
+    assert "const cards = offeredCards(desk.cards, sessionStatus);" in page
+    assert "cards.map((c, i) => (" in page
+    assert "desk.cards.map(" not in page
+    assert "peerCount={cards.length}" in tag
+    assert "noForecastBasis={forecastLacksData(c, cards," in tag
 
 
 def _clicks_session(client) -> tuple[str, str]:

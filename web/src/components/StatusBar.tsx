@@ -32,7 +32,8 @@
  *
  * XÁC NHẬN HAI BƯỚC TẠI CHỖ (gói C9): thay hộp xác nhận của trình duyệt (lệch
  * ngôn ngữ thiết kế, chặn luôn cả trang) bằng bước xác nhận ngay trên thanh:
- * bấm lần một hiện "Kết thúc ngay / Huỷ", tự huỷ sau 10 giây.
+ * bấm lần một hiện "Kết thúc ngay / Huỷ", tự huỷ sau 10 giây. Một cú bấm ĐÚP
+ * không được vượt qua bước này (sửa lỗi P1 17/09) — xem EndSessionControl.
  *
  * The segmented control sits inside an `overflow-hidden` group, so it uses
  * `.focus-ring-inset`: an offset ring would be clipped away and the keyboard
@@ -125,16 +126,19 @@ const PLATFORM_VI: Record<string, string> = {
   mo_phong: "mô phỏng",
 };
 
+/** "HH:MM DD/MM" giờ lên sóng (giờ Việt Nam), null khi phiên chưa lên sóng. */
+export function onAirWhen(s: SessionSummary): string | null {
+  if (!s.start_ts || !Number.isFinite(Date.parse(s.start_ts))) return null;
+  return `${fmtTimeHCM(s.start_ts).slice(0, 5)} ${fmtDateHCM(s.start_ts).slice(0, 5)}`;
+}
+
 /**
  * Nhãn một phiên trong ô chọn (gói C8): TÊN phiên, không có tên thì GIỜ lên
  * sóng — không bao giờ in UUID thô ("d666df55-e357-4a89-ab69-…" trong ảnh f06
  * không nói được với người bán đó là buổi nào).
  */
 export function sessionOptionLabel(s: SessionSummary): string {
-  let when: string | null = null;
-  if (s.start_ts && Number.isFinite(Date.parse(s.start_ts))) {
-    when = `${fmtTimeHCM(s.start_ts).slice(0, 5)} ${fmtDateHCM(s.start_ts).slice(0, 5)}`;
-  }
+  const when = onAirWhen(s);
   const title = s.title?.trim();
   const name = title
     ? title
@@ -288,20 +292,69 @@ function ModeToggle({
   );
 }
 
+/**
+ * Tên NGẮN của một phiên cho câu xác nhận: tên phiên, không có tên thì giờ lên
+ * sóng. Không bao giờ UUID (cùng luật với ô chọn phiên — gói C8).
+ */
+export function sessionShortName(s: SessionSummary): string {
+  const title = s.title?.trim();
+  if (title) return title;
+  const when = onAirWhen(s);
+  return when ? `Phiên lên sóng ${when}` : "Phiên chưa đặt tên";
+}
+
 /** Thời gian bước xác nhận tự huỷ nếu không ai bấm tiếp. */
 const CONFIRM_TIMEOUT_MS = 10000;
+
+/**
+ * Khoảng CHƯA NHẬN BẤM ngay sau khi bước xác nhận hiện ra (sửa lỗi P1 17/09).
+ *
+ * Cú bấm đúp vào "Kết thúc phiên" từng kết thúc luôn buổi live: cú đầu mở bước
+ * xác nhận, React vẽ lại ngay trong sự kiện, cú thứ hai (≤ 500ms — thời gian
+ * nhấp đúp mặc định của Windows) rơi trúng nút mới. Trong 600ms đầu "Kết thúc
+ * ngay" bị khoá và "Huỷ" bỏ qua cú bấm, nên cú bấm thứ hai KHÔNG làm gì: bước
+ * xác nhận vẫn đứng đó cho người vận hành đọc.
+ */
+export const CONFIRM_ARM_MS = 600;
+
+/** Nhãn nút bước một — cũng là khuôn đo bề ngang cho nút "Huỷ" ở bước hai. */
+const END_LABEL = "Kết thúc phiên";
 
 /**
  * Nút Kết thúc phiên với XÁC NHẬN HAI BƯỚC TẠI CHỖ — không hộp của trình
  * duyệt, không lớp phủ. Bước hai đặt focus vào "Huỷ" (lựa chọn an toàn), nên
  * một cú Enter lỡ tay không kết thúc buổi live.
+ *
+ * CHỐNG BẤM ĐÚP (sửa lỗi P1 17/09) — hai lớp độc lập:
+ *  1. HÌNH HỌC: "Huỷ" đứng CUỐI cụm (mép phải, đúng chỗ nút cũ) và rộng ĐÚNG
+ *     bằng nút "Kết thúc phiên" — nhãn bước một nằm tàng hình trong nút để đo
+ *     bề ngang, nên không phụ thuộc phông chữ. Cặp nút không bao giờ tách dòng,
+ *     vậy "Kết thúc ngay" luôn nằm ngoài dải ngang của nút cũ, dù thanh có gãy
+ *     dòng hay không.
+ *  2. THỜI GIAN: `CONFIRM_ARM_MS` — xem trên.
+ *
+ * Câu xác nhận in TÊN phiên; trang gắn `key` theo phiên nên đổi ô chọn phiên
+ * sẽ xoá bước xác nhận đang mở (không kết thúc nhầm phiên vừa chọn).
  */
-function EndSessionControl({ onEnd, busy }: { onEnd: () => void; busy?: boolean }) {
+function EndSessionControl({
+  onEnd,
+  busy,
+  sessionName,
+}: {
+  onEnd: () => void;
+  busy?: boolean;
+  sessionName: string | null;
+}) {
   const [confirming, setConfirming] = useState(false);
+  const [armed, setArmed] = useState(false);
   useEffect(() => {
     if (!confirming) return;
+    const arm = setTimeout(() => setArmed(true), CONFIRM_ARM_MS);
     const t = setTimeout(() => setConfirming(false), CONFIRM_TIMEOUT_MS);
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(arm);
+      clearTimeout(t);
+    };
   }, [confirming]);
 
   if (busy) {
@@ -315,34 +368,65 @@ function EndSessionControl({ onEnd, busy }: { onEnd: () => void; busy?: boolean 
     return (
       <Button
         variant="danger"
-        onClick={() => setConfirming(true)}
+        onClick={() => {
+          setArmed(false);
+          setConfirming(true);
+        }}
         title="Kết thúc phiên đang phát — dữ liệu đã ghi được giữ nguyên"
       >
-        Kết thúc phiên
+        {END_LABEL}
       </Button>
     );
   }
   return (
     <div
       role="group"
-      aria-label="Xác nhận kết thúc phiên"
-      className="flex flex-wrap items-center gap-2"
+      aria-label={sessionName ? `Xác nhận kết thúc ${sessionName}` : "Xác nhận kết thúc phiên"}
+      className="flex flex-wrap items-center justify-end gap-2"
     >
-      <span className="text-meta font-semibold text-crit-ink">
-        <span aria-hidden>⚠</span> Kết thúc thật? Khối chưa chạy sẽ không được tính.
+      <span className="min-w-0 text-meta font-semibold text-crit-ink">
+        <span aria-hidden>⚠</span> Kết thúc{" "}
+        {sessionName ? (
+          <>
+            “
+            <span className="inline-block max-w-[14rem] truncate align-bottom" title={sessionName}>
+              {sessionName}
+            </span>
+            ”
+          </>
+        ) : (
+          "phiên"
+        )}
+        ? Khối chưa chạy sẽ không được tính.
       </span>
-      <Button
-        variant="danger"
-        onClick={() => {
-          setConfirming(false);
-          onEnd();
-        }}
-      >
-        Kết thúc ngay
-      </Button>
-      <Button variant="ghost" autoFocus onClick={() => setConfirming(false)}>
-        Huỷ
-      </Button>
+      {/* Cặp nút KHÔNG tách dòng: "Huỷ" luôn giữ mép phải — chỗ nút cũ. */}
+      <span className="flex shrink-0 items-center gap-2">
+        <Button
+          variant="danger"
+          disabled={!armed}
+          onClick={() => {
+            if (!armed) return;
+            setConfirming(false);
+            onEnd();
+          }}
+        >
+          Kết thúc ngay
+        </Button>
+        <Button
+          variant="ghost"
+          autoFocus
+          onClick={() => {
+            if (armed) setConfirming(false);
+          }}
+        >
+          <span className="grid">
+            <span aria-hidden className="invisible col-start-1 row-start-1">
+              {END_LABEL}
+            </span>
+            <span className="col-start-1 row-start-1 text-center">Huỷ</span>
+          </span>
+        </Button>
+      </span>
     </div>
   );
 }
@@ -433,7 +517,13 @@ export default function StatusBar({
         {/* Kết thúc phiên: mép phải, sau vạch ngăn — xa công tắc chế độ. */}
         {canEndSession && onEndSession ? (
           <div className="ml-auto flex items-center border-l border-hairline pl-4">
-            <EndSessionControl onEnd={onEndSession} busy={endBusy} />
+            {/* key theo phiên: đổi phiên thì bước xác nhận đang mở biến mất. */}
+            <EndSessionControl
+              key={sessionId ?? "none"}
+              onEnd={onEndSession}
+              busy={endBusy}
+              sessionName={session ? sessionShortName(session) : null}
+            />
           </div>
         ) : null}
       </div>

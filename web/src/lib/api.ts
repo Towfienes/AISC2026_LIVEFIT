@@ -674,6 +674,12 @@ export function createSession(body: {
   mode?: SessionMode;
   planned_duration_min: number;
   host_id?: string | null;
+  /**
+   * Phiên CHẠY THỬ — bị loại khỏi kết quả gộp (PREREGISTRATION §8.2). Chỉ khai
+   * được LÚC TẠO (máy chủ không có đường sửa); là điều kiện để bộ thu mời nguồn
+   * Mô phỏng. Bỏ trống = phiên thật.
+   */
+  dry_run?: boolean;
 }): Promise<SessionSummary> {
   return request<SessionSummary>("/sessions", { method: "POST", body: JSON.stringify(body) });
 }

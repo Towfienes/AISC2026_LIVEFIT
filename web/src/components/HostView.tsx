@@ -29,6 +29,14 @@
  * hẹp rồi lên bậc hiển thị bằng tiền tố sm:/lg:/xl: — ở 1366 và TV vẫn là
  * num-xl/num-l như trước.
  *
+ * KIỂM TOÁN 17/09: (1) câu "không tìm thấy phiên" từng bảo mở lại màn "từ
+ * bàn" — Bàn trợ live KHÔNG có nút đó; nút "Mở màn hình người dẫn" nằm ở trang
+ * Chuẩn bị phiên, bước 4. (2) Phiên trong link chưa lên sóng/đã kết thúc: màn
+ * nói đúng thế (`offAir`) thay vì in hàng ghim cũ dưới nhãn "giới thiệu ngay".
+ * (3) `/host` trơn gặp từ 2 phiên cùng live: một dòng nhắc TĨNH
+ * (`concurrentLive`) — màn giữ phiên đang chiếu, không tự đổi. Cả ba là trạng
+ * thái PHIÊN/đường truyền, không nói gì về khối.
+ *
  * CHUYỂN ĐỘNG: màn vận hành — hiệu ứng CHỈ khi có sự kiện. Đổi sản phẩm ghim
  * → khối tên hàng gắn lại theo key nên `.motion-switch` + Flash chạy đúng một
  * lần (người dẫn liếc là biết CÓ THAY ĐỔI). Không có gì lặp vô hạn ở đây:
@@ -38,6 +46,7 @@
 
 import { fmtClock, fmtNumber, fmtVnd } from "@/lib/format";
 import type { ConnectionKind, HostState } from "@/lib/types";
+import type { HostOffAir } from "@/lib/useHost";
 
 import Badge from "./ui/Badge";
 import Flash from "./ui/Flash";
@@ -50,6 +59,52 @@ import Flash from "./ui/Flash";
  */
 const STALE_CLOCK_S = 4 * 3600;
 
+/** Nơi DUY NHẤT có nút mở màn này kèm mã phiên (chay-phien/page.tsx, bước 4). */
+const REOPEN_HINT = [
+  "Nhờ người trực mở lại màn này bằng nút “Mở màn hình người dẫn”",
+  "ở trang Chuẩn bị phiên (bước 4 · Lên sóng).",
+].join(" ");
+
+/** Tiêu đề + câu giải thích khi không có hàng nào để chiếu. */
+export function emptyStateText(
+  connection: ConnectionKind,
+  sessionNotFound: boolean,
+  offAir: HostOffAir,
+): { icon: string | null; title: string; detail: string | null } {
+  if (connection === "connecting") return { icon: null, title: "Đang kết nối…", detail: null };
+  if (sessionNotFound) {
+    return { icon: "⚠", title: "Không tìm thấy phiên trong link", detail: REOPEN_HINT };
+  }
+  if (offAir === "ended") {
+    return {
+      icon: "■",
+      title: "Phiên trong link đã kết thúc",
+      detail: `Màn không hiện hàng của buổi đã xong để tránh giới thiệu nhầm. ${REOPEN_HINT}`,
+    };
+  }
+  if (offAir === "cancelled") {
+    return {
+      icon: "■",
+      title: "Phiên trong link đã huỷ",
+      detail: `Phiên này đã đóng mà chưa từng lên sóng — không có hàng nào để giới thiệu. ${REOPEN_HINT}`,
+    };
+  }
+  if (offAir === "not_started") {
+    return {
+      icon: "⏳",
+      title: "Phiên chưa lên sóng",
+      detail:
+        "Cứ để màn này mở — người trực bấm “Bắt đầu phát sóng” xong là sản phẩm đang ghim tự hiện ở đây.",
+    };
+  }
+  return {
+    icon: null,
+    title: "Chưa ghim sản phẩm",
+    detail:
+      "Cứ nói chuyện tự nhiên — khi cần giới thiệu sản phẩm, tên hàng sẽ hiện thật to ở đây.",
+  };
+}
+
 interface Props {
   host: HostState | null;
   connection: ConnectionKind;
@@ -57,6 +112,10 @@ interface Props {
   degraded?: boolean;
   /** Link mở màn này mang mã phiên mà máy chủ không có. */
   sessionNotFound?: boolean;
+  /** Phiên trong link chưa lên sóng / đã kết thúc — không chiếu hàng ghim cũ. */
+  offAir?: HostOffAir;
+  /** `/host` trơn: số phiên cùng live khi ≥ 2 (0 = không mơ hồ). */
+  concurrentLive?: number;
   /** Phiên đang chiếu là dữ liệu mẫu — nhãn bắt buộc. */
   sampleData?: boolean;
 }
@@ -66,8 +125,11 @@ export default function HostView({
   connection,
   degraded = false,
   sessionNotFound = false,
+  offAir = null,
+  concurrentLive = 0,
   sampleData = false,
 }: Props) {
+  const empty = emptyStateText(connection, sessionNotFound, offAir);
   const staleClock = host != null && host.elapsed_s >= STALE_CLOCK_S;
   const lowStock = host?.stock != null && host.stock > 0 && host.stock < 10;
   return (
@@ -96,6 +158,15 @@ export default function HostView({
           </div>
           {/* Một câu TĨNH, không lộ lịch BẬT/TẮT và không nhắc tới thí nghiệm. */}
           <p className="text-body leading-snug text-sec">Chỉ hiện sản phẩm cần giới thiệu ngay.</p>
+          {concurrentLive >= 2 ? (
+            <p className="mt-1 flex max-w-[44rem] items-start gap-1.5 text-body leading-snug text-warn-ink">
+              <span aria-hidden>⚠</span>
+              <span>
+                Đang có {concurrentLive} phiên cùng phát — màn giữ phiên đang chiếu, không tự đổi.{" "}
+                {REOPEN_HINT}
+              </span>
+            </p>
+          ) : null}
         </div>
         <div className="shrink-0 text-right">
           <div className="text-label uppercase tracking-[0.2em] text-dim">Thời gian phát</div>
@@ -169,19 +240,16 @@ export default function HostView({
         ) : (
           <div className="flex max-w-[52rem] flex-col items-center gap-3 sm:gap-4">
             <h1 className="font-display text-num-s leading-tight text-sec sm:text-num-m 2xl:text-num-l">
-              {connection === "connecting"
-                ? "Đang kết nối…"
-                : sessionNotFound
-                  ? "Không tìm thấy phiên trong link"
-                  : "Chưa ghim sản phẩm"}
+              {empty.icon ? (
+                <span aria-hidden className="mr-3 text-warn-ink">
+                  {empty.icon}
+                </span>
+              ) : null}
+              {empty.title}
             </h1>
-            {connection !== "connecting" && (
-              <p className="text-body leading-snug text-dim sm:text-strong">
-                {sessionNotFound
-                  ? "Nhờ người trực bàn trợ live mở lại màn người dẫn từ bàn."
-                  : "Cứ nói chuyện tự nhiên — khi cần giới thiệu sản phẩm, tên hàng sẽ hiện thật to ở đây."}
-              </p>
-            )}
+            {empty.detail ? (
+              <p className="text-body leading-snug text-dim sm:text-strong">{empty.detail}</p>
+            ) : null}
           </div>
         )}
       </section>

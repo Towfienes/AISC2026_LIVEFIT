@@ -26,6 +26,15 @@
  * - NGỮ CẢNH PHÁT LẠI: có TopNav như mọi trang; khung đầu đã tua sẵn tới phút
  *   có số liệu + một dòng nhắc bấm Phát; không mượn câu "bạn không cần bấm gì"
  *   của màn live; feed rỗng không hiện nút "Tạm dừng cuộn".
+ *
+ * KIỂM TOÁN 17/09:
+ * - BUỔI CHẠY THỬ KHÔNG BAO GIỜ LÀ "THẬT": nguồn bình luận mô phỏng chỉ được
+ *   ghi vào phiên `dry_run` hoặc `is_demo` (ingest_jobs.cho_phep_mo_phong), và
+ *   payload bình luận không mang nền tảng — web không phân biệt được câu AI
+ *   soạn với bình luận thật. Nên phiên `dry_run` luôn in "CHẠY THỬ", nói rõ
+ *   bình luận/người xem CÓ THỂ là mô phỏng, kèm huy hiệu riêng.
+ * - "Bắt đầu xem thử" (`?session=mock-…`) là bản mô phỏng ngoại tuyến kể cả
+ *   khi máy chủ sống (useReplay, lý do `"sample"`).
  */
 
 import Link from "next/link";
@@ -84,11 +93,17 @@ function provenanceText(rp: ReplayState, shown: SessionSummary | null): string {
     if (rp.mockReason === "server") {
       return "PHÁT LẠI DỮ LIỆU MÔ PHỎNG — chưa kết nối được máy chủ, không phải buổi live thật";
     }
+    if (rp.mockReason === "sample") {
+      return "PHÁT LẠI DỮ LIỆU MÔ PHỎNG — bản xem thử ngoại tuyến, không phải buổi live thật";
+    }
     return "PHÁT LẠI DỮ LIỆU MÔ PHỎNG — không phải buổi live thật";
   }
   if (!shown) return "Đang tải danh sách buổi đã phát…";
   if (shown.is_demo) {
     return "PHÁT LẠI DỮ LIỆU MẪU — phiên mô phỏng, không phải buổi live thật";
+  }
+  if (shown.dry_run) {
+    return "PHÁT LẠI BUỔI CHẠY THỬ — không tính vào kết quả; bình luận và người xem có thể là mô phỏng";
   }
   const recordedOn = shown.start_ts ? fmtDateHCM(shown.start_ts) : "—";
   return `PHÁT LẠI DỮ LIỆU THẬT — ghi ngày ${recordedOn}`;
@@ -98,6 +113,9 @@ function provenanceText(rp: ReplayState, shown: SessionSummary | null): string {
 function requestNotice(rp: ReplayState): string | null {
   if (rp.requestedStatus === "none" || rp.requestedStatus === "ok") return null;
   if (rp.connection === "mock") {
+    if (rp.mockReason === "sample") {
+      return "Không có bản xem thử này — đang phát bản mô phỏng gần nhất.";
+    }
     return rp.mockReason === "no_ended"
       ? "Chưa có buổi nào kết thúc — đang phát bản mô phỏng thay cho buổi trong link."
       : "Chưa kết nối được máy chủ — đang phát bản mô phỏng thay cho buổi trong link.";
@@ -135,6 +153,7 @@ function ReplayScreen() {
    */
   const isMock = rp.connection === "mock";
   const isSample = isMock || shown?.is_demo === true;
+  const isDryRun = !isSample && shown?.dry_run === true;
   const notice = requestNotice(rp);
 
   return (
@@ -152,6 +171,7 @@ function ReplayScreen() {
           </p>
         </div>
         {isSample ? <Badge tone="warn">DEMO — dữ liệu mẫu</Badge> : null}
+        {isDryRun ? <Badge tone="warn">CHẠY THỬ — không tính kết quả</Badge> : null}
         <div className="flex min-w-0 items-center gap-2 rounded-md border border-warn/60 bg-warn/10 px-3 py-1">
           <span aria-hidden className="text-warn-ink">
             ⏮
@@ -352,6 +372,14 @@ function ReplayScreen() {
   );
 }
 
+/**
+ * Số phút có số liệu tới vị trí đang phát — CÙNG cách gộp với RhythmChart
+ * (`Math.floor(offset_s / 60)`), nên ≥ 2 nghĩa là biểu đồ thật sự vẽ được đường.
+ */
+function minutesWithData(ticks: readonly { offset_s: number }[]): number {
+  return new Set(ticks.map((x) => Math.floor(x.offset_s / 60))).size;
+}
+
 /** Dòng nhắc dưới thanh điều khiển: đang làm gì và bấm gì tiếp. */
 function playPrompt(rp: ReplayState): string {
   const rec = rp.recording;
@@ -359,7 +387,11 @@ function playPrompt(rp: ReplayState): string {
   if (rp.playing) return `Đang phát ở tốc độ ${rp.speed}x — bấm Tạm dừng để dừng lại.`;
   if (rp.t >= rec.duration_s) return "Đã phát hết bản ghi — bấm Phát để xem lại từ đầu.";
   if (rp.t > 0 && rp.t === rp.firstFrameS) {
-    return `Đã tua sẵn tới ${fmtElapsed(rp.t)}, phút đầu có số liệu — bấm Phát để xem tiếp.`;
+    // Khung đầu có thể được tua tới bình luận đầu tiên khi bản ghi CHƯA có phút
+    // số liệu thứ hai — lúc đó không được nói "đủ hai phút số liệu" (kiểm toán 17/09).
+    return minutesWithData(rp.visibleTicks) >= 2
+      ? `Đã tua sẵn tới ${fmtElapsed(rp.t)}, đủ hai phút số liệu để vẽ nhịp — bấm Phát để xem tiếp.`
+      : `Đã tua sẵn tới ${fmtElapsed(rp.t)}, lúc có bình luận đầu tiên — bấm Phát để xem tiếp.`;
   }
   return `Đang dừng ở ${fmtElapsed(rp.t)} — bấm Phát để xem tiếp.`;
 }

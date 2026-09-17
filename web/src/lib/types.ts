@@ -505,6 +505,13 @@ export interface BaoCao {
   /** Cờ DỮ LIỆU MẪU (xem SessionSummary.is_demo) — báo cáo phiên demo phải
    * mang nhãn/watermark DEMO trên mọi con số. */
   is_demo: boolean;
+  /**
+   * Số bình luận TỔNG HỢP (nguồn Mô phỏng) trong phiên. Nguồn Mô phỏng bật trên
+   * phiên CHẠY THỬ — mà phiên chạy thử có `is_demo=false` — nên riêng `is_demo`
+   * không đủ nói báo cáo đang đếm câu do máy soạn. > 0 ⇒ trang phải dán nhãn
+   * "dữ liệu tổng hợp". Optional: máy chủ cũ không gửi (khi đó không suy ra 0).
+   */
+  binh_luan_tong_hop?: number;
   tong_quan: BaoCaoTongQuan;
   tin_hieu: SignalStateItem[];
   nang_luc: CapabilityItem[];
@@ -603,6 +610,10 @@ export interface IngestStatus {
   last_error: string | null;
   tick_error: string | null;
   api_usage_pct: number | null;
+  /** Bản ghi đọc được lúc kho chập chờn, đang chờ ghi lại (giữ trong RAM). */
+  pending_writes?: number;
+  /** Bản ghi đã MẤT vì hàng đợi chờ ghi lại bị đầy. */
+  dropped_writes?: number;
 }
 
 /** Một đơn hàng (`OrderOut`). Không có trường người mua nào (quy tắc cứng 1). */

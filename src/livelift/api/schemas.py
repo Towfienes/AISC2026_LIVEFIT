@@ -739,6 +739,13 @@ class BaoCaoOut(BaseModel):
     """Cờ DỮ LIỆU MẪU của phiên (xem :class:`SessionOut`). Báo cáo phiên demo
     xem được đầy đủ nhưng client phải vẽ nhãn/watermark DEMO — con số mô phỏng
     không bao giờ được trình bày như số đo thật."""
+    binh_luan_tong_hop: int = 0
+    """Số bình luận TỔNG HỢP (nguồn mô phỏng, ``platform='sim'``) trong phiên.
+
+    Nguồn mô phỏng được bật trên phiên CHẠY THỬ, mà phiên chạy thử có
+    ``is_demo=False`` — nên riêng cờ ``is_demo`` không đủ để client biết báo cáo
+    này đang đếm câu do AI soạn (kiểm toán 17/09/2026). > 0 ⇒ client phải vẽ nhãn
+    "dữ liệu tổng hợp" như với phiên mẫu."""
     tong_quan: BaoCaoTongQuan
     tin_hieu: list[SignalStateOut]
     nang_luc: list[CapabilityOut]

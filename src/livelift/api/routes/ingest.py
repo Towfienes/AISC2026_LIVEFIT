@@ -75,6 +75,10 @@ class IngestStatus(BaseModel):
     ticks_posted: int = 0
     last_viewers: float | None = None
     write_failures: int = 0
+    pending_writes: int = 0
+    """Bản ghi đang giữ trong bộ nhớ chờ kho dữ liệu trả lời để ghi lại."""
+    dropped_writes: int = 0
+    """Bản ghi ĐÃ MẤT vì kho không trả lời quá lâu và hàng đợi chờ đã đầy."""
     last_event_at: datetime | None = None
     seconds_since_last_event: float | None = None
     last_error: str | None = None

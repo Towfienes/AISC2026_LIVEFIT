@@ -67,7 +67,7 @@ const JOB_STATUS_VI: Record<ReplayJob["status"], string> = {
  *   19.126 bình luận — lô đo có hệ thống 10/09/2026
  *                      (docs/benchmarks/live-fire-da-nguon.md §1)
  *   16 buổi live     — cùng lô đo đó, cùng tài liệu
- *   1157 kiểm thử     — `pytest -m "not slow"`, chạy 14/09/2026, exit 0
+ *   1555 kiểm thử     — `pytest -m "not slow"`, chạy 14/09/2026, exit 0
  *
  * Giá trị giữ dạng chuỗi chữ số thô vì `scripts/dong_bo_so_test.py` ghi đè
  * đúng mẫu `{ value: "<số>", label: "kiểm thử tự động đang xanh" }`. Cách
@@ -77,7 +77,7 @@ const JOB_STATUS_VI: Record<ReplayJob["status"], string> = {
 const PROOF: { value: string; label: string }[] = [
   { value: "19.126", label: "bình luận thật đã phân tích" },
   { value: "16", label: "buổi live thật đã chạy qua hệ thống" },
-  { value: "1157", label: "kiểm thử tự động đang xanh" },
+  { value: "1555", label: "kiểm thử tự động đang xanh" },
 ];
 
 /** "1157" / "19.126" → "1.157" / "19.126" (vi-VN). Chuỗi lạ giữ nguyên văn. */

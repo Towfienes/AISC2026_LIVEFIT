@@ -24,6 +24,7 @@ from livelift.analysis.power import (
 )
 from livelift.analysis.robust import ics_gate
 from livelift.api import service
+from livelift.api.routes.events import gan_nhip_binh_luan
 from livelift.api.schemas import (
     BaoCaoOut,
     BaoCaoTongQuan,
@@ -48,6 +49,7 @@ from livelift.core.moments import DEFAULT_WINDOW, detect_comment_spikes
 from livelift.core.quality import derive_compliance
 from livelift.core.signals import SignalCoverage
 from livelift.core.signals import assess as assess_signals
+from livelift.ingest.mo_phong import PLATFORM_SIM
 from livelift.nlp.labels import LABEL_DISPLAY
 
 router = APIRouter()
@@ -743,8 +745,11 @@ def _bao_cao_tong_quan(
     trong ``thieu`` lấy từ chính ma trận tín hiệu — cùng một câu chữ ở mọi nơi.
     """
     session_id = session["session_id"]
-    ticks = store.list_ticks(session_id)
     comments = store.list_comments(session_id)
+    # Tick live không mang nhịp bình luận (luôn 0.0 mặc định): đếm lại từ bảng
+    # bình luận, nếu không đỉnh bình luận luôn THIẾU và phần khoảnh khắc kết luận
+    # "nhịp chat tương đối đều" từ một chuỗi toàn 0 (kiểm toán 17/09/2026).
+    ticks = gan_nhip_binh_luan(store.list_ticks(session_id), comments)
     clicks = store.list_clicks(session_id)
     reactions = store.list_reactions(session_id)
     start, end = session.get("start_ts"), session.get("end_ts")
@@ -1058,6 +1063,7 @@ def session_bao_cao(session_id: str, store: StoreDep) -> BaoCaoOut:
         loai_phien="quan_sat" if observational else "thi_nghiem",
         nhan=NHAN_QUAN_SAT if observational else NHAN_THI_NGHIEM,
         is_demo=bool(session.get("is_demo")),
+        binh_luan_tong_hop=sum(1 for c in comments if c.get("platform") == PLATFORM_SIM),
         tong_quan=tong_quan,
         tin_hieu=cov_dict["signals"],
         nang_luc=cov_dict["capabilities"],

@@ -30,7 +30,7 @@ Phần từ §1 trở xuống giữ nguyên là bản đo 11/09 để còn đố
 
 | # | Điều đã đổi | Hệ quả cho người dùng |
 |---|---|---|
-| 1 | **Bộ thu bình luận chạy NỀN trong API**, bật/tắt bằng nút trên Bàn trợ live và bước 4 của Chuẩn bị phiên (`POST /sessions/{id}/ingest`). Không còn phải mở terminal chạy `python -m livelift.ingest.runner`. Bộ thu tự chờ buổi live bắt đầu, tự thử lại khi mất mạng, tự dừng khi phiên kết thúc, tự nối lại khi máy chủ khởi động lại | Người bán không kỹ thuật bật được nguồn bình luận. Vẫn cần khoá của nền tảng trên máy chủ; `GET /platforms` và trang Bắt đầu nói rõ còn thiếu biến nào |
+| 1 | **Bộ thu bình luận chạy NỀN trong API**, bật/tắt bằng nút trên Bàn trợ live và bước 4 của Chuẩn bị phiên (`POST /sessions/{id}/ingest`). Trên máy chủ **chưa đặt `INGEST_TOKEN`** không còn phải mở terminal chạy `python -m livelift.ingest.runner`. Bộ thu tự chờ buổi live bắt đầu, tự thử lại khi mất mạng, tự dừng khi phiên kết thúc, tự nối lại khi máy chủ khởi động lại | Người bán không kỹ thuật bật được nguồn bình luận **chỉ khi máy chủ chưa đặt `INGEST_TOKEN`** (chạy cục bộ / Wi-Fi nội bộ). Lệnh bật là đường ghi luôn đòi token, mà web chưa gửi token: bản công khai (bắt buộc đặt `INGEST_TOKEN`) trả **401** *"Thiếu hoặc sai token ingest…"* khi bấm nút, nên người kỹ thuật vẫn phải chạy runner CLI (tự đính token từ `.env`) cho tới khi web gửi được token — xem `docs/HUONG-DAN-SU-DUNG.md` giới hạn #10 và `docs/mo-hinh-van-hanh-kol.md` mục 6. Vẫn cần khoá của nền tảng trên máy chủ; `GET /platforms` và trang Bắt đầu nói rõ còn thiếu biến nào |
 | 2 | **Shopee Live có ghi Việt Nam** trong tài liệu gốc của Shopee (mọi endpoint livestream: "For TW, ID, TH, PH, MY, SG, VN", cập nhật quyền 11/07/2025) — trái với README của một SDK cộng đồng ghi chỉ TW/ID/TH. Các endpoint này là loại **"User"**: ký bằng `user_id`, không phải `shop_id` | Adapter cũ ký bằng `shop_id` gần như chắc chắn bị từ chối khi chạy thật. Trạng thái sửa: xem `docs/incident-log.md` ngày 17/09. Chỉ một cuộc gọi thật bằng tài khoản VN mới chốt được vùng |
 | 3 | **TikTok Shop có API chính thức cho số liệu phiên LIVE** theo PHÚT (GMV, đơn, click sản phẩm, số bình luận, người xem), mọi thị trường kể cả VN — nhưng chỉ có **sau khi phiên kết thúc**, không có nội dung bình luận, không ghim được, không webhook báo live bắt đầu | §5 "đóng lại" chỉ còn đúng cho **nội dung bình luận** TikTok. Biến kết quả của switchback trên TikTok Shop đo được **hậu kiểm** qua API chính thức; can thiệp (ghim) vẫn do người dẫn làm tay theo lịch |
 | 4 | **Hạn mức YouTube:** bảng quota hiện hành ghi `liveChatMessages.list` = **1 đơn vị** (nhiều tích hợp cũ ghi 5); từ 01/06/2026 `search.list` có hạn mức riêng 100 lượt/ngày. Google khuyến nghị `liveChatMessages.streamList` (đẩy tin, nhận API key) thay cho poll | Con số "≈ 5.400 đơn vị/buổi 90 phút" ở §2.2 là trần xấu nhất; khoảng thật 1.080–5.400 đơn vị tuỳ giá mỗi lượt. Phải đo trên Cloud Console trước buổi live đầu tiên |
@@ -324,15 +324,25 @@ nào lấy được bình luận, kể cả một bình luận. Đừng tìm n�
 
 ### 4.3 Ba câu trả lời cho Shopee
 
-- **(a) Hôm nay?** ❌ Chưa — `.env` chưa có `SHOPEE_PARTNER_ID`. Nhưng **adapter
-  đã viết xong và có 26 test xanh** (§4.4), nên khi có danh tính là chạy ngay.
-- **(b) Cần gì:**
+- **(a) Hôm nay?** ❌ Chưa — `.env` chưa có `SHOPEE_PARTNER_ID`. **Adapter đã
+  viết xong và có bộ test không chạm mạng** (số test đếm theo ngày ở bảng §4.4),
+  nhưng **chưa có một cuộc gọi thật nào**: khi có danh tính, chạy
+  `scripts/kiem_tra_shopee.py` trước (§4.4) rồi mới bật bộ thu.
+- **(b) Cần gì** (bảng *Danh tính cần có trong `.env`* ở §4.4 là bản đầy đủ):
   1. Tài khoản **Shopee Open Platform** (`open.shopee.com`) → `partner_id` + `partner_key`.
   2. Chủ shop (chính nhóm, hoặc đối tác **có văn bản đồng ý**) chạy luồng **ủy
-     quyền OAuth** → `shop_id` + `access_token` + `refresh_token`.
+     quyền OAuth** → `user_id` của tài khoản người phát (`user_id_list` trong
+     phản hồi `v2.public.get_access_token`, điền vào `SHOPEE_USER_ID` — **bắt
+     buộc**, API livestream là loại "User" và ký bằng `user_id`) + `access_token`
+     + `refresh_token`. `shop_id` **chỉ** cần để ghim sản phẩm
+     (`update_show_item`); đọc bình luận, người xem, chỉ số không cần nó. Thiếu
+     `SHOPEE_USER_ID` thì trang Bắt đầu báo Shopee thiếu khoá và bộ thu dừng với
+     *"Thiếu danh tính Shopee trong .env: SHOPEE_USER_ID"*.
   3. ⚠️ **`access_token` của Shopee chỉ sống 4 GIỜ** — phiên live dài **phải**
-     làm mới bằng `refresh_token` giữa chừng. Đây là khác biệt lớn so với Page
-     token Facebook (không hết hạn).
+     làm mới bằng `refresh_token` (theo `user_id`) giữa chừng. LiveLift **chưa
+     tự làm mới** (17/09/2026): hết hạn thì người kỹ thuật cấp token mới, dán vào
+     `.env` rồi khởi động lại máy chủ. Đây là khác biệt lớn so với Page token
+     Facebook (không hết hạn).
   4. Chưa xác minh được: thời gian duyệt tài khoản Open Platform, và hạn mức gọi
      API. **Không bịa số** — phải đọc trong Partner Portal sau khi đăng ký.
 - **(c) ToS:** ✅ **Hợp lệ** — API chính thức, token do chủ shop tự cấp. Đây là
@@ -341,13 +351,31 @@ nào lấy được bình luận, kể cả một bình luận. Đừng tìm n�
 
 ### 4.4 Đã viết sẵn trong repo (gói này)
 
+*Cập nhật 17/09/2026: danh tính loại "User", bộ thu trên web, số test. Vẫn **chưa
+có một cuộc gọi thật nào** bằng tài khoản Shopee.*
+
 | Tệp | Nội dung |
 |---|---|
-| `src/livelift/ingest/shopee.py` | `ShopeeLiveClient`: ký HMAC, `iter_comments`, `iter_viewers`, `get_session_metric`, phân loại lỗi auth/rate-limit/transient |
-| `tests/test_ingest_shopee.py` | **26 test**, không chạm mạng |
-| `scripts/kiem_tra_shopee.py` | `--session-id <ID>` → bảng tiếng Việt "SẴN SÀNG / CHƯA SẴN SÀNG", mã thoát 0/1 |
+| `src/livelift/ingest/shopee.py` | `ShopeeLiveClient`: ký HMAC-SHA256 trên `partner_id + đường dẫn đầy đủ /api/v2/livestream/… + timestamp + access_token + user_id` (API livestream là loại **"User"**, sửa 17/09 — trước đó ký bằng `shop_id` trên phần đuôi đường dẫn), `iter_comments`, `iter_viewers`, `get_session_metric`, `update_show_item`, phân loại lỗi auth / rate-limit / chưa phát / transient |
+| `tests/test_ingest_shopee.py` | **57 test** (đếm 17/09/2026 tại commit `abbbeb1`), không chạm mạng. Số này là ảnh chụp theo commit, sẽ tăng khi thêm test; số hiện tại: `pytest tests/test_ingest_shopee.py --collect-only -q` |
+| `scripts/kiem_tra_shopee.py` | `--session-id <ID>` → bảng tiếng Việt "SẴN SÀNG / CHƯA SẴN SÀNG", mã thoát 0/1. Chỉ đọc |
 | `.env.example` | khối `SHOPEE_*` kèm giải thích |
-| `runner.py` | `--platform shopee` |
+| `runner.py` | `--platform shopee` (đường CLI) |
+| `src/livelift/api/ingest_jobs.py` | Bộ thu **chạy nền trong API** — bật bằng nút *Bật bộ thu* trên web, chọn *Shopee Live (shop của bạn)*, dán `session_id` |
+
+**Danh tính cần có trong `.env`:**
+
+| Biến | Bắt buộc? | Ghi chú |
+|---|---|---|
+| `SHOPEE_PARTNER_ID`, `SHOPEE_PARTNER_KEY` | **Bắt buộc** | Từ Shopee Open Platform |
+| `SHOPEE_USER_ID` | **Bắt buộc** | Mã **tài khoản người phát** đã ủy quyền cho app (`user_id_list` trong phản hồi `v2.public.get_access_token`) — **không phải** mã shop, và không liên quan `user_id` của người bình luận. Là dãy số |
+| `SHOPEE_ACCESS_TOKEN` | **Bắt buộc** | Cấp cho đúng `SHOPEE_USER_ID`; chỉ sống **4 giờ** |
+| `SHOPEE_SHOP_ID` | Chỉ để **ghim sản phẩm** | Tham số thân của `update_show_item`. Đọc bình luận, người xem, chỉ số **không** cần — thiếu thì `kiem_tra_shopee.py` chỉ cảnh báo, không chặn |
+| `SHOPEE_REFRESH_TOKEN` | Nên có | Thiếu thì script cảnh báo |
+| `SHOPEE_REGION` | Mặc định `global` | Việt Nam dùng cổng global |
+
+Trang Bắt đầu (`GET /platforms`) coi Shopee là *Sẵn sàng* khi đủ bốn biến bắt buộc
+ở trên.
 
 **Ba quyết định thiết kế đến từ đặc tính thật của API — đọc trước khi sửa:**
 
@@ -358,7 +386,7 @@ nào lấy được bình luận, kể cả một bình luận. Đừng tìm n�
    nghiệm nhân quả. Mặc định 5 s → mỗi bình luận về ~2 lần, khử trùng lặp theo
    `comment_id`.
 2. **Token bắt buộc nằm trong query string → lỗi phải giấu URL.** Lược đồ ký của
-   Shopee đưa `access_token` và `shop_id` vào chuỗi HMAC nên chúng **phải** là
+   Shopee đưa `access_token` và `user_id` vào chuỗi HMAC nên chúng **phải** là
    tham số query (không đẩy sang header như Facebook được). `httpx` nhét URL đầy
    đủ vào mọi `HTTPStatusError`, nên mọi lỗi được gói thành `ShopeeApiError` chỉ
    mang mã lỗi + `request_id`. Có test khẳng định token **không** xuất hiện
@@ -373,10 +401,23 @@ phải lấy **hiệu** giữa hai mốc đầu/cuối khối — và **phải k
 pháp** rằng biến kết quả là sai phân của một bộ đếm cộng dồn. Đây là điểm phản
 biện chắc chắn bị hỏi.
 
-**Chạy thử khi có danh tính:**
+**Chạy thử khi có danh tính** (đủ `SHOPEE_PARTNER_ID`, `SHOPEE_PARTNER_KEY`,
+`SHOPEE_USER_ID`, `SHOPEE_ACCESS_TOKEN`):
 
 ```bash
+# 1) Kiểm tra danh tính + phiên (chỉ đọc). Chạy lúc buổi live ĐANG PHÁT thì mới
+#    thử được đường đọc bình luận; chạy trước giờ phát thì chỉ nhận cảnh báo.
 python scripts/kiem_tra_shopee.py --session-id <SESSION_ID>
+
+# 2a) Cách khuyên dùng — bật từ web: Bàn trợ live (hoặc bước 4 Chuẩn bị phiên)
+#     → Nền tảng "Shopee Live (shop của bạn)" → dán <SESSION_ID> → "Bật bộ thu".
+#     Bật TRƯỚC giờ phát được: bộ thu hiện "Chờ buổi live bắt đầu" và tự thu khi lên sóng.
+#     Chỉ dùng được khi máy chủ CHƯA đặt INGEST_TOKEN (web chưa gửi token → 401, §0 dòng 1);
+#     máy chủ công khai thì dùng 2b.
+
+# 2b) Đường CLI — chỉ chạy SAU KHI đã bấm phát trên app Shopee. Chạy trước giờ phát
+#     thì lệnh dừng ngay với "Bộ thu dừng: … KHÔNG có buổi live nào đang phát" (mã thoát 1),
+#     vì client Shopee không tự chờ; runner tự đính INGEST_TOKEN từ .env.
 python -m livelift.ingest.runner --platform shopee \
     --source-id <SESSION_ID> --session-id <uuid> --api-url http://localhost:8000
 ```
@@ -591,7 +632,7 @@ PY
 wc -l vod.live_chat.json && rm -f vod.live_chat.json   # XÓA NGAY: tệp chứa tên người bình luận
 
 # 6) Cổng chất lượng sau khi thêm adapter Shopee
-.venv/Scripts/python -m pytest tests/test_ingest_shopee.py -q     # 26 passed
+.venv/Scripts/python -m pytest tests/test_ingest_shopee.py -q     # 26 passed lúc thêm adapter; 57 passed tại commit abbbeb1 (17/09/2026)
 .venv/Scripts/python -m pytest -m "not slow" -q                   # 689 passed
 .venv/Scripts/python -m ruff check src tests scripts              # All checks passed!
 ```

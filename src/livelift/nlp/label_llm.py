@@ -38,6 +38,7 @@ from pathlib import Path
 from typing import Any
 
 from livelift.console import configure as _configure_console
+from livelift.ingest.mo_phong import PLATFORM_SIM
 from livelift.nlp.labels import INTENT_LABELS, LABEL_EXAMPLES_REAL, LABEL_GUIDELINE
 from livelift.nlp.train_intent import DATA as DATASET_PATH
 
@@ -89,6 +90,23 @@ def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
 # ---------------------------------------------------------------------------
 
 
+NEN_TANG_TONG_HOP: frozenset[str] = frozenset({PLATFORM_SIM})
+"""Giá trị ``platform`` của bình luận TỔNG HỢP — không bao giờ vào lô gán nhãn.
+
+``sim`` (:data:`livelift.ingest.mo_phong.PLATFORM_SIM`) là câu do AI soạn sẵn mà
+nguồn mô phỏng phát lại để chạy thử Bàn trợ live. Kịch bản ghi rõ
+``cam_dung: KHÔNG dùng làm dữ liệu huấn luyện, dữ liệu đánh giá mô hình``. Nguồn
+này được bật trên phiên CHẠY THỬ (``dry_run``), mà phiên chạy thử lại là phiên
+THẬT (``is_demo=False``) — nên cổng demo bên dưới KHÔNG chặn được nó. Kiểm toán
+17/09/2026 đo được: một lượt mô phỏng trên phiên chạy thử đưa nguyên 27 câu tổng
+hợp vào ``batch.jsonl`` của lệnh ``export`` quét toàn kho, chỉ còn id/text nên
+không còn dấu vết nguồn gốc."""
+
+
+def _la_binh_luan_tong_hop(row: dict[str, Any]) -> bool:
+    return str(row.get("platform") or "") in NEN_TANG_TONG_HOP
+
+
 def collect_from_store(store: Any, session_id: str | None = None) -> list[dict[str, Any]]:
     """Pull stored comments into export items — one session, or all of them.
 
@@ -104,6 +122,11 @@ def collect_from_store(store: Any, session_id: str | None = None) -> list[dict[s
     Their "comments" are our own template strings (``DEMO_COMMENTS``); labeling
     them would teach the classifier its own demo script and quietly poison the
     training set — the exact demo-into-science leak the critique rounds vetoed.
+
+    SYNTHETIC GATE (kiểm toán 17/09/2026): rows whose ``platform`` is in
+    :data:`NEN_TANG_TONG_HOP` are skipped in BOTH modes, whatever the session
+    flags say — a dry-run session may hold real comments and simulated ones
+    side by side, and only the real ones may be labeled.
     """
     if session_id is not None:
         session = store.get_session(session_id)
@@ -121,6 +144,8 @@ def collect_from_store(store: Any, session_id: str | None = None) -> list[dict[s
     items: list[dict[str, Any]] = []
     for sid in session_ids:
         for c in store.list_comments(sid):
+            if _la_binh_luan_tong_hop(c):
+                continue
             items.append(
                 {
                     "id": str(c["comment_id"]),
@@ -132,9 +157,15 @@ def collect_from_store(store: Any, session_id: str | None = None) -> list[dict[s
 
 
 def normalize_input_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Accept both export-item and store-row field names from a JSONL file."""
+    """Accept both export-item and store-row field names from a JSONL file.
+
+    A store-row dump carries ``platform``: synthetic rows (:data:`NEN_TANG_TONG_HOP`)
+    are dropped here too, so ``--input`` is not a way around the store gate.
+    """
     items = []
     for i, row in enumerate(rows):
+        if _la_binh_luan_tong_hop(row):
+            continue
         rid = row.get("id") or row.get("comment_id") or f"row-{i + 1}"
         text = row.get("text")
         if text is None:

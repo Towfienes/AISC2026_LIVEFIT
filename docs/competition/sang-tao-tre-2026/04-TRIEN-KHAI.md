@@ -592,6 +592,10 @@ $ .venv/Scripts/python scripts/kiem_tra_truoc_demo.py
 [exit 0]
 ```
 
+> *Ghi chú 17/09/2026:* bản chạy trên in chữ chip cũ (`'THẬT + DEMO'`). Từ 17/09 chip đổi chữ
+> và dòng này của script in *"mode=mixed — chip thanh điều hướng hiện 'KHO: THẬT + MẪU', từng
+> phiên có nhãn riêng"*. Bản chạy trên giữ nguyên như đã ghi, chưa chạy lại.
+
 Hai cảnh báo đều **đúng và mong đợi** trên đường chạy không-Docker: không có PostgreSQL, và không có
 Caddy nên không có header bảo mật. Chạy qua `docker compose` thì cả hai biến mất.
 
@@ -626,8 +630,8 @@ Cơ chế đã có sẵn trong kho và **chắc chắn về mặt cấu trúc** 
 | **Client không giả mạo được** | `SessionCreate` có `['platform','title','mode','planned_duration_min','host_id','dry_run']` — **không có `is_demo`**; Pydantic bỏ qua trường thừa |
 | API vẫn công khai nhãn | `SessionOut` **có** `is_demo` |
 | Tách đúng | `/sessions?env=demo` → 16 phiên, **0 phiên thiếu `is_demo=true`**; `/sessions?env=real` → 17 phiên, **0 phiên bị gán nhầm demo** |
-| Nhãn trên giao diện | HTML trang chủ do máy chủ dựng chứa `DEMO` ×3, `mô phỏng` ×3, `PHIÊN THẬT` ×1 — **hiện trước cả khi JavaScript chạy** |
-| Mặc định an toàn | `ModeChip.tsx:11-13` — `/health` thiếu `mode` hoặc không gọi được ⇒ rơi về nhãn **DEMO**, không bao giờ tự nhận "THẬT" |
+| Nhãn trên giao diện | Đo trước 17/09/2026: HTML trang chủ do máy chủ dựng chứa `DEMO` ×3, `mô phỏng` ×3, `PHIÊN THẬT` ×1 — **hiện trước cả khi JavaScript chạy**. Từ 17/09 chip đổi chữ: bỏ `PHIÊN THẬT`, chip kho in `KHO TRỐNG` / `KHO: DỮ LIỆU MẪU` / `KHO: DỮ LIỆU THẬT` / `KHO: THẬT + MẪU` / `KHO: CHƯA ĐẾM ĐƯỢC`; HTML dựng sẵn mang trạng thái khởi tạo `KHO: DỮ LIỆU MẪU` (`ModeChip.tsx:128`). **Chưa đo lại** số lần xuất hiện trên HTML |
+| Mặc định an toàn | `ModeChip.tsx:13-16`, `:146` — `/health` thiếu `mode` hoặc không gọi được ⇒ giữ nhãn **`KHO: DỮ LIỆU MẪU`** (kèm chip `MẤT KẾT NỐI` khi không gọi được), không bao giờ tự nhận "THẬT" |
 | Kết quả thật tự loại demo | `/experiment/summary` lọc `is_demo == demo`, mặc định `env=real` |
 
 ```
@@ -830,7 +834,7 @@ Mọi dòng dưới đây là lệnh đã chạy thật hôm nay, kết quả d�
 | 16 | `curl /sessions?env=demo` | 16 phiên, **0** thiếu `is_demo=true` | 0 |
 | 17 | `curl /sessions?env=real` | 17 phiên, **0** bị gán nhầm demo | 0 |
 | 18 | `curl /openapi.json` → `SessionCreate` | **Không có** `is_demo` ⇒ client không giả mạo được | 0 |
-| 19 | Giết tiến trình API rồi tải trang chủ | **HTTP 200**, 17.218 B, **0** `Traceback`, **0** `Internal Server Error`, rơi về nhãn DEMO | 0 |
+| 19 | Giết tiến trình API rồi tải trang chủ | **HTTP 200**, 17.218 B, **0** `Traceback`, **0** `Internal Server Error`, rơi về nhãn DEMO *(chip trước 17/09; nay nhãn tương ứng là `KHO: DỮ LIỆU MẪU` kèm `MẤT KẾT NỐI` — chưa đo lại)* | 0 |
 | 20 | Bật lại rồi đếm | **33 phiên (17 thật + 16 demo)** — đủ | 0 |
 | 21 | `npx next build` (có 3 trang lỗi mới) | `✓ Compiled successfully`, thêm tuyến `/_not-found` | 0 |
 | 22 | `ruff check` 2 script mới | `All checks passed!` | **0** |
@@ -883,7 +887,9 @@ quản trị (§1.1). Không có cái nào chặn bởi lỗi trong cấu hình.
 **T-1 giờ**
 
 - [ ] `python scripts/kiem_tra_truoc_demo.py --goc https://<tên miền> --khat-khe` → 0
-- [ ] Mở bằng **mạng 4G điện thoại** (không phải wifi phòng) — trang lên, có nhãn DEMO
+- [ ] Mở bằng **mạng 4G điện thoại** (không phải wifi phòng) — trang lên, chip kho góc phải thanh
+      điều hướng ghi `KHO: DỮ LIỆU MẪU` (hoặc `KHO: THẬT + MẪU` nếu kho có cả phiên thật), không có
+      chip `MẤT KẾT NỐI`
 - [ ] Bấm thử một shortlink `/r/{mã}` — chuyển hướng đúng
 - [ ] Chứng chỉ HTTPS còn hạn > 7 ngày
 - [ ] Mở sẵn một tab `docker compose logs -f` trên máy trực

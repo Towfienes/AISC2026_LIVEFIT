@@ -19,9 +19,18 @@
  * 4. KHÔNG GỬI TỆP. Chọn tệp chỉ để trình duyệt ĐỌC CHỮ trong tệp (FileReader)
  *    rồi đổ vào ô dán — thứ gửi đi luôn là nội dung CSV người dùng nhìn thấy,
  *    đúng hợp đồng `importOrdersCsv(sessionId, csv)`.
+ *
+ * Phản biện 17/09 — BẢNG MÃ. Excel trên Windows tiếng Việt lưu "CSV (Comma
+ * delimited)" bằng bảng mã 1258, không phải UTF-8. `readAsText(f, "utf-8")` KHÔNG
+ * báo lỗi với tệp ấy (byte hỏng thành "�"), nên câu dặn "lưu lại dạng CSV UTF-8"
+ * trong `onerror` không bao giờ hiện, còn máy chủ trả "thiếu cột ts, gross" cho
+ * một tệp mở bằng Excel thấy đủ cột. Nay đọc BYTE: UTF-8 nghiêm (fatal) trước,
+ * hỏng thì đọc theo 1258; luôn chuẩn hoá NFC (1258 cho dấu thanh tổ hợp, máy chủ
+ * so tên cột dạng dựng sẵn); và dòng tên cột có "?"/"�" hay cách bằng TAB/chấm
+ * phẩy thì nói thẳng nguyên nhân TRƯỚC khi bấm Nhập đơn.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -88,6 +97,63 @@ const COT_GOI_Y: readonly CotGoiY[] = [
 
 const GHI_CHU_CHI_SO_PHU = "Đơn hàng là chỉ số phụ; chỉ số chính là lượt nhấp link đo.";
 
+type BangMa = "utf-8" | "utf-16le" | "utf-16be" | "windows-1258";
+
+/**
+ * Chữ trong tệp CSV, đọc từ BYTE. UTF-16 nhận ra nhờ BOM (Excel "Unicode
+ * Text"); còn lại thử UTF-8 NGHIÊM — hỏng thì là bảng mã ANSI của Windows tiếng
+ * Việt (1258, thứ Excel dùng cho "CSV (Comma delimited)"). Luôn chuẩn hoá NFC:
+ * 1258 cho dấu thanh tổ hợp, còn tên cột máy chủ nhận viết dạng dựng sẵn.
+ */
+function docChuTuByte(bytes: Uint8Array): { chu: string; bangMa: BangMa } {
+  const doc = (bangMa: BangMa, fatal = false) => ({
+    chu: new TextDecoder(bangMa, { fatal }).decode(bytes).normalize("NFC"),
+    bangMa,
+  });
+  if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xfe) return doc("utf-16le");
+  if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) return doc("utf-16be");
+  try {
+    return doc("utf-8", true);
+  } catch {
+    return doc("windows-1258");
+  }
+}
+
+/** Ghi chú khi tệp không lưu bằng UTF-8 — để người dùng soát chữ trước khi nhập. */
+function ghiChuBangMa(bangMa: BangMa, tenTep: string): string | null {
+  if (bangMa !== "windows-1258") return null;
+  return (
+    `Tệp "${tenTep}" không lưu bằng UTF-8 — đã đọc theo bảng mã Windows tiếng Việt (1258). ` +
+    'Soát tên cột có dấu trong ô bên dưới; chữ còn lỗi thì mở tệp bằng Excel, lưu lại dạng "CSV UTF-8" rồi chọn lại.'
+  );
+}
+
+/**
+ * Lỗi nhìn thấy được ở DÒNG TÊN CỘT — thứ máy chủ đọc đầu tiên. Máy chủ chỉ trả
+ * "thiếu cột bắt buộc", không nói vì sao; câu này nói nguyên nhân thật.
+ */
+function canhBaoTieuDe(csv: string): string | null {
+  const dau = csv.replace(/^\uFEFF/, "").split(/\r?\n/, 1)[0] ?? "";
+  if (!dau.trim()) return null;
+  if (dau.includes("�") || dau.includes("?")) {
+    return (
+      'Dòng tên cột có ký tự lỗi ("?" hoặc "�") — tệp đã mất dấu tiếng Việt khi lưu nên máy chủ ' +
+      'sẽ không nhận ra tên cột. Mở tệp bằng Excel, lưu lại dạng "CSV UTF-8 (Comma delimited)" ' +
+      "rồi chọn lại, hoặc đổi tên cột thành ts, gross, order_id."
+    );
+  }
+  if (!dau.includes(",")) {
+    const dauCach = dau.includes("\t") ? "dấu TAB" : dau.includes(";") ? "dấu chấm phẩy" : null;
+    if (dauCach) {
+      return (
+        `Các cột trên dòng đầu cách nhau bằng ${dauCach}, nhưng máy chủ cần dấu phẩy. ` +
+        'Mở tệp bằng Excel, lưu lại dạng "CSV UTF-8 (Comma delimited)" rồi chọn lại.'
+      );
+    }
+  }
+  return null;
+}
+
 /** Lỗi mạng (không nối được / hết giờ) khác lỗi máy chủ trả lời. */
 function laLoiMang(e: unknown): boolean {
   if (e instanceof TypeError) return true;
@@ -117,6 +183,8 @@ export default function OrdersPanel({ sessionId, isDemo = false, onImported, cla
 
   const [csv, setCsv] = useState("");
   const [fileName, setFileName] = useState<string | null>(null);
+  /** Ghi chú bảng mã của tệp vừa đọc (không phải UTF-8). */
+  const [fileNote, setFileNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [importErr, setImportErr] = useState<string | null>(null);
   const [result, setResult] = useState<OrderImportResult | null>(null);
@@ -155,21 +223,31 @@ export default function OrdersPanel({ sessionId, isDemo = false, onImported, cla
       );
       return;
     }
+    setFileNote(null);
     const reader = new FileReader();
     reader.onload = () => {
-      setCsv(typeof reader.result === "string" ? reader.result : "");
+      if (!(reader.result instanceof ArrayBuffer)) {
+        setImportErr(`Không đọc được chữ trong tệp "${f.name}" — thử dán nội dung vào ô bên dưới.`);
+        return;
+      }
+      const { chu, bangMa } = docChuTuByte(new Uint8Array(reader.result));
+      setCsv(chu);
       setFileName(f.name);
+      setFileNote(ghiChuBangMa(bangMa, f.name));
     };
     reader.onerror = () => {
       setImportErr(
-        `Không đọc được tệp "${f.name}" — mở tệp bằng Excel, lưu lại dạng CSV UTF-8 rồi chọn lại.`,
+        `Không mở được tệp "${f.name}" trên máy này — kiểm tra tệp không bị chương trình khác khoá rồi chọn lại.`,
       );
     };
-    reader.readAsText(f, "utf-8");
+    // Đọc BYTE rồi tự dò bảng mã: readAsText(f, "utf-8") nuốt lỗi bảng mã im lặng.
+    reader.readAsArrayBuffer(f);
   }, []);
 
+  const tieuDeLoi = useMemo(() => canhBaoTieuDe(csv), [csv]);
+
   const submit = useCallback(async () => {
-    const noiDung = csv.trim();
+    const noiDung = csv.normalize("NFC").trim();
     if (!noiDung) return;
     setImportErr(null);
     setResult(null);
@@ -293,6 +371,14 @@ export default function OrdersPanel({ sessionId, isDemo = false, onImported, cla
                 rồi bấm Nhập đơn.
               </p>
             ) : null}
+            {fileName && fileNote ? (
+              <p className="text-meta leading-relaxed text-warn-ink">
+                <span aria-hidden className="mr-1 font-bold">
+                  ◐
+                </span>
+                {fileNote}
+              </p>
+            ) : null}
 
             <label
               htmlFor={`don-csv-${sessionId}`}
@@ -306,6 +392,7 @@ export default function OrdersPanel({ sessionId, isDemo = false, onImported, cla
               onChange={(e) => {
                 setCsv(e.target.value);
                 setFileName(null);
+                setFileNote(null);
               }}
               rows={6}
               spellCheck={false}
@@ -313,6 +400,11 @@ export default function OrdersPanel({ sessionId, isDemo = false, onImported, cla
               placeholder={"mã đơn,thời gian,tổng tiền\nDH001,17/09/2026 20:05,125000"}
               className={`${fieldCls} w-full px-3 py-2 font-num text-meta leading-relaxed`}
             />
+            {tieuDeLoi ? (
+              <Callout tone="warn" slim>
+                {tieuDeLoi}
+              </Callout>
+            ) : null}
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -326,6 +418,7 @@ export default function OrdersPanel({ sessionId, isDemo = false, onImported, cla
                 onClick={() => {
                   setCsv("");
                   setFileName(null);
+                  setFileNote(null);
                   setResult(null);
                   setImportErr(null);
                 }}

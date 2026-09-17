@@ -12,6 +12,7 @@ import type {
   BlockInfo,
   CommentItem,
   DemoSeedResult,
+  ExecuteOut,
   ExperimentSummary,
   HealthInfo,
   HostState,
@@ -426,8 +427,8 @@ export function executeCard(
   sessionId: string,
   cardId: string,
   productId: string,
-): Promise<{ ok: boolean; action_id?: string }> {
-  return request(`/sessions/${sessionId}/actions/execute`, {
+): Promise<ExecuteOut> {
+  return request<ExecuteOut>(`/sessions/${sessionId}/actions/execute`, {
     method: "POST",
     body: JSON.stringify({ card_id: cardId, product_id: productId }),
   });

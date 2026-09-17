@@ -61,7 +61,21 @@ function IntentChip({ intent }: { intent: CommentItem["intent_label"] }) {
   );
 }
 
-export default function CommentFeed({ comments }: { comments: CommentItem[] }) {
+/**
+ * Câu dưới "Chưa có bình luận nào" khi feed rỗng. Mặc định trung tính; trang
+ * gọi truyền câu đúng ngữ cảnh (bàn trợ live: bình luận chỉ về khi Bộ thu bình
+ * luận đang chạy). Câu cũ "bạn không cần làm gì" SAI khi bộ thu chưa bật — và
+ * sai cả trong phát lại, nơi phải bấm Phát.
+ */
+const DEFAULT_EMPTY_HINT = "Bình luận sẽ tự hiện ở đây khi có dữ liệu bình luận.";
+
+export default function CommentFeed({
+  comments,
+  emptyHint = DEFAULT_EMPTY_HINT,
+}: {
+  comments: CommentItem[];
+  emptyHint?: string;
+}) {
   const boxRef = useRef<HTMLDivElement>(null);
   const stickToEnd = useRef(true);
   /** Số bình luận tại lần cuối cùng feed thực sự cuộn xuống đáy. */
@@ -168,8 +182,7 @@ export default function CommentFeed({ comments }: { comments: CommentItem[] }) {
         >
           {comments.length === 0 ? (
             <div className="px-2 py-4 text-body text-dim">
-              Chưa có bình luận nào. Bình luận sẽ tự hiện ở đây ngay khi người xem gõ — bạn không
-              cần làm gì.
+              Chưa có bình luận nào. {emptyHint}
             </div>
           ) : (
             // Nhãn nằm trên chính danh sách, không trên khung cuộn: `aria-label`

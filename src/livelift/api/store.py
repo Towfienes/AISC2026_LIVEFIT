@@ -269,6 +269,10 @@ class Store(Protocol):
     # shortlinks
     def create_shortlink(self, row: dict[str, Any]) -> dict[str, Any]: ...
     def get_shortlink(self, code: str) -> dict[str, Any] | None: ...
+    # Số link đo GẮN với một phiên (shortlink.session_id). Ma trận tín hiệu cần
+    # nó để phân biệt "chưa tạo link đo" với "có link, chưa ai bấm" (kiểm toán
+    # 17/09/2026, HDSD giới hạn #8). Link không gắn phiên không được đếm.
+    def count_shortlinks(self, session_id: str) -> int: ...
 
     # sessions
     def create_session(self, row: dict[str, Any]) -> dict[str, Any]: ...
@@ -552,6 +556,14 @@ class InMemoryStore:
     def get_shortlink(self, code: str) -> dict[str, Any] | None:
         row = self._shortlinks.get(code)
         return dict(row) if row else None
+
+    def count_shortlinks(self, session_id: str) -> int:
+        """Số link đo của MỘT phiên — cùng phép đếm với PostgresStore.
+
+        Link không gắn phiên (``session_id`` None) không thuộc phiên nào nên
+        không bao giờ được đếm cho phiên này. Khoá do ``@_synchronized`` bọc.
+        """
+        return sum(1 for r in self._shortlinks.values() if r.get("session_id") == session_id)
 
     # -- sessions ----------------------------------------------------------
     def create_session(self, row: dict[str, Any]) -> dict[str, Any]:
@@ -1133,6 +1145,12 @@ class PostgresStore:
 
     def get_shortlink(self, code: str) -> dict[str, Any] | None:
         return self._one("SELECT * FROM shortlink WHERE code = %s", (code,))
+
+    def count_shortlinks(self, session_id: str) -> int:
+        # Bảng shortlink (migration 0001): session_id uuid NULL được. Link không
+        # gắn phiên có session_id NULL nên không bao giờ khớp — giống InMemoryStore.
+        row = self._one("SELECT count(*) AS n FROM shortlink WHERE session_id = %s", (session_id,))
+        return int(row["n"]) if row else 0
 
     # -- sessions ----------------------------------------------------------
     def create_session(self, row: dict[str, Any]) -> dict[str, Any]:

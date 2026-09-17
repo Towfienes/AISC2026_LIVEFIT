@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * "/desk" — Bàn điều khiển (control desk). OPERATOR screen: it is the one view
+ * "/desk" — Bàn trợ live (control desk). OPERATOR screen: it is the one view
  * that is allowed to see the assignment. Nothing here may import HostView,
  * useHost or HostState — the blinding boundary (rule L6) runs along this file.
  *
@@ -30,6 +30,14 @@
  * the indicator, and the card list adds its own "cuộn để xem hết" line) instead
  * of silently cutting content off. Ở 1920×1080 toàn bàn hiện đủ không cuộn.
  *
+ * LIẾC 1 GIÂY Ở 1366×768 (gói C — Bàn trợ live v3): nút hành động của thẻ #1
+ * phải nằm trong MÀN HÌNH ĐẦU TIÊN. Ảnh f06 đo được thẻ #1 bắt đầu ở y≈600 và
+ * nút "Ghim ngay" nằm dưới mép màn. Ba chỗ ăn chiều cao đã được cắt: câu dẫn
+ * của PageHeader (ẩn khi phiên đang phát), StatusBar gãy hai dòng (nay một
+ * dòng), hàng hero ~285px (nay hai cột, thẻ lịch cao vừa nội dung). Khung Bộ
+ * thu bình luận (gói C7) nằm đầu CỘT GIỮA — thấy được ngay mà không đẩy cột
+ * hành động bên phải xuống.
+ *
  * First-time-user rules: an empty state instead of a blank screen when no
  * session is running, skeletons instead of a blank screen while connecting,
  * plain-Vietnamese labels, jargon explained in-context via <Term> tooltips.
@@ -37,10 +45,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import ActionCard from "@/components/ActionCard";
-import BlockClock from "@/components/BlockClock";
+import ActionCard, { forecastLacksData } from "@/components/ActionCard";
+import BlockClock, { actionLockReason, deriveCurrentBlock } from "@/components/BlockClock";
 import CommentFeed from "@/components/CommentFeed";
 import CommentRadar from "@/components/CommentRadar";
+import IngestPanel from "@/components/IngestPanel";
 import LiveVideo from "@/components/LiveVideo";
 import RhythmChart from "@/components/RhythmChart";
 import SignalTiles, { buildSignalTiles } from "@/components/SignalTiles";
@@ -56,8 +65,101 @@ import SectionTitle from "@/components/ui/SectionTitle";
 import Skeleton from "@/components/ui/Skeleton";
 import { getReactions, getSessionDetail, getSignalCoverage, youtubeVideoId } from "@/lib/api";
 import { fmtTimeHCM } from "@/lib/format";
-import type { ActionCardData, SessionDetail, SignalCoverage } from "@/lib/types";
-import { useDesk } from "@/lib/useDesk";
+import type {
+  ActionCardData,
+  ConnectionKind,
+  SessionDetail,
+  SessionSummary,
+  SignalCoverage,
+  SignalStateItem,
+} from "@/lib/types";
+import { DeskCommandError, executeNotice, isNetworkError, useDesk } from "@/lib/useDesk";
+
+/**
+ * Phần hẹp của `SignalStateOut` (schemas.py): máy chủ gửi `secondary` — số
+ * lượt bấm THÔ kèm nhãn, chỉ có khi đã ghi được ít nhất một lượt bấm — nhưng
+ * `SignalStateItem` của types.ts (tệp đóng băng) chưa khai trường này.
+ */
+interface SignalStateWire {
+  secondary?: string | null;
+}
+
+/**
+ * Phiên đã ghi nhận lượt bấm cho mô hình dự báo học chưa (gói C6, sửa phản biện).
+ *
+ * Đọc từ MA TRẬN TÍN HIỆU, KHÔNG từ `tick.click_count`: máy chủ lưu số đó bằng
+ * 0 cho mọi tick của phiên thật (redirect chỉ ghi lượt bấm + phát sự kiện
+ * "click", không sửa tick), nên suy từ tick khiến mọi thẻ luôn ghi "chưa đủ
+ * dữ liệu để dự báo" rồi nhấp nháy mỗi lần WebSocket báo một lượt bấm.
+ *
+ * - `ok` ⇒ có lượt bấm hợp lệ ⇒ true.
+ * - `degraded` mang HAI nghĩa (signals._clicks_state): có link đo mà chưa ai
+ *   bấm (không có số thô `secondary`) ⇒ false; hoặc có lượt bấm hợp lệ nhưng
+ *   đa số bị gắn cờ (có `secondary`) ⇒ true.
+ * - `missing` (không có link đo, hoặc 0 lượt HỢP LỆ) ⇒ false.
+ * - Chưa có ma trận / ma trận không có dòng clicks ⇒ null (chưa biết).
+ */
+function clicksObservedFrom(signals: SignalCoverage | null): boolean | null {
+  const clicks = signals?.signals.find((s) => s.name === "clicks");
+  if (!clicks) return null;
+  if (clicks.status === "ok") return true;
+  if (clicks.status === "degraded") {
+    const secondary = (clicks as SignalStateItem & SignalStateWire).secondary;
+    return typeof secondary === "string" && secondary.trim().length > 0;
+  }
+  return false;
+}
+
+/**
+ * Đường tới báo cáo phiên — CHỈ khi bàn đang nói chuyện với máy chủ thật.
+ * Bản xem thử (mock) có phiên mẫu "đã kết thúc" nhưng /bao-cao/[id] chỉ đọc
+ * máy chủ: nút nổi bật nhất màn hình sẽ dẫn vào trang lỗi.
+ */
+function reportHrefFor(connection: ConnectionKind, sessionId: string | null): string | null {
+  return connection === "live" && sessionId ? `/bao-cao/${sessionId}` : null;
+}
+
+/**
+ * Phần hẹp của `SessionOut` (src/livelift/api/schemas.py) mà khung Bộ thu bình
+ * luận cần: máy chủ gửi `dry_run` trong mọi phiên, nhưng `SessionSummary` của
+ * types.ts (tệp đóng băng) chưa khai trường này.
+ */
+interface SessionFlagsWire {
+  dry_run?: boolean;
+  is_demo?: boolean;
+}
+
+/**
+ * Gói C7: nguồn MÔ PHỎNG chỉ được mời chọn cho phiên CHẠY THỬ (`dry_run`) hoặc
+ * phiên DỮ LIỆU MẪU (`is_demo`). Phiên thật mà thu bình luận mô phỏng là trộn
+ * dữ liệu giả vào kết quả thật — máy chủ chặn bằng 422, bàn không mời bấm nhầm.
+ * Thiếu cờ (máy chủ cũ) nghĩa là KHÔNG cho phép.
+ */
+function allowsSimulatedSource(session: SessionSummary | null): boolean {
+  if (!session) return false;
+  const flags = session as SessionSummary & SessionFlagsWire;
+  return flags.dry_run === true || flags.is_demo === true;
+}
+
+/** Câu của máy chủ thường không có dấu chấm cuối — thêm để nối câu sau cho gọn. */
+function sentence(text: string): string {
+  const t = text.trim();
+  return /[.!?…]$/.test(t) ? t : `${t}.`;
+}
+
+/**
+ * Câu báo lỗi của một lệnh vận hành (gói C1 — giới hạn #6).
+ *
+ * `detail` là NGUYÊN VĂN câu máy chủ (409 "Khối TẮT: …", hết hàng…) mà
+ * useDesk đã giữ lại. Lời dặn "kiểm tra kết nối" CHỈ đi kèm lỗi mạng thật —
+ * bản cũ luôn nối lời dặn đó, đẩy người vận hành đi sửa một đường mạng không
+ * hỏng trong khi máy chủ đã nói rõ vì sao từ chối.
+ */
+function commandAlert(lead: string, e: unknown, ifNetwork: string, otherwise: string): string {
+  const network = e instanceof DeskCommandError ? e.network : isNetworkError(e);
+  const detail = sentence(e instanceof Error && e.message ? e.message : "Máy chủ không nhận lệnh");
+  return `${lead}: ${detail} ${network ? ifNetwork : otherwise}`.trim();
+}
 
 /** Clicks landed in the last 60 s — ticks are 30 s buckets, so this is the tail. */
 function clicksInLastMinute(
@@ -105,10 +207,10 @@ function DeskSkeleton() {
       </p>
       <div className="mb-3 flex flex-col gap-3">
         <Skeleton className="h-bar shrink-0 rounded-lg" />
-        {/* hàng hero: thẻ khối hiện tại + dải lịch */}
-        <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(17rem,21rem)_minmax(0,1fr)]">
-          <Skeleton className="h-56 rounded-lg" />
-          <Skeleton className="h-56 rounded-lg" />
+        {/* hàng hero v3: thẻ khối hai cột (~11rem) + thẻ lịch cao vừa nội dung */}
+        <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(26rem,34rem)_minmax(0,1fr)]">
+          <Skeleton className="h-44 rounded-lg" />
+          <Skeleton className="h-36 rounded-lg" />
         </div>
       </div>
       <div className="grid flex-1 grid-cols-1 gap-3 xl:grid-cols-[minmax(16rem,19rem)_minmax(0,1fr)_minmax(21rem,25rem)] xl:grid-rows-[minmax(18rem,1fr)_minmax(14rem,auto)]">
@@ -148,7 +250,12 @@ function DeskSkeleton() {
   );
 }
 
-/** Never a blank screen: friendly guidance when nothing is running (NN/g empty states). */
+/**
+ * Never a blank screen: friendly guidance when nothing is running (NN/g empty states).
+ *
+ * Người mở bàn trợ live khi chưa có phiên nào gần như chắc chắn cần TẠO phiên,
+ * không phải xem demo — nên nút chính là "Chuẩn bị phiên mới", xem thử là phụ.
+ */
 function EmptyDesk({
   hasEndedSessions,
   onDemo,
@@ -163,10 +270,15 @@ function EmptyDesk({
       <EmptyState
         icon="📭"
         title="Chưa có phiên nào đang chạy"
-        hint="Bàn điều khiển sẽ hiển thị nhịp phiên, thẻ gợi ý và bình luận khi một phiên live bắt đầu. Trong lúc chờ, bạn có thể xem thử với dữ liệu mô phỏng."
+        hint="Bàn trợ live sẽ hiện nhịp phiên, thẻ gợi ý và bình luận khi một phiên live bắt đầu. Chuẩn bị một phiên mới, hoặc xem thử với dữ liệu mẫu."
         action={
           <>
-            <Button onClick={onDemo}>Xem thử với dữ liệu mô phỏng</Button>
+            <Link href="/chay-phien" className={buttonCls("primary")}>
+              Chuẩn bị phiên mới
+            </Link>
+            <Button variant="ghost" onClick={onDemo}>
+              Xem thử với dữ liệu mẫu
+            </Button>
             <Link href="/" className={buttonCls("ghost")}>
               Về trang chính
             </Link>
@@ -179,7 +291,7 @@ function EmptyDesk({
           onClick={onShowAnyway}
           className="focus-ring flex min-h-ctl items-center rounded px-3 text-body text-dim underline decoration-dotted underline-offset-2 transition-colors duration-short2 ease-emphasized hover:text-sec"
         >
-          Vẫn mở bàn điều khiển với phiên đã kết thúc
+          Vẫn mở Bàn trợ live với phiên đã kết thúc
         </button>
       )}
     </div>
@@ -196,6 +308,12 @@ export default function DeskPage() {
    * thể bỏ sót.
    */
   const [alert, setAlert] = useState<string | null>(null);
+  /**
+   * Xác nhận sau một lệnh Thực hiện THÀNH CÔNG mà kết quả khác điều người vận
+   * hành vừa bấm (máy chủ bốc thăm công bằng giữa các thẻ ngang nhau — gói C3).
+   * Nằm ngay trong cột hành động, cạnh chỗ vừa bấm; người vận hành tự đóng.
+   */
+  const [notice, setNotice] = useState<string | null>(null);
   /**
    * Deep link `/desk?session=ID` (gói WIZARD, spec UX-FLOW luồng 3): wizard
    * Chuẩn bị phiên chuyển sang đây ngay sau khi bấm "Bắt đầu phát sóng" và
@@ -274,6 +392,14 @@ export default function DeskPage() {
   const clicksUnmeasured =
     signalCov?.signals.some((s) => s.name === "clicks" && s.status === "missing") ?? false;
   const honestClicksPerMin = clicksUnmeasured ? null : clicksPerMin;
+  /**
+   * Gói C6: dự báo trên thẻ là mô hình LƯỢT BẤM. Phiên chưa ghi nhận lượt bấm
+   * nào thì con số đó chỉ là phân phối tiên nghiệm — thẻ ghi "chưa đủ dữ liệu
+   * để dự báo". Nguồn là ma trận tín hiệu (xem clicksObservedFrom); chưa có
+   * ma trận (bản xem thử, đang tải) thì null — không kết luận.
+   */
+  const clicksObserved = clicksObservedFrom(signalCov);
+  const reportHref = reportHrefFor(desk.connection, desk.sessionId);
 
   const tiles = useMemo(
     () =>
@@ -326,41 +452,89 @@ export default function DeskPage() {
    * `onExecute={() => void desk.execute(c)}`: the rejection went to an unhandled
    * promise, the card quietly un-executed itself, and the operator was never
    * told the pin had not happened.
+   *
+   * Gói C1 (giới hạn #6): câu lỗi là NGUYÊN VĂN câu của máy chủ (409 "Khối
+   * TẮT: …", hết hàng…). Chỉ khi lỗi mạng thật mới dặn "kiểm tra kết nối" —
+   * câu cũ luôn nối thêm lời dặn đó, đẩy người vận hành đi sửa mạng không hỏng.
+   * Gói C3: lệnh thành công thì ĐỌC kết quả — máy chủ có thể đã bốc thăm và
+   * ghim một sản phẩm khác thẻ vừa bấm; nói rõ để không ai ghim tay lại.
    */
   const runCard = (card: ActionCardData) => {
     setAlert(null);
-    desk.execute(card).catch((e: unknown) => {
-      const detail = e instanceof Error ? e.message : "Máy chủ không nhận lệnh.";
+    setNotice(null);
+    const sent = desk.execute(card).then((outcome) => setNotice(executeNotice(outcome)));
+    sent.catch((e: unknown) => {
       setAlert(
-        `Không thực hiện được thẻ “${card.headline}”: ${detail} ` +
+        commandAlert(
+          `Không thực hiện được thẻ “${card.headline}”`,
+          e,
           "Thẻ đã được trả lại danh sách — kiểm tra kết nối rồi bấm Thực hiện lại.",
+          "Thẻ đã được trả lại danh sách.",
+        ),
       );
     });
   };
 
+  /**
+   * Gói C9: xác nhận hai bước nằm TẠI CHỖ trong StatusBar (EndSessionControl) —
+   * tới được đây nghĩa là người vận hành đã bấm "Kết thúc ngay".
+   */
   const endSession = () => {
-    if (
-      !window.confirm(
-        "Kết thúc phiên ngay bây giờ? Các khối chưa chạy sẽ không được tính vào kết quả.",
-      )
-    ) {
-      return;
-    }
     setEndBusy(true);
     setAlert(null);
     desk
       .endSession()
       .catch((e: unknown) => {
-        setAlert(e instanceof Error ? e.message : "Không kết thúc được phiên — thử lại.");
+        setAlert(
+          commandAlert(
+            "Không kết thúc được phiên",
+            e,
+            "Kiểm tra kết nối rồi bấm Kết thúc phiên lại.",
+            // Máy chủ từ chối thì câu của nó đã đủ (vd "Phiên đã ở trạng thái
+            // cuối…") — không đoán thêm phiên còn phát hay không.
+            "",
+          ),
+        );
       })
       .finally(() => setEndBusy(false));
   };
 
+  // Lời xác nhận thuộc về đúng một phiên.
+  useEffect(() => {
+    setNotice(null);
+  }, [desk.sessionId]);
+
+  /**
+   * Gói C2: khoá nút hành động trong khối TẮT / khoảng trôi / ngoài lịch —
+   * đúng ba trường hợp máy chủ trả 409. Bàn trợ live vốn đã hiện BẬT/TẮT cỡ
+   * chữ lớn nên khoá ở đây không lộ thêm gì; màn người dẫn không dùng thẻ này.
+   */
+  const sessionEnded = desk.session?.status === "ended";
+  const blockView = deriveCurrentBlock(desk.blocks, desk.currentBlock, desk.elapsedS);
+  const cardLock = sessionEnded
+    ? null
+    : actionLockReason(blockView, desk.blocks.length > 0 || desk.currentBlock != null);
+  const onAir = desk.session?.status === "live";
+  const sessionClosed = sessionEnded || desk.session?.status === "cancelled";
+  /** Gói C7: khung Bộ thu bình luận — máy chủ thật, phiên chưa đóng. */
+  const showIngest = desk.connection === "live" && desk.sessionId != null && !sessionClosed;
+
   const hasLive = desk.sessions.some((s) => s.status === "live");
-  const showEmpty =
+  const nothingToShow =
     desk.connection !== "connecting" &&
     !showAnyway &&
     (desk.sessionId == null || (desk.connection === "live" && !hasLive));
+  /**
+   * Gói C4: trạng thái rỗng chỉ dành cho lúc MỞ bàn mà chưa có phiên nào đang
+   * phát. Một khi bàn đã hiện, kết thúc phiên (phiên live DUY NHẤT) không được
+   * hất người vận hành về "Chưa có phiên nào đang chạy" — đúng lúc đó họ cần
+   * hero "ĐÃ KẾT THÚC" và nút "Xem báo cáo phiên".
+   */
+  const [deskShown, setDeskShown] = useState(false);
+  useEffect(() => {
+    if (!nothingToShow && desk.sessionId != null) setDeskShown(true);
+  }, [nothingToShow, desk.sessionId]);
+  const showEmpty = nothingToShow && !(deskShown && desk.sessionId != null);
 
   const autopilot = desk.autopilot;
 
@@ -379,12 +553,17 @@ export default function DeskPage() {
         <main className="flex flex-1 flex-col p-3">
           {/* PageHeader chuẩn (spec UX-FLOW d1) — bản `sm` một dòng, KHÔNG
               sticky: cuộn đi được, vì trên màn vận hành từng pixel dọc thuộc
-              về số liệu. */}
+              về số liệu. Câu dẫn chỉ hiện khi phiên CHƯA phát (người mới đang
+              tìm hiểu); đang phát thì từng pixel dọc thuộc về thẻ hành động. */}
           <PageHeader
             phase="trong"
             size="sm"
             title="Bàn trợ live"
-            lead="Dành cho người ngồi máy (không phải người dẫn): theo dõi nhịp buổi live và bấm khi hệ thống gợi ý."
+            lead={
+              onAir
+                ? undefined
+                : "Dành cho người ngồi máy (không phải người dẫn): theo dõi nhịp buổi live và bấm khi hệ thống gợi ý."
+            }
           />
           {/* Ưu tiên 1 — thanh trạng thái, cảnh báo và ĐỒNG HỒ KHỐI dính đầu
               màn hình: khi trang phải cuộn (1366x768) đây là những thứ người
@@ -404,7 +583,6 @@ export default function DeskPage() {
               onEndSession={endSession}
               canEndSession={desk.canEndSession}
               endBusy={endBusy}
-              designHash={desk.designHash}
               alert={alert}
               onDismissAlert={() => setAlert(null)}
             />
@@ -424,7 +602,9 @@ export default function DeskPage() {
               durationS={desk.durationS}
               pinnedName={desk.pinned?.name ?? null}
               observational={observational}
-              sessionEnded={desk.session?.status === "ended"}
+              sessionEnded={sessionEnded}
+              reportHref={reportHref}
+              designHash={desk.designHash}
             />
           </div>
 
@@ -450,6 +630,29 @@ export default function DeskPage() {
                 >
                   Hành động gợi ý
                 </SectionTitle>
+                {/* Gói C3 — xác nhận khi máy chủ BỐC THĂM / ghim sản phẩm khác
+                    thẻ vừa bấm. Ngay cạnh chỗ vừa bấm, HÌNH (ⓘ) + CHỮ, mực
+                    thông tin (không phải cảnh báo: lệnh đã thành công), người
+                    vận hành tự đóng. */}
+                {notice ? (
+                  <div
+                    role="status"
+                    className="mb-2 flex shrink-0 items-start gap-2 rounded-md border border-s1/40 bg-s1/10 px-3 py-2"
+                  >
+                    <span aria-hidden className="mt-px shrink-0 font-bold text-info-ink">
+                      ⓘ
+                    </span>
+                    <p className="min-w-0 flex-1 text-body leading-snug text-sec">{notice}</p>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setNotice(null)}
+                      aria-label="Đóng xác nhận ghim"
+                    >
+                      Đóng
+                    </Button>
+                  </div>
+                ) : null}
                 {/* Khung cuộn `absolute` trong hộp `relative` — cùng lý do với
                     feed bình luận: nội dung của một lớp absolute không đóng góp
                     chiều cao cho lưới `3fr`/`2fr` cao không xác định, nên 10 thẻ
@@ -487,6 +690,9 @@ export default function DeskPage() {
                           mode={desk.mode}
                           emphasized={i === 0}
                           executed={desk.executedCardIds.has(c.card_id)}
+                          locked={cardLock}
+                          noForecastBasis={forecastLacksData(c, desk.cards, { clicksObserved })}
+                          peerCount={desk.cards.length}
                           onExecute={() => runCard(c)}
                           onSkip={() => desk.skip(c.card_id)}
                         />
@@ -494,9 +700,12 @@ export default function DeskPage() {
                     )}
                   </div>
                 </div>
+                {/* Gợi ý cuộn là THÔNG TIN, không phải cảnh báo: mực trung tính
+                    (bản cũ dùng hổ phách — màu dành cho điều cần lo). */}
                 {cardList.overflowing && (
-                  <p className="mt-2 shrink-0 text-body text-warn-ink">
-                    ↓ Danh sách dài hơn khung — cuộn để xem hết {desk.cards.length} thẻ.
+                  <p className="mt-2 shrink-0 text-meta text-dim">
+                    <span aria-hidden>↓ </span>Còn thẻ bên dưới — cuộn để xem hết{" "}
+                    {desk.cards.length} thẻ.
                   </p>
                 )}
                 <p className="mt-2 shrink-0 border-t border-hairline pt-2 text-body leading-snug text-dim">
@@ -513,7 +722,7 @@ export default function DeskPage() {
                 <Card as="section" padding="sm" className="shrink-0">
                   <SectionTitle
                     className="mb-1.5"
-                    meta={autopilot.enabled ? "máy chủ đang tự lái" : "executor đang TẮT"}
+                    meta={autopilot.enabled ? "máy chủ đang tự lái" : "bộ tự lái đang tắt"}
                   >
                     Tự lái phía máy chủ
                   </SectionTitle>
@@ -529,8 +738,10 @@ export default function DeskPage() {
                         {autopilot.on_blocks_done}/{autopilot.on_blocks_total}
                       </span>
                     </span>
+                    {/* Gói C11: "Nhịp tim" là thuật ngữ nội bộ — người bán cần
+                        biết lần gần nhất máy chủ kiểm tra lịch để tự ghim. */}
                     <span>
-                      Nhịp tim:{" "}
+                      Kiểm tra gần nhất:{" "}
                       <span className="tnum text-ink">
                         {autopilot.last_run_ts ? fmtTimeHCM(autopilot.last_run_ts) : "chưa chạy lần nào"}
                       </span>
@@ -542,7 +753,7 @@ export default function DeskPage() {
                       <span className="tnum">
                         {autopilot.missed_on_blocks.map((i) => `#${i + 1}`).join(", ")}
                       </span>{" "}
-                      — không sửa lại được, LATE sẽ phản ánh mức pha loãng này.
+                      — không sửa lại được, kết quả đo sẽ phản ánh mức pha loãng này.
                     </p>
                   )}
                   {autopilot.alarm ? (
@@ -552,7 +763,7 @@ export default function DeskPage() {
                   ) : null}
                   {autopilot.last_error ? (
                     <Callout tone="warn" className="mt-2">
-                      Lỗi executor gần nhất: {autopilot.last_error}
+                      Lỗi gần nhất của bộ tự lái: {autopilot.last_error}
                     </Callout>
                   ) : null}
                 </Card>
@@ -566,9 +777,9 @@ export default function DeskPage() {
                 tiles={tiles}
                 className="min-w-0"
                 meta={
-                  desk.sessionId ? (
+                  reportHref ? (
                     <Link
-                      href={`/bao-cao/${desk.sessionId}`}
+                      href={reportHref}
                       className="focus-ring rounded underline decoration-dotted underline-offset-2 transition-colors duration-short2 ease-emphasized hover:text-ink"
                     >
                       Báo cáo phiên →
@@ -584,28 +795,51 @@ export default function DeskPage() {
               />
             </div>
 
-            {/* Ưu tiên 4 — nhịp phiên (chỉ số đầu ra chính của thí nghiệm),
-                nhuộm vùng khối BẬT + vạch đang-ở-đây (mockup, kỹ thuật D4). */}
-            <Card
-              as="section"
-              padding="sm"
-              className="flex min-h-[18rem] min-w-0 flex-col xl:col-start-2 xl:row-start-1"
-            >
-              <SectionTitle className="mb-1.5" meta="gộp theo phút">
-                Nhịp phiên
-              </SectionTitle>
-              {/* Trạng thái rỗng nằm TRONG RhythmChart: nó biết cần mấy phút
-                  số liệu mới vẽ được đường, trang thì không. */}
-              <div className="min-h-[12rem] flex-1">
-                <RhythmChart
-                  ticks={desk.ticks}
-                  viewersMissing={viewersMissingReason}
-                  clicksMissing={clicksMissingReason}
-                  blocks={desk.blocks}
-                  positionS={desk.elapsedS}
-                />
-              </div>
-            </Card>
+            {/* Cột giữa, hàng 1 — BỘ THU BÌNH LUẬN (gói C7) rồi NHỊP PHIÊN.
+                Bộ thu đứng ĐẦU cột giữa: ngang tầm mắt với thẻ hành động #1
+                nhưng ở cột khác, nên nó không bao giờ đẩy nút Thực hiện xuống
+                dưới mép màn 1366×768 (vùng dính phía trên thì có). Chỉ khi nói
+                chuyện với máy chủ thật và phiên chưa đóng: bản xem thử không
+                có bộ thu, phiên đã đóng thì không còn gì để bật. */}
+            <div className="flex min-w-0 flex-col gap-3 xl:col-start-2 xl:row-start-1">
+              {showIngest ? (
+                <div className="min-w-0 shrink-0">
+                  <SectionTitle className="mb-1" meta="đưa bình luận vào radar và feed">
+                    Bộ thu bình luận
+                  </SectionTitle>
+                  <IngestPanel
+                    compact
+                    sessionId={desk.sessionId}
+                    sessionPlatform={desk.session?.platform ?? null}
+                    sessionStatus={desk.session?.status ?? null}
+                    allowSimulated={allowsSimulatedSource(desk.session)}
+                  />
+                </div>
+              ) : null}
+
+              {/* Ưu tiên 4 — nhịp phiên (chỉ số đầu ra chính của thí nghiệm),
+                  nhuộm vùng khối BẬT + vạch đang-ở-đây (mockup, kỹ thuật D4). */}
+              <Card
+                as="section"
+                padding="sm"
+                className="flex min-h-[18rem] min-w-0 flex-1 flex-col"
+              >
+                <SectionTitle className="mb-1.5" meta="gộp theo phút">
+                  Nhịp phiên
+                </SectionTitle>
+                {/* Trạng thái rỗng nằm TRONG RhythmChart: nó biết cần mấy phút
+                    số liệu mới vẽ được đường, trang thì không. */}
+                <div className="min-h-[12rem] flex-1">
+                  <RhythmChart
+                    ticks={desk.ticks}
+                    viewersMissing={viewersMissingReason}
+                    clicksMissing={clicksMissingReason}
+                    blocks={desk.blocks}
+                    positionS={desk.elapsedS}
+                  />
+                </div>
+              </Card>
+            </div>
 
             {/* Ưu tiên 5 — radar bình luận + feed */}
             <Card
@@ -620,7 +854,14 @@ export default function DeskPage() {
                 <CommentRadar comments={desk.comments} nowS={desk.elapsedS} />
               </div>
               <div className="mt-2 flex min-h-[6rem] flex-[3] flex-col border-t border-hairline pt-2">
-                <CommentFeed comments={desk.comments} />
+                <CommentFeed
+                  comments={desk.comments}
+                  emptyHint={
+                    showIngest
+                      ? "Bình luận chỉ về khi Bộ thu bình luận đang chạy — xem khung “Bộ thu bình luận”."
+                      : undefined
+                  }
+                />
               </div>
             </Card>
           </div>

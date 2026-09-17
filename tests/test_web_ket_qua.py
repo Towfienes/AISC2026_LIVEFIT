@@ -136,6 +136,104 @@ def test_tom_tat_3_cau_render_o_ca_hai_man():
         assert "TomTat3Cau" in _read(page), f"{page.name} phải dùng component chung"
 
 
+def _render(src: str) -> str:
+    """Nguồn đã bỏ chú thích (chú thích giải thích chính câu bị cấm)."""
+    src = re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
+    return re.sub(r"(?m)(?<![:\w])//.*$", " ", src)
+
+
+def test_chua_du_khong_lap_thong_diep_ba_lan():
+    """Đánh giá UI 17/09/2026: khi CHƯA ĐỦ ĐIỀU KIỆN, trang in cùng một thông
+    điệp ba lần liền — tiêu đề khối verdict → lý do máy chủ → câu 1 của tóm tắt
+    ("Thiết kế chưa đủ điều kiện…: <cùng lý do>"), rồi câu 2/3 lặp checklist và
+    nút. Khối verdict đã chứa đủ ba ý, nên tóm tắt 3 câu không hiện ở trạng thái
+    này; ở DƯƠNG/ÂM/NULL nó vẫn hiện vì nói thêm điều khối verdict không nói."""
+    src = _render(_read(KET_QUA))
+    m = re.search(r"\{([^{}]*?)\?\s*\(\s*<TomTat3Cau\b", src)
+    assert m, "không đọc được điều kiện render TomTat3Cau"
+    assert 'verdict?.state !== "chuadu"' in m.group(1), (
+        "tóm tắt 3 câu phải bị bỏ ở trạng thái chuadu — nếu không câu 1 lặp lại lý do "
+        "khối verdict vừa in nguyên văn"
+    )
+    assert src.count("<TomTat3Cau") == 1
+
+
+def test_chua_du_an_tom_tat_nhung_khong_mat_so_luot_nhap_hop_le():
+    """Phản biện gói E: ẩn tóm tắt 3 câu ở trạng thái chuadu từng làm mất số
+    lượt nhấp hợp lệ — CHỈ SỐ CHÍNH — vì câu 2 của máy chủ là chỗ duy nhất in
+    nó (và, khi xem ?phien=, cả tổng bình luận và thời lượng). Bỏ lặp chỉ được
+    bỏ chữ trùng, không được bỏ số: khối VerdictChuaDu phải tự in các số đó,
+    thiếu thì nói THIẾU chứ không in 0."""
+    src = _render(_read(KET_QUA))
+    body = src.split("function VerdictChuaDu")[1].split("\nfunction ")[0]
+    assert "fmtNumber(v.luotNhapHopLe)" in body, "khối chưa đủ phải in số lượt nhấp hợp lệ"
+    assert "Lượt nhấp hợp lệ qua link đo" in body
+    assert "v.luotNhapHopLe != null" in body, "thiếu nguồn lượt nhấp phải rẽ nhánh THIẾU"
+    assert "không phải bằng 0" in body, "lượt nhấp THIẾU không được đọc thành 0"
+    assert "THIẾU" in body
+    # Dòng lượt nhấp không bị giấu sau nhánh khóa §7: số vận hành luôn công khai.
+    i = body.index("fmtNumber(v.luotNhapHopLe)")
+    assert "v.khoa ?" not in body[body.rindex("<li", 0, i) : i]
+    # Bản một phiên: tổng bình luận và thời lượng cũng từng chỉ nằm trong câu 2.
+    for so in ("fmtNumber(v.motPhien.tongBinhLuan)", "v.motPhien.thoiLuongS"):
+        assert so in body, f"khối chưa đủ (?phien=) phải in {so}"
+
+    # Nguồn số: bản gộp đọc valid_clicks, bản một phiên đọc tong_quan.
+    gop = src.split("function verdictFromSummary")[1].split("\nfunction ")[0]
+    assert ".valid_clicks" in gop
+    mot = src.split("function verdictFromKetQua")[1].split("\nfunction ")[0]
+    for f in ("luot_nhap_hop_le", "thieu?.luot_nhap", "tong_binh_luan", "thoi_luong_s"):
+        assert f in mot, f"bản một phiên phải đọc tong_quan.{f}"
+    assert "baoCao.tong_quan" in src, "verdictFromKetQua phải nhận tong_quan của báo cáo"
+
+
+def test_hop_dong_may_chu_tra_so_luot_nhap_o_nhanh_chua_du(monkeypatch):
+    """Hai đầu không lệch: ở nhánh CHƯA ĐỦ, máy chủ vẫn trả valid_clicks (bản
+    gộp) và tong_quan.luot_nhap_hop_le + lý do thiếu (báo cáo phiên) — đúng
+    các trường VerdictChuaDu đọc."""
+    from fastapi.testclient import TestClient
+
+    from livelift.api.main import create_app
+    from livelift.api.store import InMemoryStore
+    from livelift.config import get_settings
+
+    monkeypatch.delenv("INGEST_TOKEN", raising=False)
+    get_settings.cache_clear()
+    try:
+        with TestClient(create_app(store=InMemoryStore())) as c:
+            gop = c.get("/experiment/summary").json()
+            assert gop["estimable"] is False
+            assert "valid_clicks" in gop
+            assert gop["valid_clicks"] is not None
+            cau2 = gop["tom_tat_3_cau"][1]["text"]
+            assert f"{gop['valid_clicks']} lượt nhấp hợp lệ" in cau2, (
+                "câu 2 bị ẩn mang số lượt nhấp — khối verdict phải in lại đúng số này"
+            )
+
+            sid = c.post(
+                "/sessions", json={"platform": "facebook", "planned_duration_min": 30}
+            ).json()["session_id"]
+            tq = c.get(f"/sessions/{sid}/bao-cao").json()["tong_quan"]
+            for f in ("luot_nhap_hop_le", "tong_binh_luan", "thoi_luong_s", "thieu"):
+                assert f in tq, f"báo cáo phiên thiếu tong_quan.{f}"
+            thieu_kem_ly_do = (
+                "khi chưa có link đo, máy chủ trả null + lý do — web in THIẾU kèm lý do"
+            )
+            assert tq["luot_nhap_hop_le"] is None, thieu_kem_ly_do
+            assert tq["thieu"].get("luot_nhap"), thieu_kem_ly_do
+    finally:
+        get_settings.cache_clear()
+
+
+def test_chua_du_khong_them_cau_ket_noi_lai_lan_thu_tu():
+    body = _render(_read(KET_QUA)).split("function VerdictChuaDu")[1].split("\nfunction ")[0]
+    assert "Không hạ ngưỡng, không nội suy" not in body, (
+        "câu kết cũ nói lại điều checklist + nút đã nói"
+    )
+    # Nhánh khóa §7 vẫn giải thích VÌ SAO khóa — đó là thông tin mới, không phải lặp.
+    assert "nhìn trộm hiệu ứng" in body
+
+
 def test_component_tom_tat_khong_che_so_va_khai_nguon():
     src = _read(TOM_TAT)
     assert ".toFixed" not in src, "client không được định dạng lại số của narrate"

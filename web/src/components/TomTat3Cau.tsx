@@ -50,8 +50,9 @@ export default function TomTat3Cau({ cau, demo = false, className }: Props) {
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h2 className="font-display text-strong text-ink">Tóm tắt 3 câu</h2>
         {demo ? <Badge tone="warn">DEMO — dữ liệu mẫu</Badge> : null}
+        {/* Không lẫn thuật ngữ tiếng Anh ("template") trên giao diện người bán. */}
         <span className="text-meta text-dim">
-          câu soạn bằng template tất định, không AI sinh chữ — di chuột lên từng câu để xem
+          máy soạn theo mẫu câu cố định, không dùng AI viết chữ — rê chuột lên từng câu để xem
           nguồn của các con số
         </span>
       </div>

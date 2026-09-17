@@ -23,6 +23,27 @@ chính thức, hoặc "không thể" kèm lý do. Không có ô nào đoán.*
 
 ---
 
+## 0. Cập nhật 17/09/2026 — sáu điều đã đổi so với bảng đo 11/09
+
+*Chi tiết và URL nguồn của từng dòng: `docs/research/2026-09-17-nen-tang-livestream-va-serpapi.md`.
+Phần từ §1 trở xuống giữ nguyên là bản đo 11/09 để còn đối chiếu.*
+
+| # | Điều đã đổi | Hệ quả cho người dùng |
+|---|---|---|
+| 1 | **Bộ thu bình luận chạy NỀN trong API**, bật/tắt bằng nút trên Bàn trợ live và bước 4 của Chuẩn bị phiên (`POST /sessions/{id}/ingest`). Không còn phải mở terminal chạy `python -m livelift.ingest.runner`. Bộ thu tự chờ buổi live bắt đầu, tự thử lại khi mất mạng, tự dừng khi phiên kết thúc, tự nối lại khi máy chủ khởi động lại | Người bán không kỹ thuật bật được nguồn bình luận. Vẫn cần khoá của nền tảng trên máy chủ; `GET /platforms` và trang Bắt đầu nói rõ còn thiếu biến nào |
+| 2 | **Shopee Live có ghi Việt Nam** trong tài liệu gốc của Shopee (mọi endpoint livestream: "For TW, ID, TH, PH, MY, SG, VN", cập nhật quyền 11/07/2025) — trái với README của một SDK cộng đồng ghi chỉ TW/ID/TH. Các endpoint này là loại **"User"**: ký bằng `user_id`, không phải `shop_id` | Adapter cũ ký bằng `shop_id` gần như chắc chắn bị từ chối khi chạy thật. Trạng thái sửa: xem `docs/incident-log.md` ngày 17/09. Chỉ một cuộc gọi thật bằng tài khoản VN mới chốt được vùng |
+| 3 | **TikTok Shop có API chính thức cho số liệu phiên LIVE** theo PHÚT (GMV, đơn, click sản phẩm, số bình luận, người xem), mọi thị trường kể cả VN — nhưng chỉ có **sau khi phiên kết thúc**, không có nội dung bình luận, không ghim được, không webhook báo live bắt đầu | §5 "đóng lại" chỉ còn đúng cho **nội dung bình luận** TikTok. Biến kết quả của switchback trên TikTok Shop đo được **hậu kiểm** qua API chính thức; can thiệp (ghim) vẫn do người dẫn làm tay theo lịch |
+| 4 | **Hạn mức YouTube:** bảng quota hiện hành ghi `liveChatMessages.list` = **1 đơn vị** (nhiều tích hợp cũ ghi 5); từ 01/06/2026 `search.list` có hạn mức riêng 100 lượt/ngày. Google khuyến nghị `liveChatMessages.streamList` (đẩy tin, nhận API key) thay cho poll | Con số "≈ 5.400 đơn vị/buổi 90 phút" ở §2.2 là trần xấu nhất; khoảng thật 1.080–5.400 đơn vị tuỳ giá mỗi lượt. Phải đo trên Cloud Console trước buổi live đầu tiên |
+| 5 | **Facebook:** mặc định `live_filter=filter_low_quality` **âm thầm lọc bớt bình luận** — bộ thu phải gửi `live_filter=no_filter`. Page webhook `live_videos` báo được lúc live bắt đầu. Luồng SSE `live_comments` không còn tài liệu | Không dựa vào SSE. Điều kiện phát live qua phần mềm: tài khoản ≥ 60 ngày, Page ≥ 100 người theo dõi |
+| 6 | **SerpAPI KHÔNG phải nguồn dữ liệu livestream.** Không engine nào đọc chat live, người xem đồng thời, quà hay đơn; không có engine TikTok/Shopee/Lazada. Giá trị thật duy nhất: Google Trends và Google Shopping để chọn hàng ghim và khung giờ phát, gói Free (250 lượt/tháng) là đủ | Không đưa SerpAPI vào đường nạp dữ liệu. Công cụ đọc chat TikTok trên thị trường (TikFinity, Apify, Euler Stream) đều dùng WebSocket không chính thức — rủi ro điều khoản cao, không dùng cho dữ liệu nghiên cứu |
+
+**Nguồn mô phỏng để kiểm thử đầu-cuối (17/09/2026).** Khi chưa có khoá nền tảng nào, bộ thu có
+thêm nguồn `mo_phong`: phát lại một kịch bản bình luận **tổng hợp** như một buổi live thật, đi hết
+đường ống lọc PII → phân loại ý định → WebSocket → Bàn trợ live. Máy chủ chỉ cho dùng nguồn này trên
+phiên **chạy thử** hoặc **phiên mẫu**, không bao giờ trộn vào dữ liệu thật.
+
+---
+
 ## 1. Bảng tổng hợp
 
 Cột "Hôm nay" = trạng thái ngày 11/09/2026 với đúng những gì repo đang có

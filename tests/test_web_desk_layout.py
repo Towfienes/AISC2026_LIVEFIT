@@ -127,9 +127,15 @@ def test_current_block_is_rendered_at_display_size():
     assert "text-num-m" in countdown, "đếm ngược thiếu bậc dự phòng num-m cho màn hẹp"
     assert "Chuyển khối sau" in src, "thiếu nhãn tiếng Việt cho đếm ngược ranh giới khối"
 
-    # The status word itself: num-l at the design width, one step down below it.
-    assert "xl:text-num-l" in src, "chữ trạng thái khối chưa đạt bậc num-l (56px)"
-    assert "text-num-m" in src, "chữ trạng thái khối thiếu bậc dự phòng cho màn hẹp"
+    # CẬP NHẬT CÓ CHỦ ĐÍCH (gói C5 — liếc 1 giây ở 1366×768): chữ trạng thái
+    # BẬT/TẮT đứng CẠNH đếm ngược (hero hai cột) ở bậc num-m (40px) thay vì
+    # chồng lên nó ở num-l — ảnh f06 đo được chữ ~40px đã đọc được ngay, còn
+    # hero một cột cao ~285px đẩy nút Thực hiện của thẻ #1 xuống dưới mép màn.
+    # Bất biến giữ nguyên: chữ trạng thái vẫn ở bậc HIỂN THỊ (num-*), không
+    # phải bậc chữ thường.
+    word = _before(src, "{heroWord}", 300)
+    assert "text-num-m" in word, "chữ trạng thái khối phải ở bậc hiển thị num-m (40px)"
+    assert "font-display" in word, "chữ trạng thái là CHỮ — font display, không phải mono số"
     assert "text-label" in src, "nhãn của thẻ khối phải ở bậc label"
 
     # Hero v2 phải GIẢI THÍCH trạng thái bằng một câu người thường (spec UX-FLOW
@@ -254,10 +260,16 @@ def test_status_bar_wraps_instead_of_squeezing():
 
 
 def test_block_strip_legend_wraps_instead_of_truncating():
+    """CẬP NHẬT CÓ CHỦ ĐÍCH (gói C — Bàn trợ live v3): câu ranh giới làm mù đổi
+    sang THUẬT NGỮ THỐNG NHẤT của dự án ("Bàn trợ live", "Màn người dẫn") thay
+    cho "bàn điều khiển"/"màn hình host" (lẫn tiếng Anh). Bất biến giữ nguyên:
+    câu phải có và không bao giờ bị `truncate`."""
     src = code(BLOCK_STRIP.read_text(encoding="utf-8"))
     assert "flex-wrap" in src, "chú giải dải khối phải xuống dòng thay vì bị cắt"
-    assert "Chỉ hiển thị cho bàn điều khiển" in src, "mất cảnh báo ranh giới làm mù"
-    note = _before(src, "Chỉ hiển thị cho bàn điều khiển", 200)
+    marker = "Chỉ hiện trên bàn trợ live — màn người dẫn không thấy khối"
+    assert marker in src, "mất cảnh báo ranh giới làm mù"
+    assert "màn hình host" not in src, "câu làm mù còn lẫn chữ 'host' — dùng 'màn người dẫn'"
+    note = _before(src, marker, 200)
     assert "truncate" not in note, (
         "câu cảnh báo làm mù bị `truncate` cắt còn một nửa trên màn hẹp — "
         "đúng dòng không bao giờ được đọc dở"

@@ -39,6 +39,9 @@ export interface SessionSummary {
    * UI phải vẽ nhãn DEMO ở mọi nơi phiên này xuất hiện.
    */
   is_demo: boolean;
+  /** Phiên THẬT chạy thử — bị loại khỏi kết quả gộp (PREREGISTRATION §8.2).
+   *  Máy chủ luôn gửi; optional để payload cũ và dữ liệu giả vẫn hợp lệ. */
+  dry_run?: boolean;
 }
 
 /**
@@ -183,6 +186,9 @@ export interface ExperimentSummary {
    * template tất định, tôn trọng khóa §7. Optional vì payload cũ chưa mang.
    */
   tom_tat_3_cau?: CauTomTat[];
+  /** Tổng lượt nhấp thô / hợp lệ của mọi phiên trong bản gộp (chỉ số chính). */
+  raw_clicks?: number | null;
+  valid_clicks?: number | null;
 }
 
 export interface PowerRow {
@@ -272,10 +278,28 @@ export interface ActionCardData {
   product_name: string;
   rationale: string; // Vietnamese rationale
   source: CardSource;
-  estimate: number | null; // relative lift, e.g. 0.18 = +18%
+  /** Thẻ `forecast`: trung bình hậu nghiệm LƯỢT BẤM trên 1000 người-xem-giây
+   *  (Gamma-Poisson, src/livelift/api/cards.py) — KHÔNG phải % tăng; chỉ dùng
+   *  để xếp hạng. Thẻ `experiment`: mức chênh ước lượng của thí nghiệm. */
+  estimate: number | null;
   ci_low: number | null; // experiment only
   ci_high: number | null; // experiment only
   auto_execute_in_s: number | null; // countdown when session mode = auto
+}
+
+/** `POST /sessions/{id}/actions/execute` — khớp `ExecuteOut` (schemas.py).
+ *  `randomized`/`overlap_set`: máy chủ bốc thăm công bằng giữa các sản phẩm có
+ *  dự báo ngang nhau, nên `product_id` được ghim có thể KHÁC sản phẩm trên thẻ. */
+export interface ExecuteOut {
+  action_id: string;
+  block_index: number;
+  action_type: "pin";
+  source: "model";
+  product_id: string;
+  inner_propensity: number;
+  randomized: boolean;
+  overlap_set: string[];
+  considered: { product_id: string; estimate: number; ci_low: number; ci_high: number }[];
 }
 
 /** Allowed manual-override reasons — the ONLY three (hard project rule 5). */
@@ -382,6 +406,8 @@ export interface SignalStateItem {
   name: string;
   status: SignalStatus;
   detail: string; // Vietnamese reason, shown verbatim
+  /** Dòng phụ máy chủ có thể gửi kèm (vd số link đo đã tạo). */
+  secondary?: string | null;
 }
 
 export interface CapabilityItem {
@@ -551,8 +577,9 @@ export type IngestState =
   | "nguon_ket_thuc"
   | "loi";
 
-/** `mo_phong` = phát lại bình luận đã lưu như một buổi live (kiểm thử đường ống
- *  đầu-cuối không cần nền tảng) — máy chủ chỉ cho dùng trên phiên demo/chạy thử. */
+/** `mo_phong` = phát một KỊCH BẢN BÌNH LUẬN TỔNG HỢP (do tác tử AI soạn, không
+ *  phải bình luận người thật) như một buổi live, để kiểm thử đường ống đầu-cuối
+ *  không cần khoá nền tảng — máy chủ chỉ cho dùng trên phiên demo/chạy thử. */
 export type IngestPlatform = "youtube" | "facebook" | "shopee" | "mo_phong";
 
 /** `GET|POST /sessions/{id}/ingest` và `POST .../ingest/stop`. */
@@ -604,7 +631,9 @@ export interface OrderSummary {
 export interface OrderImportResult {
   nhap_moi: number;
   trung_bo_qua: number;
+  /** Tối đa 50 dòng lỗi đầu tiên; tổng thật ở `tong_loi`. */
   loi: { dong: number; ly_do: string }[];
+  tong_loi?: number;
   tong_don: number;
   tong_doanh_thu: number;
 }

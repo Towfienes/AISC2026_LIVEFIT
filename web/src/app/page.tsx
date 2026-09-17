@@ -24,9 +24,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import TopNav from "@/components/TopNav";
-import Button from "@/components/ui/Button";
+import Button, { buttonCls } from "@/components/ui/Button";
 import Callout from "@/components/ui/Callout";
 import { fieldCls } from "@/components/ui/field";
+import { fmtNumber } from "@/lib/format";
 import {
   PROBE_TIMEOUT_MS,
   SERVER_STATUS_MESSAGE,
@@ -67,12 +68,23 @@ const JOB_STATUS_VI: Record<ReplayJob["status"], string> = {
  *                      (docs/benchmarks/live-fire-da-nguon.md §1)
  *   16 buổi live     — cùng lô đo đó, cùng tài liệu
  *   1157 kiểm thử     — `pytest -m "not slow"`, chạy 14/09/2026, exit 0
+ *
+ * Giá trị giữ dạng chuỗi chữ số thô vì `scripts/dong_bo_so_test.py` ghi đè
+ * đúng mẫu `{ value: "<số>", label: "kiểm thử tự động đang xanh" }`. Cách
+ * HIỂN THỊ đi qua `proofText()` → `fmtNumber` (vi-VN), nên 1157 hiện thành
+ * "1.157" cùng kiểu với "19.126" — đổi cách in, không đổi con số.
  */
 const PROOF: { value: string; label: string }[] = [
   { value: "19.126", label: "bình luận thật đã phân tích" },
   { value: "16", label: "buổi live thật đã chạy qua hệ thống" },
   { value: "1157", label: "kiểm thử tự động đang xanh" },
 ];
+
+/** "1157" / "19.126" → "1.157" / "19.126" (vi-VN). Chuỗi lạ giữ nguyên văn. */
+function proofText(raw: string): string {
+  const digits = raw.replace(/\./g, "");
+  return /^\d+$/.test(digits) ? fmtNumber(Number(digits)) : raw;
+}
 
 /* ---- icon SVG inline, stroke 1.8, style Lucide (CẤM emoji toàn app) ------ */
 
@@ -280,7 +292,7 @@ export default function HomePage() {
             <span className="text-grad-brand">là một thí nghiệm đo được</span>
           </h1>
 
-          <p {...reveal(2)} className="motion-reveal mx-auto mt-4 max-w-2xl text-[17px] leading-relaxed text-sec">
+          <p {...reveal(2)} className="motion-reveal mx-auto mt-4 max-w-2xl text-body leading-relaxed text-sec">
             LiveLift bốc thăm <strong className="text-ink">BẬT/TẮT</strong> từng khối thời gian
             trước khi lên sóng, gợi ý sản phẩm nên ghim theo thời gian thực, rồi chứng minh tác
             động bằng <strong className="text-ink">kiểm định nhân quả</strong> — không phải cảm
@@ -295,7 +307,7 @@ export default function HomePage() {
             {PROOF.map((p) => (
               <span key={p.label}>
                 <strong className="font-num text-body font-bold tabular-nums text-ink">
-                  {p.value}
+                  {proofText(p.value)}
                 </strong>{" "}
                 {p.label}
               </span>
@@ -316,16 +328,29 @@ export default function HomePage() {
             </Callout>
           )}
 
+          {/* SUY GIẢM — đánh giá UI 17/09/2026: bản cũ là MỘT khối 7 dòng trích
+              nguyên văn tên biến môi trường, và câu hành động bị chìm giữa
+              đoạn. Người bán không làm gì được với biến môi trường, nên:
+              1 dòng tiêu đề + 1 câu việc cần làm; phần kỹ thuật (câu chuẩn của
+              máy chủ + lý do nguyên văn) gập vào <details>. */}
           {api === "degraded" && (
-            <Callout tone="warn" className="mt-5 max-w-3xl text-left">
-              <strong>Máy chủ SỐNG, kho dữ liệu SUY GIẢM.</strong>{" "}
-              {SERVER_STATUS_MESSAGE.degraded}
-              {probe?.warning ? (
-                <>
-                  {" "}
-                  <span className="text-warn-ink">Máy chủ nói:</span> “{probe.warning}”
-                </>
-              ) : null}
+            <Callout tone="warn" className="mt-5 w-full max-w-3xl text-left">
+              <p>
+                <strong>Kho dữ liệu đang trục trặc — dữ liệu mới có thể không được lưu.</strong>
+              </p>
+              <p className="mt-1">
+                Việc cần làm: chỉ xem thử, chưa lên sóng thật cho tới khi kho trở lại bình
+                thường.
+              </p>
+              <details className="mt-1.5">
+                <summary className="focus-ring inline-flex min-h-tap cursor-pointer items-center rounded text-meta font-semibold text-warn-ink">
+                  Chi tiết kỹ thuật (cho người quản trị máy chủ)
+                </summary>
+                <div className="mt-1.5 space-y-1 text-meta leading-relaxed text-sec">
+                  <p>{SERVER_STATUS_MESSAGE.degraded}</p>
+                  {probe?.warning ? <p>Máy chủ nói: “{probe.warning}”</p> : null}
+                </div>
+              </details>
             </Callout>
           )}
 
@@ -358,12 +383,18 @@ export default function HomePage() {
                 Trả lời 3 câu hỏi — hệ thống nói ngay bạn dùng được gì với buổi live của mình,
                 kèm cả thứ không làm được và vì sao.
               </p>
-              <span className="mt-4 inline-flex items-center gap-1.5 text-meta font-semibold text-brand-hi">
-                Trả lời 3 câu hỏi →
-              </span>
+              {/* NÚT CHÍNH DUY NHẤT của trang (đánh giá UI 17/09/2026): thẻ đeo
+                  nhãn "BẮT ĐẦU Ở ĐÂY" mà lời gọi hành động chỉ là link chữ,
+                  trong khi nút đặc duy nhất lại nằm ở thẻ demo — mắt đi thẳng
+                  vào demo, trái với nhãn. Cả thẻ vẫn là MỘT <Link>; phần này
+                  chỉ MƯỢN hình nút chính (span, không lồng phần tử bấm được). */}
+              <span className={`${buttonCls("primary")} mt-4`}>Trả lời 3 câu hỏi →</span>
             </Link>
 
-            {/* Cửa 2 — demo 30 giây */}
+            {/* Cửa 2 — xem thử 30 giây. MỘT tên cho MỘT hành động: tiêu đề thẻ
+                "Xem thử 30 giây" và nút "Bắt đầu xem thử" cùng gốc "xem thử"
+                (trước đây thẻ ghi "demo", nút ghi "Xem thử với dữ liệu mô
+                phỏng"). Nút là nút PHỤ — nút chính của trang thuộc thẻ 01. */}
             <div
               {...reveal(5)}
               className="group motion-reveal relative overflow-hidden rounded-2xl border border-hairline bg-gradient-to-b from-raised to-surface p-6 transition-all duration-short4 ease-emphasized hover:-translate-y-0.5 hover:border-s7/40 hover:shadow-[0_12px_40px_-12px_rgba(124,108,255,0.25)]"
@@ -373,7 +404,7 @@ export default function HomePage() {
               </DoorIcon>
               <span className="font-num text-meta tracking-[0.1em] text-dim">02</span>
               <h2 className="mt-1 font-display text-strong tracking-tight text-ink">
-                Xem demo 30 giây
+                Xem thử 30 giây
               </h2>
               <p className="mt-1 min-h-10 text-meta leading-relaxed text-sec">
                 Một phiên mô phỏng chạy sẵn — xem bàn trợ live vận hành mà không cần cài gì.
@@ -381,7 +412,7 @@ export default function HomePage() {
               <Button
                 onClick={() => void startDemo()}
                 disabled={demoBusy || api === "checking"}
-                size="sm"
+                variant="ghost"
                 className="mt-3"
               >
                 {/* Nhãn "Bắt đầu xem thử" được docs/HUONG-DAN-SU-DUNG.md trích
@@ -391,14 +422,12 @@ export default function HomePage() {
                   ? "Đang tạo dữ liệu…"
                   : api === "checking"
                     ? "Đang kiểm tra máy chủ…"
-                    : api === "ok"
-                      ? "Bắt đầu xem thử"
-                      : "Xem thử với dữ liệu mô phỏng"}
+                    : "Bắt đầu xem thử"}
               </Button>
               {api === "degraded" && (
                 <p className="mt-2 text-meta leading-snug text-warn-ink">
-                  Kho đang suy giảm nên bản demo chạy hoàn toàn ngoại tuyến — không ghi gì
-                  xuống máy chủ.
+                  Kho đang suy giảm nên bản xem thử dùng dữ liệu mô phỏng ngoại tuyến — không
+                  ghi gì xuống máy chủ.
                 </p>
               )}
               {demoErr && <p className="mt-2 text-meta text-crit-ink">{demoErr}</p>}
@@ -440,7 +469,6 @@ export default function HomePage() {
                 />
                 <Button
                   type="submit"
-                  size="sm"
                   variant="ghost"
                   disabled={api !== "ok" || jobRunning || url.trim() === ""}
                 >
@@ -491,16 +519,16 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* ---- dải CHẾ ĐỘ: DEMO vs THẬT --------------------------------- */}
+          {/* ---- dải KHO DỮ LIỆU: mẫu vs thật (khớp chip KHO trên nav) ------ */}
           <div className="mt-4 flex w-full flex-col items-start gap-3 rounded-xl border border-dashed border-warn/40 bg-warn/5 px-5 py-3.5 text-left sm:flex-row sm:items-center">
             <span className="shrink-0 rounded-md bg-warn px-2.5 py-0.5 text-meta font-bold tracking-[0.1em] text-[#0c0d12]">
-              CHẾ ĐỘ
+              KHO DỮ LIỆU
             </span>
             <span className="text-meta leading-relaxed text-sec">
-              <strong className="text-ink">DEMO</strong> dùng dữ liệu mô phỏng và buổi live đã
-              nạp sẵn — để xem và tập, bấm thoải mái.{" "}
-              <strong className="text-ink">PHIÊN THẬT</strong> nối thẳng vào buổi live của bạn.
-              Chip chế độ ở góc phải thanh điều hướng cho biết bạn đang ở thế giới nào.
+              <strong className="text-ink">Dữ liệu mẫu</strong> là dữ liệu mô phỏng và buổi live
+              đã nạp sẵn — để xem và tập, bấm thoải mái; mọi phiên mẫu đều đeo nhãn DEMO.{" "}
+              <strong className="text-ink">Dữ liệu thật</strong> đến từ buổi live của chính bạn.
+              Chip &quot;KHO&quot; ở góc phải thanh điều hướng cho biết kho đang chứa gì.
             </span>
           </div>
 

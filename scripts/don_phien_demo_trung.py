@@ -24,12 +24,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import sys
 from collections import defaultdict
 from pathlib import Path
 
 MAC_DINH = Path("data/snapshot/livelift-store.json")
+LA_TEN_MAC_DINH = re.compile(r"^Live \d{2}/\d{2} \d{2}:\d{2} · ")
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from livelift.console import configure  # noqa: E402
@@ -56,7 +58,10 @@ def tim_ban_trung(sessions: dict) -> dict[str, list[str]]:
         if not s.get("is_demo"):
             continue
         ten = str(s.get("title") or "").strip()
-        if not ten:
+        if not ten or LA_TEN_MAC_DINH.match(ten):
+            # Tên mặc định "Live dd/mm HH:MM · <Nền tảng> · <N> phút" (máy chủ và
+            # wizard đặt từ 17/09/2026) chỉ chính xác tới PHÚT: hai phiên khách
+            # tạo trong cùng phút là hai phiên khác nhau, không phải bản nhân.
             continue
         theo_ten[ten].append((str(s.get("created_at") or ""), sid))
 

@@ -119,7 +119,7 @@ QUOTED_LABELS = [
     ("Sản phẩm đang ghim", "components/HostView.tsx"),
     ("Chưa ghim sản phẩm", "components/HostView.tsx"),
     ("Chưa có phiên nào đang chạy", "app/desk/page.tsx"),
-    ("Vẫn mở bàn điều khiển với phiên đã kết thúc", "app/desk/page.tsx"),
+    ("Vẫn mở Bàn trợ live với phiên đã kết thúc", "app/desk/page.tsx"),
     ("THIẾU nguồn", "components/SignalTiles.tsx"),
     ("Báo cáo phiên", "app/ket-qua/page.tsx"),
     ("In / lưu PDF", "app/bao-cao/[id]/page.tsx"),

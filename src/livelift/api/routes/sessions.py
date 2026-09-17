@@ -4,6 +4,7 @@ plus role-separated state (operator vs blinded host — rule L6)."""
 from __future__ import annotations
 
 import secrets
+from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request
@@ -78,6 +79,42 @@ def create_shortlink(body: ShortlinkIn, store: StoreDep) -> ShortlinkOut:
 
 # -- sessions ---------------------------------------------------------------
 
+GIO_VN = timezone(timedelta(hours=7))
+"""Giờ Việt Nam cho tên phiên mặc định. Múi cố định +7 (Việt Nam không đổi giờ
+mùa hè) — cùng quy ước với ``routes/orders.py``, và không phụ thuộc gói
+``tzdata`` mà ảnh Docker gọn có thể không có."""
+
+TEN_NEN_TANG: dict[str, str] = {
+    "youtube": "YouTube",
+    "facebook": "Facebook",
+    "tiktok": "TikTok",
+    "shopee": "Shopee",
+    "replay": "Phát lại",
+    "sim": "Mô phỏng",
+}
+"""Tên nền tảng viết đẹp cho người bán — cùng cách viết với bảng ``TEN_NEN_TANG``
+của wizard ``web/src/app/chay-phien/page.tsx`` để tên do máy chủ đặt và tên do
+trang web đặt trông như một. Nền tảng lạ (chưa có trong bảng) giữ nguyên mã
+thay vì bị đoán tên."""
+
+
+def ten_phien_mac_dinh(platform: str, planned_duration_min: int, created_at: datetime) -> str:
+    """Tên dễ đọc cho phiên tạo KHÔNG có tiêu đề (kiểm toán 17/09/2026).
+
+    ``"Live 17/09 07:38 · YouTube · 30 phút"`` — giờ Việt Nam lúc tạo. Trước
+    đây phiên không tên lưu ``title=None`` và mọi ô chọn phiên, báo cáo, bàn
+    trợ live chỉ còn in UUID thô: người bán không nhận ra buổi nào là buổi nào.
+
+    Cùng khuôn với ``tenPhienMacDinh`` của wizard web (regex ``laTenMacDinh``
+    nhận ra nó). Tên luôn bắt đầu bằng ``"Live "`` nên KHÔNG BAO GIỜ khớp dấu
+    vết phiên mô phỏng của migration 0009 (``title LIKE 'Phiên mô phỏng seed=%'``)
+    hay tiền tố ``"Demo vàng · "`` của bộ demo — tên mặc định không được làm
+    một phiên thật trông như dữ liệu mẫu.
+    """
+    local = created_at.astimezone(GIO_VN)
+    nen_tang = TEN_NEN_TANG.get(platform, platform)
+    return f"Live {local:%d/%m %H:%M} · {nen_tang} · {planned_duration_min} phút"
+
 
 @cho_phep_demo
 @router.post("/sessions", response_model=SessionOut)
@@ -97,17 +134,25 @@ def create_session(body: SessionCreate, store: StoreDep, request: Request) -> Se
       buổi phát nào diễn ra và người tạo là một khách vãng lai. Nhờ vậy giám
       khảo chạy trọn wizard trên phiên của chính mình, còn dữ liệu ấy không
       bao giờ lọt vào kết quả khoa học thật (mọi đường gộp đã tự loại is_demo).
+
+    Không gửi ``title`` (hoặc gửi chuỗi trắng) ⇒ máy chủ đặt tên mặc định dễ
+    đọc bằng :func:`ten_phien_mac_dinh` thay vì lưu trống.
     """
     row = body.model_dump()
+    created_at = service.now_utc()
     row.update(
         session_id=service.new_id(),
         status="planned",
         start_ts=None,
         end_ts=None,
         design=None,
-        created_at=service.now_utc(),
+        created_at=created_at,
         is_demo=ghi_khong_token(request),
     )
+    if not (row.get("title") or "").strip():
+        row["title"] = ten_phien_mac_dinh(
+            row["platform"], int(row["planned_duration_min"]), created_at
+        )
     return SessionOut(**store.create_session(row))
 
 

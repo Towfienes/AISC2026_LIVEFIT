@@ -12,13 +12,37 @@
  *
  * HIERARCHY v2: thẻ hạng 1 (`emphasized`) là VIỆC CẦN LÀM NGAY — viền gradient
  * tím-xanh TĨNH (`.border-gradient-brand`, không xoay: chuyển động xoay chỉ
- * dành cho vòng on-air của thẻ khối), con số ước lượng ở bậc hiển thị kèm nhãn
- * nguồn ("DỰ BÁO LƯỢT BẤM" / "TÁC ĐỘNG ĐO ĐƯỢC"), lý do một dòng đọc được, nút
- * chính "Ghim ngay". Các thẻ sau nhỏ hơn rõ rệt — hierarchy bằng kích thước số.
+ * dành cho vòng on-air của thẻ khối), ước lượng kèm nhãn nguồn ("THỨ HẠNG —
+ * KHÔNG PHẢI % TĂNG" / "TÁC ĐỘNG ĐO ĐƯỢC"), lý do một dòng đọc được.
+ * Các thẻ sau nhỏ hơn rõ rệt — hierarchy bằng kích thước số.
+ *
+ * MỘT ĐỘNG TỪ (gói C6): nút chính của MỌI thẻ là "Thực hiện". Thẻ #1 từng ghi
+ * "Ghim ngay" còn thẻ #2–#3 ghi "Thực hiện" — một hành động hai tên, trong khi
+ * hướng dẫn và thông báo lỗi đều nói "bấm Thực hiện".
+ *
+ * KHOÁ THEO KHỐI (gói C2 — giới hạn #6): trong khối TẮT / khoảng trôi / ngoài
+ * lịch, máy chủ từ chối lệnh ghim (409). Thẻ vẫn hiện (máy chủ cố ý không ẩn
+ * thẻ theo nhánh để danh sách thẻ không thành kênh lộ nhánh), nhưng nút được
+ * THAY bằng lý do ngắn có HÌNH + CHỮ ("Khối TẮT — vận hành như thường lệ").
+ * Được phép vì bàn trợ live vốn đã hiện BẬT/TẮT cỡ chữ lớn; màn người dẫn
+ * không dùng component này.
+ *
+ * KHÔNG BỊA SỐ (gói C6): khi mọi thẻ dự báo có CÙNG một ước lượng, mô hình
+ * chưa có dữ liệu nào để phân biệt chúng (tính chất khởi động lạnh của
+ * cards.build_candidates) — in "+100%" to màu xanh là trình bày một con số
+ * không mang thông tin như tin tốt. Thẻ ghi "chưa đủ dữ liệu để dự báo".
+ *
+ * ĐÚNG ĐƠN VỊ (sửa phản biện): `estimate` của thẻ DỰ BÁO từ máy chủ là trung
+ * bình hậu nghiệm Gamma-Poisson tính bằng LƯỢT BẤM / 1000 NGƯỜI-XEM-GIÂY
+ * (cards.build_candidates), KHÔNG phải mức tăng tương đối. fmtPct biến 0,17
+ * thành "+17%" màu xanh — người bán đọc thành "tăng 17%". Thẻ dự báo vì vậy
+ * chỉ nói THỨ HẠNG ("hạng 2/3 theo dự báo lượt bấm"), mực trung tính; chỉ thẻ
+ * THÍ NGHIỆM (tác động đo được, kèm KTC 95%) mới in phần trăm. Xem
+ * `estimateDisplay`.
  *
  * Mode behavior:
- * - "auto"    → execute/skip disabled, đếm ngược "tự chạy sau m:ss" màu hổ
- *   phách (hệ thống sẽ tự thực hiện — người vận hành chỉ cần can thiệp).
+ * - "auto"    → KHÔNG có nút xám chết (gói C11): chỉ dòng "Tự động thực thi"
+ *   + đếm ngược "tự chạy sau m:ss" màu hổ phách.
  * - "suggest" → active "Thực hiện" and "Bỏ qua" buttons.
  *
  * "Thực hiện" is THE primary action of the desk, so it takes the `md` button
@@ -42,7 +66,7 @@
  * trong đúng cái danh sách mà người ta đang định bấm tiếp.
  */
 
-import { fmtMinSec, fmtPct } from "@/lib/format";
+import { fmtMinSec, fmtNumber, fmtPct, fmtVnd } from "@/lib/format";
 import type { ActionCardData, SessionMode } from "@/lib/types";
 
 import Term from "./Term";
@@ -50,7 +74,30 @@ import Badge from "./ui/Badge";
 import Button from "./ui/Button";
 import Card from "./ui/Card";
 import Flash from "./ui/Flash";
+import StatusMark, { type StatusShape } from "./ui/StatusMark";
 import { cx } from "./ui/cx";
+
+/** Lý do khoá nút hành động — HÌNH (StatusMark) + CHỮ, không chỉ màu. */
+export interface CardLock {
+  shape: StatusShape;
+  text: string;
+}
+
+/** Nhãn nút chính — MỘT động từ cho mọi thẻ. */
+export const PRIMARY_VERB = "Thực hiện";
+
+/** Câu thay cho con số khi dự báo chưa có cơ sở dữ liệu. */
+export const NO_FORECAST_BASIS = "chưa đủ dữ liệu để dự báo";
+
+/** Nhãn dưới thứ hạng dự báo — chặn cách đọc "thứ hạng" thành "% tăng". */
+export const FORECAST_RANK_NOTE = "thứ hạng — không phải % tăng";
+
+/** Cách hiện `estimate` của một thẻ — xem `estimateDisplay`. */
+export interface EstimateDisplay {
+  text: string;
+  label: string;
+  tone: "good" | "crit" | "neutral";
+}
 
 interface Props {
   card: ActionCardData;
@@ -60,8 +107,104 @@ interface Props {
   readOnly?: boolean;
   /** Thẻ hạng 1 — "việc cần làm ngay": viền gradient + số ước lượng bậc hiển thị. */
   emphasized?: boolean;
+  /** Khối hiện tại không nhận lệnh ghim (TẮT/trôi/ngoài lịch) — null = mở. */
+  locked?: CardLock | null;
+  /** Dự báo chưa có cơ sở dữ liệu — xem `forecastLacksData`. */
+  noForecastBasis?: boolean;
+  /** Số thẻ gợi ý đang hiện — mẫu số của "hạng k/N" trên thẻ dự báo. */
+  peerCount?: number | null;
   onExecute?: () => void;
   onSkip?: () => void;
+}
+
+/**
+ * Dự báo của thẻ có cơ sở dữ liệu hay chưa — suy từ CHÍNH các trường của thẻ.
+ *
+ * - Thẻ thí nghiệm (source="experiment") là phép đo, luôn có cơ sở.
+ * - Thẻ dự báo không có ước lượng hữu hạn ⇒ chưa có cơ sở.
+ * - Phiên CHƯA ghi nhận lượt bấm nào (`clicksObserved === false`: không có link
+ *   đo, hoặc có link mà chưa ai bấm) ⇒ mô hình lượt bấm chỉ còn phân phối tiên
+ *   nghiệm (cards.build_candidates: FALLBACK_POOLED_RATE) ⇒ chưa có cơ sở — kể
+ *   cả khi chỉ có MỘT thẻ, nơi luật "mọi ước lượng bằng nhau" không bắt được.
+ * - Từ hai thẻ dự báo trở lên mà MỌI ước lượng bằng nhau ⇒ mô hình chưa có dữ
+ *   liệu nào phân biệt được chúng (khởi động lạnh: mọi sản phẩm mang đúng phân
+ *   phối tiên nghiệm) ⇒ chưa có cơ sở.
+ *
+ * `clicksObserved` null/thiếu = chưa biết ⇒ không kết luận từ điều kiện đó.
+ */
+export function forecastLacksData(
+  card: ActionCardData,
+  peers: readonly ActionCardData[],
+  opts?: { clicksObserved?: boolean | null },
+): boolean {
+  if (card.source !== "forecast") return false;
+  if (card.estimate == null || !Number.isFinite(card.estimate)) return true;
+  if (opts?.clicksObserved === false) return true;
+  const own = card.estimate;
+  const forecasts = peers.filter(
+    (c) => c.source === "forecast" && c.estimate != null && Number.isFinite(c.estimate),
+  );
+  if (forecasts.length < 2) return false;
+  return forecasts.every((c) => Math.abs((c.estimate as number) - own) < 1e-9);
+}
+
+/**
+ * Chữ hiển thị cho ước lượng của thẻ — KHÔNG bao giờ in "% tăng" cho dự báo.
+ *
+ * - Thẻ THÍ NGHIỆM: `estimate` là tác động tương đối đo được ⇒ fmtPct, mực
+ *   xanh/đỏ theo dấu.
+ * - Thẻ DỰ BÁO: `estimate` là tốc độ lượt bấm của mô hình (lượt bấm / 1000
+ *   người-xem-giây), không phải mức tăng ⇒ chỉ nói thứ hạng của thẻ giữa
+ *   `of` gợi ý đang hiện, mực trung tính.
+ * - Không có ước lượng hữu hạn ⇒ null (thẻ in "—").
+ */
+export function estimateDisplay(card: ActionCardData, of: number | null): EstimateDisplay | null {
+  if (card.estimate == null || !Number.isFinite(card.estimate)) return null;
+  if (card.source === "experiment") {
+    return {
+      text: fmtPct(card.estimate),
+      label: "tác động đo được",
+      tone: card.estimate >= 0 ? "good" : "crit",
+    };
+  }
+  // Không biết mẫu số (nơi dùng thẻ không truyền) thì chỉ nói hạng, không
+  // nói "duy nhất".
+  const text =
+    of == null
+      ? `hạng ${card.rank} theo dự báo lượt bấm`
+      : of > 1
+        ? `hạng ${card.rank}/${of} theo dự báo lượt bấm`
+        : "gợi ý duy nhất theo dự báo lượt bấm";
+  return { text, label: FORECAST_RANK_NOTE, tone: "neutral" };
+}
+
+/**
+ * Chuẩn hoá số trong câu lý do của máy chủ sang định dạng vi-VN.
+ *
+ * Máy chủ (cards.build_cards) in "Biên lợi nhuận 53,000đ/sản phẩm" — dấu phẩy
+ * nghìn kiểu Anh, lệch với "45.000 ₫" ở wizard và màn người dẫn. Tiền đi qua
+ * fmtVnd, số nhóm nghìn khác đi qua fmtNumber; chuỗi đã đúng định dạng giữ
+ * nguyên.
+ */
+export function viRationale(text: string): string {
+  const toNum = (s: string) => Number(s.replace(/,/g, ""));
+  return (
+    text
+      // tiền: "53,000đ" / "53000 ₫" → fmtVnd; "45.000 ₫" (đã đúng) không khớp
+      // vì số đứng sau dấu chấm; "5 đồng" không khớp vì "đ" còn chữ theo sau.
+      .replace(
+        /(^|[^\d.,])(\d{1,3}(?:,\d{3})+|\d+)\s?(?:đ|₫)(?![A-Za-zÀ-ỹ])/g,
+        (m, pre: string, n: string) => {
+          const v = toNum(n);
+          return Number.isFinite(v) ? pre + fmtVnd(v) : m;
+        },
+      )
+      // số nhóm nghìn kiểu Anh còn lại: "1,200 trong kho" → fmtNumber
+      .replace(/(^|[^\d.,])(\d{1,3}(?:,\d{3})+)(?!,?\d)/g, (m, pre: string, n: string) => {
+        const v = toNum(n);
+        return Number.isFinite(v) ? pre + fmtNumber(v) : m;
+      })
+  );
 }
 
 function SourceBadge({ card }: { card: ActionCardData }) {
@@ -96,12 +239,34 @@ function AutoCountdown({ card }: { card: ActionCardData }) {
   return (
     <span className="text-meta text-dim">
       Tự động thực thi
-      {card.auto_execute_in_s != null && (
+      {card.auto_execute_in_s != null ? (
         <span className="tnum font-num font-semibold text-warn-ink">
           {" "}
           · tự chạy sau {fmtMinSec(Math.max(0, Math.round(card.auto_execute_in_s)))}
         </span>
+      ) : (
+        <span> · hệ thống tự ghim trong khối BẬT</span>
       )}
+    </span>
+  );
+}
+
+/** Lý do khoá: ký hiệu hình dạng của trạng thái khối + câu ngắn. */
+function LockNote({ lock }: { lock: CardLock }) {
+  return (
+    <span className="inline-flex min-w-0 items-center gap-1.5 rounded-md border border-hairline bg-raised px-2.5 py-1 text-meta font-semibold text-sec">
+      <StatusMark shape={lock.shape} />
+      {lock.text}
+    </span>
+  );
+}
+
+/** "chưa đủ dữ liệu để dự báo" — vòng rỗng + chữ, mực trung tính (không xanh). */
+function NoBasisNote() {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-meta text-dim">
+      <span aria-hidden>○</span>
+      {NO_FORECAST_BASIS}
     </span>
   );
 }
@@ -112,20 +277,25 @@ export default function ActionCard({
   executed,
   readOnly,
   emphasized = false,
+  locked = null,
+  noForecastBasis = false,
+  peerCount = null,
   onExecute,
   onSkip,
 }: Props) {
   // E2-04: an interval may only ever be shown for experiment-sourced cards.
   const showCi = card.source === "experiment" && card.ci_low != null && card.ci_high != null;
-  // Nhãn nguồn của con số — đặt NGAY DƯỚI con số to để không ai đọc nhầm một
-  // dự báo thành một phép đo (nghĩa vụ E2-04 ở tầng chữ).
-  const figureLabel = card.source === "experiment" ? "tác động đo được" : "dự báo lượt bấm";
+  const noBasis = noForecastBasis && card.source === "forecast";
+  // Nhãn nguồn của con số nằm NGAY DƯỚI nó để không ai đọc nhầm một dự báo
+  // thành một phép đo (nghĩa vụ E2-04 ở tầng chữ), và thứ hạng thành "% tăng".
+  const shown = noBasis ? null : estimateDisplay(card, peerCount);
+  const isLocked = !readOnly && !executed && locked != null;
 
   return (
     <Card
       as="article"
       padding="sm"
-      interactive={!executed}
+      interactive={!executed && !isLocked}
       className={cx(
         // shrink-0: trong khung cuộn của cột hành động, thẻ giữ NGUYÊN chiều
         // cao tự nhiên — khung chật thì cuộn (có dòng báo), không bóp thẻ tới
@@ -145,7 +315,8 @@ export default function ActionCard({
         <div className="flex min-w-0 items-baseline gap-2">
           <span className="tnum shrink-0 rounded bg-raised px-1.5 py-0.5 text-meta font-bold text-sec">
             #{card.rank}
-            {emphasized ? " · ĐỀ XUẤT MẠNH NHẤT" : ""}
+            {/* "mạnh nhất" chỉ đúng khi dự báo phân biệt được các thẻ */}
+            {emphasized && !noBasis ? " · ĐỀ XUẤT MẠNH NHẤT" : ""}
           </span>
           {!emphasized && <h3 className="truncate text-strong text-ink">{card.headline}</h3>}
         </div>
@@ -157,24 +328,32 @@ export default function ActionCard({
       )}
 
       <p className={cx("text-body leading-snug text-sec", emphasized ? "" : "line-clamp-2")}>
-        {card.rationale}
+        {viRationale(card.rationale)}
       </p>
 
       <div className="mt-auto flex flex-wrap items-end justify-between gap-x-3 gap-y-2 pt-1">
         {emphasized ? (
           <div className="min-w-0">
-            {card.estimate != null ? (
+            {noBasis ? (
+              <NoBasisNote />
+            ) : shown ? (
               <>
                 <div
                   className={cx(
-                    "tnum text-num-s leading-none",
-                    card.estimate >= 0 ? "text-good-ink" : "text-crit-ink",
+                    "tnum",
+                    // Phần trăm đo được ở bậc hiển thị; thứ hạng dự báo là
+                    // một câu ngắn, mực trung tính — không xanh như tin tốt.
+                    shown.tone === "neutral"
+                      ? "text-strong leading-snug text-ink"
+                      : "text-num-s leading-none",
+                    shown.tone === "good" && "text-good-ink",
+                    shown.tone === "crit" && "text-crit-ink",
                   )}
                 >
-                  {fmtPct(card.estimate)}
+                  {shown.text}
                 </div>
                 <div className="mt-0.5 text-meta uppercase tracking-wide text-dim">
-                  {figureLabel}
+                  {shown.label}
                 </div>
               </>
             ) : (
@@ -188,15 +367,26 @@ export default function ActionCard({
           </div>
         ) : (
           <div className="tnum text-meta text-dim">
-            {card.estimate != null && (
-              <span className="text-strong text-ink">{fmtPct(card.estimate)}</span>
+            {noBasis ? (
+              <NoBasisNote />
+            ) : (
+              <>
+                {shown ? (
+                  <span
+                    className={shown.tone === "neutral" ? "text-sec" : "text-strong text-ink"}
+                    title={shown.tone === "neutral" ? shown.label : undefined}
+                  >
+                    {shown.text}
+                  </span>
+                ) : null}
+                {showCi && (
+                  <span className="ml-1.5 text-sec">
+                    KTC 95% [{fmtPct(card.ci_low as number)}, {fmtPct(card.ci_high as number)}]
+                  </span>
+                )}
+                {!shown && !showCi && <span>—</span>}
+              </>
             )}
-            {showCi && (
-              <span className="ml-1.5 text-sec">
-                KTC 95% [{fmtPct(card.ci_low as number)}, {fmtPct(card.ci_high as number)}]
-              </span>
-            )}
-            {card.estimate == null && !showCi && <span>—</span>}
           </div>
         )}
 
@@ -206,17 +396,13 @@ export default function ActionCard({
           <span className="motion-enter rounded px-2 py-1 text-meta font-semibold text-good-ink">
             ✓ Đã thực hiện
           </span>
+        ) : locked ? (
+          <LockNote lock={locked} />
         ) : mode === "auto" ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <AutoCountdown card={card} />
-            <Button disabled>{emphasized ? "Ghim ngay" : "Thực hiện"}</Button>
-            <Button variant="ghost" disabled>
-              Bỏ qua
-            </Button>
-          </div>
+          <AutoCountdown card={card} />
         ) : (
           <div className="flex items-center gap-2">
-            <Button onClick={onExecute}>{emphasized ? "Ghim ngay" : "Thực hiện"}</Button>
+            <Button onClick={onExecute}>{PRIMARY_VERB}</Button>
             <Button variant="ghost" onClick={onSkip}>
               Bỏ qua
             </Button>

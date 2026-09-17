@@ -25,11 +25,17 @@
  *    link, không phải một đoạn mô tả "bấm cái này rồi bấm cái kia".
  *
  * Trang này KHÔNG gọi thêm đường API nào ngoài những gì api.ts đã có.
+ *
+ * Đánh giá UI 17/09/2026: bảng toàn cảnh nói điều TÀI LIỆU biết, không nói
+ * máy chủ đang mở có khoá gì. Khối PlatformStatus (`getPlatforms()` — đã có sẵn
+ * trong api.ts) đặt ngay trước bảng để người dùng thấy cả hai: loại buổi live
+ * dùng được gì, và máy chủ NÀY hiện thu được từ nền tảng nào.
  */
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
+import PlatformStatus from "@/components/PlatformStatus";
 import TopNav from "@/components/TopNav";
 import BatDauVod from "@/components/BatDauVod";
 import Badge, { type BadgeTone } from "@/components/ui/Badge";
@@ -459,6 +465,9 @@ export default function BatDauPage() {
           </Card>
         )}
 
+        {/* ---- máy chủ này đang thu được gì (sự thật lúc mở trang) ------- */}
+        <PlatformStatus />
+
         {/* ---- ma trận đầy đủ ------------------------------------------ */}
         <section>
           <SectionTitle meta="Bấm vào một ô để xem câu trả lời đầy đủ">
@@ -540,10 +549,10 @@ export default function BatDauPage() {
           <p className="mt-2 text-meta leading-relaxed text-dim">
             Huy hiệu là mức đạt được <strong className="text-sec">hôm nay</strong>; mũi tên ↑ là
             trần đạt tới được <strong className="text-sec">sau khi chuẩn bị xong</strong> (bấm vào
-            ô để biết chuẩn bị những gì và mất bao lâu). “Hôm nay” nghĩa là với đúng những gì repo
-            đang có: chưa có khoá YouTube, chưa có Page token Facebook, chưa có danh tính Shopee.
-            Mọi ô trong bảng đều có bằng chứng trong docs/nen-tang-ho-tro.md — đã thử thật, hoặc
-            tài liệu chính thức, hoặc “không thể” kèm lý do.
+            ô để biết chuẩn bị những gì và mất bao lâu). “Hôm nay” trong bảng là mức của một máy
+            chủ CHƯA điền khoá nền tảng nào; máy chủ bạn đang mở đã có khoá gì thì xem mục ngay
+            phía trên. Mọi ô trong bảng đều có bằng chứng trong docs/nen-tang-ho-tro.md — đã thử
+            thật, hoặc tài liệu chính thức, hoặc “không thể” kèm lý do.
           </p>
         </section>
 

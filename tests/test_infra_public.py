@@ -399,6 +399,7 @@ def test_compose_truyen_cau_hinh_bao_mat_va_nen_tang_vao_api(compose):
         "YOUTUBE_API_KEY",
         "FACEBOOK_PAGE_ACCESS_TOKEN",
         "SHOPEE_PARTNER_KEY",
+        "SHOPEE_USER_ID",
     )
     for ten_tep, env in (
         ("docker-compose.yml", compose["services"]["api"]["environment"]),

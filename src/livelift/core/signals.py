@@ -36,6 +36,32 @@ grades on the same quantity the analysis uses, and carries the raw total
 beside it as a LABELLED secondary (``SignalState.secondary``) — §4.1 requires
 raw clicks to be reported alongside, never instead.
 
+``n_shortlinks`` separates "no measurement link exists" from "a link exists and
+nobody has clicked it yet" (kiểm toán 17/09/2026, HDSD giới hạn #8). Before it,
+zero click rows always read "không có link đo" — a session with three links
+created through ``POST /shortlinks`` was told it had none, and the desk tile
+printed THIẾU over a redirect that was live and counting. The two cases are
+graded differently on purpose:
+
+* no link → ``missing``: the numerator cannot exist, say "chưa tạo link đo".
+* link(s), 0 clicks → ``degraded``, NOT ``ok``. The zero IS a measurement
+  (the redirect records every hit, so it is no placeholder) — calling it
+  missing was the bug. But grading ``ok`` would repeat the 10/09/2026 incident
+  "nhận vơ năng lực" in reverse: there, 1.430 tick rows of placeholder zeros
+  made the matrix announce "nhịp phiên: ok — đủ tín hiệu"; here, wired-up
+  infrastructure with an empty numerator would make "thí nghiệm nhân quả" say
+  "đủ tín hiệu" for a session whose report cannot compare ON with OFF on a
+  single click. Having the pipe is not having the signal. ``degraded`` says
+  exactly that: the channel works, the number is real, it is not yet enough.
+* ``analysis_only`` (someone else's finished video) → ``missing`` ALWAYS,
+  whatever ``n_shortlinks`` says (phản biện 17/09/2026). The gap is
+  structural — the broadcast is over and never went through a link of this
+  session — so "chưa tạo link đo" would tell the seller to fix something they
+  cannot fix, and a link attached afterwards (``POST /shortlinks`` does not
+  check the session) would flip the tile to "đã tạo N link đo, chưa ai bấm —
+  kiểm tra bình luận ghim" on a video nobody can click through any more. The
+  same rule the ``schedule`` and ``reactions`` signals already follow.
+
 ``ticks`` means VIEWER telemetry, so a tick row only counts when it actually
 carries a viewer number. A replay analysis writes one tick per 30 s to carry
 the *comment tempo* and fills ``viewers`` with a placeholder 0.0 (YouTube does
@@ -111,6 +137,7 @@ def assess(
     n_reactions: int,
     platform: str | None = None,
     analysis_only: bool = False,
+    n_shortlinks: int | None = None,
 ) -> SignalCoverage:
     """Grade every signal and derive the capability ladder.
 
@@ -131,6 +158,17 @@ def assess(
     measured. ``platform`` picks the honest per-source reason when the count
     is zero — a replay with no paid events, a live ingest that does not pump
     them yet, and a dead TikTok source are three different truths.
+
+    ``n_shortlinks`` counts the measurement links created FOR THIS SESSION
+    (``shortlink.session_id``). It only matters when no click row exists: 0
+    links ⇒ ``missing`` ("chưa tạo link đo"), ≥ 1 link ⇒ ``degraded`` (the
+    link is live, nobody clicked yet — see the module docstring for why not
+    ``ok``). ``None`` means the caller did not count links (pure callers with
+    no store); the wording then claims neither case. Every route that has a
+    store MUST pass the real count — ``api.routes.reports._signal_coverage``
+    does. ``analysis_only`` overrides all of it: an external finished video
+    has no clicks to observe, so the signal is ``missing`` with a structural
+    reason no matter how many links were attached to it afterwards.
     """
     signals: list[SignalState] = []
 
@@ -191,7 +229,7 @@ def assess(
             f"{n_comments} bình luận (đã lọc PII)" if n_comments else "không có bình luận",
         )
     )
-    signals.append(_clicks_state(n_clicks_valid, n_clicks_raw))
+    signals.append(_clicks_state(n_clicks_valid, n_clicks_raw, n_shortlinks, analysis_only))
     signals.append(
         SignalState(
             "orders",
@@ -243,8 +281,23 @@ traffic, the handful of surviving clicks is a thin numerator and the reader
 should be told before they read an effect off it.
 """
 
+CLICKS_VIDEO_NGOAI_GOC = "video ngoài — buổi phát đã xong, không đi qua link đo nào của phiên này"
+"""Structural reason an ``analysis_only`` session has no click signal.
 
-def _clicks_state(n_valid: int, n_raw: int) -> SignalState:
+Never "chưa tạo link đo": that wording tells the seller to go create one,
+which cannot help a broadcast that is over and never carried a link of this
+analysis session (the session is created only after the video has ended).
+"""
+
+CLICKS_VIDEO_NGOAI = f"{CLICKS_VIDEO_NGOAI_GOC}, nên không có lượt bấm để đếm"
+
+
+def _clicks_state(
+    n_valid: int,
+    n_raw: int,
+    n_shortlinks: int | None = None,
+    analysis_only: bool = False,
+) -> SignalState:
     """Grade clicks on the PRE-REGISTERED primary definition (§4.1).
 
     ``n_valid`` is the only number the outcome is built from, so it is the
@@ -252,6 +305,14 @@ def _clicks_state(n_valid: int, n_raw: int) -> SignalState:
     hits promises an experiment the report then cannot deliver. ``n_raw`` is
     never hidden: it rides along in ``secondary`` with its own label, because
     §4.1 requires the raw series to be reported next to the valid one.
+
+    With no click row at all, ``n_shortlinks`` decides WHICH truth is told:
+    no link (missing), link but nobody clicked (degraded), or not counted.
+
+    ``analysis_only`` is checked FIRST and always yields ``missing``: the
+    video is someone else's finished broadcast, so there is nothing the
+    seller could create or fix, and a link attached to the analysis session
+    afterwards measures clicks on that link, not the video's audience.
     """
     n_invalid = max(0, n_raw - n_valid)
     secondary = (
@@ -261,9 +322,40 @@ def _clicks_state(n_valid: int, n_raw: int) -> SignalState:
         if n_raw
         else None
     )
-    if n_raw == 0:
+    if analysis_only:
+        if n_raw == 0:
+            return SignalState("clicks", "missing", CLICKS_VIDEO_NGOAI)
+        # Only reachable when a link was attached to the analysis session
+        # after the fact: the rows are real (so they are named, never hidden),
+        # but they are not clicks by the audience of the analysed broadcast.
         return SignalState(
-            "clicks", "missing", "không có link đo — nhấp sản phẩm không quan sát được"
+            "clicks",
+            "missing",
+            f"{CLICKS_VIDEO_NGOAI_GOC} — {n_raw} lượt bấm đã ghi là bấm vào link gắn "
+            "vào phiên phân tích SAU buổi phát, không phải khán giả của video",
+            secondary,
+        )
+    if n_raw == 0:
+        if n_shortlinks is None:
+            # The caller did not count links: claim neither "no link" nor
+            # "link exists" — only what was actually observed.
+            return SignalState(
+                "clicks",
+                "missing",
+                "chưa ghi nhận lượt bấm nào qua link đo — nhấp sản phẩm không quan sát được",
+            )
+        if n_shortlinks <= 0:
+            return SignalState(
+                "clicks",
+                "missing",
+                "chưa tạo link đo cho phiên này — nhấp sản phẩm không quan sát được",
+            )
+        return SignalState(
+            "clicks",
+            "degraded",
+            f"đã tạo {n_shortlinks} link đo, chưa ai bấm — số 0 này là số đo thật, nhưng "
+            "chưa có lượt bấm thì chưa so được khối BẬT với khối TẮT. Đã lên sóng mà vẫn 0 "
+            "thì kiểm tra link đo đã dán vào bình luận ghim chưa",
         )
     if n_valid == 0:
         return SignalState(

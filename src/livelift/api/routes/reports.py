@@ -680,6 +680,10 @@ def _signal_coverage(session: dict[str, Any], store) -> SignalCoverage:
         n_comments=len(store.list_comments(session_id)),
         n_clicks_valid=n_clicks_valid,
         n_clicks_raw=len(clicks),
+        # Số link đo GẮN phiên này: không có nó, 0 dòng click luôn bị đọc là
+        # "không có link đo" dù phiên đã tạo link qua POST /shortlinks và chỉ
+        # là chưa ai bấm (kiểm toán 17/09/2026, HDSD giới hạn #8).
+        n_shortlinks=store.count_shortlinks(session_id),
         n_orders=len(getattr(store, "list_orders", lambda _sid: [])(session_id)),
         n_reactions=len(store.list_reactions(session_id)),
         platform=session.get("platform"),
@@ -781,13 +785,24 @@ def _bao_cao_tong_quan(
 
     # MỘT định nghĩa cho cả hai màn hình (§4.1): con số chính là nhấp HỢP LỆ,
     # con số thô đi kèm có nhãn riêng — đúng cặp mà `/signals` trả về.
-    luot_nhap_tho: int | None = len(clicks) if clicks else None
-    if clicks:
+    # Có link đo mà chưa ai bấm thì 0 là PHÉP ĐO (đường chuyển hướng đang chạy
+    # và ghi mọi cú bấm), không phải chỗ trống — ô báo cáo hiện 0 kèm lý do,
+    # khớp với `/signals` (clicks: degraded, "đã tạo N link đo, chưa ai bấm").
+    # Phiên phân tích video ngoài (analysis_only) thì KHÔNG: buổi phát đã xong,
+    # không lượt bấm nào đo được khán giả của video — link gắn vào phiên sau đó
+    # không biến ô này thành "số 0 đo được" (ma trận cũng trả clicks: missing
+    # với lý do cấu trúc, phản biện 17/09/2026).
+    co_link_do = not _is_analysis_only(session) and (
+        bool(clicks) or store.count_shortlinks(session_id) > 0
+    )
+    luot_nhap_tho: int | None = len(clicks) if co_link_do else None
+    if co_link_do:
         luot_nhap: int | None = sum(1 for c in clicks if c.get("is_valid") is not False)
         if luot_nhap == 0:
-            # Không phải "thiếu nguồn": link đo có nhận cú bấm, nhưng KHÔNG cú
-            # nào hợp lệ. Số 0 này là phép đo — và phải kèm lý do, nếu không
-            # người đọc lại đối chiếu nó với con số thô rồi tự suy diễn sai.
+            # Không phải "thiếu nguồn": link đo có thật, nhưng KHÔNG cú nào hợp
+            # lệ (bị gắn cờ hết, hoặc chưa ai bấm). Số 0 này là phép đo — và
+            # phải kèm lý do, nếu không người đọc lại đối chiếu nó với con số
+            # thô rồi tự suy diễn sai.
             thieu["luot_nhap"] = _signal_detail(cov, "clicks")
     else:
         luot_nhap = None

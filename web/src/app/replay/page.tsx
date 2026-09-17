@@ -8,9 +8,29 @@
  * panel: toggling "hết hàng" on a product re-ranks / removes its action cards
  * client-side. While the recording loads, every zone shows a skeleton instead
  * of an empty panel.
+ *
+ * ---------------------------------------------------------------------------
+ * GÓI D — những gì trang này phải nói ĐÚNG
+ * ---------------------------------------------------------------------------
+ * - NHÃN NGUỒN DỮ LIỆU: dải băng từng chỉ xét `connection === "mock"` nên phiên
+ *   gieo mẫu (`is_demo=true`, lấy từ máy chủ) bị in "PHÁT LẠI DỮ LIỆU THẬT" —
+ *   đúng lúc giám khảo bấm "Bắt đầu xem thử". Nay nhãn đọc `session.is_demo`:
+ *   mẫu → "DỮ LIỆU MẪU", mất máy chủ → "MÔ PHỎNG", chỉ phiên thật mới "THẬT";
+ *   đang tải thì không khẳng định gì.
+ * - MỞ ĐÚNG BUỔI: `?session=<id>` đọc bằng `useSearchParams` (bọc Suspense —
+ *   build production của Next 14 bắt buộc) và ưu tiên tuyệt đối; chọn buổi
+ *   khác trong ô chọn thì URL đổi theo, để link chép ra mở lại đúng buổi.
+ * - KHÔNG CÒN KHUNG CHẾT: thẻ gợi ý + khung "nếu hết hàng" có nội dung khi có
+ *   sản phẩm; rỗng thì câu rỗng nói đúng lý do (không còn "kiểm tra tham số
+ *   bên phải" khi bên phải cũng trống).
+ * - NGỮ CẢNH PHÁT LẠI: có TopNav như mọi trang; khung đầu đã tua sẵn tới phút
+ *   có số liệu + một dòng nhắc bấm Phát; không mượn câu "bạn không cần bấm gì"
+ *   của màn live; feed rỗng không hiện nút "Tạm dừng cuộn".
  */
 
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback } from "react";
 
 import ActionCard from "@/components/ActionCard";
 import BlockStrip from "@/components/BlockStrip";
@@ -18,46 +38,126 @@ import CommentFeed from "@/components/CommentFeed";
 import CommentRadar from "@/components/CommentRadar";
 import ReplayControls from "@/components/ReplayControls";
 import RhythmChart from "@/components/RhythmChart";
-import { DemoBadge } from "@/components/StatusBar";
-import { buttonCls } from "@/components/ui/Button";
+import TopNav from "@/components/TopNav";
+import Badge from "@/components/ui/Badge";
+import Button, { buttonCls } from "@/components/ui/Button";
+import Callout from "@/components/ui/Callout";
 import Card from "@/components/ui/Card";
 import SectionTitle from "@/components/ui/SectionTitle";
 import Skeleton from "@/components/ui/Skeleton";
-import { fmtDateHCM } from "@/lib/format";
-import { useReplay } from "@/lib/useReplay";
+import { fmtDateHCM, fmtElapsed } from "@/lib/format";
+import type { SessionSummary } from "@/lib/types";
+import { useReplay, type ReplayState } from "@/lib/useReplay";
 
 export default function ReplayPage() {
-  const rp = useReplay();
+  return (
+    <div className="flex min-h-screen flex-col bg-page">
+      <TopNav />
+      {/* useSearchParams cần một ranh giới Suspense để `next build` không
+          từ chối prerender trang này. */}
+      <Suspense fallback={<ReplayLoading />}>
+        <ReplayScreen />
+      </Suspense>
+    </div>
+  );
+}
+
+function ReplayLoading() {
+  return (
+    <main className="flex flex-1 flex-col gap-3 p-3" aria-busy>
+      <p role="status" className="px-1 text-body text-sec">
+        Đang mở bản ghi phát lại…
+      </p>
+      <Skeleton className="h-bar" />
+      <Skeleton className="h-[22rem]" />
+    </main>
+  );
+}
+
+/** Câu trên dải băng nguồn dữ liệu — chọn theo thứ ĐANG nằm trên màn hình. */
+function provenanceText(rp: ReplayState, shown: SessionSummary | null): string {
+  const isMock = rp.connection === "mock";
+  if (isMock) {
+    if (rp.mockReason === "no_ended") {
+      return "PHÁT LẠI DỮ LIỆU MÔ PHỎNG — chưa có buổi nào kết thúc để xem lại";
+    }
+    if (rp.mockReason === "server") {
+      return "PHÁT LẠI DỮ LIỆU MÔ PHỎNG — chưa kết nối được máy chủ, không phải buổi live thật";
+    }
+    return "PHÁT LẠI DỮ LIỆU MÔ PHỎNG — không phải buổi live thật";
+  }
+  if (!shown) return "Đang tải danh sách buổi đã phát…";
+  if (shown.is_demo) {
+    return "PHÁT LẠI DỮ LIỆU MẪU — phiên mô phỏng, không phải buổi live thật";
+  }
+  const recordedOn = shown.start_ts ? fmtDateHCM(shown.start_ts) : "—";
+  return `PHÁT LẠI DỮ LIỆU THẬT — ghi ngày ${recordedOn}`;
+}
+
+/** Link `?session=` không mở được đúng buổi: nói lý do, không lặng lẽ đổi buổi. */
+function requestNotice(rp: ReplayState): string | null {
+  if (rp.requestedStatus === "none" || rp.requestedStatus === "ok") return null;
+  if (rp.connection === "mock") {
+    return rp.mockReason === "no_ended"
+      ? "Chưa có buổi nào kết thúc — đang phát bản mô phỏng thay cho buổi trong link."
+      : "Chưa kết nối được máy chủ — đang phát bản mô phỏng thay cho buổi trong link.";
+  }
+  if (rp.requestedStatus === "not_ended") {
+    return "Buổi trong link chưa kết thúc nên chưa xem lại được — đang mở buổi đã kết thúc gần nhất.";
+  }
+  return "Không tìm thấy buổi trong link — đang mở buổi đã kết thúc gần nhất.";
+}
+
+function ReplayScreen() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const requestedId = searchParams.get("session");
+  const rp = useReplay(requestedId);
   const rec = rp.recording;
   const loading = rp.connection === "connecting" || (rp.sessionId != null && !rec);
-  const recordedOn = rec?.session.start_ts ? fmtDateHCM(rec.session.start_ts) : "—";
+
+  const { setSessionId } = rp;
+  const selectSession = useCallback(
+    (id: string) => {
+      setSessionId(id);
+      router.replace(`/replay?session=${encodeURIComponent(id)}`, { scroll: false });
+    },
+    [router, setSessionId],
+  );
+
+  const shown: SessionSummary | null =
+    rec?.session ?? rp.sessions.find((s) => s.session_id === rp.sessionId) ?? null;
   /**
-   * Gói B-PROBE: dải băng vàng trước đây in "PHÁT LẠI DỮ LIỆU THẬT" trong MỌI
+   * Gói B-PROBE: dải băng trước đây in "PHÁT LẠI DỮ LIỆU THẬT" trong MỌI
    * trạng thái — kể cả khi trang đang chạy bản ghi mô phỏng vì máy chủ không
-   * gọi được. Trang chủ đưa người dùng sang đúng đường đó khi máy chủ chết
-   * hoặc kho suy giảm, nên câu này phải nói đúng thứ đang nằm trên màn hình.
+   * gọi được. Gói D: và cả khi phiên lấy từ máy chủ là DỮ LIỆU MẪU
+   * (`is_demo`) — nhãn nay xét cả hai.
    */
   const isMock = rp.connection === "mock";
+  const isSample = isMock || shown?.is_demo === true;
+  const notice = requestNotice(rp);
 
   return (
-    <main className="flex h-screen flex-col gap-3 overflow-hidden bg-page p-3">
-      {/* header + provenance banner */}
-      <header className="flex h-bar shrink-0 items-center gap-3 rounded-lg border border-hairline bg-surface px-3">
-        <Link
-          href="/"
-          className="focus-ring flex shrink-0 items-center rounded text-body font-bold tracking-tight text-ink"
-        >
-          LiveLift <span className="ml-1 font-normal text-dim">· phát lại phiên</span>
-        </Link>
-        {isMock && <DemoBadge />}
-        <div className="ml-auto flex min-w-0 items-center gap-2 rounded-md border border-warn/60 bg-warn/10 px-3 py-1">
+    <main className="flex flex-1 flex-col gap-3 p-3">
+      {/* tiêu đề + dải băng nguồn dữ liệu */}
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="min-w-0 flex-1 basis-72">
+          <p className="text-meta font-semibold uppercase tracking-[0.08em] text-good-ink">
+            Sau live
+          </p>
+          <h1 className="font-display text-title text-ink">Xem lại phiên</h1>
+          <p className="text-meta leading-snug text-dim">
+            Tua lại một buổi đã phát theo từng phút, thử &quot;nếu hết hàng&quot; — không đụng gì
+            tới dữ liệu gốc.
+          </p>
+        </div>
+        {isSample ? <Badge tone="warn">DEMO — dữ liệu mẫu</Badge> : null}
+        <div className="flex min-w-0 items-center gap-2 rounded-md border border-warn/60 bg-warn/10 px-3 py-1">
           <span aria-hidden className="text-warn-ink">
             ⏮
           </span>
-          <span className="truncate text-meta font-bold tracking-wide text-warn-ink">
-            {isMock
-              ? "PHÁT LẠI DỮ LIỆU MÔ PHỎNG — không phải buổi live thật"
-              : `PHÁT LẠI DỮ LIỆU THẬT — ghi ngày ${recordedOn}`}
+          <span className="text-meta font-bold tracking-wide text-warn-ink">
+            {provenanceText(rp, shown)}
           </span>
         </div>
         {/* Gói UI-KOL: người bán đang xem lại buổi live thường muốn biết
@@ -74,20 +174,12 @@ export default function ReplayPage() {
         ) : null}
       </header>
 
-      {/* Câu định vị trang (PageHeader d1, bản một-dòng cho màn h-screen):
-          trang này để làm gì — cho ai — khi nào dùng. */}
-      <p className="shrink-0 px-1 text-meta leading-snug text-dim">
-        <span className="mr-1.5 font-semibold uppercase tracking-[0.08em] text-good-ink">
-          Sau live
-        </span>
-        Xem lại phiên — tua lại một buổi đã phát theo từng phút, thử &quot;nếu-thì&quot; với tồn
-        kho; không đụng gì tới dữ liệu gốc.
-      </p>
+      {notice ? <Callout slim>{notice}</Callout> : null}
 
       <ReplayControls
         sessions={rp.sessions}
         sessionId={rp.sessionId}
-        onSelectSession={rp.setSessionId}
+        onSelectSession={selectSession}
         t={rp.t}
         durationS={rec?.duration_s ?? 0}
         playing={rp.playing}
@@ -98,8 +190,17 @@ export default function ReplayPage() {
         disabled={!rec}
       />
 
+      {/* Dòng nhắc việc cần làm — LUÔN chiếm chỗ (đổi chữ, không đổi chiều
+          cao) để bấm Phát/Tạm dừng không làm cả trang giật xuống. */}
+      <p className="flex min-h-tap items-center gap-2 px-1 text-body text-sec">
+        <span aria-hidden className="text-brand-ink">
+          {rp.playing ? "❚❚" : "▶"}
+        </span>
+        {playPrompt(rp)}
+      </p>
+
       {/* Zone 1 — same rhythm + block strip as the live desk */}
-      <Card as="section" padding="sm" className="flex min-h-0 basis-[36%] flex-col">
+      <Card as="section" padding="sm" className="flex h-[22rem] flex-col">
         <SectionTitle className="mb-1.5">Nhịp phiên (bản ghi)</SectionTitle>
         {loading ? (
           <div className="flex min-h-0 flex-1 flex-col gap-2" aria-busy>
@@ -109,7 +210,13 @@ export default function ReplayPage() {
         ) : (
           <>
             <div className="min-h-0 flex-1">
-              <RhythmChart ticks={rp.visibleTicks} />
+              <RhythmChart
+                ticks={rp.visibleTicks}
+                viewersMissing={rp.viewersMissing}
+                clicksMissing={rp.clicksMissing}
+                blocks={rec?.blocks}
+                replay
+              />
             </div>
             <div className="mt-2 shrink-0">
               <BlockStrip
@@ -122,17 +229,14 @@ export default function ReplayPage() {
         )}
       </Card>
 
-      <div className="grid min-h-0 flex-1 grid-cols-2 gap-3">
-        {/* Zone 2 — cards + what-if parameter panel */}
-        <Card as="section" padding="sm" className="flex min-h-0">
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col pr-3">
-            <SectionTitle
-              className="mb-1.5"
-              meta={rec ? (rp.cardsFromServer ? "thẻ từ máy chủ" : "tổng hợp lại phía client") : undefined}
-            >
+      <div className="grid gap-3 lg:grid-cols-2">
+        {/* Zone 2 — cards + "nếu hết hàng" panel */}
+        <Card as="section" padding="sm" className="flex min-h-[26rem] flex-col sm:flex-row">
+          <div className="flex min-w-0 flex-1 flex-col sm:pr-3">
+            <SectionTitle className="mb-1.5" meta={rec ? "xếp lại từ bản ghi" : undefined}>
               Hành động gợi ý
             </SectionTitle>
-            <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
+            <div className="flex flex-col gap-2">
               {loading ? (
                 <div className="flex flex-col gap-2" aria-busy>
                   <Skeleton className="h-24" />
@@ -140,8 +244,13 @@ export default function ReplayPage() {
                   <Skeleton className="h-24" />
                 </div>
               ) : rp.cards.length === 0 ? (
-                <div className="px-2 py-4 text-body text-dim">
-                  Không còn thẻ nào cho thời điểm này (kiểm tra tham số bên phải).
+                <div className="flex flex-col items-start gap-2 px-2 py-4">
+                  <p className="text-body text-dim">{cardsEmptyReason(rp)}</p>
+                  {!rp.analysis && (rec?.products.length ?? 0) === 0 && !rp.catalogFailed ? (
+                    <Link href="/chay-phien" className={buttonCls("ghost", "sm")}>
+                      Chuẩn bị phiên →
+                    </Link>
+                  ) : null}
                 </div>
               ) : (
                 rp.cards.map((c) => (
@@ -156,12 +265,12 @@ export default function ReplayPage() {
             </div>
           </div>
 
-          {/* parameter panel */}
-          <aside className="flex w-60 shrink-0 flex-col border-l border-hairline pl-3">
-            <SectionTitle className="mb-1.5">Tham số what-if</SectionTitle>
+          {/* khung "nếu hết hàng" */}
+          <aside className="mt-3 flex shrink-0 flex-col border-t border-hairline pt-3 sm:mt-0 sm:w-60 sm:border-l sm:border-t-0 sm:pl-3 sm:pt-0">
+            <SectionTitle className="mb-1.5">Thử: nếu hết hàng</SectionTitle>
             <p className="mb-2 shrink-0 text-meta leading-snug text-dim">
-              Đánh dấu sản phẩm <span className="font-semibold text-sec">hết hàng</span> để xem
-              hệ thống xếp hạng lại thẻ hành động.
+              Đánh dấu sản phẩm <span className="font-semibold text-sec">hết hàng</span> để xem thẻ
+              gợi ý xếp lại thế nào.
             </p>
             {loading ? (
               <div className="flex flex-col gap-1.5" aria-busy>
@@ -170,8 +279,10 @@ export default function ReplayPage() {
                 <Skeleton className="h-8" />
                 <Skeleton className="h-8" />
               </div>
+            ) : (rec?.products.length ?? 0) === 0 ? (
+              <p className="text-body text-dim">{productsEmptyReason(rp)}</p>
             ) : (
-              <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto">
+              <ul className="space-y-1">
                 {(rec?.products ?? []).map((p) => {
                   const off = rp.excluded.has(p.product_id);
                   return (
@@ -207,7 +318,7 @@ export default function ReplayPage() {
         </Card>
 
         {/* Zone 3 — radar + feed over the recorded comments */}
-        <Card as="section" padding="sm" className="flex min-h-0 flex-col">
+        <Card as="section" padding="sm" className="flex h-[30rem] flex-col">
           <SectionTitle className="mb-1.5" meta="5 phút quanh vị trí phát">
             Radar bình luận
           </SectionTitle>
@@ -221,6 +332,10 @@ export default function ReplayPage() {
                 <Skeleton className="h-4 w-1/2" />
               </div>
             </div>
+          ) : rp.visibleComments.length === 0 ? (
+            // Feed rỗng: KHÔNG dựng CommentFeed (nút "Tạm dừng cuộn" vô nghĩa
+            // khi chưa có gì cuộn, và câu "bạn không cần làm gì" là của màn live).
+            <NoCommentsYet rp={rp} />
           ) : (
             <>
               <div className="min-h-0 flex-[2]">
@@ -234,5 +349,66 @@ export default function ReplayPage() {
         </Card>
       </div>
     </main>
+  );
+}
+
+/** Dòng nhắc dưới thanh điều khiển: đang làm gì và bấm gì tiếp. */
+function playPrompt(rp: ReplayState): string {
+  const rec = rp.recording;
+  if (!rec) return "Đang tải bản ghi…";
+  if (rp.playing) return `Đang phát ở tốc độ ${rp.speed}x — bấm Tạm dừng để dừng lại.`;
+  if (rp.t >= rec.duration_s) return "Đã phát hết bản ghi — bấm Phát để xem lại từ đầu.";
+  if (rp.t > 0 && rp.t === rp.firstFrameS) {
+    return `Đã tua sẵn tới ${fmtElapsed(rp.t)}, phút đầu có số liệu — bấm Phát để xem tiếp.`;
+  }
+  return `Đang dừng ở ${fmtElapsed(rp.t)} — bấm Phát để xem tiếp.`;
+}
+
+/** Vì sao cột thẻ trống — nói đúng lý do, không đẩy người dùng đi tìm. */
+function cardsEmptyReason(rp: ReplayState): string {
+  const products = rp.recording?.products ?? [];
+  if (rp.analysis) {
+    return "Phiên phân tích video của người khác không có thẻ gợi ý — đây không phải buổi bạn vận hành.";
+  }
+  if (products.length === 0) {
+    return rp.catalogFailed
+      ? "Không tải được danh mục sản phẩm từ máy chủ nên chưa xếp được thẻ. Tải lại trang để thử lại."
+      : "Chưa có sản phẩm nào trong danh mục nên không có thẻ để xếp.";
+  }
+  if (products.every((p) => rp.excluded.has(p.product_id))) {
+    return "Bạn đã đánh dấu hết hàng mọi sản phẩm — bỏ bớt một dấu để thấy thẻ.";
+  }
+  return "Bản ghi chưa có thẻ nào cho thời điểm này.";
+}
+
+/** Vì sao khung "nếu hết hàng" không có sản phẩm nào để đánh dấu. */
+function productsEmptyReason(rp: ReplayState): string {
+  if (rp.analysis) return "Phiên phân tích video của người khác không có sản phẩm của bạn.";
+  if (rp.catalogFailed) return "Không tải được danh mục sản phẩm từ máy chủ.";
+  return "Danh mục chưa có sản phẩm nào.";
+}
+
+/** Khung bình luận khi tới vị trí đang phát vẫn chưa có bình luận nào. */
+function NoCommentsYet({ rp }: { rp: ReplayState }) {
+  const comments = rp.recording?.comments ?? [];
+  if (comments.length === 0) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-1.5 px-4 text-center">
+        <p className="text-body text-sec">Buổi này không ghi lại bình luận nào.</p>
+        <p className="text-meta text-dim">Nhịp phiên và thẻ gợi ý vẫn xem lại được bình thường.</p>
+      </div>
+    );
+  }
+  let first = Number.POSITIVE_INFINITY;
+  for (const c of comments) first = Math.min(first, c.offset_s);
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-2 px-4 text-center">
+      <p className="text-body text-sec">
+        Chưa tới bình luận đầu tiên — bản ghi có bình luận từ {fmtElapsed(first)}.
+      </p>
+      <Button size="sm" variant="ghost" onClick={() => rp.seek(Math.ceil(first))}>
+        Tua tới {fmtElapsed(first)}
+      </Button>
+    </div>
   );
 }

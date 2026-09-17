@@ -421,7 +421,15 @@ def test_endpoint_platforms_la_duong_doc_mo(ung_dung):
     client, _, _ = ung_dung
     r = client.get("/platforms")
     assert r.status_code == 200
-    assert {p["platform"] for p in r.json()} == {"youtube", "facebook", "shopee", "tiktok"}
+    # "mo_phong" (17/09/2026): nguồn bình luận tổng hợp để kiểm thử đường ống,
+    # luôn sẵn sàng nhưng chỉ bật được trên phiên chạy thử — xem test_ingest_mo_phong.py.
+    assert {p["platform"] for p in r.json()} == {
+        "youtube",
+        "facebook",
+        "shopee",
+        "tiktok",
+        "mo_phong",
+    }
 
 
 def test_bat_bo_thu_doi_token_khi_da_dat_token(monkeypatch):

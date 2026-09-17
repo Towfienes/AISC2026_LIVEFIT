@@ -165,18 +165,20 @@ export default function BlockStrip({ blocks, durationS, positionS, tall = false 
           <StatusMark shape="drift" />
           <span className="hatch-washout inline-block h-2.5 w-3 rounded-sm border border-edge" />
           <Term tip="Phút chuyển tiếp giữa hai khối — không tính vào kết quả đo.">
-            Trôi (washout)
+            Khoảng trôi
           </Term>
         </span>
-        <span className="flex items-center gap-1.5">
-          <span aria-hidden className="inline-block h-3 w-1 rounded-full bg-ink" />
-          Vị trí hiện tại
-        </span>
+        {/* Chưa có vị trí (bước bốc thăm của wizard — chưa lên sóng) thì
+            không có vạch nào để chú giải. */}
+        {positionS != null ? (
+          <span className="flex items-center gap-1.5">
+            <span aria-hidden className="inline-block h-3 w-1 rounded-full bg-ink" />
+            Vị trí hiện tại
+          </span>
+        ) : null}
         {/* Câu cảnh báo ranh giới làm mù: `ml-auto` để nằm cùng dòng khi còn
             chỗ, và KHÔNG `truncate` — đây là dòng không bao giờ được đọc dở. */}
-        <span className="ml-auto">
-          Chỉ hiển thị cho bàn điều khiển — màn hình host không thấy khối
-        </span>
+        <span className="ml-auto">Chỉ hiện trên bàn trợ live — màn người dẫn không thấy khối</span>
       </div>
     </div>
   );

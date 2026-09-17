@@ -23,6 +23,17 @@
  * Vitals (viewers, clicks/min) are no longer here at all — they belong to the
  * operating clock, where they get the num-* display steps and a real label.
  *
+ * MỘT DÒNG Ở 1366 (gói C5, ảnh f06): thanh từng gãy thành hai dòng vì nhãn chữ
+ * "Phiên đang xem" (nay là nhãn cho trình đọc màn hình), ô chọn phiên rộng
+ * 340px và huy hiệu "Mã TK" (gói C10: mã bằng chứng lịch chuyển xuống thẻ lịch
+ * BẬT/TẮT với tên dễ hiểu). Nút "Kết thúc phiên" TÁCH XA công tắc Gợi ý/Tự
+ * động: đứng một mình ở mép phải sau vạch ngăn — bản cũ để hai thứ sát nhau,
+ * bấm nhầm khi căng thẳng là kết thúc cả buổi live.
+ *
+ * XÁC NHẬN HAI BƯỚC TẠI CHỖ (gói C9): thay hộp xác nhận của trình duyệt (lệch
+ * ngôn ngữ thiết kế, chặn luôn cả trang) bằng bước xác nhận ngay trên thanh:
+ * bấm lần một hiện "Kết thúc ngay / Huỷ", tự huỷ sau 10 giây.
+ *
  * The segmented control sits inside an `overflow-hidden` group, so it uses
  * `.focus-ring-inset`: an offset ring would be clipped away and the keyboard
  * focus would be invisible.
@@ -42,9 +53,9 @@
  *    rời rạc không nói được rằng chúng loại trừ nhau.
  */
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { fmtClock } from "@/lib/format";
+import { fmtClock, fmtDateHCM, fmtTimeHCM } from "@/lib/format";
 import type { ConnectionKind, SessionMode, SessionStatus, SessionSummary } from "@/lib/types";
 import type { SocketStatus } from "@/lib/useLiveSocket";
 
@@ -57,7 +68,7 @@ import StatusMark from "./ui/StatusMark";
 export function DemoBadge() {
   return (
     <Badge tone="warn" className="tracking-wider">
-      DEMO DATA
+      DỮ LIỆU MẪU
     </Badge>
   );
 }
@@ -83,7 +94,8 @@ export function ConnectionBadge({
         inherit
         className={wsOpen ? "text-good-ink" : "text-warn-ink"}
       />
-      {wsOpen ? "TRỰC TIẾP" : "TRỰC TIẾP (đang nối lại WS)"}
+      {/* Không in "WS": người bán không cần biết tên giao thức. */}
+      {wsOpen ? "TRỰC TIẾP" : "TRỰC TIẾP (đang nối lại)"}
     </span>
   );
 }
@@ -103,6 +115,39 @@ const STATUS_VI: Record<SessionStatus, string> = {
   ended: "đã kết thúc",
   cancelled: "đã huỷ (chưa phát sóng)",
 };
+
+/** Tên nền tảng cho người bán — không in mã máy ("youtube", "mo_phong"). */
+const PLATFORM_VI: Record<string, string> = {
+  youtube: "YouTube",
+  facebook: "Facebook",
+  shopee: "Shopee",
+  tiktok: "TikTok",
+  mo_phong: "mô phỏng",
+};
+
+/**
+ * Nhãn một phiên trong ô chọn (gói C8): TÊN phiên, không có tên thì GIỜ lên
+ * sóng — không bao giờ in UUID thô ("d666df55-e357-4a89-ab69-…" trong ảnh f06
+ * không nói được với người bán đó là buổi nào).
+ */
+export function sessionOptionLabel(s: SessionSummary): string {
+  let when: string | null = null;
+  if (s.start_ts && Number.isFinite(Date.parse(s.start_ts))) {
+    when = `${fmtTimeHCM(s.start_ts).slice(0, 5)} ${fmtDateHCM(s.start_ts).slice(0, 5)}`;
+  }
+  const title = s.title?.trim();
+  const name = title
+    ? title
+    : when
+      ? `Phiên lên sóng ${when}`
+      : "Phiên chưa đặt tên, chưa lên sóng";
+  const parts = [name];
+  if (title && when) parts.push(when);
+  parts.push(PLATFORM_VI[s.platform] ?? s.platform);
+  parts.push(STATUS_VI[s.status] ?? s.status);
+  if (s.is_demo) parts.push("dữ liệu mẫu");
+  return parts.join(" · ");
+}
 
 /**
  * ĐÈN TRẠNG THÁI PHÁT SÓNG (gói DESK-HOST v2, khoảnh khắc S1 của spec
@@ -243,6 +288,65 @@ function ModeToggle({
   );
 }
 
+/** Thời gian bước xác nhận tự huỷ nếu không ai bấm tiếp. */
+const CONFIRM_TIMEOUT_MS = 10000;
+
+/**
+ * Nút Kết thúc phiên với XÁC NHẬN HAI BƯỚC TẠI CHỖ — không hộp của trình
+ * duyệt, không lớp phủ. Bước hai đặt focus vào "Huỷ" (lựa chọn an toàn), nên
+ * một cú Enter lỡ tay không kết thúc buổi live.
+ */
+function EndSessionControl({ onEnd, busy }: { onEnd: () => void; busy?: boolean }) {
+  const [confirming, setConfirming] = useState(false);
+  useEffect(() => {
+    if (!confirming) return;
+    const t = setTimeout(() => setConfirming(false), CONFIRM_TIMEOUT_MS);
+    return () => clearTimeout(t);
+  }, [confirming]);
+
+  if (busy) {
+    return (
+      <Button variant="danger" disabled>
+        Đang kết thúc…
+      </Button>
+    );
+  }
+  if (!confirming) {
+    return (
+      <Button
+        variant="danger"
+        onClick={() => setConfirming(true)}
+        title="Kết thúc phiên đang phát — dữ liệu đã ghi được giữ nguyên"
+      >
+        Kết thúc phiên
+      </Button>
+    );
+  }
+  return (
+    <div
+      role="group"
+      aria-label="Xác nhận kết thúc phiên"
+      className="flex flex-wrap items-center gap-2"
+    >
+      <span className="text-meta font-semibold text-crit-ink">
+        <span aria-hidden>⚠</span> Kết thúc thật? Khối chưa chạy sẽ không được tính.
+      </span>
+      <Button
+        variant="danger"
+        onClick={() => {
+          setConfirming(false);
+          onEnd();
+        }}
+      >
+        Kết thúc ngay
+      </Button>
+      <Button variant="ghost" autoFocus onClick={() => setConfirming(false)}>
+        Huỷ
+      </Button>
+    </div>
+  );
+}
+
 interface Props {
   connection: ConnectionKind;
   wsStatus?: SocketStatus;
@@ -259,31 +363,11 @@ interface Props {
   canEndSession?: boolean;
   endBusy?: boolean;
   /**
-   * Cam kết thiết kế (SHA-256 của tham số thiết kế + seed), công bố trước phát
-   * sóng — gói Q3. Hiển thị 8 ký tự đầu, hash đầy đủ trong tooltip: người vận
-   * hành đối chiếu được bằng mắt mà không tốn thêm dòng nào trên thanh.
-   * `null`/thiếu khi phiên chưa có lịch (chế độ demo, phiên trước gói Q3) —
-   * khi đó KHÔNG hiện gì, vì một ô trống còn thật thà hơn một hash bịa.
-   */
-  designHash?: string | null;
-  /**
    * Lỗi vận hành đang cần người xử lý (lệnh Thực hiện trượt, kết thúc phiên
    * thất bại…). `null` = ô trống, không chiếm chỗ.
    */
   alert?: string | null;
   onDismissAlert?: () => void;
-}
-
-/** Mã thiết kế rút gọn — chỉ 8 ký tự đầu, đủ để đối chiếu bằng mắt. */
-export function DesignHashBadge({ hash }: { hash: string }) {
-  return (
-    <span
-      className="tnum shrink-0 text-meta text-dim"
-      title={`Cam kết thiết kế (SHA-256 tham số + seed), công bố trước phát sóng: ${hash}`}
-    >
-      Mã TK <span className="font-semibold text-sec">{hash.slice(0, 8)}</span>
-    </span>
-  );
 }
 
 export default function StatusBar({
@@ -300,7 +384,6 @@ export default function StatusBar({
   onEndSession,
   canEndSession,
   endBusy,
-  designHash,
   alert,
   onDismissAlert,
 }: Props) {
@@ -318,47 +401,41 @@ export default function StatusBar({
           <span className="tnum font-num text-meta text-dim">/ {fmtClock(durationS)}</span>
         </span>
 
-        <span className="shrink-0 text-meta font-semibold text-sec">Phiên đang xem</span>
-
+        {/* Nhãn "Phiên đang xem" dành cho trình đọc màn hình: chữ nhìn thấy
+            được tốn ~110px và là một lý do thanh gãy dòng ở 1366. Ô chọn in
+            TÊN/GIỜ phiên (không UUID); nhãn đầy đủ nằm trong title. */}
         <select
           value={sessionId ?? ""}
           onChange={(e) => onSelectSession(e.target.value)}
-          className={`${fieldCls} max-w-[340px] px-2 py-1 text-body`}
-          aria-label="Chọn phiên"
+          className={`${fieldCls} min-w-0 max-w-[17rem] shrink truncate px-2 py-1 text-body`}
+          aria-label="Phiên đang xem"
+          title={session ? sessionOptionLabel(session) : undefined}
         >
           {sessions.map((s) => (
             <option key={s.session_id} value={s.session_id}>
-              {s.title ?? s.session_id} · {s.platform} · {STATUS_VI[s.status] ?? s.status}
+              {sessionOptionLabel(s)}
             </option>
           ))}
         </select>
 
         {/* phiên DỮ LIỆU MẪU phải tự khai trên mọi ảnh chụp (không trộn
-            demo/thật); chế độ mock đã có DEMO DATA từ ConnectionBadge —
-            không in hai badge trùng nhau. */}
+            demo/thật); chế độ mock đã có huy hiệu từ ConnectionBadge —
+            không in hai huy hiệu trùng nhau. */}
         {connection !== "mock" && session?.is_demo ? <DemoBadge /> : null}
 
         <ConnectionBadge connection={connection} wsStatus={wsStatus} />
 
-        {designHash ? <DesignHashBadge hash={designHash} /> : null}
+        {/* mode toggle — segmented control.
+            `min-h-tap` là sàn WCAG 2.2 SC 2.5.8 (24px); `h-ctl` nâng thực tế
+            lên 36px vì đây là control người vận hành bấm khi đang nhìn stream. */}
+        <ModeToggle mode={mode} onSetMode={onSetMode} canToggleMode={canToggleMode} />
 
-        <div className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-2">
-          {/* mode toggle — segmented control.
-              `min-h-tap` là sàn WCAG 2.2 SC 2.5.8 (24px); `h-ctl` nâng thực tế
-              lên 36px vì đây là control người vận hành bấm khi đang nhìn stream. */}
-          <ModeToggle mode={mode} onSetMode={onSetMode} canToggleMode={canToggleMode} />
-
-          {canEndSession && onEndSession ? (
-            <Button
-              variant="danger"
-              onClick={onEndSession}
-              disabled={endBusy}
-              title="Kết thúc phiên đang phát — dữ liệu đã ghi được giữ nguyên"
-            >
-              {endBusy ? "Đang kết thúc…" : "Kết thúc phiên"}
-            </Button>
-          ) : null}
-        </div>
+        {/* Kết thúc phiên: mép phải, sau vạch ngăn — xa công tắc chế độ. */}
+        {canEndSession && onEndSession ? (
+          <div className="ml-auto flex items-center border-l border-hairline pl-4">
+            <EndSessionControl onEnd={onEndSession} busy={endBusy} />
+          </div>
+        ) : null}
       </div>
 
       {/* Ô DÀNH SẴN cho lỗi vận hành — luôn có trong DOM, chỉ chiếm chỗ khi có

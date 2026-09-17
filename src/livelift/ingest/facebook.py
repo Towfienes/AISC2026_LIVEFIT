@@ -15,17 +15,30 @@ Facts re-verified against the Graph API reference on **2026-09-09** (see
 - ``filter`` defaults to ``toplevel``, which hides replies. Live shoppers do
   reply to each other and to the shop, so we ask for ``stream`` (flat list
   including replies). Revert by setting :data:`COMMENT_FILTER` to ``toplevel``.
-- ``order=reverse_chronological`` is a *hint*: the docs say "if the comments
-  can be ranked, the order will always be ranked regardless of this modifier",
-  so nothing here may assume an ordering — each batch is re-sorted by time and
-  the cursor is taken from the max timestamp seen.
+- ``order`` MUST be ``chronological`` (kiểm toán 17/09/2026, báo cáo nghiên
+  cứu nền tảng §1.4 + khuyến nghị 4). The cursor of this client is
+  ``since = newest timestamp yielded`` and a poll reads at most
+  :data:`MAX_PAGES_PER_POLL` pages. That pair is loss-free ONLY when pages
+  walk oldest → newest: a burst bigger than the page cap is then finished by
+  the next poll, starting where this one stopped. With the earlier
+  ``reverse_chronological`` the pages walked newest → oldest, so the cap cut
+  off the OLDEST comments of the burst while the cursor jumped past them —
+  lost forever, silently, exactly like ``filter_low_quality``. (The 24/08
+  research note quoted Meta's advice to poll in ``reverse_chronological``;
+  combined with THIS client's page cap and ``since`` cursor that order drops
+  the oldest part of a burst, so the 17/09 recommendation is followed.)
+  Ordering is still only a *hint* — the docs say "if the comments can be
+  ranked, the order will always be ranked regardless of this modifier" — so
+  each batch is re-sorted by time and a seen-id set absorbs repeats.
 - **Pagination matters.** One page holds at most ``limit`` comments; a busy
   Vietnamese live room (or the first poll after a 60 s backoff) can exceed it.
-  Without following ``paging.next`` those comments are lost forever, because
-  the ``since`` cursor then jumps past them. We follow the ``after`` cursor up
-  to :data:`MAX_PAGES_PER_POLL` pages per poll. ``paging.cursors.after`` is
-  present even on the last page, so ``paging.next`` is what decides whether
-  another page exists.
+  We follow the ``after`` cursor up to :data:`MAX_PAGES_PER_POLL` pages per
+  poll. ``paging.cursors.after`` is present even on the last page, so
+  ``paging.next`` is what decides whether another page exists.
+- The FIRST poll starts at ``now − FIRST_POLL_LOOKBACK_S``, not at the start
+  of the broadcast: in chronological order an unbounded first poll would
+  replay an hour-old stream from its first comment before any live one
+  arrives. The lookback still recovers what a restarted runner missed.
 - Viewer count: ``GET /{live-video-id}?fields=live_views,status``. ``status``
   is checked FIRST — a broadcast walks LIVE → LIVE_STOPPED → PROCESSING → VOD
   and ``live_views`` can still be present after it stopped, which used to keep
@@ -89,6 +102,14 @@ COMMENT_PAGE_LIMIT = 100
 MAX_PAGES_PER_POLL = 10
 #: ``stream`` = flat list including replies; ``toplevel`` = replies dropped.
 COMMENT_FILTER = "stream"
+#: Oldest first — the only order in which a ``since`` cursor plus a page cap
+#: never skips comments (module docstring). Do not change to reverse.
+COMMENT_ORDER = "chronological"
+#: ``filter_low_quality`` (Graph's default) silently drops comments.
+COMMENT_LIVE_FILTER = "no_filter"
+#: How far back (seconds) the first poll reaches: covers a runner restart and
+#: some clock skew, without replaying an hour-old stream comment by comment.
+FIRST_POLL_LOOKBACK_S = 300
 
 #: Warn once the peak Graph usage percentage crosses this (Meta throttles at 100).
 USAGE_WARN_PCT = 75.0
@@ -279,8 +300,8 @@ def comment_params(
     parameter set must fail in the checker, not at T−0.
     """
     params = {
-        "order": "reverse_chronological",
-        "live_filter": "no_filter",
+        "order": COMMENT_ORDER,
+        "live_filter": COMMENT_LIVE_FILTER,
         "filter": COMMENT_FILTER,
         "fields": "id,message,created_time",
         "limit": str(limit),
@@ -449,61 +470,80 @@ class FacebookLiveClient:
     ) -> AsyncIterator[RawComment]:
         """Yield comments by polling with a ``since`` cursor.
 
-        ``live_filter=no_filter`` is non-negotiable (see module docstring).
-        Each poll follows ``paging.next`` up to :data:`MAX_PAGES_PER_POLL`
-        pages so a burst larger than one page is not silently dropped; the
-        very first poll takes ONE page only, because a stream that has been
-        running for an hour would otherwise be back-filled comment by comment
-        before the first live one arrives. Ordering from Graph is a hint, so
-        each poll's batch is re-sorted ascending before yielding.
+        ``live_filter=no_filter`` and ``order=chronological`` are
+        non-negotiable (see module docstring). Each poll follows
+        ``paging.next`` up to :data:`MAX_PAGES_PER_POLL` pages; when a burst is
+        bigger than that, the next poll resumes from the newest comment
+        yielded, so nothing is skipped — only delayed. The first poll starts
+        :data:`FIRST_POLL_LOOKBACK_S` seconds back instead of at the dawn of
+        the stream. Ordering from Graph is a hint, so each poll's batch is
+        re-sorted ascending before yielding.
         """
-        since: int | None = None
+        since: int = int(datetime.now(UTC).timestamp()) - FIRST_POLL_LOOKBACK_S
         seen: deque[str] = deque(maxlen=_SEEN_IDS_MAX)
         seen_set: set[str] = set()
         backoff = Backoff(base_s=poll_s, cap_s=max(poll_s, RETRY_CAP_S))
-        first_poll = True
         while True:
             after: str | None = None
             batch: list[RawComment] = []
-            failed = False
+            error: httpx.HTTPError | None = None
             for _page in range(MAX_PAGES_PER_POLL):
                 try:
                     data = await self._get(
                         f"/{live_video_id}/comments", comment_params(since, after)
                     )
                 except httpx.HTTPError as exc:
-                    await self._handle_poll_error("comment poll", exc, backoff)
-                    failed = True
+                    error = exc
                     break
                 items = data.get("data") or []
                 fresh = self._new_comments(items, seen, seen_set)
                 batch.extend(fresh)
                 after = next_page_cursor(data)
                 # Stop paging when the page was empty, Graph says there is no
-                # next page, everything on it was already seen (we caught up
-                # with the previous poll), or this is the bounded first poll.
-                if not items or after is None or not fresh or first_poll:
+                # next page, or a page AFTER progress in this poll brought
+                # nothing new (Graph is repeating itself — stop spending
+                # quota). An all-seen FIRST page is not a stop signal in
+                # chronological order: it is the 1 s overlap at ``since``,
+                # and the new comments sit on the pages after it.
+                if not items or after is None or (not fresh and batch):
                     break
             else:
                 logger.warning(
                     "comment poll: dừng ở %d trang trong một lần poll — phòng live quá "
-                    "đông, cân nhắc tăng poll_s hoặc chấp nhận trễ.",
+                    "đông; lần poll sau đọc tiếp từ bình luận mới nhất đã lấy (trễ, "
+                    "không mất).",
                     MAX_PAGES_PER_POLL,
                 )
-            if failed:
-                continue
-            self.last_error = None
-            backoff.reset()
-            first_poll = False
+            if error is None:
+                # Healthy BEFORE yielding: a consumer that reads the heartbeat
+                # while handling the first comment after a recovery must not
+                # still see the old error.
+                self.last_error = None
+                backoff.reset()
 
+            # Yield what WAS read even when a later page failed (kiểm toán
+            # 17/09/2026). ``_new_comments`` has already put these ids in the
+            # seen-set, so dropping the batch here lost them for good: the
+            # retry re-reads the same page and discards every comment on it as
+            # a duplicate — silent loss, the same class as filter_low_quality.
             for comment in sorted(batch, key=lambda c: c.ts_utc):
                 yield comment
+
+            if error is not None:
+                # The cursor stays put after a failed poll: the pages behind
+                # the failure are unread, and ordering is only a hint, so
+                # advancing ``since`` could skip them. The retry re-reads from
+                # the same point; the seen-set absorbs what was just yielded.
+                await self._handle_poll_error("comment poll", error, backoff)
+                continue
 
             if batch:
                 newest = max(c.ts_utc for c in batch)
                 # 1s overlap on purpose: the seen-id set absorbs duplicates,
                 # a forward-only cursor would drop same-second stragglers.
-                since = int(newest.timestamp())
+                # Never backwards: a straggler older than the cursor must not
+                # rewind it and make the next poll re-read old pages.
+                since = max(since, int(newest.timestamp()))
             await asyncio.sleep(poll_s)
 
     # -- viewers -----------------------------------------------------------

@@ -24,7 +24,9 @@ import pytest
 
 from livelift.ingest.facebook import (
     ENDED_STATUSES,
+    FIRST_POLL_LOOKBACK_S,
     LIVE_VIDEO_MAX_TRIES,
+    MAX_PAGES_PER_POLL,
     FacebookLiveClient,
     classify_error,
     comment_params,
@@ -92,13 +94,44 @@ def _thu_binh_luan(handler, n: int, poll_s: float = 1.0) -> list:
 
 def test_comment_params_never_filter_and_include_replies():
     params = comment_params()
-    # live_filter mặc định của Facebook là filter_low_quality -> mất intent.
+    # live_filter mặc định của Facebook là filter_low_quality -> ÂM THẦM mất
+    # bình luận (báo cáo nghiên cứu nền tảng 17/09 §1.4).
     assert params["live_filter"] == "no_filter"
     # filter mặc định là toplevel -> mất mọi bình luận trả lời.
     assert params["filter"] == "stream"
-    assert params["order"] == "reverse_chronological"
+    # Cũ trước (kiểm toán 17/09/2026): con trỏ since + trần số trang chỉ không
+    # mất bình luận khi các trang đi từ cũ đến mới. Test cũ khoá
+    # reverse_chronological — chính thứ tự làm rơi phần CŨ của một đợt bình
+    # luận dài hơn trần trang (xem test_burst_larger_than_page_cap_is_delayed_not_lost).
+    assert params["order"] == "chronological"
     assert "since" not in params
     assert "after" not in params
+
+
+def test_every_real_poll_request_carries_no_filter_and_chronological(sleeps):
+    """Không chỉ hàm tham số: MỌI request vòng poll thật gửi đi (kể cả trang
+    sau, kể cả lần poll sau) phải mang live_filter=no_filter + chronological."""
+    requests: list[httpx.URL] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request.url)
+        n = len(requests)
+        if n == 1:
+            return httpx.Response(
+                200,
+                json={
+                    "data": [_comment("c1", 1)],
+                    "paging": {"next": "https://graph/next", "cursors": {"after": "A1"}},
+                },
+            )
+        return httpx.Response(200, json={"data": [_comment(f"c{n}", n)]})
+
+    _thu_binh_luan(handler, 3)
+    assert len(requests) >= 3
+    for url in requests:
+        assert url.params.get("live_filter") == "no_filter"
+        assert url.params.get("order") == "chronological"
+        assert url.params.get("filter") == "stream"
 
 
 def test_comment_params_carries_cursors():
@@ -120,14 +153,116 @@ def test_next_page_cursor_requires_paging_next():
 
 def test_comment_poll_follows_next_page_and_dedupes(sleeps):
     """Một đợt bình luận dài hơn một trang phải được lấy hết trong CÙNG lần
-    poll: nếu bỏ trang sau, con trỏ ``since`` nhảy qua và mất vĩnh viễn."""
+    poll: đi tiếp trang bằng cursor Facebook trả về, bản trùng bị bỏ.
+
+    Sửa 17/09/2026: bản cũ khoá "lần poll đầu chỉ đọc 1 trang" — luật chặn
+    backfill của thứ tự reverse_chronological. Với chronological, chính con
+    trỏ since = now − FIRST_POLL_LOOKBACK_S chặn backfill, nên lần poll đầu
+    đi trang như mọi lần khác (bỏ trang 2 của nó là bỏ bình luận trong cửa sổ
+    nhìn lại)."""
     requests: list[httpx.URL] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         requests.append(request.url)
         after = request.url.params.get("after")
-        n = len(requests)
-        if n == 1:  # lần poll đầu — CÓ next nhưng phải bỏ qua (backfill bị chặn)
+        if after is None:  # trang 1
+            return httpx.Response(
+                200,
+                json={
+                    "data": [_comment("c1", 1), _comment("c2", 2)],
+                    "paging": {"next": "https://graph/next", "cursors": {"after": "A1"}},
+                },
+            )
+        # trang 2: có 1 bản trùng + 2 bản mới, hết trang
+        return httpx.Response(
+            200,
+            json={
+                "data": [_comment("c2", 2), _comment("c3", 3), _comment("c4", 4)],
+                "paging": {"cursors": {"after": "A2"}},
+            },
+        )
+
+    got = _thu_binh_luan(handler, 4)
+
+    assert [c.ext_id for c in got] == ["c1", "c2", "c3", "c4"]  # không trùng, đúng thứ tự
+    assert requests[0].params.get("after") is None
+    assert requests[1].params.get("after") == "A1", "trang 2 phải đọc trong CÙNG lần poll"
+    assert requests[0].params.get("since") == requests[1].params.get("since")
+
+
+def test_first_poll_starts_a_bounded_lookback_not_the_dawn_of_the_stream(sleeps):
+    """Theo thứ tự chronological, poll không có since sẽ đọc từ bình luận ĐẦU
+    TIÊN của buổi live — phát lại cả giờ trước khi tới bình luận đang diễn ra.
+    Lần poll đầu phải có since ≈ bây giờ − FIRST_POLL_LOOKBACK_S."""
+    requests: list[httpx.URL] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request.url)
+        return httpx.Response(200, json={"data": [_comment("c1", 1)]})
+
+    truoc = int(datetime.now(UTC).timestamp())
+    _thu_binh_luan(handler, 1)
+    sau = int(datetime.now(UTC).timestamp())
+
+    since = int(requests[0].params["since"])
+    assert truoc - FIRST_POLL_LOOKBACK_S <= since <= sau - FIRST_POLL_LOOKBACK_S
+
+
+def test_burst_larger_than_page_cap_is_delayed_not_lost(sleeps):
+    """Đợt bình luận dài hơn MAX_PAGES_PER_POLL trang: lần poll này dừng ở
+    trần, lần poll sau đọc TIẾP từ bình luận mới nhất đã lấy — không nhảy qua.
+
+    Mô phỏng Graph đúng nghĩa ``order=chronological`` + ``since``: danh sách
+    bình luận tăng dần theo thời gian, lọc ts >= since, mỗi trang 1 bản.
+    Với thứ tự cũ (reverse) phần CŨ của đợt này rơi mất vĩnh viễn.
+    """
+    base = datetime.now(UTC).replace(microsecond=0) - timedelta(seconds=120)
+    tong = MAX_PAGES_PER_POLL + 5
+    kho = [
+        {
+            "id": f"b{i:02d}",
+            "message": "chốt đơn",
+            "created_time": (base + timedelta(seconds=i)).strftime("%Y-%m-%dT%H:%M:%S+0000"),
+        }
+        for i in range(tong)
+    ]
+    ts_kho = [int((base + timedelta(seconds=i)).timestamp()) for i in range(tong)]
+    requests: list[httpx.URL] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request.url)
+        since = int(request.url.params["since"])
+        con_lai = [c for c, ts in zip(kho, ts_kho, strict=True) if ts >= since]
+        offset = int(request.url.params.get("after") or 0)
+        paging: dict[str, Any] = {"cursors": {"after": str(offset + 1)}}
+        if offset + 1 < len(con_lai):
+            paging["next"] = "https://graph/next"
+        return httpx.Response(200, json={"data": con_lai[offset : offset + 1], "paging": paging})
+
+    # Cửa sổ nhìn lại mặc định (300 s) đã phủ đợt bình luận bắt đầu 120 s trước.
+    assert FIRST_POLL_LOOKBACK_S >= 180
+    got = _thu_binh_luan(handler, tong)
+
+    assert [c.ext_id for c in got] == [c["id"] for c in kho], "không mất, không trùng, đúng thứ tự"
+    # Lần poll đầu dừng đúng ở trần trang, cùng một since.
+    lan_dau = requests[:MAX_PAGES_PER_POLL]
+    assert {u.params["since"] for u in lan_dau} == {lan_dau[0].params["since"]}
+    # Lần poll sau mở bằng since = bình luận MỚI NHẤT đã lấy, không nhảy qua phần còn lại.
+    mo_lan_hai = requests[MAX_PAGES_PER_POLL]
+    assert mo_lan_hai.params.get("after") is None
+    assert int(mo_lan_hai.params["since"]) == ts_kho[MAX_PAGES_PER_POLL - 1]
+
+
+def test_overlap_only_first_page_does_not_stall_the_poll(sleeps):
+    """Trang 1 toàn bản đã thấy (chính là 1 giây chồng lấn ở since) KHÔNG phải
+    tín hiệu dừng theo thứ tự chronological: bình luận mới nằm ở trang sau."""
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] == 1:  # poll 1: một bình luận, hết trang
+            return httpx.Response(200, json={"data": [_comment("c1", 1)]})
+        if request.url.params.get("after") is None:  # poll 2 trang 1: chỉ bản chồng lấn
             return httpx.Response(
                 200,
                 json={
@@ -135,35 +270,56 @@ def test_comment_poll_follows_next_page_and_dedupes(sleeps):
                     "paging": {"next": "https://graph/next", "cursors": {"after": "A1"}},
                 },
             )
-        if after is None:  # lần poll thứ hai, trang 1
+        return httpx.Response(200, json={"data": [_comment("c2", 2)]})  # poll 2 trang 2
+
+    got = _thu_binh_luan(handler, 2)
+    assert [c.ext_id for c in got] == ["c1", "c2"]
+
+
+def test_later_page_failure_does_not_lose_comments_already_read(sleeps):
+    """Trang 1 đọc được, trang 2 lỗi mạng (HTTP 500) giữa chừng.
+
+    Sửa 17/09/2026: bản cũ bỏ cả mẻ khi lỗi, nhưng id của trang 1 ĐÃ vào tập
+    đã thấy — lần thử lại đọc lại đúng trang đó rồi loại hết vì "trùng", nên
+    c1, c2 mất vĩnh viễn, âm thầm. Mẻ đã đọc phải được đẩy ra, con trỏ since
+    đứng yên để lần thử lại đọc tiếp phần chưa đọc.
+    """
+    requests: list[httpx.URL] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request.url)
+        n = len(requests)
+        if n == 1:  # poll 1, trang 1: hai bình luận, còn trang sau
             return httpx.Response(
                 200,
                 json={
-                    "data": [_comment("c2", 2), _comment("c3", 3)],
-                    "paging": {"next": "https://graph/next", "cursors": {"after": "A2"}},
+                    "data": [_comment("c1", 1), _comment("c2", 2)],
+                    "paging": {"next": "https://graph/next", "cursors": {"after": "A1"}},
                 },
             )
-        # trang 2 của lần poll thứ hai: có 1 bản trùng + 1 bản mới, hết trang
-        return httpx.Response(
-            200,
-            json={
-                "data": [_comment("c3", 3), _comment("c4", 4)],
-                "paging": {"cursors": {"after": "A3"}},
-            },
-        )
+        if n == 2:  # poll 1, trang 2: máy chủ Graph lỗi tạm thời
+            return httpx.Response(500, json={"error": {"message": "boom", "code": 1}})
+        if n == 3:  # lần thử lại: đọc lại từ đầu (chồng lấn) rồi có bình luận mới
+            return httpx.Response(
+                200, json={"data": [_comment("c1", 1), _comment("c2", 2), _comment("c3", 3)]}
+            )
+        # Các poll sau luôn có bình luận mới: nếu lỗi cũ quay lại, test ĐỎ với
+        # danh sách sai thay vì treo chờ c1, c2 không bao giờ tới.
+        return httpx.Response(200, json={"data": [_comment(f"x{n}", n % 60)]})
 
-    got = _thu_binh_luan(handler, 4)
+    got = _thu_binh_luan(handler, 3)
 
-    assert [c.ext_id for c in got] == ["c1", "c2", "c3", "c4"]  # không trùng, đúng thứ tự thời gian
-    # Lần poll đầu chỉ 1 trang: request thứ 2 mở lần poll mới (có since, không after).
-    assert requests[1].params.get("after") is None
-    assert requests[1].params.get("since") is not None
-    # Lần poll thứ hai đi tiếp trang bằng cursor Facebook trả về.
-    assert requests[2].params.get("after") == "A2"
+    assert [c.ext_id for c in got] == ["c1", "c2", "c3"], "không mất, không trùng"
+    # Lần thử lại mở bằng CÙNG since của lần poll lỗi (không nhảy qua trang chưa đọc).
+    assert requests[2].params.get("after") is None
+    assert requests[2].params["since"] == requests[0].params["since"]
+    # Lỗi vẫn đi qua đường backoff (có ngủ), không quay vòng nóng.
+    assert sleeps
 
 
 def test_comment_poll_stops_paging_when_page_is_all_seen(sleeps):
-    """Trang tiếp theo toàn bản đã thấy = đã bắt kịp lần poll trước -> dừng."""
+    """Một trang SAU KHI lần poll đã có bình luận mới mà không mang gì mới
+    = Graph đang lặp lại -> dừng, không đốt hạn mức tới trần trang."""
     calls = {"n": 0}
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -178,7 +334,7 @@ def test_comment_poll_stops_paging_when_page_is_all_seen(sleeps):
 
     got = _thu_binh_luan(handler, 1)
     assert [c.ext_id for c in got] == ["c1"]
-    # 1 lần đầu + tối đa vài lần poll sau, KHÔNG phải 10 trang mỗi lần.
+    # Trang 1 (mới) + trang 2 (lặp lại) rồi dừng, KHÔNG phải 10 trang mỗi lần.
     assert calls["n"] <= 2
 
 

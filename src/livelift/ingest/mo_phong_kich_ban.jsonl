@@ -1,0 +1,201 @@
+{"loai": "meta", "ten": "mac_dinh", "du_lieu_tong_hop": true, "nguon_goc": "Tác tử AI (Claude, Anthropic) soạn ngày 17/09/2026 theo yêu cầu của nhóm LiveLift. Mọi câu đều tự viết; không chép, không diễn đạt lại bình luận của người thật hay của bất kỳ buổi live có thật nào.", "ngay_soan": "2026-09-17", "nguoi_soan": "tác tử AI (Claude, Anthropic)", "muc_dich": "Chỉ để kiểm thử đầu-cuối và trình diễn đường ống (bộ thu → lọc thông tin cá nhân → phân loại ý định → WebSocket → Bàn trợ live) trên phiên chạy thử hoặc phiên mẫu.", "cam_dung": "KHÔNG dùng làm dữ liệu huấn luyện, dữ liệu đánh giá mô hình, bằng chứng về hành vi người xem thật hay số liệu trong hồ sơ thi. Máy chủ từ chối nguồn này trên phiên thật.", "thong_tin_ca_nhan_gia": "Không có tên, số điện thoại, địa chỉ hay email thật. Các dòng co_pii_gia=true CỐ Ý chứa số điện thoại, địa chỉ, email GIẢ định dạng rõ ràng (0900 000 00x, 'đường Thử Nghiệm', example.com) để trình diễn bộ lọc.", "truong_nhom": "Ý định người soạn nhắm tới khi viết câu — KHÔNG phải nhãn vàng, không dùng để chấm bộ phân loại. 'chi_so' là bình luận chỉ gõ số (chốt số, trả giá khi đấu giá).", "truong_t": "Giây tính từ đầu buổi — nhịp giả lập, không đo từ buổi live nào.", "nguoi_xem_goc": 60, "so_dong": 200, "thoi_luong_giay": 1308.2}
+{"t": 5.8, "text": "chào shop ạ", "nhom": "chao_hoi"}
+{"t": 11.8, "text": "hello cả nhà", "nhom": "chao_hoi"}
+{"t": 19.9, "text": "em vào rồi nè", "nhom": "khac"}
+{"t": 27.4, "text": "live hôm nay bán gì vậy shop", "nhom": "hoi_sanpham"}
+{"t": 30.8, "text": "chào chị, hôm nay nhìn tươi quá", "nhom": "cam_on_khen"}
+{"t": 34.1, "text": "đang nấu cơm vừa xem live", "nhom": "khac"}
+{"t": 36.8, "text": "mic hơi nhỏ shop ơi", "nhom": "khac"}
+{"t": 41.0, "text": "giờ nghe rõ rồi ạ", "nhom": "khac"}
+{"t": 44.8, "text": "👋👋", "nhom": "chao_hoi"}
+{"t": 52.2, "text": "chào mọi người, lần đầu xem live của shop", "nhom": "chao_hoi"}
+{"t": 60.1, "text": "hàng mới về hả shop", "nhom": "hoi_sanpham"}
+{"t": 63.2, "text": "hóng áo thun từ tuần trước", "nhom": "khac"}
+{"t": 66.3, "text": "có mã giảm giá không shop", "nhom": "hoi_gia"}
+{"t": 73.6, "text": "mạng lag quá", "nhom": "khac"}
+{"t": 81.2, "text": "ok hết lag rồi", "nhom": "khac"}
+{"t": 88.3, "text": "shop ơi cho xem lại cái áo trắng", "nhom": "hoi_sanpham"}
+{"t": 90.2, "text": "chào shop, em xem từ đầu nè", "nhom": "chao_hoi"}
+{"t": 96.6, "text": "❤️❤️❤️", "nhom": "cam_on_khen"}
+{"t": 119.1, "text": "áo thun này giá bao nhiêu vậy shop", "nhom": "hoi_gia"}
+{"t": 127.6, "text": "gia bn shop oi", "nhom": "hoi_gia"}
+{"t": 135.7, "text": "shop báo giá: áo thun cotton 159k, mua 2 cái còn 299k nha cả nhà", "nhom": "bao_gia_shop"}
+{"t": 138.8, "text": "sz M con ko", "nhom": "hoi_size"}
+{"t": 147.1, "text": "chốt 1 áo trắng size M", "nhom": "chot_don"}
+{"t": 156.0, "text": "chốt đơn, sđt 0900 000 000 nha shop", "nhom": "chot_don", "co_pii_gia": true}
+{"t": 162.0, "text": "vải cotton 100% hả shop", "nhom": "hoi_sanpham"}
+{"t": 164.1, "text": "áo có bị co sau khi giặt không", "nhom": "hoi_sanpham"}
+{"t": 173.8, "text": "em 48kg cao 1m55 mặc size gì ạ", "nhom": "hoi_size"}
+{"t": 180.8, "text": "còn size L không shop", "nhom": "hoi_size"}
+{"t": 184.2, "text": "159k hơi mắc á", "nhom": "che_dat"}
+{"t": 192.5, "text": "lấy 2 áo đen size L", "nhom": "chot_don"}
+{"t": 199.4, "text": "ship về Đà Nẵng mấy ngày shop", "nhom": "van_chuyen"}
+{"t": 203.5, "text": "có freeship không ạ", "nhom": "van_chuyen"}
+{"t": 207.1, "text": "màu be còn không shop", "nhom": "hoi_sanpham"}
+{"t": 212.9, "text": "áo đẹp ghê", "nhom": "cam_on_khen"}
+{"t": 216.5, "text": "chị mặc áo trắng xinh quá", "nhom": "cam_on_khen"}
+{"t": 221.6, "text": "1", "nhom": "chi_so"}
+{"t": 225.6, "text": "2", "nhom": "chi_so"}
+{"t": 230.2, "text": "+1 áo đen", "nhom": "chot_don"}
+{"t": 234.7, "text": "em 60kg mặc được không", "nhom": "hoi_size"}
+{"t": 237.6, "text": "form rộng hay ôm vậy shop", "nhom": "hoi_size"}
+{"t": 243.5, "text": "có size cho bé 10 tuổi không", "nhom": "hoi_size"}
+{"t": 246.4, "text": "mặc không vừa đổi size được không shop", "nhom": "khac"}
+{"t": 256.0, "text": "chốt 3 áo: trắng M, đen M, be L", "nhom": "chot_don"}
+{"t": 258.4, "text": "ship COD được không shop", "nhom": "van_chuyen"}
+{"t": 262.6, "text": "cho em hỏi phí ship bao nhiêu", "nhom": "van_chuyen"}
+{"t": 269.0, "text": "shop báo giá: đơn từ 2 áo miễn phí vận chuyển toàn quốc", "nhom": "bao_gia_shop"}
+{"t": 274.6, "text": "vậy lấy thêm 1 cái cho đủ freeship", "nhom": "chot_don"}
+{"t": 284.5, "text": "bên kia bán 120k thôi", "nhom": "che_dat"}
+{"t": 291.9, "text": "hàng này có giống hình không shop", "nhom": "hoi_sanpham"}
+{"t": 296.2, "text": "mua lần trước mặc cả năm vẫn đẹp", "nhom": "cam_on_khen"}
+{"t": 300.7, "text": "xin giá áo xanh rêu", "nhom": "hoi_gia"}
+{"t": 303.6, "text": "áo xanh rêu cũng 159k hả", "nhom": "hoi_gia"}
+{"t": 306.3, "text": "chốt xanh rêu size S", "nhom": "chot_don"}
+{"t": 311.4, "text": "S cho 45kg vừa không", "nhom": "hoi_size"}
+{"t": 320.3, "text": "kkk dễ thương", "nhom": "khac"}
+{"t": 329.0, "text": "sđt 0900.000.001, lấy 1 áo đen nha", "nhom": "chot_don", "co_pii_gia": true}
+{"t": 331.4, "text": "đang xem nè shop", "nhom": "khac"}
+{"t": 334.5, "text": "mấy giờ live tới vậy shop", "nhom": "khac"}
+{"t": 363.4, "text": "ôi váy hoa xinh quá", "nhom": "cam_on_khen"}
+{"t": 366.5, "text": "váy này bao nhiêu shop", "nhom": "hoi_gia"}
+{"t": 370.9, "text": "shop báo giá: váy hoa nhí 289k, có hai màu xanh và vàng", "nhom": "bao_gia_shop"}
+{"t": 381.0, "text": "289k đắt quá shop ơi", "nhom": "che_dat"}
+{"t": 388.9, "text": "giảm chút được không shop", "nhom": "che_dat"}
+{"t": 396.3, "text": "váy dài tới đâu vậy, em cao 1m58", "nhom": "hoi_size"}
+{"t": 405.8, "text": "eo 68cm mặc size nào", "nhom": "hoi_size"}
+{"t": 412.9, "text": "có size XL không ạ", "nhom": "hoi_size"}
+{"t": 420.4, "text": "chất voan hay lụa vậy shop", "nhom": "hoi_sanpham"}
+{"t": 423.3, "text": "váy có lót trong không", "nhom": "hoi_sanpham"}
+{"t": 434.4, "text": "mặc đi làm được không shop", "nhom": "hoi_sanpham"}
+{"t": 443.7, "text": "chốt váy vàng size M", "nhom": "chot_don"}
+{"t": 450.2, "text": "chốt 1 xanh size S", "nhom": "chot_don"}
+{"t": 456.2, "text": "em lấy 1 váy vàng, gửi về số 0 đường Thử Nghiệm, phường Mẫu", "nhom": "chot_don", "co_pii_gia": true}
+{"t": 465.9, "text": "ship nội thành bao lâu", "nhom": "van_chuyen"}
+{"t": 472.6, "text": "hôm nay đặt mai có không shop", "nhom": "van_chuyen"}
+{"t": 483.8, "text": "giao giờ hành chính hay cả tối ạ", "nhom": "van_chuyen"}
+{"t": 487.6, "text": "váy đẹp mà giá hơi chát", "nhom": "che_dat"}
+{"t": 497.8, "text": "thôi kệ, chốt luôn size L", "nhom": "chot_don"}
+{"t": 506.5, "text": "màu vàng lên hình có giống ngoài đời không", "nhom": "hoi_sanpham"}
+{"t": 511.5, "text": "chị xoay lại cho xem phía sau với", "nhom": "hoi_sanpham"}
+{"t": 521.8, "text": "đẹp thật sự 😍", "nhom": "cam_on_khen"}
+{"t": 527.5, "text": "mua 2 có giảm không shop", "nhom": "hoi_gia"}
+{"t": 530.2, "text": "2 váy bao nhiêu tiền", "nhom": "hoi_gia"}
+{"t": 535.5, "text": "shop báo giá: mua 2 váy còn 540k nha", "nhom": "bao_gia_shop"}
+{"t": 543.1, "text": "vậy chốt 2 váy, 1 xanh 1 vàng size M", "nhom": "chot_don"}
+{"t": 552.9, "text": "em ở xa có ship không", "nhom": "van_chuyen"}
+{"t": 557.9, "text": "ship ra đảo được không shop", "nhom": "van_chuyen"}
+{"t": 562.6, "text": "zalo em 0900 000 002 shop nhắn giúp nha", "nhom": "khac", "co_pii_gia": true}
+{"t": 565.8, "text": "hỏi hoài không thấy trả lời", "nhom": "khac"}
+{"t": 577.2, "text": "shop ơi rep em với", "nhom": "khac"}
+{"t": 583.5, "text": "mới vào, váy này giá sao ạ", "nhom": "hoi_gia"}
+{"t": 592.5, "text": "289k nha bạn", "nhom": "khac"}
+{"t": 603.2, "text": "cảm ơn bạn nha", "nhom": "cam_on_khen"}
+{"t": 610.9, "text": "váy có size cho bầu không", "nhom": "hoi_size"}
+{"t": 621.1, "text": "bầu 5 tháng mặc được không shop", "nhom": "hoi_size"}
+{"t": 629.3, "text": "gọi em số +84 900 000 005 để xác nhận nha", "nhom": "khac", "co_pii_gia": true}
+{"t": 639.2, "text": "váy hết size S chưa", "nhom": "hoi_size"}
+{"t": 643.3, "text": "chốt S xanh nếu còn", "nhom": "chot_don"}
+{"t": 648.1, "text": "hôm trước mua váy bên shop được khen quá trời", "nhom": "cam_on_khen"}
+{"t": 657.3, "text": "hàng có sẵn hay phải đặt trước vậy", "nhom": "hoi_sanpham"}
+{"t": 662.6, "text": "được kiểm hàng trước khi nhận không", "nhom": "van_chuyen"}
+{"t": 670.0, "text": "địa chỉ: số 00 hẻm Giả Định, khu phố Mẫu Thử", "nhom": "chot_don", "co_pii_gia": true}
+{"t": 676.4, "text": "😂😂", "nhom": "khac"}
+{"t": 680.1, "text": "váy này thích quá mà hết tiền rồi", "nhom": "che_dat"}
+{"t": 689.9, "text": "lương về chốt liền", "nhom": "khac"}
+{"t": 716.2, "text": "quần jean ống rộng này bao nhiêu shop", "nhom": "hoi_gia"}
+{"t": 721.7, "text": "shop báo giá: quần jean ống rộng 349k, xả kho còn 12 cái", "nhom": "bao_gia_shop"}
+{"t": 725.0, "text": "đấu giá hả shop, bắt đầu từ bao nhiêu", "nhom": "hoi_gia"}
+{"t": 730.6, "text": "shop báo giá: đấu giá áo khoác mẫu, khởi điểm 100k, mỗi lần tăng 10k", "nhom": "bao_gia_shop"}
+{"t": 737.6, "text": "110", "nhom": "chi_so"}
+{"t": 739.8, "text": "120", "nhom": "chi_so"}
+{"t": 742.0, "text": "130k", "nhom": "chi_so"}
+{"t": 746.5, "text": "150", "nhom": "chi_so"}
+{"t": 749.7, "text": "160", "nhom": "chi_so"}
+{"t": 751.9, "text": "170k", "nhom": "chi_so"}
+{"t": 758.5, "text": "200", "nhom": "chi_so"}
+{"t": 762.2, "text": "trời ơi 200 luôn", "nhom": "khac"}
+{"t": 764.7, "text": "210", "nhom": "chi_so"}
+{"t": 770.1, "text": "220k", "nhom": "chi_so"}
+{"t": 776.3, "text": "áo khoác size gì vậy shop", "nhom": "hoi_size"}
+{"t": 779.6, "text": "250", "nhom": "chi_so"}
+{"t": 787.7, "text": "thôi em rút", "nhom": "khac"}
+{"t": 792.1, "text": "260", "nhom": "chi_so"}
+{"t": 800.0, "text": "chúc mừng bạn 260", "nhom": "khac"}
+{"t": 802.7, "text": "quần jean eo 70 mặc size 28 hay 29", "nhom": "hoi_size"}
+{"t": 806.8, "text": "quần có giãn không shop", "nhom": "hoi_sanpham"}
+{"t": 809.3, "text": "em nặng 55kg cao 1m62 lấy size nào", "nhom": "hoi_size"}
+{"t": 813.9, "text": "chốt quần jean size 28", "nhom": "chot_don"}
+{"t": 818.8, "text": "28", "nhom": "chi_so"}
+{"t": 821.4, "text": "29", "nhom": "chi_so"}
+{"t": 824.3, "text": "quần màu xanh nhạt còn không", "nhom": "hoi_sanpham"}
+{"t": 831.0, "text": "349k mà xả kho gì mắc vậy", "nhom": "che_dat"}
+{"t": 836.2, "text": "mua quần kèm áo có giảm không", "nhom": "hoi_gia"}
+{"t": 838.1, "text": "shop báo giá: combo 1 quần + 1 áo thun 459k", "nhom": "bao_gia_shop"}
+{"t": 840.4, "text": "chốt combo quần 29 áo trắng M", "nhom": "chot_don"}
+{"t": 845.7, "text": "chốt combo nha, sdt O9OO OOO OO3", "nhom": "chot_don", "co_pii_gia": true}
+{"t": 853.9, "text": "giao hàng nhanh hay tiết kiệm vậy shop", "nhom": "van_chuyen"}
+{"t": 860.0, "text": "hôm nay chốt thì thứ mấy nhận", "nhom": "van_chuyen"}
+{"t": 866.8, "text": "có đồng kiểm không ạ", "nhom": "van_chuyen"}
+{"t": 870.4, "text": "quần đẹp nha, form chuẩn", "nhom": "cam_on_khen"}
+{"t": 873.6, "text": "3", "nhom": "chi_so"}
+{"t": 878.5, "text": "5", "nhom": "chi_so"}
+{"t": 885.2, "text": "số 5 là mẫu nào shop", "nhom": "hoi_sanpham"}
+{"t": 890.9, "text": "em lấy mẫu số 3", "nhom": "chot_don"}
+{"t": 893.8, "text": "mẫu 5 size M", "nhom": "chot_don"}
+{"t": 899.2, "text": "11", "nhom": "chi_so"}
+{"t": 903.2, "text": "A12", "nhom": "chi_so"}
+{"t": 908.4, "text": "A12 còn không shop", "nhom": "hoi_sanpham"}
+{"t": 912.1, "text": "hết A12 rồi hả, tiếc ghê", "nhom": "khac"}
+{"t": 920.2, "text": "shop có nhận sỉ không ạ", "nhom": "hoi_daily"}
+{"t": 926.5, "text": "em muốn làm cộng tác viên bán lại được không", "nhom": "hoi_daily"}
+{"t": 932.7, "text": "lấy số lượng nhiều giá sao shop", "nhom": "hoi_daily"}
+{"t": 934.8, "text": "email khach.mau@example.com, gửi bảng giá sỉ giúp em", "nhom": "hoi_daily", "co_pii_gia": true}
+{"t": 942.2, "text": "live có tiếng rè rè", "nhom": "khac"}
+{"t": 949.3, "text": "ok hết rè rồi shop", "nhom": "khac"}
+{"t": 955.7, "text": "shop ơi em chốt 2 quần mà chưa thấy xác nhận", "nhom": "khac"}
+{"t": 982.1, "text": "còn sản phẩm nào nữa không shop", "nhom": "hoi_sanpham"}
+{"t": 990.0, "text": "shop báo giá: cuối live áo thun đồng giá 139k trong 10 phút", "nhom": "bao_gia_shop"}
+{"t": 997.2, "text": "ơ rẻ hơn rồi, chốt thêm 1", "nhom": "chot_don"}
+{"t": 1004.3, "text": "139k áo nào cũng được hả", "nhom": "hoi_gia"}
+{"t": 1010.4, "text": "chốt 2 áo thun trắng size L giá 139k", "nhom": "chot_don"}
+{"t": 1021.7, "text": "vậy lúc nãy em mua 159k có được bù không", "nhom": "che_dat"}
+{"t": 1026.4, "text": "ship ra Hà Nội 2 ngày có nhận không", "nhom": "van_chuyen"}
+{"t": 1029.7, "text": "em ở tỉnh, phí ship 30k hả shop", "nhom": "van_chuyen"}
+{"t": 1039.5, "text": "đơn trên 500k freeship đúng không", "nhom": "van_chuyen"}
+{"t": 1043.8, "text": "giao về hẻm 0 đường Không Tên, thị trấn Mẫu nha shop", "nhom": "chot_don", "co_pii_gia": true}
+{"t": 1046.8, "text": "áo thun trẻ em có không shop", "nhom": "hoi_sanpham"}
+{"t": 1057.8, "text": "có size cho người 80kg không", "nhom": "hoi_size"}
+{"t": 1062.7, "text": "size XXL còn không", "nhom": "hoi_size"}
+{"t": 1074.8, "text": "chốt 1 áo đen XXL", "nhom": "chot_don"}
+{"t": 1079.2, "text": "cảm ơn shop, live vui quá", "nhom": "cam_on_khen"}
+{"t": 1085.0, "text": "shop tư vấn nhiệt tình ghê", "nhom": "cam_on_khen"}
+{"t": 1095.2, "text": "mai có live nữa không shop", "nhom": "khac"}
+{"t": 1100.0, "text": "tối mai mấy giờ live ạ", "nhom": "khac"}
+{"t": 1107.7, "text": "chị ơi cho xem lại váy hoa lần cuối", "nhom": "hoi_sanpham"}
+{"t": 1112.8, "text": "váy hoa còn size M không", "nhom": "hoi_size"}
+{"t": 1122.9, "text": "chốt váy xanh M", "nhom": "chot_don"}
+{"t": 1130.2, "text": "1 váy vàng L", "nhom": "chot_don"}
+{"t": 1136.7, "text": "2", "nhom": "chi_so"}
+{"t": 1145.1, "text": "chuyển khoản được không shop", "nhom": "khac"}
+{"t": 1151.8, "text": "có trả góp không shop 😂", "nhom": "khac"}
+{"t": 1159.7, "text": "giá 139k tới mấy giờ vậy", "nhom": "hoi_gia"}
+{"t": 1166.4, "text": "còn 3 phút thôi hả", "nhom": "khac"}
+{"t": 1174.3, "text": "chốt gấp 1 áo be M", "nhom": "chot_don"}
+{"t": 1180.9, "text": "+1 be M", "nhom": "chot_don"}
+{"t": 1190.9, "text": "👍👍", "nhom": "cam_on_khen"}
+{"t": 1198.4, "text": "hàng đẹp giá mềm, ủng hộ shop dài dài", "nhom": "cam_on_khen"}
+{"t": 1204.5, "text": "lần sau live báo sớm nha shop", "nhom": "khac"}
+{"t": 1215.1, "text": "em mới vào, hết giờ giảm giá chưa", "nhom": "hoi_gia"}
+{"t": 1218.7, "text": "tiếc quá vào trễ", "nhom": "khac"}
+{"t": 1224.9, "text": "shop có bán trên sàn không", "nhom": "hoi_sanpham"}
+{"t": 1236.0, "text": "shop có cửa hàng không, em qua lấy trực tiếp", "nhom": "van_chuyen"}
+{"t": 1242.5, "text": "nhận sỉ từ bao nhiêu cái vậy shop", "nhom": "hoi_daily"}
+{"t": 1254.7, "text": "zalo 0900 000 004 nha, gọi xác nhận đơn giúp em", "nhom": "chot_don", "co_pii_gia": true}
+{"t": 1261.7, "text": "chào shop em out đây", "nhom": "chao_hoi"}
+{"t": 1273.0, "text": "bye cả nhà", "nhom": "chao_hoi"}
+{"t": 1279.3, "text": "cảm ơn chị, hẹn live sau", "nhom": "cam_on_khen"}
+{"t": 1289.7, "text": "ngủ ngon mọi người", "nhom": "chao_hoi"}
+{"t": 1299.1, "text": "chúc shop đông khách", "nhom": "cam_on_khen"}
+{"t": 1303.6, "text": "😘", "nhom": "khac"}
+{"t": 1308.2, "text": "hẹn gặp lại tối mai nha", "nhom": "chao_hoi"}

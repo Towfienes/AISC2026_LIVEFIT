@@ -16,12 +16,23 @@
  *   `ket_qua_thi_nghiem` (which respects the §7 freeze server-side);
  * - the intent caveat (`phan_bo_y_dinh.caveat`) is ALWAYS displayed with the
  *   distribution — precision depends on each class's base rate.
+ *
+ * ĐÁNH GIÁ UI 17/09/2026 — hai sửa đổi:
+ * - LỖI TẢI ĐƯỢC PHÂN LOẠI. Bản cũ gộp mọi lỗi thành một câu nghi ngờ mạng
+ *   ("kiểm tra máy chủ API đã chạy chưa và phiên có tồn tại không"), kể cả
+ *   khi máy chủ đang sống và trả 404 "Không tìm thấy phiên live". Ba lỗi khác
+ *   nhau, ba việc cần làm khác nhau: KHÔNG CÓ PHIÊN NÀY (thử lại vô ích — đi
+ *   tìm đúng phiên), MẤT KẾT NỐI (thử lại), MÁY CHỦ BÁO LỖI (in nguyên văn câu
+ *   của máy chủ). Trang lỗi không còn các nút hành động của một báo cáo
+ *   (mở bàn, phát lại, in PDF) — không có báo cáo nào để hành động cả.
+ * - ĐƠN HÀNG (OrdersPanel): xem tổng đơn và nhập CSV ngay trên báo cáo.
  */
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import OrdersPanel from "@/components/OrdersPanel";
 import PageHeader from "@/components/PageHeader";
 import TomTat3Cau from "@/components/TomTat3Cau";
 import TopNav from "@/components/TopNav";
@@ -129,6 +140,39 @@ function OverviewTile({
   );
 }
 
+/**
+ * Ba loại lỗi tải báo cáo — không gộp.
+ *
+ * `request()` của api.ts ném `Error(detail)` với câu tiếng Việt của máy chủ khi
+ * máy chủ TRẢ LỜI mã lỗi (404 của `service.require_session` là "Không tìm thấy
+ * phiên live…"), ném `Error("API <mã> …")` khi thân lỗi không phải JSON, và để
+ * lọt `TypeError` (không nối được) hoặc `AbortError` (hết giờ) khi máy chủ
+ * KHÔNG trả lời.
+ *
+ * Chỉ câu 404 TIẾNG VIỆT của máy chủ mới được hiểu là "không có phiên này". Một
+ * 404 trần ("API 404 …" thân không phải JSON, hay "Not Found" mặc định của
+ * FastAPI) nghĩa là địa chỉ đó không phục vụ đường báo cáo — phiên có thể vẫn
+ * còn nguyên, nên KHÔNG được nói "không có phiên". 502/503/504 là cổng trung
+ * gian đứng trước máy chủ LiveLift báo không nối được tới nó: mất kết nối.
+ */
+type LoiBaoCao =
+  | { loai: "khong-co-phien"; maSai: boolean }
+  | { loai: "mat-ket-noi" }
+  | { loai: "may-chu-loi"; chiTiet: string | null };
+
+function phanLoaiLoi(e: unknown): LoiBaoCao {
+  const tenLoi =
+    typeof e === "object" && e !== null ? (e as { name?: unknown }).name : undefined;
+  if (e instanceof TypeError || tenLoi === "AbortError") return { loai: "mat-ket-noi" };
+  const msg = e instanceof Error ? e.message.trim() : "";
+  if (/^API 50[234]\b/.test(msg)) return { loai: "mat-ket-noi" };
+  if (msg.startsWith("Không tìm thấy phiên")) {
+    return { loai: "khong-co-phien", maSai: msg.includes("không hợp lệ") };
+  }
+  const kyThuat = msg === "" || msg.startsWith("API ") || msg === "Not Found";
+  return { loai: "may-chu-loi", chiTiet: kyThuat ? null : msg };
+}
+
 function ReportSkeleton() {
   return (
     <div aria-busy>
@@ -154,7 +198,7 @@ export default function BaoCaoPage() {
   const sessionId = typeof params?.id === "string" ? params.id : null;
 
   const [data, setData] = useState<BaoCao | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+  const [err, setErr] = useState<LoiBaoCao | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -163,10 +207,9 @@ export default function BaoCaoPage() {
     setErr(null);
     try {
       setData(await getBaoCao(sessionId));
-    } catch {
-      setErr(
-        "Không đọc được báo cáo — kiểm tra máy chủ API đã chạy chưa và phiên có tồn tại không.",
-      );
+    } catch (e) {
+      setData(null);
+      setErr(phanLoaiLoi(e));
     } finally {
       setLoading(false);
     }
@@ -175,6 +218,18 @@ export default function BaoCaoPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  /** Đọc lại báo cáo mà không bật khung xương — sau khi nhập đơn, để ma trận
+   *  tín hiệu ("Đơn hàng đối soát") khớp ngay với số đơn vừa ghi. Hỏng thì giữ
+   *  bản đang hiện: bản đó vẫn đúng tới trước lúc nhập. */
+  const refreshQuiet = useCallback(async () => {
+    if (!sessionId) return;
+    try {
+      setData(await getBaoCao(sessionId));
+    } catch {
+      /* giữ nguyên bản đang hiển thị */
+    }
+  }, [sessionId]);
 
   const tq = data?.tong_quan ?? null;
   const observational = data?.loai_phien === "quan_sat";
@@ -214,34 +269,93 @@ export default function BaoCaoPage() {
               <p className="mt-1 text-strong text-ink">{data.tieu_de ?? data.session_id}</p>
               {/* Nhãn nguồn của TOÀN trang — nói rõ báo cáo này được phép nói gì. */}
               <p className="mt-1 max-w-3xl text-body leading-relaxed text-sec">{data.nhan}</p>
+              {/* Nút hành động CHỈ khi đã có báo cáo: trên trang lỗi không có gì để
+                  mở, phát lại hay in. */}
+              <div className="mt-3 flex flex-wrap items-center gap-2 print:hidden">
+                <Link
+                  href={`/ket-qua?phien=${data.session_id}`}
+                  className={buttonCls("ghost", "sm")}
+                >
+                  Kết quả phiên này
+                </Link>
+                <Link href="/desk" className={buttonCls("ghost", "sm")}>
+                  Mở bàn trợ live
+                </Link>
+                <Link
+                  href={`/replay?session=${encodeURIComponent(data.session_id)}`}
+                  className={buttonCls("ghost", "sm")}
+                >
+                  Xem phát lại
+                </Link>
+                <Button variant="ghost" size="sm" onClick={() => window.print()}>
+                  In / lưu PDF
+                </Button>
+              </div>
             </>
           ) : null}
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            {sessionId ? (
-              <Link href={`/ket-qua?phien=${sessionId}`} className={buttonCls("ghost", "sm")}>
-                Kết quả phiên này
-              </Link>
-            ) : null}
-            <Link href="/desk" className={buttonCls("ghost", "sm")}>
-              Mở bàn trợ live
-            </Link>
-            <Link href="/replay" className={buttonCls("ghost", "sm")}>
-              Xem phát lại
-            </Link>
-            <Button variant="ghost" size="sm" onClick={() => window.print()}>
-              In / lưu PDF
-            </Button>
-          </div>
         </PageHeader>
 
         {loading ? <ReportSkeleton /> : null}
 
-        {err ? (
-          <Callout tone="critical">
-            {err}{" "}
+        {/* ── Lỗi tải: ba loại, ba câu, ba việc cần làm ── */}
+        {!loading && err?.loai === "khong-co-phien" ? (
+          <Card padding="lg" className="max-w-3xl" data-loi="khong-co-phien">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge tone="neutral">
+                <span aria-hidden className="font-bold">
+                  ?
+                </span>
+                KHÔNG CÓ PHIÊN NÀY
+              </Badge>
+            </div>
+            <h2 className="mt-3 font-display text-title font-bold tracking-tight text-ink">
+              Máy chủ không có phiên nào mang mã này
+            </h2>
+            <p className="mt-2 text-body leading-relaxed text-sec">
+              {err.maSai
+                ? "Mã phiên trong đường dẫn không đúng định dạng — thường do link bị cắt mất một đoạn khi dán."
+                : "Link có thể bị gõ nhầm, hoặc phiên thuộc một máy chủ khác."}{" "}
+              Máy chủ vẫn trả lời, nên bấm thử lại cũng không ra báo cáo — hãy mở đúng phiên từ
+              danh sách.
+            </p>
+            {sessionId ? (
+              <p className="mt-2 break-all text-meta text-dim">
+                Mã đã mở: <span className="font-num text-sec">{sessionId}</span>
+              </p>
+            ) : null}
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <Link href="/ket-qua" className={buttonCls("primary")}>
+                Xem danh sách phiên
+              </Link>
+              <Link href="/" className={buttonCls("ghost")}>
+                Về trang chính
+              </Link>
+            </div>
+          </Card>
+        ) : null}
+
+        {!loading && err?.loai === "mat-ket-noi" ? (
+          <Callout tone="critical" className="max-w-3xl">
+            <strong>Mất kết nối tới máy chủ — chưa đọc được báo cáo.</strong> Nếu phiên có thật,
+            dữ liệu vẫn còn nguyên trên máy chủ; bật lại máy chủ LiveLift rồi thử lại.{" "}
             <button
+              type="button"
               onClick={() => void load()}
-              className="focus-ring rounded underline underline-offset-2 transition-colors duration-short2 ease-emphasized hover:text-ink"
+              className="focus-ring min-h-tap rounded underline underline-offset-2 transition-colors duration-short2 ease-emphasized hover:text-ink"
+            >
+              Thử lại
+            </button>
+          </Callout>
+        ) : null}
+
+        {!loading && err?.loai === "may-chu-loi" ? (
+          <Callout tone="critical" className="max-w-3xl">
+            <strong>Máy chủ đang chạy nhưng không lập được báo cáo.</strong>{" "}
+            {err.chiTiet ? <>Máy chủ nói: “{err.chiTiet}”. </> : null}
+            <button
+              type="button"
+              onClick={() => void load()}
+              className="focus-ring min-h-tap rounded underline underline-offset-2 transition-colors duration-short2 ease-emphasized hover:text-ink"
             >
               Thử lại
             </button>
@@ -358,6 +472,15 @@ export default function BaoCaoPage() {
               </div>
             </section>
 
+            {/* 2b — Đơn hàng: chỉ số PHỤ. Đặt ngay dưới ma trận tín hiệu, nơi dòng
+                "Đơn hàng đối soát" báo THIẾU — người bán sửa được ngay tại chỗ. */}
+            <OrdersPanel
+              sessionId={data.session_id}
+              isDemo={data.is_demo}
+              onImported={() => void refreshQuiet()}
+              className="mt-6"
+            />
+
             {/* 3 — Khoảnh khắc nổi bật (câu quan sát dán nhãn, không nhân quả) */}
             <section className="mt-6">
               <SectionTitle meta="spike nhịp bình luận trên nền 5 phút">
@@ -451,7 +574,7 @@ export default function BaoCaoPage() {
                     href="/chay-phien"
                     className="focus-ring rounded underline underline-offset-2"
                   >
-                    Chạy phiên
+                    Chuẩn bị phiên
                   </Link>
                   .
                 </Card>

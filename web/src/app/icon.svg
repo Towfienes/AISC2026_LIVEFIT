@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <title>LiveLift</title>
+  <rect width="32" height="32" rx="7" fill="#07080d"/>
+  <rect x="6" y="6" width="20" height="20" rx="5" fill="#7c6cff"/>
+  <path d="M12 21V11M12 21h8" fill="none" stroke="#07080d" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -66,9 +66,19 @@ export interface SignalTile {
    * quà thường là THIẾU) mà không chiếm chỗ của 4 KPI vận hành chính.
    */
   compact?: boolean;
+  /**
+   * Việc người vận hành làm được NGAY để lấp nguồn thiếu (gói C7) — chỉ in ở
+   * trạng thái THIẾU. Ví dụ ô Bình luận: chỉ cách bật Bộ thu bình luận thay vì
+   * một câu "nguồn chat chưa nối" không kèm lối ra.
+   */
+  fix?: string;
 }
 
 const LOADING_HINT = "đang tải ma trận tín hiệu…";
+
+/** Cách bật bộ thu — đúng tên khung và tên nút trên bàn (IngestPanel). */
+export const COMMENTS_FIX =
+  "Bật ở khung “Bộ thu bình luận”: chọn nền tảng, dán link buổi live rồi bấm “Bật bộ thu”.";
 
 /** Các nhãn ý định "đang muốn mua" của radar — dùng cho ô KPI thứ tư. */
 const BUY_INTENTS = new Set(["hoi_gia", "hoi_size", "chot_don", "van_chuyen"]);
@@ -154,15 +164,45 @@ export function buildSignalTiles(input: {
   }
 
   // 2. bình luận / phút — comment_rate của điểm đo 30 giây gần nhất
+  const commentsSig = find("comments");
+  // "Chưa có bình luận nào" chỉ được nói khi CẢ bàn lẫn máy chủ đều không có:
+  // bàn chưa nhận bình luận nào VÀ ma trận nói nguồn bình luận thiếu (hoặc
+  // chưa có ma trận — bản xem thử). Nếu không, một phiên có bình luận đang về
+  // mà nguồn không gửi điểm đo nhịp (kênh YouTube ẩn số người xem) sẽ bị báo
+  // "bộ thu chưa bật" ngay cạnh feed đầy bình luận.
+  const noCommentsSeen =
+    comments.length === 0 && (commentsSig == null || commentsSig.status === "missing");
+  // Ma trận nói KHÔNG có bình luận nào và mọi điểm đo đều ghi nhịp 0: số 0 đó
+  // là chỗ trống của một nguồn chưa bật, không phải phép đo — in THIẾU.
+  const commentsAbsent =
+    noCommentsSeen && commentsSig != null && tail.every((t) => !(t.comment_rate > 0));
   let commentTile: SignalTile;
   if (waiting) {
     commentTile = { key: "comments", label: "Bình luận / phút", state: "value", value: null, hint: LOADING_HINT };
-  } else if (lastTick == null) {
+  } else if (commentsAbsent || (lastTick == null && noCommentsSeen)) {
     commentTile = {
       key: "comments",
       label: "Bình luận / phút",
       state: "missing",
-      reason: "chưa có điểm đo nhịp bình luận nào — nguồn chat chưa nối hoặc phiên chưa bắt đầu",
+      reason: ended
+        ? "phiên không ghi được bình luận nào"
+        : "chưa nhận được bình luận nào — bộ thu bình luận chưa bật hoặc buổi live chưa bắt đầu",
+      // Phiên đã đóng thì không còn gì để bật; bản demo không có bộ thu.
+      fix: ended || connection !== "live" ? undefined : COMMENTS_FIX,
+    };
+  } else if (lastTick == null) {
+    // Bình luận CÓ về nhưng nguồn không gửi điểm đo nhịp 30 giây nào: không
+    // tính được bình luận/phút. Suy giảm (không phải THIẾU nguồn) và KHÔNG mời
+    // bật bộ thu — bộ thu đang chạy.
+    commentTile = {
+      key: "comments",
+      label: "Bình luận / phút",
+      state: "degraded",
+      value: null,
+      raw: null,
+      reason: ended
+        ? "phiên có bình luận nhưng không có điểm đo nhịp nào — không tính được bình luận/phút"
+        : "bình luận đang về nhưng nguồn chưa gửi điểm đo nhịp — chưa tính được bình luận/phút",
     };
   } else {
     commentTile = {
@@ -413,6 +453,12 @@ function Tile({ tile }: { tile: SignalTile }) {
           <p className="mt-1.5 line-clamp-3 text-meta leading-snug text-dim" title={tile.reason}>
             {tile.reason}
           </p>
+          {tile.fix ? (
+            <p className="mt-1 text-meta font-semibold leading-snug text-info-ink">
+              <span aria-hidden>→ </span>
+              {tile.fix}
+            </p>
+          ) : null}
         </>
       ) : (
         <>

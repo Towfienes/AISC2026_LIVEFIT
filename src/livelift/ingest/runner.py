@@ -251,6 +251,13 @@ def main(argv: list[str] | None = None) -> int:
     except httpx.HTTPError as exc:
         logger.error("ingest aborted on transport error: %s", type(exc).__name__)
         return 1
+    except (RuntimeError, ValueError) as exc:
+        # Lỗi của client nền tảng (thiếu khoá, sai vùng, buổi live chưa phát…)
+        # mang câu tiếng Việt có hướng sửa — in câu đó, không in traceback
+        # (kiểm toán 17/09/2026). Muốn TỰ CHỜ buổi live bắt đầu thì bật bộ thu
+        # từ trình duyệt: bộ thu chạy nền trong API có trạng thái chờ lên sóng.
+        logger.error("Bộ thu dừng: %s", str(exc)[:400])
+        return 1
     return 0
 
 

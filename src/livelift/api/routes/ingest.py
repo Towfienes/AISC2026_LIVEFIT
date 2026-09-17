@@ -8,6 +8,11 @@
 Bật/tắt là đường TỐN TÀI NGUYÊN (mở kết nối tới nền tảng, đốt quota của khoá
 thật) nên đòi token ghi như ``/replays/youtube`` — bản trưng bày công khai không
 cho khách vãng lai bật. Chế độ phát triển cục bộ (INGEST_TOKEN rỗng) vẫn mở.
+
+Nguồn ``mo_phong`` (17/09/2026) phát bình luận TỔNG HỢP để kiểm thử trọn đường
+ống không cần khoá nền tảng. Nó CHỈ được bật trên phiên chạy thử (``dry_run``)
+hoặc phiên mẫu (``is_demo``); phiên thật nhận 422 — dữ liệu bịa không bao giờ
+được trộn vào dữ liệu thật.
 """
 
 from __future__ import annotations
@@ -21,9 +26,12 @@ from pydantic import BaseModel, Field
 from livelift.api import service
 from livelift.api.auth import chi_token
 from livelift.api.ingest_jobs import (
+    LOI_MO_PHONG_PHIEN_THAT,
+    NEN_TANG_MO_PHONG,
     NEN_TANG_THU,
     IngestConflictError,
     IngestManager,
+    cho_phep_mo_phong,
     chuan_hoa_nguon,
     muc_san_sang_nen_tang,
 )
@@ -44,10 +52,12 @@ class PlatformReadiness(BaseModel):
 
 
 class IngestStartIn(BaseModel):
-    platform: Literal["youtube", "facebook", "shopee"] | None = None
-    """Bỏ trống = dùng nền tảng của phiên (nếu nền tảng đó có bộ thu)."""
+    platform: Literal["youtube", "facebook", "shopee", "mo_phong"] | None = None
+    """Bỏ trống = dùng nền tảng của phiên (nếu nền tảng đó có bộ thu; phiên
+    ``sim`` dùng nguồn mô phỏng)."""
     source: str = Field(default="", max_length=500)
-    """Link hoặc id nguồn. Facebook: bỏ trống để tự tìm buổi đang phát trên Page."""
+    """Link hoặc id nguồn. Facebook: bỏ trống để tự tìm buổi đang phát trên Page.
+    Mô phỏng: bỏ trống = kịch bản mặc định, hoặc ``"ngắn x10"``."""
 
 
 class IngestStatus(BaseModel):
@@ -107,6 +117,8 @@ async def ingest_start(
             detail="Phiên đã đóng — không bật bộ thu cho phiên đã kết thúc. Tạo phiên mới.",
         )
     platform = body.platform or session.get("platform")
+    if platform == "sim":
+        platform = NEN_TANG_MO_PHONG
     if platform not in NEN_TANG_THU:
         raise HTTPException(
             status_code=422,
@@ -115,6 +127,8 @@ async def ingest_start(
                 "hoặc shopee; TikTok không có API công khai cho bình luận live."
             ),
         )
+    if platform == NEN_TANG_MO_PHONG and not cho_phep_mo_phong(session):
+        raise HTTPException(status_code=422, detail=LOI_MO_PHONG_PHIEN_THAT)
     san_sang = {p["platform"]: p for p in muc_san_sang_nen_tang(get_settings())}[platform]
     if not san_sang["ready"]:
         raise HTTPException(

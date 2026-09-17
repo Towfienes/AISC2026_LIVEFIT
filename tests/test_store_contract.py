@@ -110,6 +110,55 @@ def test_duplicate_shortlink_code_rejected(name, store):
         store.create_shortlink(_link(code))
 
 
+@pytest.mark.parametrize(("name", "store"), list(_stores()), ids=lambda v: getattr(v, "backend", v))
+def test_count_shortlinks_counts_only_this_sessions_links(name, store):
+    """``count_shortlinks`` đếm đúng link GẮN phiên — như nhau ở mọi backend.
+
+    Kiểm toán 17/09/2026 (HDSD giới hạn #8): ma trận tín hiệu dùng số này để
+    tách "chưa tạo link đo" khỏi "có link, chưa ai bấm". Link của phiên khác
+    hay link không gắn phiên (session_id NULL) mà lọt vào phép đếm thì phiên
+    không có link sẽ được báo là "đã tạo link" — nhận vơ năng lực.
+    """
+    if name == "postgres":
+        pytest.importorskip("psycopg")
+    store.create_product(_product())
+    sid = store.create_session(_session_row())["session_id"]
+    other = store.create_session(_session_row())["session_id"]
+    tag = uuid.uuid4().hex[:8]
+
+    assert store.count_shortlinks(sid) == 0, "phiên mới chưa có link nào"
+
+    for i in range(3):
+        store.create_shortlink({**_link(f"cnt-{tag}-{i}"), "session_id": sid})
+    store.create_shortlink({**_link(f"cnt-{tag}-other"), "session_id": other})
+    store.create_shortlink(_link(f"cnt-{tag}-free"))  # không gắn phiên
+
+    assert store.count_shortlinks(sid) == 3
+    assert store.count_shortlinks(other) == 1
+    assert store.count_shortlinks(str(uuid.uuid4())) == 0, "phiên không tồn tại: 0, không lỗi"
+    assert isinstance(store.count_shortlinks(sid), int)
+
+
+def test_count_shortlinks_is_wrapped_by_the_store_lock():
+    """InMemoryStore khoá MỌI phương thức công khai qua ``@_synchronized`` —
+    phép đếm mới duyệt dict link nên phải nằm trong khoá, không tự bọc tay."""
+    store = InMemoryStore()
+    assert getattr(InMemoryStore.count_shortlinks, "__wrapped__", None) is not None
+    acquired: list[bool] = []
+
+    class _SpyLock:
+        def __enter__(self):
+            acquired.append(True)
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    store._lock = _SpyLock()
+    store.count_shortlinks("x")
+    assert acquired == [True]
+
+
 def test_product_upsert_is_idempotent():
     """Re-creating the same product must not raise (demo re-seeding relies on it)."""
     store = InMemoryStore()

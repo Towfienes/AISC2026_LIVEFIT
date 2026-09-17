@@ -6,10 +6,16 @@ Chạy (từ thư mục gốc repo, sau khi đã điền danh tính vào .env):
     .venv/Scripts/python scripts/kiem_tra_shopee.py --session-id <SESSION_ID>
     python scripts/kiem_tra_shopee.py --session-id <SESSION_ID>     # macOS/Linux
 
-Script **CHỈ ĐỌC** — không đăng bình luận, không bắt đầu/kết thúc phiên nào.
-Nó gọi đúng ba endpoint mà runner sẽ gọi trong phiên thật
-(``get_session_detail``, ``get_session_metric``, ``get_latest_comment_list``),
-rồi in bảng tiếng Việt và KẾT LUẬN "SẴN SÀNG / CHƯA SẴN SÀNG" kèm cách sửa.
+Script **CHỈ ĐỌC** — không đăng bình luận, không ghim sản phẩm, không bắt
+đầu/kết thúc phiên nào. Nó gọi đúng ba endpoint mà runner sẽ gọi trong phiên
+thật (``get_session_detail``, ``get_session_metric``,
+``get_latest_comment_list``), rồi in bảng tiếng Việt và KẾT LUẬN
+"SẴN SÀNG / CHƯA SẴN SÀNG" kèm cách sửa.
+
+Danh tính (sửa 17/09/2026): API livestream của Shopee là loại "User" — tài liệu
+gốc open.shopee.com ghi tham số chung ``partner_id, timestamp, access_token,
+user_id, sign``. Vì vậy ``SHOPEE_USER_ID`` là BẮT BUỘC; ``SHOPEE_SHOP_ID`` chỉ
+cần cho ghim sản phẩm (``update_show_item``) nên thiếu chỉ là cảnh báo.
 
 Mã thoát: 0 = SẴN SÀNG, 1 = CHƯA SẴN SÀNG (dùng được trong checklist trước phiên).
 
@@ -24,6 +30,9 @@ from __future__ import annotations
 import argparse
 import asyncio
 from dataclasses import dataclass, field
+from typing import Any
+
+import httpx
 
 from livelift.config import get_settings
 from livelift.console import configure
@@ -31,12 +40,14 @@ from livelift.ingest.shopee import (
     COMMENT_WINDOW_S,
     MAX_SAFE_POLL_S,
     REGION_BASE_URLS,
+    REQUIRED_ENV_LIVESTREAM,
     STATUS_ENDED,
     STATUS_INIT,
     STATUS_ONGOING,
     ShopeeApiError,
     ShopeeLiveClient,
     classify_error,
+    credential_problem,
     parse_comment,
 )
 
@@ -72,25 +83,48 @@ class KetQua:
 def mo_ta_loi(exc: ShopeeApiError) -> str:
     """Thông điệp tiếng Việt cho một lỗi Shopee, kèm việc phải làm."""
     kind = classify_error(exc)
+    if kind == "region":
+        return (
+            f"{exc.code} — tài khoản này CHƯA được cấp API livestream ở vùng hiện tại "
+            "(Shopee báo 'not supported for current region'). Thử lại không sửa được."
+        )
+    if kind == "session":
+        return f"{exc.code} — session_id sai hoặc không thuộc tài khoản SHOPEE_USER_ID đã ủy quyền."
+    if kind == "not_live":
+        return f"{exc.code} — KHÔNG có buổi live nào đang phát ở session_id này."
     if kind == "auth":
         return (
             f"{exc.code} — danh tính sai hoặc token hết hạn. access_token của "
-            "Shopee chỉ sống 4 giờ: làm mới bằng refresh_token, rồi dán lại "
-            "SHOPEE_ACCESS_TOKEN vào .env."
+            "Shopee chỉ sống 4 giờ và phải cấp cho đúng SHOPEE_USER_ID: làm mới "
+            "bằng refresh_token theo user_id, rồi dán lại SHOPEE_ACCESS_TOKEN vào .env."
         )
     if kind == "rate_limit":
         return f"{exc.code} — đang bị bóp nhịp gọi. Token VẪN TỐT; chờ rồi thử lại."
     return f"{exc.code} — lỗi tạm thời/máy chủ. Thử lại sau ít phút."
 
 
-def _muc_1_danh_tinh(kq: KetQua) -> ShopeeLiveClient | None:
+def _cach_sua(exc: ShopeeApiError, mac_dinh: str) -> str:
+    kind = classify_error(exc)
+    if kind == "region":
+        return (
+            "kiểm tra app trên open.shopee.com đã được duyệt nhóm Livestream cho Việt "
+            "Nam chưa; nếu chưa, dùng số liệu xuất tay từ Kênh Người Bán"
+        )
+    if kind == "session":
+        return "lấy lại session_id của đúng buổi live do tài khoản SHOPEE_USER_ID phát"
+    return mac_dinh
+
+
+def _muc_1_danh_tinh(
+    kq: KetQua, s: Any, http: httpx.AsyncClient | None = None
+) -> ShopeeLiveClient | None:
     print("1) DANH TÍNH")
-    s = get_settings()
     cap = {
         "SHOPEE_PARTNER_ID": s.shopee_partner_id,
         "SHOPEE_PARTNER_KEY": s.shopee_partner_key,
-        "SHOPEE_SHOP_ID": s.shopee_shop_id,
+        "SHOPEE_USER_ID": s.shopee_user_id,
         "SHOPEE_ACCESS_TOKEN": s.shopee_access_token,
+        "SHOPEE_SHOP_ID": s.shopee_shop_id,
     }
     for ten, gia_tri in cap.items():
         if ten.endswith(("KEY", "TOKEN")):
@@ -98,12 +132,11 @@ def _muc_1_danh_tinh(kq: KetQua) -> ShopeeLiveClient | None:
         else:
             mo_ta = gia_tri or "TRỐNG"
         print(f"   {ten:22s}: {mo_ta}")
-    thieu = [ten for ten, gia_tri in cap.items() if not gia_tri]
-    if thieu:
+    van_de = credential_problem(cap, REQUIRED_ENV_LIVESTREAM)
+    if van_de:
         kq.bao_chan(
-            "Thiếu " + ", ".join(thieu) + " trong .env",
-            "xin partner_id/partner_key ở open.shopee.com rồi chạy luồng ủy quyền "
-            "shop — xem docs/nen-tang-ho-tro.md §4",
+            van_de,
+            "xin partner_id/partner_key ở open.shopee.com rồi ủy quyền tài khoản người phát",
         )
         return None
     vung = (s.shopee_region or "global").strip().lower()
@@ -114,12 +147,27 @@ def _muc_1_danh_tinh(kq: KetQua) -> ShopeeLiveClient | None:
         )
         return None
     print(f"   {'SHOPEE_REGION':22s}: {vung} → {REGION_BASE_URLS[vung]}")
+    if not (s.shopee_shop_id or "").strip():
+        kq.bao_canh(
+            "Chưa có SHOPEE_SHOP_ID — đọc bình luận và chỉ số KHÔNG cần, nhưng ghim "
+            "sản phẩm qua API (update_show_item) sẽ không chạy."
+        )
+    elif not s.shopee_shop_id.strip().isdigit():
+        kq.bao_canh("SHOPEE_SHOP_ID phải là dãy số — ghim sản phẩm qua API sẽ bị từ chối.")
     if not s.shopee_refresh_token:
         kq.bao_canh(
             "Chưa có SHOPEE_REFRESH_TOKEN — access_token hết hạn sau 4 giờ và "
             "sẽ không tự làm mới được giữa phiên."
         )
-    return ShopeeLiveClient()
+    return ShopeeLiveClient(
+        partner_id=s.shopee_partner_id,
+        partner_key=s.shopee_partner_key,
+        user_id=s.shopee_user_id,
+        access_token=s.shopee_access_token,
+        shop_id=s.shopee_shop_id,
+        region=vung,
+        client=http,
+    )
 
 
 async def _muc_2_phien(client: ShopeeLiveClient, kq: KetQua, session_id: str) -> int | None:
@@ -128,19 +176,39 @@ async def _muc_2_phien(client: ShopeeLiveClient, kq: KetQua, session_id: str) ->
     try:
         detail = await client.get_session_detail(session_id)
     except ShopeeApiError as exc:
-        kq.bao_chan(f"get_session_detail thất bại: {mo_ta_loi(exc)}", "sửa theo dòng trên")
+        kq.bao_chan(
+            f"get_session_detail thất bại: {mo_ta_loi(exc)}", _cach_sua(exc, "sửa theo dòng trên")
+        )
         return None
     status = detail.get("status")
     status_int = int(status) if status is not None else None
     print(f"   Tiêu đề          : {detail.get('title') or '(không có)'}")
     print(f"   session_id       : {detail.get('session_id') or session_id}")
     print(f"   Trạng thái       : {TEN_TRANG_THAI.get(status_int, f'không rõ ({status})')}")
-    if status_int == STATUS_ENDED:
+    if status_int is not None and status_int != STATUS_ONGOING:
         kq.bao_canh(
-            "Phiên ĐÃ KẾT THÚC — get_latest_comment_list chỉ có dữ liệu khi đang "
-            "phát, nên phép thử đọc bình luận bên dưới sẽ rỗng dù đường đi vẫn tốt."
+            "Phiên KHÔNG đang phát — get_latest_comment_list chỉ có dữ liệu khi đang "
+            "phát, nên phép thử đọc bình luận bên dưới không chứng minh được đường dữ "
+            "liệu. Chạy lại lúc đang phát."
+        )
+    if status_int == STATUS_INIT:
+        # Người vận hành thường chạy script này ngay trước giờ phát rồi bật lệnh
+        # runner. Client Shopee KHÔNG tự chờ lên sóng; Bộ thu bình luận trên web
+        # thì chờ. Chạy lệnh sau khi đã bấm phát thì đúng với mọi phiên bản runner.
+        kq.bao_canh(
+            "Buổi live CHƯA bắt đầu. Bộ thu bình luận trên web tự chờ lên sóng; nếu thu "
+            "bằng lệnh `python -m livelift.ingest.runner --platform shopee` thì chạy "
+            "lệnh SAU khi đã bấm phát trên app Shopee."
         )
     return status_int
+
+
+def _chua_phat(kq: KetQua, ten_goi: str) -> None:
+    """Lỗi "is not ongoing": danh tính và phiên đã qua ở mục 2, chỉ là chưa phát."""
+    kq.bao_canh(
+        f"{ten_goi}: KHÔNG có buổi live nào đang phát — xác thực đã qua ở mục 2; "
+        "chạy lại lúc đang phát để thử đường dữ liệu."
+    )
 
 
 async def _muc_3_chi_so(client: ShopeeLiveClient, kq: KetQua, session_id: str) -> None:
@@ -149,7 +217,12 @@ async def _muc_3_chi_so(client: ShopeeLiveClient, kq: KetQua, session_id: str) -
     try:
         metric = await client.get_session_metric(session_id)
     except ShopeeApiError as exc:
-        kq.bao_chan(f"get_session_metric thất bại: {mo_ta_loi(exc)}", "sửa theo dòng trên")
+        if classify_error(exc) == "not_live":
+            _chua_phat(kq, "get_session_metric")
+            return
+        kq.bao_chan(
+            f"get_session_metric thất bại: {mo_ta_loi(exc)}", _cach_sua(exc, "sửa theo dòng trên")
+        )
         return
     for khoa, nhan in (
         ("ccu", "Người xem hiện tại"),
@@ -173,13 +246,18 @@ async def _muc_4_binh_luan(client: ShopeeLiveClient, kq: KetQua, session_id: str
     print()
     print("4) ĐỌC THỬ BÌNH LUẬN (phép thử quyết định)")
     try:
-        data = await client._get(  # noqa: SLF001 — cố ý gọi đúng đường của runner
-            "/livestream/get_latest_comment_list", {"session_id": session_id, "offset": 0}
-        )
+        data = await client.get_latest_comment_page(session_id, offset=0)
     except ShopeeApiError as exc:
+        if classify_error(exc) == "not_live":
+            _chua_phat(kq, "get_latest_comment_list")
+            return
         kq.bao_chan(
             f"get_latest_comment_list thất bại: {mo_ta_loi(exc)}",
-            "nếu là lỗi quyền: kiểm tra app đã xin scope livestream khi ủy quyền shop chưa",
+            _cach_sua(
+                exc,
+                "nếu là lỗi quyền: kiểm tra app đã xin nhóm API Livestream khi ủy "
+                "quyền tài khoản người phát chưa",
+            ),
         )
         return
     items = data.get("list") or []
@@ -208,13 +286,16 @@ def _muc_5_nhac_nhip(kq: KetQua) -> None:
     print("   Lý do            : không có con trỏ 'since'; poll chậm là MẤT bình luận")
 
 
-async def kiem_tra(session_id: str) -> KetQua:
+async def kiem_tra(
+    session_id: str, *, settings: Any = None, http: httpx.AsyncClient | None = None
+) -> KetQua:
+    """Chạy năm mục kiểm tra. ``settings``/``http`` chỉ để test tiêm vào."""
     kq = KetQua()
     print(DAM)
     print(" KIỂM TRA ĐƯỜNG SHOPEE LIVE — LiveLift")
     print(" API chính thức: Shopee Open Platform v2 (hợp Điều khoản dịch vụ)")
     print(DAM)
-    client = _muc_1_danh_tinh(kq)
+    client = _muc_1_danh_tinh(kq, settings if settings is not None else get_settings(), http)
     if client is None:
         _muc_5_nhac_nhip(kq)
         return kq

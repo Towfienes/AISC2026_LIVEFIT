@@ -92,6 +92,8 @@ class OrderImportOut(BaseModel):
     nhap_moi: int
     trung_bo_qua: int
     loi: list[OrderImportLoi]
+    """Tối đa 50 dòng lỗi đầu tiên — tổng thật ở ``tong_loi``."""
+    tong_loi: int = 0
     tong_don: int
     tong_doanh_thu: float
 
@@ -345,6 +347,7 @@ def import_orders(session_id: str, body: OrderImportIn, store: StoreDep) -> Orde
         nhap_moi=nhap_moi,
         trung_bo_qua=trung,
         loi=loi[:50],
+        tong_loi=len(loi),
         tong_don=len(tat_ca),
         tong_doanh_thu=sum(_so(r.get("gross")) for r in tat_ca),
     )

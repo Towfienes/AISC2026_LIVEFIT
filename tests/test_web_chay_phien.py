@@ -205,15 +205,25 @@ def test_going_live_deep_links_to_the_desk_session():
 # 7. checklist trước giờ G: trung thực theo ma trận tín hiệu, không hứa hão
 # ---------------------------------------------------------------------------
 def test_the_preflight_checklist_uses_the_signal_matrix():
-    """Checklist bước 4 đọc GET /sessions/{id}/signals — nguồn nào THIẾU hiện
-    lý do NGUYÊN VĂN của máy chủ (luật không-bịa-số), kèm câu trấn an rằng
-    trước giờ phát nguồn chưa chảy là bình thường."""
+    """Checklist bước 4 đọc GET /sessions/{id}/signals — trạng thái THIẾU lấy
+    từ máy chủ, không bao giờ tự đoán là có (luật không-bịa-số), kèm câu trấn
+    an rằng trước giờ phát nguồn chưa chảy là bình thường.
+
+    CẬP NHẬT CÓ CHỦ ĐÍCH (gói H4, đánh giá UI 17/09): bản trước in lý do
+    NGUYÊN VĂN của máy chủ, và nguyên văn đó lộ ghi chú nội bộ ("parser đã
+    có, vòng ingest chưa nối", "GIVT-lite", "§4.1") lên màn người bán. Nay lý
+    do đi qua lyDoThuong(): nguồn THIẾU đã biết nói bằng câu thường (vẫn nói
+    là thiếu), trường hợp khác giữ lời máy chủ, chỉ bỏ phần ngoặc kỹ thuật.
+    Hành vi này được chạy thử với lý do THẬT của signals.assess trong
+    tests/test_web_wizard_v3.py."""
     raw = page_src()
     src = code(raw)
-    assert "getSignalCoverage(" in src, "checklist phải đọc ma trận tín hiệu thật"
-    assert "s.detail" in src, "dòng THIẾU phải in lý do nguyên văn của máy chủ"
+    assert "getSignalCoverage(" in src, "checklist phải đọc tình trạng tín hiệu thật"
+    assert "s.detail" in src, "trường hợp chưa có câu thường phải dùng lý do của máy chủ"
+    assert "lyDoThuong(s)" in src, "lý do của máy chủ phải qua lời thường trước khi hiện"
     assert "Màn hình người dẫn" in raw, "checklist thiếu mục màn hình người dẫn"
     assert "bình luận ghim" in raw, "checklist thiếu mục dán link đo vào bình luận ghim"
+    assert "<IngestPanel" in src, "checklist thiếu mục nguồn bình luận (bộ thu)"
 
 
 def test_every_field_on_the_wizard_carries_a_label():

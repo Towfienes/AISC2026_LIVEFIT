@@ -98,6 +98,7 @@ def test_nhap_csv_dinh_dang_viet_nam_va_nhap_lai_khong_trung(client_store):
     assert kq["nhap_moi"] == 2
     assert kq["tong_doanh_thu"] == 1_500_000
     assert [loi["dong"] for loi in kq["loi"]] == [4]
+    assert kq["tong_loi"] == 1
     # Không lặp lại nội dung dòng (có tên/SĐT người mua) trong thông báo lỗi.
     assert "0900000000" not in r.text
 

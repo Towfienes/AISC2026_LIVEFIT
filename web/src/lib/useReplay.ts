@@ -11,11 +11,42 @@
  * Honesty rule: client-side synthesized fallback cards are ALWAYS
  * source="forecast" (no interval). Only server-provided cards may claim
  * source="experiment" with a CI (E2-04).
+ *
+ * ---------------------------------------------------------------------------
+ * GÓI D — bốn lỗi đã sửa ở hook này
+ * ---------------------------------------------------------------------------
+ * 1. MỞ ĐÚNG BUỔI (giới hạn #5): `/replay?session=<id>` từng bị bỏ qua — hook
+ *    luôn chọn `ended[0]`, mà máy chủ trả danh sách theo `created_at` TĂNG
+ *    DẦN, tức là buổi CŨ NHẤT. Nay `pickReplaySession` ưu tiên tuyệt đối mã
+ *    trong link; mã không có (hoặc buổi chưa kết thúc) thì mở buổi kết thúc
+ *    MỚI NHẤT và báo lý do qua `requestedStatus` — không lặng lẽ mở buổi khác.
+ * 2. HAI KHUNG CHẾT: cột thẻ hỏi `getCards` của TRẠNG THÁI LIVE, mà máy chủ
+ *    cố ý không phát thẻ cho phiên đã kết thúc (`api/cards.py`) → luôn `[]`,
+ *    và `if (serverCards) return serverCards` (mảng rỗng vẫn truthy) chặn
+ *    luôn đường xếp lại từ bản ghi. Thẻ "bây giờ" của máy chủ cũng không phải
+ *    thẻ "tại phút T" của bản ghi, nên nay thẻ phát lại LUÔN xếp lại từ bản
+ *    ghi. Danh sách sản phẩm lấy từ DANH MỤC (`listProducts`) thay vì chỉ từ
+ *    `pinned_product_id` của tick (phiên gieo mẫu không có) với tên = mã.
+ * 3. KHÔNG BỊA SỐ khi xếp lại: `recomputeCards` của mock bù thẻ bằng một
+ *    ước lượng NGẪU NHIÊN; `replayCardsAt` bù thẻ với `estimate: null`, và lý
+ *    do trên thẻ nói đúng dữ liệu nào đứng sau thứ tự (có hay không có lượt
+ *    bấm theo sản phẩm).
+ * 4. KHUNG ĐẦU KHÔNG TRỐNG: vừa tải xong bản ghi, vị trí phát được đặt ở
+ *    `firstFrameOffset` — phút đầu tiên biểu đồ vẽ được đường (và bình luận
+ *    đầu tiên nếu nó tới sớm) thay vì 00:00 với bốn khung rỗng.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getCards, getComments, getSchedule, getState, getTicks, listSessions } from "./api";
-import { MOCK_ANALYSIS_SESSION, MOCK_SESSIONS, mockRecording, recomputeCards } from "./mock";
+import {
+  getComments,
+  getSchedule,
+  getSignalCoverage,
+  getTicks,
+  listProducts,
+  listSessions,
+  sanitizeCards,
+} from "./api";
+import { MOCK_SESSIONS, mockRecording } from "./mock";
 import type {
   ActionCardData,
   BlockInfo,
@@ -24,12 +55,29 @@ import type {
   Product,
   SessionRecording,
   SessionSummary,
+  SignalCoverage,
   Tick,
 } from "./types";
 
 const MOCK_FORCED = process.env.NEXT_PUBLIC_MOCK === "1";
 
-export type ReplaySpeed = 1 | 4 | 16;
+/**
+ * Tốc độ phát lại. 30x/60x (gói D): ở 16x một buổi 60 phút cần ~4 phút để
+ * xem hết — "xem thử nhanh" không thể nhanh; ở 60x chỉ còn 1 phút.
+ */
+export type ReplaySpeed = 1 | 4 | 16 | 30 | 60;
+
+/** Tốc độ mặc định: đủ nhanh để thấy nhịp phiên chuyển động ngay khi bấm Phát. */
+const DEFAULT_SPEED: ReplaySpeed = 30;
+
+/** Khung đầu chỉ tự tua tới bình luận đầu tiên nếu nó nằm trong 5 phút đầu. */
+const FIRST_FRAME_MAX_COMMENT_S = 300;
+
+/** Vì sao trang đang chạy bản ghi mô phỏng thay cho dữ liệu máy chủ. */
+export type MockReason = "forced" | "server" | "no_ended";
+
+/** Trạng thái của mã phiên trong link `?session=`. */
+export type RequestedStatus = "none" | "ok" | "not_ended" | "not_found";
 
 /** Build forecast-only fallback cards from recorded ticks (no fabricated CIs). */
 function synthesizeTimeline(
@@ -49,10 +97,15 @@ function synthesizeTimeline(
         );
       }
     }
-    const ranked = [...products].sort(
-      (a, b) =>
-        (clicksByProduct.get(b.product_id) ?? 0) - (clicksByProduct.get(a.product_id) ?? 0),
-    );
+    // Chỉ nói "xếp theo lượt bấm" khi bản ghi THẬT SỰ có lượt bấm gắn với sản
+    // phẩm quanh thời điểm này; không có thì thứ tự chỉ là thứ tự danh mục.
+    const measured = [...clicksByProduct.values()].some((n) => n > 0);
+    const ranked = measured
+      ? [...products].sort(
+          (a, b) =>
+            (clicksByProduct.get(b.product_id) ?? 0) - (clicksByProduct.get(a.product_id) ?? 0),
+        )
+      : [...products];
     out.push({
       offset_s: t,
       cards: ranked.slice(0, 3).map((p, i) => ({
@@ -61,7 +114,9 @@ function synthesizeTimeline(
         headline: `Ghim: ${p.name}`,
         product_id: p.product_id,
         product_name: p.name,
-        rationale: "Xếp hạng theo nhịp click 10 phút gần nhất trong dữ liệu ghi lại.",
+        rationale: measured
+          ? `${clicksByProduct.get(p.product_id) ?? 0} lượt bấm link khi đang ghim sản phẩm này trong 10 phút trước (theo bản ghi).`
+          : "Bản ghi không có lượt bấm theo từng sản phẩm quanh lúc này — thẻ chỉ theo thứ tự danh mục, chưa phải dự báo.",
         source: "forecast",
         estimate: null,
         ci_low: null,
@@ -78,44 +133,160 @@ export function isAnalysisSession(session: SessionSummary | null | undefined): b
   return session?.platform === "replay";
 }
 
-async function loadApiRecording(session: SessionSummary): Promise<SessionRecording> {
+/** Mốc thời gian để xếp "mới nhất trước": kết thúc, không có thì lên sóng. */
+function finishedAt(s: SessionSummary): number {
+  const t = Date.parse(s.end_ts ?? s.start_ts ?? "");
+  return Number.isFinite(t) ? t : 0;
+}
+
+/** Buổi đã kết thúc, MỚI NHẤT trước (máy chủ trả theo created_at tăng dần). */
+export function endedNewestFirst(list: SessionSummary[]): SessionSummary[] {
+  return list.filter((s) => s.status === "ended").sort((a, b) => finishedAt(b) - finishedAt(a));
+}
+
+/**
+ * Buổi mở mặc định: mã trong link (ưu tiên tuyệt đối, nếu có trong danh sách
+ * buổi đã kết thúc) → buổi kết thúc mới nhất → null.
+ */
+export function pickReplaySession(
+  ended: SessionSummary[],
+  requestedId: string | null | undefined,
+): SessionSummary | null {
+  if (requestedId) {
+    const hit = ended.find((s) => s.session_id === requestedId);
+    if (hit) return hit;
+  }
+  return ended[0] ?? null;
+}
+
+/**
+ * Vị trí phát khi vừa mở bản ghi: phút đầu tiên biểu đồ nhịp có đủ HAI điểm
+ * phút để vẽ đường, dời thêm tới bình luận đầu tiên nếu nó tới trong 5 phút
+ * đầu. Bản ghi không có gì thì đứng ở 0.
+ */
+export function firstFrameOffset(rec: SessionRecording): number {
+  const candidates: number[] = [];
+  const secondMinuteTick = rec.ticks.find((x) => x.offset_s >= 60);
+  if (secondMinuteTick) candidates.push(secondMinuteTick.offset_s);
+  let firstComment = Number.POSITIVE_INFINITY;
+  for (const c of rec.comments) firstComment = Math.min(firstComment, c.offset_s);
+  if (firstComment <= FIRST_FRAME_MAX_COMMENT_S) candidates.push(firstComment);
+  if (candidates.length === 0) return 0;
+  return Math.max(0, Math.min(rec.duration_s, Math.ceil(Math.max(...candidates))));
+}
+
+/** Mốc của mục dòng-thời-gian-thẻ đang có hiệu lực tại `t` (null = không có thẻ). */
+function timelineOffsetAt(rec: SessionRecording, t: number): number | null {
+  let hit: number | null = null;
+  for (const e of rec.cards_timeline) {
+    if (e.offset_s <= t) hit = e.offset_s;
+  }
+  return hit ?? rec.cards_timeline[0]?.offset_s ?? null;
+}
+
+/**
+ * Thẻ tại mốc `offsetS` sau khi loại các sản phẩm "hết hàng". Thẻ bù vào là
+ * ứng viên kế tiếp trong danh mục và KHÔNG mang con số nào (estimate null) —
+ * không có mô hình nào đứng sau thứ tự bù nên không được in một phần trăm.
+ */
+export function replayCardsAt(
+  rec: SessionRecording,
+  offsetS: number | null,
+  excluded: ReadonlySet<string>,
+): ActionCardData[] {
+  if (offsetS == null) return [];
+  const entry = rec.cards_timeline.find((e) => e.offset_s === offsetS);
+  if (!entry) return [];
+  const out = entry.cards.filter((c) => !excluded.has(c.product_id));
+  const used = new Set(out.map((c) => c.product_id));
+  for (const p of rec.products) {
+    if (out.length >= 3) break;
+    if (excluded.has(p.product_id) || used.has(p.product_id)) continue;
+    used.add(p.product_id);
+    out.push({
+      card_id: `refill-${entry.offset_s}-${p.product_id}`,
+      rank: out.length + 1,
+      headline: `Thay thế: ${p.name}`,
+      product_id: p.product_id,
+      product_name: p.name,
+      rationale:
+        "Ứng viên kế tiếp sau khi loại sản phẩm hết hàng — chưa có con số dự báo cho sản phẩm này.",
+      source: "forecast",
+      estimate: null,
+      ci_low: null,
+      ci_high: null,
+      auto_execute_in_s: null,
+    });
+  }
+  return sanitizeCards(out.map((c, i) => ({ ...c, rank: i + 1 })));
+}
+
+async function loadApiRecording(
+  session: SessionSummary,
+): Promise<{ rec: SessionRecording; catalogFailed: boolean }> {
   const analysis = isAnalysisSession(session);
   // Blocks live on the schedule endpoint, not on the state payload; an
   // analysis session has none by design, so its schedule call is skipped.
-  const [state, ticks, comments, blocks] = await Promise.all([
-    getState(session.session_id),
+  // Danh mục sản phẩm hỏng thì bản ghi vẫn phát — chỉ khung "nếu hết hàng"
+  // nói rõ là không tải được danh mục.
+  const [ticks, comments, blocks, catalog] = await Promise.all([
     getTicks(session.session_id, session.start_ts),
     getComments(session.session_id, session.start_ts),
     analysis ? Promise.resolve([] as BlockInfo[]) : getSchedule(session.session_id),
+    analysis ? Promise.resolve([] as Product[]) : listProducts().catch(() => null),
   ]);
-  void state;
   const lastTickEnd = ticks.length > 0 ? ticks[ticks.length - 1].offset_s + 30 : 0;
   const lastComment = comments.length > 0 ? comments[comments.length - 1].offset_s : 0;
   const durationS = Math.max(session.planned_duration_min * 60, lastTickEnd, lastComment);
-  const ids = [...new Set(ticks.map((t) => t.pinned_product_id).filter((x): x is string => !!x))];
-  const products: Product[] =
-    analysis || ids.length === 0
-      ? []
-      : ids.map((id) => ({ product_id: id, name: id, category: null, price: 0, stock: 0 }));
+  let products: Product[] = [];
+  if (!analysis) {
+    products = [...(catalog ?? [])];
+    // Sản phẩm từng được ghim trong bản ghi nhưng không còn trong danh mục:
+    // vẫn đưa vào (tên = mã, vì đó là tất cả những gì bản ghi biết).
+    const known = new Set(products.map((p) => p.product_id));
+    for (const t of ticks) {
+      const id = t.pinned_product_id;
+      if (id && !known.has(id)) {
+        known.add(id);
+        products.push({ product_id: id, name: id, category: null, price: 0, stock: 0 });
+      }
+    }
+  }
   return {
-    session,
-    // Analysis sessions have no experiment schedule — force-empty defensively.
-    blocks: analysis ? [] : blocks,
-    ticks,
-    comments,
-    // Never synthesize action cards over an observational recording.
-    cards_timeline: analysis ? [] : synthesizeTimeline(ticks, products, durationS),
-    products,
-    duration_s: durationS,
+    rec: {
+      session,
+      // Analysis sessions have no experiment schedule — force-empty defensively.
+      blocks: analysis ? [] : blocks,
+      ticks,
+      comments,
+      // Never synthesize action cards over an observational recording.
+      cards_timeline: analysis ? [] : synthesizeTimeline(ticks, products, durationS),
+      products,
+      duration_s: durationS,
+    },
+    catalogFailed: !analysis && catalog == null,
   };
 }
 
 export interface ReplayState {
   connection: ConnectionKind;
-  sessions: SessionSummary[]; // finished sessions only
+  /** Vì sao đang chạy mô phỏng (null khi dữ liệu đến từ máy chủ). */
+  mockReason: MockReason | null;
+  sessions: SessionSummary[]; // finished sessions only, newest first
   sessionId: string | null;
   setSessionId: (id: string) => void;
+  /** Mã trong `?session=` có mở được không — trang báo lý do khi không. */
+  requestedStatus: RequestedStatus;
   recording: SessionRecording | null;
+  /** Phiên đang phát là phân tích video của người khác (không có thẻ/sản phẩm). */
+  analysis: boolean;
+  /** Không tải được danh mục sản phẩm từ máy chủ. */
+  catalogFailed: boolean;
+  /** Vị trí mà bản ghi được tự tua tới lúc mở (xem `firstFrameOffset`). */
+  firstFrameS: number;
+  /** Lý do THIẾU nguồn người xem / lượt bấm từ ma trận tín hiệu của máy chủ. */
+  viewersMissing: string | null;
+  clicksMissing: string | null;
   t: number;
   playing: boolean;
   speed: ReplaySpeed;
@@ -127,55 +298,74 @@ export interface ReplayState {
   cards: ActionCardData[];
   excluded: ReadonlySet<string>;
   toggleExcluded: (productId: string) => void;
-  cardsFromServer: boolean;
 }
 
-export function useReplay(): ReplayState {
+/**
+ * @param requestedSessionId mã phiên đọc từ `?session=` của URL (trang đọc
+ *   bằng `useSearchParams`); đổi mã là hook chọn lại buổi tương ứng.
+ */
+export function useReplay(requestedSessionId?: string | null): ReplayState {
+  const requestedId = requestedSessionId?.trim() ? requestedSessionId.trim() : null;
   const [connection, setConnection] = useState<ConnectionKind>(
     MOCK_FORCED ? "mock" : "connecting",
   );
+  const [mockReason, setMockReason] = useState<MockReason | null>(null);
+  const [allSessions, setAllSessions] = useState<SessionSummary[]>([]);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [recording, setRecording] = useState<SessionRecording | null>(null);
+  const [catalogFailed, setCatalogFailed] = useState(false);
+  const [signals, setSignals] = useState<SignalCoverage | null>(null);
   const [t, setT] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const [speed, setSpeed] = useState<ReplaySpeed>(4);
+  const [speed, setSpeed] = useState<ReplaySpeed>(DEFAULT_SPEED);
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
-  const [serverCards, setServerCards] = useState<ActionCardData[] | null>(null);
-  const apiCardsBroken = useRef(false);
+  const requestedRef = useRef(requestedId);
 
-  // Session list: finished sessions only.
+  const switchToMock = useCallback((reason: MockReason) => {
+    const ended = endedNewestFirst(MOCK_SESSIONS);
+    setAllSessions(MOCK_SESSIONS);
+    setSessions(ended);
+    setSessionId(pickReplaySession(ended, requestedRef.current)?.session_id ?? null);
+    setMockReason(reason);
+    setConnection("mock");
+  }, []);
+
+  // Session list: finished sessions only, newest first.
   useEffect(() => {
-    const useMock = () => {
-      const ended = MOCK_SESSIONS.filter((s) => s.status === "ended");
-      setSessions(ended);
-      setSessionId(ended[0]?.session_id ?? null);
-      setConnection("mock");
-    };
     if (MOCK_FORCED) {
-      useMock();
+      switchToMock("forced");
       return;
     }
     let cancelled = false;
     listSessions(2500)
       .then((list) => {
         if (cancelled) return;
-        const ended = list.filter((s) => s.status === "ended");
+        const ended = endedNewestFirst(list);
         if (ended.length === 0) {
-          useMock();
+          switchToMock("no_ended");
           return;
         }
+        setAllSessions(list);
         setSessions(ended);
-        setSessionId(ended[0].session_id);
+        setSessionId(pickReplaySession(ended, requestedRef.current)?.session_id ?? null);
         setConnection("live");
       })
       .catch(() => {
-        if (!cancelled) useMock();
+        if (!cancelled) switchToMock("server");
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [switchToMock]);
+
+  // `?session=` đổi sau khi trang đã mở (điều hướng phía client): chọn lại.
+  useEffect(() => {
+    requestedRef.current = requestedId;
+    if (!requestedId || sessions.length === 0) return;
+    const hit = sessions.find((s) => s.session_id === requestedId);
+    if (hit) setSessionId(hit.session_id);
+  }, [requestedId, sessions]);
 
   // Load the selected session's recording.
   useEffect(() => {
@@ -184,29 +374,40 @@ export function useReplay(): ReplayState {
     setT(0);
     setPlaying(false);
     setExcluded(new Set());
-    setServerCards(null);
-    apiCardsBroken.current = false;
+    setCatalogFailed(false);
+    setSignals(null);
     if (connection === "mock") {
-      setRecording(mockRecording(sessionId));
+      const rec = mockRecording(sessionId);
+      setRecording(rec);
+      setT(firstFrameOffset(rec));
       return;
     }
     let cancelled = false;
     const session = sessions.find((s) => s.session_id === sessionId);
     if (!session) return;
     loadApiRecording(session)
-      .then((rec) => {
-        if (!cancelled) setRecording(rec);
+      .then(({ rec, catalogFailed: failed }) => {
+        if (cancelled) return;
+        setRecording(rec);
+        setCatalogFailed(failed);
+        setT(firstFrameOffset(rec));
       })
       .catch(() => {
-        if (!cancelled) {
-          setRecording(mockRecording(MOCK_SESSIONS[1].session_id));
-          setConnection("mock");
-        }
+        // Máy chủ rơi giữa chừng: chuyển HẲN sang bộ mô phỏng (danh sách +
+        // phiên đang chọn), để nhãn "MÔ PHỎNG" và nội dung luôn khớp nhau.
+        if (!cancelled) switchToMock("server");
       });
+    // Ma trận tín hiệu: panel nào máy chủ nói THIẾU nguồn thì biểu đồ không
+    // vẽ đường phẳng từ tick trống. Không tải được thì giữ nguyên (không đoán).
+    getSignalCoverage(session.session_id)
+      .then((cov) => {
+        if (!cancelled) setSignals(cov);
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [sessionId, connection, sessions]);
+  }, [sessionId, connection, sessions, switchToMock]);
 
   // Playback clock.
   useEffect(() => {
@@ -225,25 +426,8 @@ export function useReplay(): ReplayState {
     return () => clearInterval(timer);
   }, [playing, speed, recording]);
 
-  // Server-side cards for the current 2-minute bucket + exclusion set.
-  const bucket = Math.floor(t / 120) * 120;
-  useEffect(() => {
-    if (connection !== "live" || !sessionId || apiCardsBroken.current) return;
-    let cancelled = false;
-    // Cards come from the live state payload; the API has no historical
-    // "cards at offset T" route, so a replay re-ranks client-side instead.
-    getCards(sessionId, { excludeProductIds: [...excluded] })
-      .then((cds) => {
-        if (!cancelled) setServerCards(cds);
-      })
-      .catch(() => {
-        apiCardsBroken.current = true;
-        setServerCards(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [connection, sessionId, bucket, excluded]);
+  const analysis = isAnalysisSession(recording?.session);
+  const firstFrameS = useMemo(() => (recording ? firstFrameOffset(recording) : 0), [recording]);
 
   const visibleTicks = useMemo(
     () => (recording ? recording.ticks.filter((x) => x.offset_s <= t) : []),
@@ -253,11 +437,30 @@ export function useReplay(): ReplayState {
     () => (recording ? recording.comments.filter((c) => c.offset_s <= t).slice(-60) : []),
     [recording, t],
   );
-  const cards = useMemo(() => {
-    if (!recording) return [];
-    if (serverCards) return serverCards;
-    return recomputeCards(recording, t, [...excluded]);
-  }, [recording, serverCards, t, excluded]);
+  // Thẻ chỉ đổi khi sang mục mới của dòng thời gian (2 phút một mục), không
+  // phải mỗi 250 ms của đồng hồ phát.
+  const cardsOffset = recording ? timelineOffsetAt(recording, t) : null;
+  const cards = useMemo(
+    () => (recording && !analysis ? replayCardsAt(recording, cardsOffset, excluded) : []),
+    [recording, analysis, cardsOffset, excluded],
+  );
+
+  const requestedStatus = useMemo<RequestedStatus>(() => {
+    if (!requestedId || connection === "connecting") return "none";
+    if (sessions.some((s) => s.session_id === requestedId)) return "ok";
+    return allSessions.some((s) => s.session_id === requestedId) ? "not_ended" : "not_found";
+  }, [requestedId, connection, sessions, allSessions]);
+
+  const missingReason = (name: string): string | null => {
+    const s = signals?.signals.find((x) => x.name === name);
+    return s && s.status === "missing" ? s.detail : null;
+  };
+
+  /** Bấm Phát khi đã hết bản ghi thì phát lại từ đầu, không đứng im ở cuối. */
+  const togglePlay = useCallback(() => {
+    if (!playing && recording && t >= recording.duration_s) setT(0);
+    setPlaying((p) => !p);
+  }, [playing, recording, t]);
 
   const toggleExcluded = useCallback((productId: string) => {
     setExcluded((prev) => {
@@ -270,14 +473,21 @@ export function useReplay(): ReplayState {
 
   return {
     connection,
+    mockReason: connection === "mock" ? mockReason : null,
     sessions,
     sessionId,
     setSessionId,
+    requestedStatus,
     recording,
+    analysis,
+    catalogFailed,
+    firstFrameS,
+    viewersMissing: connection === "live" ? missingReason("ticks") : null,
+    clicksMissing: connection === "live" ? missingReason("clicks") : null,
     t,
     playing,
     speed,
-    togglePlay: useCallback(() => setPlaying((p) => !p), []),
+    togglePlay,
     setSpeed: useCallback((s: ReplaySpeed) => setSpeed(s), []),
     seek: useCallback((x: number) => setT(x), []),
     visibleTicks,
@@ -285,6 +495,5 @@ export function useReplay(): ReplayState {
     cards,
     excluded,
     toggleExcluded,
-    cardsFromServer: serverCards != null,
   };
 }

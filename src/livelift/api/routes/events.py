@@ -47,6 +47,7 @@ from livelift.api.auth import chi_token
 from livelift.api.schemas import CommentIn, CommentOut, ReactionIn, ReactionOut, TickIn, TickOut
 from livelift.api.service import StoreDep
 from livelift.ingest.pii import scrub
+from livelift.ingest.pii.filter import KIND_PRIORITY
 from livelift.nlp.intent import classify_with_confidence
 
 logger = logging.getLogger("livelift.api.events")
@@ -173,7 +174,11 @@ def _store_comment(session_id: str, body: CommentIn, store: StoreDep) -> Comment
         "platform": body.platform,
         "ext_id": body.ext_id,
         "text_scrubbed": result.text,
-        "pii_kinds": sorted({m.kind for m in result.matches}),
+        # Gộp loại PII máy chủ tự thấy với loại bộ thu đã lọc tại nguồn; chỉ
+        # nhận tên loại mà bộ lọc thật sự có.
+        "pii_kinds": sorted(
+            {m.kind for m in result.matches} | {k for k in body.pii_kinds if k in KIND_PRIORITY}
+        ),
         "intent_label": intent,
         "intent_confidence": intent_confidence,
         "sentiment": None,
@@ -223,16 +228,41 @@ def post_tick(session_id: str, body: TickIn, store: StoreDep) -> TickOut:
         return _store_tick(session_id, body, store)
 
 
+def _tick_bucket(session: dict, ts):
+    """Mốc 30 giây chứa ``ts``, căn theo giờ bắt đầu phiên khi đã phát."""
+    start = session.get("start_ts")
+    if start is not None:
+        offset = (ts - start).total_seconds()
+        return start + timedelta(seconds=int(offset // TICK_S) * TICK_S)
+    return ts.replace(second=(ts.second // TICK_S) * TICK_S, microsecond=0)
+
+
+def _valid_clicks_by_bucket(session: dict, clicks: list[dict]) -> dict:
+    """Đếm click HỢP LỆ theo mốc 30 giây từ bảng click — nguồn sự thật duy nhất.
+
+    Kiểm toán 17/09/2026: ``click_count`` của tick trước đây luôn ghi bằng 0 với
+    phiên thật (chỉ máy sinh demo điền số), vì link đo ``/r/{code}`` ghi vào bảng
+    click chứ không vào tick. Ô "Lượt bấm / phút" và biểu đồ nhịp của Bàn trợ
+    live vì thế luôn là 0 trong mọi buổi live thật, dù click vẫn được đo đúng.
+    """
+    counts: dict = {}
+    start = session.get("start_ts")
+    for c in clicks:
+        if c.get("is_valid") is False:
+            continue
+        ts = c.get("ts")
+        if ts is None or (start is not None and ts < start):
+            continue
+        bucket = _tick_bucket(session, ts)
+        counts[bucket] = counts.get(bucket, 0) + 1
+    return counts
+
+
 def _store_tick(session_id: str, body: TickIn, store: StoreDep) -> TickOut:
     session = service.require_session(store, session_id)
     ts = body.ts_utc or service.now_utc()
     # snap to the 30s bucket grid, aligned to session start when live
-    start = session.get("start_ts")
-    if start is not None:
-        offset = (ts - start).total_seconds()
-        bucket = start + timedelta(seconds=int(offset // TICK_S) * TICK_S)
-    else:
-        bucket = ts.replace(second=(ts.second // TICK_S) * TICK_S, microsecond=0)
+    bucket = _tick_bucket(session, ts)
 
     pinned = service.current_pinned_product_id(store.list_interventions(session_id))
     row = {
@@ -240,7 +270,9 @@ def _store_tick(session_id: str, body: TickIn, store: StoreDep) -> TickOut:
         "viewers": body.viewers,
         "comment_rate": body.comment_rate,
         "like_rate": body.like_rate,
-        "click_count": 0,
+        "click_count": _valid_clicks_by_bucket(session, store.list_clicks(session_id)).get(
+            bucket, 0
+        ),
         "pinned_product_id": pinned,
     }
     stored = store.add_tick(session_id, row)
@@ -252,8 +284,23 @@ def _store_tick(session_id: str, body: TickIn, store: StoreDep) -> TickOut:
 @router.get("/sessions/{session_id}/ticks", response_model=list[TickOut])
 def list_ticks(session_id: str, store: StoreDep) -> list[TickOut]:
     with storage_guard("Danh sách lượt xem", session_id):
-        service.require_session(store, session_id)
-        return [TickOut(**{**t, "session_id": session_id}) for t in store.list_ticks(session_id)]
+        session = service.require_session(store, session_id)
+        # Click đến SAU khi tick của mốc đã ghi vẫn phải hiện: đọc lại từ bảng
+        # click lúc trả về. max() giữ nguyên số của phiên demo (máy sinh điền
+        # sẵn click_count VÀ ghi dòng click) mà không cộng đôi.
+        theo_moc = _valid_clicks_by_bucket(session, store.list_clicks(session_id))
+        return [
+            TickOut(
+                **{
+                    **t,
+                    "session_id": session_id,
+                    "click_count": max(
+                        int(t.get("click_count") or 0), theo_moc.get(t["ts_bucket"], 0)
+                    ),
+                }
+            )
+            for t in store.list_ticks(session_id)
+        ]
 
 
 @chi_token

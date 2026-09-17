@@ -336,6 +336,100 @@ def test_the_answer_is_a_shareable_link():
         assert key in data, f"thiếu tham số URL {key}"
 
 
+# ---------------------------------------------------------------------------
+# 5. máy chủ NÀY thu được gì (PlatformStatus — đánh giá UI 17/09/2026)
+# ---------------------------------------------------------------------------
+PLATFORM_STATUS = SRC / "components" / "PlatformStatus.tsx"
+
+
+def test_the_page_shows_what_this_server_can_ingest():
+    """Bảng toàn cảnh nói điều TÀI LIỆU biết; người dùng còn cần biết máy chủ
+    đang mở có khoá gì. Khối trạng thái nền tảng phải nằm trên trang và hỏi
+    thẳng máy chủ qua hàm đã có trong api.ts (không mở đường API mới)."""
+    page = code(PAGE.read_text(encoding="utf-8"))
+    assert 'import PlatformStatus from "@/components/PlatformStatus"' in page
+    assert "<PlatformStatus" in page, "/bat-dau phải hiện trạng thái nền tảng của máy chủ"
+    assert page.index("<PlatformStatus") < page.index("Toàn cảnh: 5 nền tảng"), (
+        "sự thật của máy chủ đứng trước bảng tài liệu"
+    )
+    src = code(PLATFORM_STATUS.read_text(encoding="utf-8"))
+    assert "getPlatforms()" in src, "phải dùng getPlatforms() sẵn có của api.ts"
+    assert "fetch(" not in src, "không tự gọi fetch — đi qua api.ts"
+
+
+def test_each_platform_row_carries_status_shape_word_route_missing_and_note():
+    src = code(PLATFORM_STATUS.read_text(encoding="utf-8"))
+    # Trạng thái: CHỮ …
+    for word in ("Sẵn sàng", "Thiếu khoá", "Không hỗ trợ"):
+        assert f'"{word}"' in src, f"thiếu chữ trạng thái {word!r}"
+    # … và HÌNH — mỗi trạng thái một ký hiệu khác nhau, không chỉ màu.
+    meta = src[src.index("const TRANG_THAI_META") : src.index("const DUONG_META")]
+    meta = meta[meta.index("= {") :]  # bỏ phần khai kiểu, chỉ đọc giá trị
+    glyphs = re.findall(r'glyph:\s*"([a-z]+)"', meta)
+    assert len(glyphs) == 3, f"ba trạng thái phải có ba hình: {glyphs}"
+    assert len(set(glyphs)) == 3, f"ba trạng thái phải có ba hình KHÁC NHAU: {glyphs}"
+    assert "<Glyph kind={meta.glyph} />" in src, "mỗi dòng phải vẽ HÌNH trạng thái"
+    assert "{chuTrangThai(p)}" in src, "… ngay cạnh CHỮ trạng thái"
+    # Loại đường thu.
+    for route in ("Chính thức", "Dự phòng", "Không có API"):
+        assert f'"{route}"' in src, f"thiếu nhãn loại đường {route!r}"
+    # Biến còn thiếu + ghi chú + tên, đọc nguyên văn từ máy chủ.
+    for field in ("p.ten", "p.missing.map", "p.note"):
+        assert field in src, f"mỗi dòng phải hiện {field}"
+    assert "rows.map" in src, "mỗi nền tảng một dòng"
+
+
+def test_platform_status_says_missing_instead_of_inventing_rows_on_error():
+    src = code(PLATFORM_STATUS.read_text(encoding="utf-8"))
+    assert "setRows(null)" in src, "lỗi tải không được để lại danh sách cũ/giả"
+    assert "THIẾU" in src, "không đọc được máy chủ thì nói trạng thái đang THIẾU"
+
+
+def test_platform_status_route_labels_match_the_server_contract():
+    """Mọi `mode` máy chủ trả phải có nhãn trên web — thêm một loại đường mới ở
+    máy chủ mà quên web là một dòng trắng nhãn."""
+    from livelift.api.ingest_jobs import muc_san_sang_nen_tang
+    from livelift.config import get_settings
+
+    src = code(PLATFORM_STATUS.read_text(encoding="utf-8"))
+    duong = src[src.index("const DUONG_META") :]
+    duong = duong[: duong.index("};")]
+    web_modes = set(re.findall(r"\b(chinh_thuc|du_phong|khong_ho_tro)\s*:", duong))
+    rows = muc_san_sang_nen_tang(get_settings())
+    server_modes = {r["mode"] for r in rows}
+    assert server_modes <= web_modes, f"web thiếu nhãn cho mode {server_modes - web_modes}"
+    for r in rows:
+        for key in ("platform", "ten", "ready", "mode", "missing", "note"):
+            assert key in r, f"/platforms thiếu trường {key!r} mà PlatformStatus đọc"
+        assert all(isinstance(m, str) for m in r["missing"])
+
+
+def test_simulated_row_says_synthetic_data_for_testing_only():
+    """Máy chủ khai mục mô phỏng là ``mode: du_phong``. In nhãn "Dự phòng" cho nó
+    là nói sai nguồn gốc dữ liệu: người đọc tưởng đó là đường thu dự phòng của
+    một nền tảng thật. Dòng này phải nói thẳng: dữ liệu tổng hợp, chỉ để kiểm
+    thử — và web phải nhận ra đúng mã nền tảng mà máy chủ dùng."""
+    from livelift.api.ingest_jobs import NEN_TANG_MO_PHONG, muc_san_sang_nen_tang
+    from livelift.config import get_settings
+
+    src = code(PLATFORM_STATUS.read_text(encoding="utf-8"))
+    assert f'const NEN_TANG_MO_PHONG = "{NEN_TANG_MO_PHONG}"' in src
+    m = re.search(r"const MO_PHONG_META[^=]*=\s*\{(.*?)\};", src, flags=re.S)
+    assert m, "thiếu nhãn riêng cho mục mô phỏng"
+    text = re.search(r'text:\s*"([^"]+)"', m.group(1))
+    assert text, "nhãn mục mô phỏng phải có chữ"
+    assert "tổng hợp" in text.group(1), "phải nói rõ là dữ liệu TỔNG HỢP"
+    assert "chỉ để kiểm thử" in text.group(1), "phải nói rõ CHỈ để kiểm thử"
+    assert "Dự phòng" not in text.group(1)
+    assert "p.platform === NEN_TANG_MO_PHONG" in src, "nhãn riêng phải thay nhãn loại đường"
+
+    rows = {r["platform"]: r for r in muc_san_sang_nen_tang(get_settings())}
+    assert NEN_TANG_MO_PHONG in rows, "máy chủ phải liệt kê mục mô phỏng trong /platforms"
+    assert rows[NEN_TANG_MO_PHONG]["mode"] == "du_phong", (
+        "nếu máy chủ đổi mode của mục mô phỏng thì xem lại nhãn trên web"
+    )
+
+
 def test_the_vod_box_reuses_the_existing_api_contract():
     """Ô dán link nạp qua đúng hợp đồng sẵn có (POST /replays/youtube →
     GET /replays/jobs/{id}); gói này không mở đường API mới nào."""

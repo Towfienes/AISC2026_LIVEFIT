@@ -35,6 +35,19 @@
  *
  * Chuyển động duy nhất được phép trong khung này là con trỏ tooltip, và nó do
  * chính chuột của người dùng điều khiển.
+ *
+ * ---------------------------------------------------------------------------
+ * NHÃN TRỤC KHÔNG LẶP, KHÔNG CHỒNG (gói D)
+ * ---------------------------------------------------------------------------
+ * Trên /replay biểu đồ bị ép còn ~100 px và lộ hai lỗi đọc số:
+ *   - trục x in `0' 1' 1' 2' 2'`: Recharts tự rải vạch mỗi 30 giây, còn nhãn
+ *     làm tròn về phút → hai vạch liền nhau cùng một nhãn. Nay vạch được đặt
+ *     TƯỜNG MINH ở bội số nguyên của phút (bước 1/2/5/10… phút tuỳ độ dài),
+ *     nên mỗi nhãn là một phút khác nhau;
+ *   - nhãn trục y của panel dưới ("8") dính vào nhãn "0" của panel trên ("4"):
+ *     nhãn đầu/cuối trục y tràn nửa dòng chữ ra ngoài vùng vẽ. Panel không in
+ *     trục x nay chừa lề trên/dưới đủ nửa dòng chữ, và trục y bỏ bớt nhãn khi
+ *     panel thấp thay vì in đè.
  */
 
 import { useMemo } from "react";
@@ -124,9 +137,27 @@ function toMinutePoints(ticks: Tick[]): MinutePoint[] {
     }));
 }
 
-/** X-axis tick: seconds -> minute label ("25'"). */
+/** Bước vạch trục x (phút) — chọn bước nhỏ nhất giữ số nhãn ≤ MAX_X_LABELS. */
+const MINUTE_STEPS = [1, 2, 5, 10, 15, 20, 30, 60] as const;
+const MAX_X_LABELS = 8;
+
+/**
+ * Vạch trục x ở BỘI SỐ NGUYÊN của phút, từ 0 tới `lastOffsetS`. Mỗi vạch là
+ * một phút khác nhau nên nhãn không bao giờ lặp (lỗi `0' 1' 1' 2'` cũ).
+ */
+function minuteTicks(lastOffsetS: number): number[] {
+  const spanMin = Math.max(1, Math.ceil(lastOffsetS / 60));
+  const step =
+    MINUTE_STEPS.find((m) => spanMin / m <= MAX_X_LABELS) ??
+    Math.ceil(spanMin / MAX_X_LABELS / 60) * 60;
+  const out: number[] = [];
+  for (let m = 0; m * 60 <= lastOffsetS; m += step) out.push(m * 60);
+  return out;
+}
+
+/** X-axis tick: seconds -> minute label ("25'"). Vạch luôn ở phút tròn. */
 function fmtMinuteTick(s: number): string {
-  return `${Math.round(s / 60)}'`;
+  return `${Math.floor(s / 60)}'`;
 }
 
 function RhythmTooltip({ active, payload, label }: TooltipProps<number, string>) {
@@ -151,7 +182,14 @@ function RhythmTooltip({ active, payload, label }: TooltipProps<number, string>)
 }
 
 const AXIS_TICK = { fill: CHART.dim, fontSize: 13 } as const;
-const MARGIN = { top: 4, right: 12, left: 0, bottom: 0 } as const;
+/**
+ * Nhãn trục y (13 px) canh GIỮA vào vạch, nên nhãn trên cùng/dưới cùng tràn
+ * ~7 px ra ngoài vùng vẽ. Lề 8 px giữ nửa dòng chữ đó trong panel của nó —
+ * không đè lên nhãn của panel kế bên. Panel in trục x đã có dải trục làm đệm
+ * phía dưới.
+ */
+const MARGIN = { top: 8, right: 12, left: 0, bottom: 8 } as const;
+const MARGIN_WITH_X_AXIS = { top: 8, right: 12, left: 0, bottom: 0 } as const;
 
 /**
  * Dải thay cho một panel không có nguồn. Cùng ngôn ngữ với thẻ tín hiệu
@@ -185,11 +223,14 @@ function Panel({
   className,
   spans = [],
   playheadX = null,
+  xTicks,
 }: {
   data: MinutePoint[];
   series: SeriesSpec[];
   showAxis: boolean;
   className: string;
+  /** Vạch trục x ở phút tròn (xem `minuteTicks`). */
+  xTicks: number[];
   /** Vùng khối BẬT nhuộm tím (D4) — lớp nền tĩnh, vẽ trước mọi đường. */
   spans?: OnSpan[];
   /** Vạch "đang ở đây" (giây) — null ẩn vạch (phiên đã kết thúc/replay đứng yên). */
@@ -198,7 +239,11 @@ function Panel({
   return (
     <div className={className}>
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} syncId="rhythm" margin={MARGIN}>
+        <LineChart
+          data={data}
+          syncId="rhythm"
+          margin={showAxis ? MARGIN_WITH_X_AXIS : MARGIN}
+        >
           <CartesianGrid stroke={CHART.grid} strokeWidth={1} vertical={false} />
           {/* Trục x là TRỤC SỐ (giây): ReferenceArea/ReferenceLine cần toạ độ
               thật để vùng BẬT và vạch playhead rơi đúng chỗ giữa các phút. */}
@@ -207,6 +252,7 @@ function Panel({
               dataKey="offset_s"
               type="number"
               domain={[0, "dataMax"]}
+              ticks={xTicks}
               tickFormatter={fmtMinuteTick}
               tick={AXIS_TICK}
               axisLine={{ stroke: CHART.axis }}
@@ -217,6 +263,8 @@ function Panel({
           ) : (
             <XAxis dataKey="offset_s" type="number" domain={[0, "dataMax"]} hide />
           )}
+          {/* preserveStartEnd + minTickGap: panel thấp thì Recharts BỎ nhãn
+              giữa (giữ 0 và đỉnh) thay vì in các nhãn đè lên nhau. */}
           <YAxis
             width={44}
             tick={AXIS_TICK}
@@ -224,6 +272,9 @@ function Panel({
             tickLine={false}
             domain={[0, "auto"]}
             allowDecimals={false}
+            tickCount={4}
+            interval="preserveStartEnd"
+            minTickGap={6}
           />
           <Tooltip
             content={<RhythmTooltip />}
@@ -280,6 +331,12 @@ interface Props {
   blocks?: BlockInfo[];
   /** Vị trí hiện tại (giây) cho vạch "đang ở đây"; null/bỏ trống = ẩn vạch. */
   positionS?: number | null;
+  /**
+   * Ngữ cảnh PHÁT LẠI (/replay): số liệu không "tự về" — người xem phải bấm
+   * Phát hoặc kéo thanh tua. Câu trạng thái rỗng của màn live ("Bạn không cần
+   * bấm gì") sai ở đây nên được thay.
+   */
+  replay?: boolean;
 }
 
 export default function RhythmChart({
@@ -288,8 +345,11 @@ export default function RhythmChart({
   clicksMissing,
   blocks,
   positionS,
+  replay = false,
 }: Props) {
   const data = useMemo(() => toMinutePoints(ticks), [ticks]);
+  const lastPointS = data.length > 0 ? data[data.length - 1].offset_s : 0;
+  const xTicks = useMemo(() => minuteTicks(lastPointS), [lastPointS]);
 
   // Một điểm không vẽ thành đường: Recharts sẽ trả về khung trống có trục,
   // trông y hệt "biểu đồ hỏng". Nói thẳng còn đang chờ gì thì hơn.
@@ -302,7 +362,9 @@ export default function RhythmChart({
             : "Mới có một phút số liệu — cần hai phút mới vẽ được đường."}
         </p>
         <p className="text-meta text-dim">
-          Biểu đồ tự vẽ khi số liệu về, khoảng 5 giây một lần. Bạn không cần bấm gì.
+          {replay
+            ? "Bấm Phát hoặc kéo thanh tua qua phút đầu — biểu đồ vẽ theo bản ghi, mỗi phút một điểm."
+            : "Biểu đồ tự vẽ khi số liệu về, khoảng 5 giây một lần. Bạn không cần bấm gì."}
         </p>
       </div>
     );
@@ -395,6 +457,7 @@ export default function RhythmChart({
         className="min-h-0 flex-[3]"
         spans={spans}
         playheadX={playheadX}
+        xTicks={xTicks}
       />
 
       {/* panel 2: người xem + baseline dự báo — hoặc dải THIẾU nguồn */}
@@ -411,6 +474,7 @@ export default function RhythmChart({
           className="min-h-0 flex-[3]"
           spans={spans}
           playheadX={playheadX}
+          xTicks={xTicks}
         />
       )}
 
@@ -428,6 +492,7 @@ export default function RhythmChart({
           className="min-h-0 flex-[2]"
           spans={spans}
           playheadX={playheadX}
+          xTicks={xTicks}
         />
       )}
     </div>

@@ -68,9 +68,21 @@ from livelift.ingest.pii import scrub
 
 logger = logging.getLogger("livelift.api.ingest")
 
-NEN_TANG_THU: tuple[str, ...] = ("youtube", "facebook", "shopee")
+NEN_TANG_THU: tuple[str, ...] = ("youtube", "facebook", "shopee", "mo_phong")
 """Nền tảng có client thu trực tiếp. TikTok cố ý KHÔNG có: không có API công
-khai, và đường không chính thức bị Cloudflare chặn 10/10 lần (đo 10/09/2026)."""
+khai, và đường không chính thức bị Cloudflare chặn 10/10 lần (đo 10/09/2026).
+
+``mo_phong`` (17/09/2026) KHÔNG phải nền tảng: nó phát lại bình luận TỔNG HỢP
+(:mod:`livelift.ingest.mo_phong`) để kiểm thử trọn đường ống khi chưa có khoá
+nền tảng nào, và chỉ được chạy trên phiên chạy thử/phiên mẫu
+(:func:`cho_phep_mo_phong`)."""
+
+NEN_TANG_MO_PHONG = "mo_phong"
+
+LOI_MO_PHONG_PHIEN_THAT = (
+    "Nguồn mô phỏng chỉ dùng cho phiên chạy thử hoặc phiên mẫu — không trộn vào dữ liệu "
+    "thật. Tạo phiên mới có đánh dấu chạy thử để dùng."
+)
 
 TRANG_THAI_CUOI: frozenset[str] = frozenset({"da_dung", "phien_ket_thuc", "nguon_ket_thuc", "loi"})
 TRANG_THAI_PHIEN_DONG: frozenset[str] = frozenset({"ended", "cancelled"})
@@ -154,7 +166,8 @@ class StoreSink:
         from livelift.api.schemas import CommentIn
 
         self.comments_seen += 1
-        text = scrub(comment.text).text.strip()
+        loc = scrub(comment.text)
+        text = loc.text.strip()
         if not text:
             # Sticker/ảnh không kèm chữ: không có gì để lưu, không phải lỗi.
             self.comments_skipped += 1
@@ -165,6 +178,7 @@ class StoreSink:
                 platform=comment.platform,  # type: ignore[arg-type]
                 ext_id=comment.ext_id[:128],
                 ts_utc=comment.ts_utc,
+                pii_kinds=sorted(loc.counts),
             )
             await asyncio.to_thread(_store_comment, self._session_id, body, self._store)
         except Exception as exc:  # noqa: BLE001 — sink không bao giờ làm chết vòng đọc
@@ -201,10 +215,30 @@ ClientFactory = Callable[[str], Any]
 
 
 def client_mac_dinh(platform: str) -> Any:
-    """Cùng bộ chọn client với runner CLI (tôn trọng INGEST_YOUTUBE_BACKEND)."""
+    """Cùng bộ chọn client với runner CLI (tôn trọng INGEST_YOUTUBE_BACKEND).
+
+    ``mo_phong`` không có trong runner CLI (không có buổi live thật nào để một
+    tiến trình riêng bám theo) nên được dựng ngay tại đây, hệ số tăng tốc 1 —
+    người dùng gõ ``x10`` trong ô nguồn nếu muốn nhanh hơn.
+    """
+    if platform == NEN_TANG_MO_PHONG:
+        from livelift.ingest.mo_phong import MoPhongLiveClient
+
+        return MoPhongLiveClient()
     from livelift.ingest.runner import _build_client
 
     return _build_client(platform)
+
+
+def cho_phep_mo_phong(session: dict[str, Any] | None) -> bool:
+    """Nguồn mô phỏng chỉ được ghi vào phiên CHẠY THỬ hoặc phiên MẪU.
+
+    Bình luận tổng hợp lọt vào một phiên thật là một điểm dữ liệu bịa trong kết
+    quả thí nghiệm — đúng loại lỗi dự án từng phải đính chính công khai.
+    """
+    if not session:
+        return False
+    return bool(session.get("dry_run") or session.get("is_demo"))
 
 
 @dataclass
@@ -387,9 +421,30 @@ class IngestManager:
             return False
         return phien is None or phien.get("status") in TRANG_THAI_PHIEN_DONG
 
+    async def _mo_phong_bi_chan(self, job: IngestJob) -> bool:
+        """Lớp chặn thứ hai cho nguồn mô phỏng, đứng trong manager.
+
+        Route đã trả 422 cho phiên thật; lớp này phủ mọi đường khác vào
+        :meth:`start` (tự nối lại từ tệp trạng thái, gọi thẳng từ mã). Kho không
+        trả lời ⇒ CHẶN: không chứng minh được là phiên chạy thử thì không ghi.
+        """
+        if job.platform != NEN_TANG_MO_PHONG:
+            return False
+        try:
+            phien = await asyncio.to_thread(self._store.get_session, job.session_id)
+        except Exception:  # noqa: BLE001
+            phien = None
+        if cho_phep_mo_phong(phien):
+            return False
+        job.last_error = LOI_MO_PHONG_PHIEN_THAT
+        return True
+
     async def _supervise(self, job: IngestJob) -> None:
         backoff = Backoff(base_s=self._restart_base_s, cap_s=self._restart_cap_s)
         try:
+            if await self._mo_phong_bi_chan(job):
+                job.state = "loi"
+                return
             while True:
                 if await self._phien_da_dong(job.session_id):
                     job.state = "phien_ket_thuc"
@@ -446,6 +501,10 @@ class IngestManager:
                     return "cho_len_song"
                 return "loi_cau_hinh" if loai == "cau_hinh" else "loi_tam_thoi"
             job.resolved_source = nguon
+        if job.platform == NEN_TANG_MO_PHONG and not nguon:
+            from livelift.ingest.mo_phong import KICH_BAN_MAC_DINH
+
+            job.resolved_source = KICH_BAN_MAC_DINH
 
         async def binh_luan() -> None:
             async for c in client.iter_comments(nguon):
@@ -579,16 +638,11 @@ def muc_san_sang_nen_tang(settings: Any) -> list[dict[str, Any]]:
         }
     )
 
-    thieu_sp = [
-        ten
-        for ten, gia_tri in (
-            ("SHOPEE_PARTNER_ID", settings.shopee_partner_id),
-            ("SHOPEE_PARTNER_KEY", settings.shopee_partner_key),
-            ("SHOPEE_SHOP_ID", settings.shopee_shop_id),
-            ("SHOPEE_ACCESS_TOKEN", settings.shopee_access_token),
-        )
-        if not gia_tri
-    ]
+    # Cùng một danh sách với client (API livestream của Shopee là loại "User":
+    # cần SHOPEE_USER_ID; SHOPEE_SHOP_ID chỉ cần khi ghim sản phẩm).
+    from livelift.ingest.shopee import REQUIRED_ENV_LIVESTREAM
+
+    thieu_sp = [ten for ten in REQUIRED_ENV_LIVESTREAM if not getattr(settings, ten.lower(), "")]
     ket.append(
         {
             "platform": "shopee",
@@ -619,6 +673,23 @@ def muc_san_sang_nen_tang(settings: Any) -> list[dict[str, Any]]:
             ),
         }
     )
+
+    # Đứng CUỐI danh sách: đây là công cụ kiểm thử, không phải một nền tảng.
+    ket.append(
+        {
+            "platform": NEN_TANG_MO_PHONG,
+            "ten": "Mô phỏng (kiểm thử)",
+            "ready": True,
+            "mode": "du_phong",
+            "missing": [],
+            "source_hint": "Để trống để phát cả buổi mẫu · gõ ngắn x10 để thử nhanh",
+            "note": (
+                "Bình luận do AI soạn sẵn (dữ liệu tổng hợp), không phải khách thật — chỉ để "
+                "chạy thử Bàn trợ live từ đầu đến cuối. Chỉ bật được trên phiên chạy thử hoặc "
+                "phiên mẫu; không bao giờ trộn vào dữ liệu thật."
+            ),
+        }
+    )
     return ket
 
 
@@ -628,8 +699,14 @@ def chuan_hoa_nguon(platform: str, source: str) -> str:
     * YouTube: id 11 ký tự hoặc link ``watch?v=``, ``youtu.be/``, ``/live/``…
     * Facebook: chuỗi rỗng = tự tìm buổi đang phát trên Page; hoặc id số.
     * Shopee: session_id số.
+    * Mô phỏng: chuỗi rỗng = kịch bản mặc định; hoặc tên kịch bản dựng sẵn, có
+      thể kèm hệ số tăng tốc (``"ngan x10"``).
     """
     s = (source or "").strip()
+    if platform == NEN_TANG_MO_PHONG:
+        from livelift.ingest.mo_phong import chuan_hoa_nguon_mo_phong
+
+        return chuan_hoa_nguon_mo_phong(s)
     if platform == "youtube":
         from livelift.ingest.youtube_replay import _VIDEO_ID_RE, extract_video_id
 

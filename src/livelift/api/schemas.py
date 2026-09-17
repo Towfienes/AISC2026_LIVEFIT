@@ -309,6 +309,11 @@ class CommentIn(BaseModel):
     ext_id: str | None = Field(default=None, min_length=1, max_length=128)
     ts_utc: datetime | None = None
     client_ts: datetime | None = None
+    pii_kinds: list[str] = Field(default_factory=list, max_length=16)
+    """Loại PII bộ thu ĐÃ lọc trước khi gửi (kiểm toán 17/09/2026). ApiSink và
+    StoreSink lọc ngay tại nguồn, nên lần lọc lại ở máy chủ chạy trên chữ đã có
+    ``[SĐT]`` và không thấy gì: ``pii_kinds`` của mọi bình luận đi qua bộ thu
+    luôn rỗng. Máy chủ chỉ giữ các loại có trong bộ lọc; giá trị lạ bị bỏ."""
 
     @field_validator("ts_utc")
     @classmethod

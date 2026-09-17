@@ -42,6 +42,7 @@ import { fmtDateHCM, fmtNumber, fmtPct } from "@/lib/format";
 import type {
   BaoCao,
   BaoCaoKetQuaThiNghiem,
+  BaoCaoTongQuan,
   ExperimentSummary,
   PowerRow,
   SessionSummary,
@@ -82,7 +83,28 @@ interface VerdictData {
   nSessions: number | null;
   /** Mọi con số ở đây sinh từ dữ liệu mẫu — đeo chip DEMO. */
   isDemo: boolean;
+  /**
+   * CHỈ SỐ CHÍNH — lượt nhấp hợp lệ qua link đo. null = THIẾU (không phải 0).
+   * Là số vận hành, không phải suy luận: máy chủ trả ở MỌI nhánh, kể cả khóa
+   * §7 và chưa đủ điều kiện, nên khối CHƯA ĐỦ phải in nó ra.
+   */
+  luotNhapHopLe: number | null;
+  /** Lý do máy chủ khi lượt nhấp THIẾU (`tong_quan.thieu.luot_nhap`), nếu có. */
+  luotNhapThieu: string | null;
+  /** Chỉ bản một phiên (`tong_quan`) — bản gộp không có hai số này. */
+  motPhien: {
+    tongBinhLuan: number;
+    thoiLuongS: number | null;
+    thoiLuongThieu: string | null;
+  } | null;
 }
+
+/**
+ * `valid_clicks` máy chủ ĐÃ trả trong `/experiment/summary` (schemas.py
+ * ExperimentSummary, mọi nhánh) nhưng types.ts chưa khai. Đọc qua kiểu mở
+ * rộng cục bộ; payload cũ không mang trường này ⇒ undefined ⇒ THIẾU, không 0.
+ */
+type SummaryCoLuotNhap = ExperimentSummary & { valid_clicks?: number | null };
 
 /** Cùng luật phân loại với analysis/narrate.trang_thai_ket_luan phía server. */
 function verdictState(
@@ -113,10 +135,17 @@ function verdictFromSummary(d: ExperimentSummary): VerdictData {
     nOff: d.n_off,
     nSessions: d.n_sessions,
     isDemo: d.env === "demo",
+    luotNhapHopLe: (d as SummaryCoLuotNhap).valid_clicks ?? null,
+    luotNhapThieu: null,
+    motPhien: null,
   };
 }
 
-function verdictFromKetQua(kq: BaoCaoKetQuaThiNghiem, isDemo: boolean): VerdictData {
+function verdictFromKetQua(
+  kq: BaoCaoKetQuaThiNghiem,
+  isDemo: boolean,
+  tq: BaoCaoTongQuan | null | undefined,
+): VerdictData {
   const estimable = kq.estimable && kq.estimate != null;
   return {
     state: verdictState(estimable, kq.ci_low, kq.ci_high),
@@ -132,6 +161,15 @@ function verdictFromKetQua(kq: BaoCaoKetQuaThiNghiem, isDemo: boolean): VerdictD
     nOff: kq.n_off,
     nSessions: null,
     isDemo,
+    luotNhapHopLe: tq?.luot_nhap_hop_le ?? null,
+    luotNhapThieu: tq?.thieu?.luot_nhap ?? null,
+    motPhien: tq
+      ? {
+          tongBinhLuan: tq.tong_binh_luan,
+          thoiLuongS: tq.thoi_luong_s,
+          thoiLuongThieu: tq.thieu?.thoi_luong ?? null,
+        }
+      : null,
   };
 }
 
@@ -473,13 +511,58 @@ function VerdictChuaDu({ v }: { v: VerdictData }) {
                 con số nào bị bịa thêm cho đủ.
               </span>
             </li>
+            {/* Phản biện gói E: tóm tắt 3 câu bị ẩn ở trạng thái này, mà câu 2
+                của nó là chỗ DUY NHẤT từng in số lượt nhấp hợp lệ — chỉ số
+                chính. Số vận hành không bị khóa, nên phải in ở đây. */}
+            <li className="flex flex-wrap items-center gap-x-3 gap-y-1" data-ghi-nhan="luot-nhap">
+              {v.luotNhapHopLe != null ? (
+                <Badge tone="neutral">GHI NHẬN</Badge>
+              ) : (
+                <Badge tone="warn">THIẾU</Badge>
+              )}
+              <span className="text-body text-ink">Lượt nhấp hợp lệ qua link đo (chỉ số chính)</span>
+              <span className="tnum text-body text-sec">
+                {v.luotNhapHopLe != null
+                  ? fmtNumber(v.luotNhapHopLe)
+                  : `chưa có số — không phải bằng 0${v.luotNhapThieu ? ` (${v.luotNhapThieu})` : ""}`}
+              </span>
+            </li>
+            {v.motPhien ? (
+              <>
+                <li className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <Badge tone="neutral">GHI NHẬN</Badge>
+                  <span className="text-body text-ink">Bình luận đã thu</span>
+                  <span className="tnum text-body text-sec">
+                    {fmtNumber(v.motPhien.tongBinhLuan)}
+                  </span>
+                </li>
+                <li className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  {v.motPhien.thoiLuongS != null ? (
+                    <Badge tone="neutral">GHI NHẬN</Badge>
+                  ) : (
+                    <Badge tone="warn">THIẾU</Badge>
+                  )}
+                  <span className="text-body text-ink">Thời lượng phiên</span>
+                  <span className="tnum text-body text-sec">
+                    {v.motPhien.thoiLuongS != null
+                      ? `${fmtNumber(Math.round(v.motPhien.thoiLuongS / 60))} phút`
+                      : `chưa có số${v.motPhien.thoiLuongThieu ? ` (${v.motPhien.thoiLuongThieu})` : ""}`}
+                  </span>
+                </li>
+              </>
+            ) : null}
           </ul>
         </div>
-        <p className="mt-3 text-body leading-relaxed text-sec">
-          {v.khoa
-            ? "Khóa tồn tại để không ai — kể cả đội phát triển — nhìn trộm hiệu ứng trước ngày đã đăng ký; tới ngày mở, ước lượng chạy một lần trên toàn bộ dữ liệu tích lũy."
-            : "Không hạ ngưỡng, không nội suy: thiếu thì nói thiếu bằng số. Chạy thêm phiên có bốc thăm là cách duy nhất để ô này đổi trạng thái."}
-        </p>
+        {/* Đánh giá UI 17/09/2026: câu kết cũ của nhánh chưa-đủ ("Không hạ
+            ngưỡng…") là lần NÓI LẠI thứ tư của cùng thông điệp. Checklist ở
+            trên đã nói thiếu gì bằng số; nút ngay dưới là việc cần làm. Nhánh
+            khóa §7 giữ câu giải thích vì nó nói một điều MỚI: vì sao phải khóa. */}
+        {v.khoa ? (
+          <p className="mt-3 text-body leading-relaxed text-sec">
+            Khóa tồn tại để không ai — kể cả đội phát triển — nhìn trộm hiệu ứng trước ngày đã
+            đăng ký; tới ngày mở, ước lượng chạy một lần trên toàn bộ dữ liệu tích lũy.
+          </p>
+        ) : null}
         <div className="mt-4">
           <Link href="/chay-phien" className={buttonCls("primary")}>
             Chuẩn bị phiên live có bốc thăm
@@ -647,7 +730,7 @@ export default function KetQuaPage() {
 
   const verdict: VerdictData | null = phien
     ? baoCao?.ket_qua_thi_nghiem
-      ? verdictFromKetQua(baoCao.ket_qua_thi_nghiem, baoCao.is_demo)
+      ? verdictFromKetQua(baoCao.ket_qua_thi_nghiem, baoCao.is_demo, baoCao.tong_quan)
       : null
     : data
       ? verdictFromSummary(data)
@@ -721,8 +804,9 @@ export default function KetQuaPage() {
           <Callout tone="critical">
             {err}{" "}
             <button
+              type="button"
               onClick={() => void load()}
-              className="focus-ring rounded underline underline-offset-2 transition-colors duration-short2 ease-emphasized hover:text-ink"
+              className="focus-ring min-h-tap rounded underline underline-offset-2 transition-colors duration-short2 ease-emphasized hover:text-ink"
             >
               Thử lại
             </button>
@@ -743,8 +827,19 @@ export default function KetQuaPage() {
           )
         ) : null}
 
-        {/* ── Tóm tắt 3 câu — máy soạn câu tất định phía server ── */}
-        {!loading && tomTat.length > 0 ? (
+        {/* ── Tóm tắt 3 câu — máy soạn câu tất định phía server ──
+            BỎ LẶP (đánh giá UI 17/09/2026): khi CHƯA ĐỦ ĐIỀU KIỆN (kể cả khóa
+            §7), ba câu của máy chủ là đúng ba thứ khối verdict vừa in — câu 1
+            = lý do từ chối (in nguyên văn trong khối), câu 2 = số liệu vận
+            hành, câu 3 = việc cần làm (nút chuẩn bị phiên). Người đọc từng gặp
+            CÙNG một thông điệp ba lần liền (tiêu đề → lý do → câu 1).
+            Câu 2 KHÔNG chỉ là số khối/phiên: nó còn mang số lượt nhấp hợp lệ
+            (chỉ số chính) và — khi xem ?phien= — bình luận, thời lượng. Vì
+            vậy mọi số đó được VerdictChuaDu in lại ở danh sách GHI NHẬN
+            (thiếu thì ghi THIẾU); ẩn tóm tắt không được làm mất số nào.
+            Với trạng thái DƯƠNG/ÂM/NULL tóm tắt vẫn hiện: ở đó nó nói thêm
+            bằng chứng và bước tiếp theo mà khối verdict không nói. */}
+        {!loading && tomTat.length > 0 && verdict?.state !== "chuadu" ? (
           <TomTat3Cau cau={tomTat} demo={isDemoView} className="mt-3" />
         ) : null}
 

@@ -51,6 +51,11 @@ interface Props {
   sessionStatus?: string | null;
   /** Một dòng gọn cho thanh trạng thái bàn trợ live. */
   compact?: boolean;
+  /** Phiên chạy thử hoặc phiên mẫu: chỉ khi đó mới cho chọn nguồn mô phỏng
+   *  (máy chủ cũng chặn bằng 422 — đây là lớp thứ hai, để không mời bấm nhầm). */
+  allowSimulated?: boolean;
+  /** Ẩn tiêu đề "Nguồn bình luận" khi nơi đặt panel đã có tiêu đề riêng. */
+  hideTitle?: boolean;
   className?: string;
 }
 
@@ -59,6 +64,8 @@ export default function IngestPanel({
   sessionPlatform,
   sessionStatus,
   compact = false,
+  allowSimulated = false,
+  hideTitle = false,
   className,
 }: Props) {
   const [platforms, setPlatforms] = useState<PlatformReadiness[] | null>(null);
@@ -81,14 +88,19 @@ export default function IngestPanel({
     };
   }, []);
 
+  const choPhep = useMemo(
+    () => (allowSimulated ? THU_DUOC : THU_DUOC.filter((p) => p !== "mo_phong")),
+    [allowSimulated],
+  );
+
   useEffect(() => {
     if (platform || !platforms) return;
     const macDinh =
-      sessionPlatform && THU_DUOC.includes(sessionPlatform)
+      sessionPlatform && choPhep.includes(sessionPlatform)
         ? sessionPlatform
-        : (platforms.find((p) => p.ready && THU_DUOC.includes(p.platform))?.platform ?? "youtube");
+        : (platforms.find((p) => p.ready && choPhep.includes(p.platform))?.platform ?? "youtube");
     setPlatform(macDinh);
-  }, [platforms, platform, sessionPlatform]);
+  }, [platforms, platform, sessionPlatform, choPhep]);
 
   const refresh = useCallback(async () => {
     if (!sessionId) return;
@@ -185,7 +197,9 @@ export default function IngestPanel({
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
-          {!compact && <p className="text-label uppercase text-sec">Nguồn bình luận</p>}
+          {!compact && !hideTitle && (
+            <p className="text-label uppercase text-sec">Nguồn bình luận</p>
+          )}
           {dongTrangThai}
         </div>
         <div className="flex items-center gap-2">
@@ -227,7 +241,7 @@ export default function IngestPanel({
               onChange={(e) => setPlatform(e.target.value)}
             >
               {(platforms ?? [])
-                .filter((p) => THU_DUOC.includes(p.platform))
+                .filter((p) => choPhep.includes(p.platform))
                 .map((p) => (
                   <option key={p.platform} value={p.platform}>
                     {p.ten}

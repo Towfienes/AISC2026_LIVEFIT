@@ -188,7 +188,10 @@ def execute_action(session_id: str, body: ExecuteRequest, store: StoreDep) -> Ex
     if block is None:
         raise HTTPException(status_code=409, detail="Ngoài khung khối thí nghiệm")
     if block["is_washout"]:
-        raise HTTPException(status_code=409, detail="Đang trong khoảng washout")
+        raise HTTPException(
+            status_code=409,
+            detail="Khoảng trôi giữa hai khối — chờ khối BẬT kế tiếp rồi mới ghim.",
+        )
     if block["assignment"] != "ON":
         raise HTTPException(
             status_code=409,

@@ -532,7 +532,7 @@ hướng dẫn — **đây là trạng thái đúng, không phải hỏng**:
 ![Bàn điều khiển sau khi kết thúc phiên](img/l3-12-sau-khi-ket-thuc.png)
 
 Ba đường đi tiếp từ đây: **"Xem thử với dữ liệu mô phỏng"** · **"Về trang
-chính"** · dòng gạch chân **"Vẫn mở bàn điều khiển với phiên đã kết thúc"** (mở
+chính"** · dòng gạch chân **"Vẫn mở Bàn trợ live với phiên đã kết thúc"** (mở
 lại bàn trên một buổi cũ để xem lại).
 
 ---
@@ -664,7 +664,7 @@ hiển thị cho bàn điều khiển — màn hình host không thấy khối"*
 |---|---|---|
 | Trang trắng / không mở được `localhost:3000` | Cửa sổ 2 (`npm run dev`) chưa chạy | Bật lại cửa sổ 2, chờ dòng `Ready` |
 | Thẻ số 2 ở trang chính bị mờ | Máy chủ (cửa sổ 1) chưa chạy | Bật lại cửa sổ 1 |
-| Bàn điều khiển hiện *"Chưa có phiên nào đang chạy"* | Không có phiên nào ở trạng thái *đang live* | Bấm **"Xem thử với dữ liệu mô phỏng"**, hoặc **"Vẫn mở bàn điều khiển với phiên đã kết thúc"**, hoặc chạy Luồng 3 |
+| Bàn điều khiển hiện *"Chưa có phiên nào đang chạy"* | Không có phiên nào ở trạng thái *đang live* | Bấm **"Xem thử với dữ liệu mô phỏng"**, hoặc **"Vẫn mở Bàn trợ live với phiên đã kết thúc"**, hoặc chạy Luồng 3 |
 | Bàn hiện **sai buổi** | Bàn tự chọn buổi *đang live* đầu tiên | Đổi ở ô **"Phiên đang xem"** góc trái |
 | Khung cam *"Dữ liệu suy giảm"* trên bàn | Một nguồn dữ liệu tạm hỏng | Bàn vẫn chạy với nguồn còn lại; nếu kéo dài thì xem cửa sổ 1 |
 | Radar / feed trống trên buổi có hàng nghìn bình luận | Vừa đổi buổi, chưa poll xong | Chờ ~5 giây; nếu vẫn trống, tải lại trang (Ctrl+R) |

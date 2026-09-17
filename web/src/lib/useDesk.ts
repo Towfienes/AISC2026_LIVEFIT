@@ -43,6 +43,145 @@ import { useLiveSocket, type SocketStatus } from "./useLiveSocket";
 const MOCK_FORCED = process.env.NEXT_PUBLIC_MOCK === "1";
 const POLL_MS = 5000;
 
+// ---------------------------------------------------------------------------
+// Lỗi lệnh vận hành (gói C1 — giới hạn #6)
+// ---------------------------------------------------------------------------
+
+/**
+ * Lỗi của một lệnh trên bàn (Thực hiện thẻ, Kết thúc phiên), mang cờ `network`.
+ *
+ * VÌ SAO (giới hạn #6, ảnh d02): bấm Thực hiện trong khối TẮT, máy chủ trả 409
+ * kèm câu tiếng Việt rất rõ ("Khối TẮT: đội vận hành làm theo cách thường
+ * lệ…"), nhưng `catch {}` cũ nuốt câu đó và ném câu cố định "kiểm tra kết nối
+ * API" — người vận hành đi kiểm tra dây mạng trong khi mạng không hỏng gì.
+ * `request()` trong api.ts đã đưa `detail` của máy chủ vào `Error.message`,
+ * nên ở đây chỉ việc GIỮ nó; chỉ lỗi mạng thật mới được nói "kiểm tra kết nối".
+ */
+export class DeskCommandError extends Error {
+  readonly network: boolean;
+  constructor(message: string, network: boolean) {
+    super(message);
+    this.name = "DeskCommandError";
+    this.network = network;
+  }
+}
+
+/**
+ * Lỗi MẠNG thật: fetch không tới được máy chủ (TypeError "Failed to fetch"),
+ * bị huỷ vì quá thời gian chờ (AbortError), hoặc thông điệp mạng của trình
+ * duyệt khác. Một câu trả lời HTTP có mã lỗi KHÔNG phải lỗi mạng.
+ */
+export function isNetworkError(e: unknown): boolean {
+  if (e instanceof TypeError) return true;
+  const name =
+    e != null && typeof e === "object" && "name" in e ? String((e as { name: unknown }).name) : "";
+  if (name === "AbortError" || name === "TimeoutError") return true;
+  const msg = e instanceof Error ? e.message : typeof e === "string" ? e : "";
+  return /failed to fetch|networkerror|network request failed|load failed|fetch failed/i.test(msg);
+}
+
+/** Chuyển một lỗi bất kỳ thành DeskCommandError, giữ NGUYÊN câu của máy chủ. */
+export function toCommandError(e: unknown, fallback: string): DeskCommandError {
+  if (e instanceof DeskCommandError) return e;
+  if (isNetworkError(e)) {
+    return new DeskCommandError(
+      "Không gửi được lệnh tới máy chủ — mất kết nối hoặc máy chủ không trả lời.",
+      true,
+    );
+  }
+  const raw = e instanceof Error ? e.message.trim() : "";
+  if (!raw) return new DeskCommandError(fallback, false);
+  // Máy chủ không kèm câu tiếng Việt: request() rơi về "API 500 …" — vẫn là
+  // máy chủ TỪ CHỐI, không phải mất mạng, nên nói đúng như vậy.
+  if (/^API \d{3}\b/.test(raw)) return new DeskCommandError(`${fallback} (${raw})`, false);
+  return new DeskCommandError(raw, false);
+}
+
+// ---------------------------------------------------------------------------
+// Kết quả lệnh Thực hiện (gói C3 — bốc thăm giữa các thẻ ngang nhau)
+// ---------------------------------------------------------------------------
+
+/**
+ * Phần hẹp của `ExecuteOut` (src/livelift/api/schemas.py) mà bàn cần đọc.
+ *
+ * `executeCard` trong api.ts (tệp đóng băng) khai báo kiểu trả về là
+ * `{ ok, action_id? }` — thiếu `product_id`, `randomized`, `overlap_set` mà
+ * máy chủ THẬT SỰ gửi. Đọc qua interface cục bộ này, mọi trường tuỳ chọn để
+ * một máy chủ cũ không làm vỡ bàn.
+ */
+interface ExecuteOutWire {
+  action_id?: string;
+  product_id?: string | null;
+  randomized?: boolean;
+  overlap_set?: string[] | null;
+}
+
+/** Điều máy chủ đã làm sau một cú bấm Thực hiện. */
+export interface ExecuteOutcome {
+  cardProductId: string;
+  cardProductName: string;
+  /** Sản phẩm máy chủ THẬT SỰ ghim (có thể khác thẻ vừa bấm). */
+  pinnedProductId: string;
+  pinnedProductName: string;
+  /** Máy chủ bốc thăm trong tập sản phẩm có dự báo ngang nhau. */
+  randomized: boolean;
+  /** Số sản phẩm trong tập bốc thăm; null khi máy chủ không gửi tập. */
+  poolSize: number | null;
+}
+
+/**
+ * Đọc phản hồi của `POST /actions/execute` thành điều máy chủ đã làm.
+ *
+ * Hàm thuần (không đụng state React) để test chạy được bằng dữ liệu THẬT của
+ * máy chủ. `raw` là `unknown` có chủ ý: tệp api.ts khai báo thiếu trường, nên
+ * mọi trường đều được kiểm kiểu trước khi dùng — máy chủ cũ không gửi
+ * `product_id` thì coi như ghim đúng thẻ vừa bấm, không đoán gì thêm.
+ */
+export function readExecuteOutcome(
+  card: { product_id: string; product_name: string },
+  raw: unknown,
+  nameOf: (productId: string) => string,
+): ExecuteOutcome {
+  const wire: ExecuteOutWire = raw != null && typeof raw === "object" ? (raw as ExecuteOutWire) : {};
+  const pinnedId =
+    typeof wire.product_id === "string" && wire.product_id ? wire.product_id : card.product_id;
+  const pool = wire.overlap_set;
+  return {
+    cardProductId: card.product_id,
+    cardProductName: card.product_name,
+    pinnedProductId: pinnedId,
+    pinnedProductName: pinnedId === card.product_id ? card.product_name : nameOf(pinnedId),
+    randomized: wire.randomized === true,
+    poolSize: Array.isArray(pool) ? pool.length : null,
+  };
+}
+
+/**
+ * Câu xác nhận cho người vận hành — null khi máy chủ ghim đúng sản phẩm trên
+ * thẻ mà không bốc thăm (không có gì bất ngờ để giải thích).
+ *
+ * VÌ SAO (P0, ảnh f08): bấm thẻ "Ghim Bình giữ nhiệt", máy chủ bốc thăm công
+ * bằng và ghim "Sáp thơm", bàn im lặng. Người vận hành tưởng hệ thống lỗi và
+ * ghim tay lại — đúng hành động làm bẩn dữ liệu thí nghiệm.
+ */
+export function executeNotice(o: ExecuteOutcome | null): string | null {
+  if (!o) return null;
+  const differs = o.pinnedProductId !== o.cardProductId;
+  if (!o.randomized && !differs) return null;
+  const tail = differs ? ` (thẻ bạn bấm là ${o.cardProductName})` : "";
+  if (o.randomized) {
+    const pool =
+      o.poolSize != null && o.poolSize > 1
+        ? `giữa ${o.poolSize} sản phẩm ngang nhau`
+        : "giữa các sản phẩm ngang nhau";
+    return (
+      `Hệ thống bốc thăm công bằng ${pool}, đã ghim: ${o.pinnedProductName}${tail}. ` +
+      "Đây là chủ ý để đo cho công bằng — không cần ghim tay lại."
+    );
+  }
+  return `Máy chủ đã ghim: ${o.pinnedProductName}${tail}. Không cần ghim tay lại.`;
+}
+
 export interface DeskState {
   connection: ConnectionKind;
   wsStatus: SocketStatus;
@@ -79,7 +218,12 @@ export interface DeskState {
   setMode: (m: SessionMode) => void;
   canToggleMode: boolean;
   products: Product[];
-  execute: (card: ActionCardData) => Promise<void>;
+  /**
+   * Gửi lệnh Thực hiện. Trả về điều máy chủ đã làm (sản phẩm thật sự được
+   * ghim, có bốc thăm không) — null khi không gửi gì. Ném DeskCommandError khi
+   * máy chủ từ chối hoặc mất mạng (thẻ đã được trả lại danh sách).
+   */
+  execute: (card: ActionCardData) => Promise<ExecuteOutcome | null>;
   skip: (cardId: string) => void;
   override: (productId: string, reason: OverrideReason) => Promise<void>;
   /** True when the selected session is live on a real API (not mock). */
@@ -278,6 +422,18 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
         setDesignHash(st.design_hash ?? null);
         setAutopilot(st.autopilot ?? null);
         setCardsNote(st.cards_note ?? null);
+        // Gói C4: trạng thái phiên cũng đi theo poll, không chỉ theo WebSocket.
+        // Phiên bị kết thúc từ máy khác (hoặc tự hết giờ) trong lúc socket đang
+        // nối lại thì danh sách phiên nạp một lần lúc mở bàn sẽ mãi "đang live"
+        // — hero tiếp tục in "BẬT — Chuyển khối sau…" trên một phiên đã đóng.
+        const status = st.status;
+        if (status) {
+          setSessions((prev) =>
+            prev.some((s) => s.session_id === sessionId && s.status !== status)
+              ? prev.map((s) => (s.session_id === sessionId ? { ...s, status } : s))
+              : prev,
+          );
+        }
       }
       if (tksR.status === "fulfilled") {
         setTicks(tksR.value);
@@ -435,30 +591,68 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
   // -------------------------------------------------------------------------
   // Actions
   // -------------------------------------------------------------------------
+  // Ref cho các giá trị đổi MỖI GIÂY/mỗi poll: `execute` đọc chúng lúc bấm chứ
+  // không mang chúng trong deps — nếu không, hàm được tạo lại mỗi giây và bộ
+  // hẹn giờ tự thực thi của bản demo bị huỷ-đặt-lại trước khi kịp chạy.
+  const elapsedRef = useRef(elapsedS);
+  elapsedRef.current = elapsedS;
+  const productsRef = useRef(products);
+  productsRef.current = products;
+  const cardsRef = useRef(cards);
+  cardsRef.current = cards;
+
   const execute = useCallback(
-    async (card: ActionCardData) => {
-      if (!sessionId) return;
+    async (card: ActionCardData): Promise<ExecuteOutcome | null> => {
+      if (!sessionId) return null;
       setExecutedIds((prev) => new Set(prev).add(card.card_id));
-      if (connection === "live") {
-        try {
-          // Gửi kèm product_id: server phải scope đúng thẻ được bấm — chỉ gửi
-          // card_id từng khiến server ngẫu nhiên hoá trên TOÀN BỘ tập ứng viên
-          // (bấm thẻ A, ghim sản phẩm B).
-          await apiExecute(sessionId, card.card_id, card.product_id);
-        } catch {
-          setExecutedIds((prev) => {
-            const next = new Set(prev);
-            next.delete(card.card_id);
-            return next;
-          });
-          throw new Error("Không gửi được lệnh — kiểm tra kết nối API.");
-        }
-      } else {
-        const p = products.find((x) => x.product_id === card.product_id);
-        if (p) setManualPin({ product: p, atS: elapsedS });
+      // Tên sản phẩm máy chủ đã ghim: danh mục trước, rồi các thẻ đang hiện;
+      // không tìm thấy thì in mã — không bịa tên.
+      const nameOf = (pid: string): string =>
+        productsRef.current.find((x) => x.product_id === pid)?.name ??
+        cardsRef.current.find((c) => c.product_id === pid)?.product_name ??
+        pid;
+
+      if (connection !== "live") {
+        const p = productsRef.current.find((x) => x.product_id === card.product_id);
+        if (p) setManualPin({ product: p, atS: elapsedRef.current });
+        return {
+          cardProductId: card.product_id,
+          cardProductName: card.product_name,
+          pinnedProductId: card.product_id,
+          pinnedProductName: card.product_name,
+          randomized: false,
+          poolSize: null,
+        };
       }
+
+      let raw: unknown;
+      try {
+        // Gửi kèm product_id: server phải scope đúng thẻ được bấm — chỉ gửi
+        // card_id từng khiến server ngẫu nhiên hoá trên TOÀN BỘ tập ứng viên
+        // (bấm thẻ A, ghim sản phẩm B).
+        raw = await apiExecute(sessionId, card.card_id, card.product_id);
+      } catch (e) {
+        setExecutedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(card.card_id);
+          return next;
+        });
+        // Giữ NGUYÊN câu tiếng Việt của máy chủ (409 khối TẮT, hết hàng…);
+        // chỉ lỗi mạng thật mới thành "mất kết nối".
+        throw toCommandError(e, "Máy chủ không nhận lệnh ghim.");
+      }
+
+      // ĐỌC phản hồi thay vì vứt đi: máy chủ có thể bốc thăm giữa các thẻ có
+      // dự báo ngang nhau và ghim một sản phẩm KHÁC thẻ vừa bấm.
+      const outcome = readExecuteOutcome(card, raw, nameOf);
+      const pinnedProduct = productsRef.current.find(
+        (x) => x.product_id === outcome.pinnedProductId,
+      );
+      // Hiện ngay sản phẩm máy chủ đã ghim, không chờ poll 5 giây kế tiếp.
+      if (pinnedProduct) setPinned(pinnedProduct);
+      return outcome;
     },
-    [sessionId, connection, products, elapsedS],
+    [sessionId, connection],
   );
 
   const skip = useCallback((cardId: string) => {
@@ -474,8 +668,10 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
       setSessions((prev) =>
         prev.map((s) => (s.session_id === updated.session_id ? updated : s)),
       );
-    } catch {
-      throw new Error("Không kết thúc được phiên — kiểm tra kết nối API rồi thử lại.");
+    } catch (e) {
+      // Cùng luật với Thực hiện: câu của máy chủ giữ nguyên, chỉ lỗi mạng thật
+      // mới được gọi là lỗi kết nối.
+      throw toCommandError(e, "Máy chủ không kết thúc được phiên.");
     }
   }, [sessionId, connection]);
 
@@ -498,15 +694,26 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
     () => cards.filter((c) => !skippedIds.has(c.card_id)).slice(0, 3),
     [cards, skippedIds],
   );
+  // Bản demo cũng tôn trọng lịch khối như máy chủ thật: chỉ tự ghim trong khối
+  // BẬT. Giá trị này chỉ đổi ở ranh giới khối, nên không làm bộ hẹn giờ chạy lại
+  // mỗi giây.
+  const inOnBlock = useMemo(() => {
+    const b = blocks.find((x) => elapsedS >= x.start_offset_s && elapsedS < x.end_offset_s);
+    return b != null && !b.is_washout && b.assignment === "ON";
+  }, [blocks, elapsedS]);
+  const autoTop = visibleCards.find(
+    (c) => !executedIds.has(c.card_id) && c.auto_execute_in_s != null,
+  );
+  const autoTopId = autoTop?.card_id ?? null;
+  const autoTopDelayS = autoTop?.auto_execute_in_s ?? null;
   useEffect(() => {
-    if (connection !== "mock" || mode !== "auto") return;
-    const top = visibleCards.find((c) => !executedIds.has(c.card_id) && c.auto_execute_in_s != null);
-    if (!top) return;
+    if (connection !== "mock" || mode !== "auto" || !inOnBlock || autoTopId == null) return;
     const timer = setTimeout(() => {
-      void execute(top);
-    }, (top.auto_execute_in_s ?? 20) * 1000);
+      const top = cardsRef.current.find((c) => c.card_id === autoTopId);
+      if (top) void execute(top).catch(() => undefined);
+    }, (autoTopDelayS ?? 20) * 1000);
     return () => clearTimeout(timer);
-  }, [connection, mode, visibleCards, executedIds, execute]);
+  }, [connection, mode, inOnBlock, autoTopId, autoTopDelayS, execute]);
 
   const setMode = useCallback(
     (m: SessionMode) => {

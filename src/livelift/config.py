@@ -148,11 +148,21 @@ class Settings(BaseSettings):
     ytdlp_cookies_from_browser: str = ""
 
     # Shopee Open Platform v2 (OFFICIAL API — hợp ToS). partner_id/partner_key
-    # đến từ tài khoản Open Platform của nhóm; shop_id/access_token đến từ luồng
-    # ủy quyền OAuth của CHÍNH shop mình. access_token chỉ sống 4 giờ và phải
+    # đến từ tài khoản Open Platform của nhóm; user_id/access_token đến từ luồng
+    # ủy quyền OAuth của CHÍNH người phát. access_token chỉ sống 4 giờ và phải
     # làm mới bằng refresh_token — xem docs/nen-tang-ho-tro.md §4.
     shopee_partner_id: str = ""
     shopee_partner_key: str = ""
+    # Mã tài khoản NGƯỜI PHÁT (sửa 17/09/2026). Mọi API v2.livestream.* là loại
+    # "User": tài liệu gốc open.shopee.com ghi tham số chung partner_id,
+    # timestamp, access_token, user_id, sign và chữ ký = HMAC-SHA256 của
+    # partner_id + đường dẫn API + timestamp + access_token + user_id. Trước
+    # 17/09 adapter ký bằng shop_id nên mọi lời gọi thật sẽ bị từ chối. Lấy giá
+    # trị từ user_id_list trong phản hồi v2.public.get_access_token khi ủy quyền.
+    # BẮT BUỘC cho đọc bình luận / người xem / chỉ số.
+    shopee_user_id: str = ""
+    # Mã shop: CHỈ cần cho ghim sản phẩm (update_show_item nhận shop_id trong
+    # thân yêu cầu). Đọc bình luận và chỉ số KHÔNG cần.
     shopee_shop_id: str = ""
     shopee_access_token: str = ""
     shopee_refresh_token: str = ""

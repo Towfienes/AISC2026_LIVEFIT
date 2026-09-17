@@ -6,16 +6,22 @@ run on; ``PostgresStore`` maps the same methods onto the schema in
 ``src/livelift/migrations/0001_init.up.sql`` via ``psycopg_pool``. psycopg is
 imported lazily so memory mode needs no database driver installed.
 
-Concurrency model: the API runs on a single asyncio event loop and store
-methods are synchronous, non-awaiting calls — for the in-memory backend every
-method is therefore atomic with respect to request handlers (no lock needed).
-The Postgres backend uses a connection pool; its calls block the loop briefly,
-which is acceptable at pilot scale (a handful of concurrent sessions).
+Concurrency model (sửa 17/09/2026): store methods are synchronous calls, but
+they are NOT only called from the event loop. FastAPI runs every plain ``def``
+route in its threadpool, so two requests hit the store from two threads at the
+same time. The old note here claimed each in-memory method was "atomic, no
+lock needed" — a probe with 8 threads delivering the same (platform, ext_id)
+comment stored DUPLICATES in 12 of 300 rounds, i.e. the idempotency contract
+the ingest spool relies on did not hold under load. ``InMemoryStore`` now serializes every
+public method behind one re-entrant lock (:func:`_synchronized`); the Postgres
+backend is thread-safe through its connection pool and database constraints.
 
 Pubsub: a tiny per-process asyncio broadcaster keyed by session_id feeds the
-``/ws/{session_id}`` sockets. Both backends share the same broadcaster class;
-a multi-process deployment would swap it for Redis pubsub behind the same
-three methods.
+``/ws/{session_id}`` sockets. ``publish`` is thread-safe: a call from a
+threadpool route is handed to the subscriber's event loop with
+``call_soon_threadsafe`` instead of touching the asyncio queue directly. Both
+backends share the same broadcaster class; a multi-process deployment would
+swap it for Redis pubsub behind the same three methods.
 
 PII note (hard rule 1): comment rows only ever carry ``text_scrubbed`` — the
 store has no field, method, or log line for raw comment text.
@@ -37,15 +43,16 @@ answers live in this module and both are needed:
   the newest events), never a whole session. It is not a substitute for
   Postgres and ``durability_info`` says so out loud on ``/health``.
 
-Why serialization is safe here: ``export_json`` never awaits, so — like every
-other store method — it is atomic with respect to request handlers; only the
-disk write is pushed to a thread.
+Why serialization is safe here: ``export_json`` holds the store lock like every
+other public method, so no threadpool route can mutate a table mid-dump; only
+the disk write is pushed to a thread.
 """
 
 from __future__ import annotations
 
 import asyncio
 import contextlib
+import functools
 import itertools
 import json
 import logging
@@ -125,38 +132,71 @@ DEFAULT_CLOSE_TIMEOUT_S = 1.0
 # ---------------------------------------------------------------------------
 
 
+def _put_dropping_oldest(q: asyncio.Queue[dict[str, Any]], message: dict[str, Any]) -> None:
+    try:
+        q.put_nowait(message)
+    except asyncio.QueueFull:
+        # Slow consumer: drop its oldest message rather than blocking.
+        try:
+            q.get_nowait()
+            q.put_nowait(message)
+        except (asyncio.QueueEmpty, asyncio.QueueFull):
+            pass
+
+
 class Broadcaster:
-    """Minimal per-process asyncio pubsub: one queue per WebSocket subscriber."""
+    """Minimal per-process asyncio pubsub: one queue per WebSocket subscriber.
+
+    THREAD-SAFE PUBLISH (17/09/2026). ``asyncio.Queue`` is not thread-safe, yet
+    most publishers are plain ``def`` routes that FastAPI runs in a worker
+    thread. Calling ``put_nowait`` from there resolves the socket's waiting
+    future off-loop: the event loop is never woken, so the desk only received
+    the message when some unrelated I/O happened to wake the loop — live
+    updates lagged by up to the next poll. Each queue now remembers the loop
+    that subscribed it, and a publish from any other thread is handed over
+    with ``call_soon_threadsafe``.
+    """
 
     def __init__(self, maxsize: int = 256) -> None:
         self._maxsize = maxsize
-        self._subs: dict[str, list[asyncio.Queue[dict[str, Any]]]] = {}
+        self._subs: dict[
+            str, list[tuple[asyncio.Queue[dict[str, Any]], asyncio.AbstractEventLoop | None]]
+        ] = {}
+        self._lock = threading.Lock()
 
     def subscribe(self, session_id: str) -> asyncio.Queue[dict[str, Any]]:
         q: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=self._maxsize)
-        self._subs.setdefault(session_id, []).append(q)
+        try:
+            loop: asyncio.AbstractEventLoop | None = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None  # subscribed outside a loop (tests): deliver directly
+        with self._lock:
+            self._subs.setdefault(session_id, []).append((q, loop))
         return q
 
     def unsubscribe(self, session_id: str, q: asyncio.Queue[dict[str, Any]]) -> None:
-        queues = self._subs.get(session_id)
-        if not queues:
-            return
-        if q in queues:
-            queues.remove(q)
-        if not queues:
-            self._subs.pop(session_id, None)
+        with self._lock:
+            entries = self._subs.get(session_id)
+            if not entries:
+                return
+            entries[:] = [e for e in entries if e[0] is not q]
+            if not entries:
+                self._subs.pop(session_id, None)
 
     def publish(self, session_id: str, message: dict[str, Any]) -> None:
-        for q in list(self._subs.get(session_id, ())):
-            try:
-                q.put_nowait(message)
-            except asyncio.QueueFull:
-                # Slow consumer: drop its oldest message rather than blocking.
-                try:
-                    q.get_nowait()
-                    q.put_nowait(message)
-                except (asyncio.QueueEmpty, asyncio.QueueFull):
-                    pass
+        with self._lock:
+            entries = list(self._subs.get(session_id, ()))
+        try:
+            current: asyncio.AbstractEventLoop | None = asyncio.get_running_loop()
+        except RuntimeError:
+            current = None
+        for q, loop in entries:
+            if loop is None or loop is current:
+                _put_dropping_oldest(q, message)
+            elif not loop.is_closed():
+                # RuntimeError: the loop closed between the check and the call.
+                with contextlib.suppress(RuntimeError):
+                    loop.call_soon_threadsafe(_put_dropping_oldest, q, message)
 
 
 # ---------------------------------------------------------------------------
@@ -412,9 +452,39 @@ def quarantine_snapshot(path: Path) -> Path | None:
 # ---------------------------------------------------------------------------
 
 
+_UNLOCKED_METHODS: frozenset[str] = frozenset({"subscribe", "unsubscribe", "publish"})
+"""Pubsub methods carry their own lock (:class:`Broadcaster`) and must stay
+callable while a store method holds the store lock."""
+
+
+def _synchronized(cls: type) -> type:
+    """Wrap every public method of ``cls`` in ``self._lock`` (an RLock).
+
+    Applied to :class:`InMemoryStore` because FastAPI calls it from many
+    threads at once (see the module docstring). Re-entrant so a public method
+    may call another public method. Wrapping at class level — not by hand in
+    each method — means a method added tomorrow is protected too.
+    """
+    for name, attr in list(vars(cls).items()):
+        if name.startswith("_") or name in _UNLOCKED_METHODS or not callable(attr):
+            continue
+
+        def make(fn: Any) -> Any:
+            @functools.wraps(fn)
+            def locked(self: Any, *args: Any, **kwargs: Any) -> Any:
+                with self._lock:
+                    return fn(self, *args, **kwargs)
+
+            return locked
+
+        setattr(cls, name, make(attr))
+    return cls
+
+
+@_synchronized
 class InMemoryStore:
-    """Complete dict-backed store. Safe for a single asyncio loop: methods
-    never await, so each call is atomic w.r.t. request handlers.
+    """Complete dict-backed store, safe under FastAPI's threadpool: every
+    public method runs under one re-entrant lock (:func:`_synchronized`).
 
     RAM is not storage (incident 11/09/2026). Attach a :class:`SnapshotManager`
     — ``attach_snapshot(store)`` does it from config — to get periodic atomic
@@ -429,6 +499,8 @@ class InMemoryStore:
         # a duplicate delivery (which returns the existing row) costs none
         # either.
         self._rev = 0
+        # One lock for the whole store (sửa 17/09/2026 — see module docstring).
+        self._lock = threading.RLock()
         # Set by attach_snapshot(); read by durability_info() for /health.
         self.snapshot: SnapshotManager | None = None
         self._products: dict[str, dict[str, Any]] = {}
@@ -447,6 +519,8 @@ class InMemoryStore:
         self._clicks: dict[str, list[dict[str, Any]]] = {}
         self._interventions: dict[str, list[dict[str, Any]]] = {}
         self._orders: dict[str, list[dict[str, Any]]] = {}
+        # order_id -> stored row (toàn kho): mã đơn là khoá chính của order_event.
+        self._order_index: dict[str, dict[str, Any]] = {}
         # Append-only event tables (migration 0006) — written, never rewritten.
         self._assignment_events: dict[str, list[dict[str, Any]]] = {}
         self._exposure_events: dict[str, list[dict[str, Any]]] = {}
@@ -692,9 +766,17 @@ class InMemoryStore:
 
     # -- orders ------------------------------------------------------------
     def add_order(self, session_id: str | None, row: dict[str, Any]) -> dict[str, Any]:
-        self._orders.setdefault(session_id or "", []).append(dict(row))
+        # Idempotent theo order_id (khoá chính của order_event): nhập lại cùng
+        # một tệp CSV trả về bản ghi CŨ, không nhân đôi doanh thu — cùng hợp
+        # đồng với ON CONFLICT DO NOTHING của PostgresStore (17/09/2026).
+        existing = self._order_index.get(row.get("order_id"))
+        if existing is not None:
+            return dict(existing)
+        stored = {**row, "session_id": session_id}
+        self._orders.setdefault(session_id or "", []).append(stored)
+        self._order_index[stored["order_id"]] = stored
         self._rev += 1
-        return dict(row)
+        return dict(stored)
 
     def list_orders(self, session_id: str) -> list[dict[str, Any]]:
         return sorted((dict(o) for o in self._orders.get(session_id, [])), key=_by_ts("ts"))
@@ -790,6 +872,11 @@ class InMemoryStore:
         # a restart would return a detached copy.
         self._comment_keys = _rebuild_dedup_index(self._comments)
         self._reaction_keys = _rebuild_dedup_index(self._reactions)
+        self._order_index = {}
+        for session_key, rows in self._orders.items():
+            for order in rows:
+                order.setdefault("session_id", session_key or None)
+                self._order_index.setdefault(order["order_id"], order)
 
         self._rev += 1
         return self.counts()
@@ -1429,7 +1516,9 @@ class PostgresStore:
             """
             INSERT INTO order_event
                 (order_id, session_id, block_id, ts, product_id, qty, gross, fees, net_margin)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (order_id) DO NOTHING
+            RETURNING *
             """,
             (
                 row["order_id"],
@@ -1443,6 +1532,9 @@ class PostgresStore:
                 row.get("net_margin"),
             ),
         )
+        if out is None:
+            # Mã đơn đã tồn tại: trả bản ghi CŨ (cùng hợp đồng InMemoryStore).
+            out = self._one("SELECT * FROM order_event WHERE order_id = %s", (row["order_id"],))
         assert out is not None
         return out
 

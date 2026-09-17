@@ -94,12 +94,30 @@ class Settings(BaseSettings):
     # có trần riêng, tính theo giờ.
     demo_seed_rate_limit_per_hour: int = 6
 
+    # --- Địa chỉ thật của người gọi sau proxy (kiểm toán 17/09/2026) --------
+    # Chỉ tin X-Forwarded-For khi kết nối TRỰC TIẾP đến từ một proxy trong danh
+    # sách này. Trước ngày 17/09 header được tin vô điều kiện (người gọi tự bịa
+    # được địa chỉ, phá trần tần suất khi API lộ cổng trực tiếp), còn shortlink
+    # /r/{code} thì bỏ hẳn header và băm địa chỉ của CADDY — mọi người xem sau
+    # proxy chung một "vân tay", nên luật refractory/volume-cap gộp họ làm một
+    # và đánh dấu click hợp lệ của người thứ hai là vô hiệu.
+    # Mặc định: loopback + dải mạng riêng (mạng nội bộ Docker nơi Caddy sống).
+    # Đứng sau Cloudflare thì thêm dải IP của Cloudflare vào đây.
+    trusted_proxy_cidrs: str = (
+        "127.0.0.1/32,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fc00::/7"
+    )
+
     # PREREGISTRATION.md §7 (no peeking): ISO date (YYYY-MM-DD, UTC). While the
     # current UTC date is BEFORE this date, /experiment/summary withholds every
     # inferential field (estimate, p, CI) and serves operational numbers only.
     # Empty (default) = no freeze (dev/demo). A malformed value fails CLOSED:
     # the lock stays on until the configuration is fixed.
     results_freeze_until: str = ""
+
+    # Bộ thu chạy nền trong API (POST /sessions/{id}/ingest): danh sách bộ thu
+    # đang bật được ghi ở đây để API khởi động lại thì TỰ NỐI LẠI cho phiên
+    # chưa đóng, thay vì im lặng ngừng thu giữa buổi live.
+    ingest_state_path: str = "data/ingest-jobs.json"
 
     youtube_api_key: str = ""
     # Which YouTube live-ingest path the runner uses:

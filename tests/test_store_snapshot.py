@@ -771,13 +771,14 @@ def test_every_mutating_method_bumps_the_revision_counter():
 def test_every_data_table_of_the_store_is_inside_the_snapshot():
     """Thêm bảng dữ liệu mới mà quên xuất ⇒ mất đúng bảng đó, âm thầm.
 
-    Hai chỉ mục chống trùng được miễn vì chúng được DỰNG LẠI từ dữ liệu (và
-    test dedup ở trên chứng minh việc dựng lại là đúng).
+    Ba chỉ mục chống trùng được miễn vì chúng được DỰNG LẠI từ dữ liệu (và
+    test dedup ở trên chứng minh việc dựng lại là đúng; chỉ mục mã đơn có test
+    riêng trong tests/test_don_hang.py).
     """
     store = InMemoryStore()
     _populate(store)
     exported = set(json.loads(store.export_json()))
-    rebuilt = {"_comment_keys", "_reaction_keys"}
+    rebuilt = {"_comment_keys", "_reaction_keys", "_order_index"}
 
     for name, value in vars(store).items():
         if name in rebuilt or not name.startswith("_") or not isinstance(value, dict):

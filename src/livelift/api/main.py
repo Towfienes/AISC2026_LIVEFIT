@@ -18,7 +18,19 @@ from fastapi.responses import JSONResponse
 from livelift import __version__
 from livelift.api import autopilot
 from livelift.api.auth import GioiHanTanSuat, require_write_auth
-from livelift.api.routes import actions, demo, events, redirect, replays, reports, sessions, ws
+from livelift.api.ingest_jobs import ClientFactory, IngestManager
+from livelift.api.routes import (
+    actions,
+    demo,
+    events,
+    ingest,
+    orders,
+    redirect,
+    replays,
+    reports,
+    sessions,
+    ws,
+)
 from livelift.api.store import (
     Store,
     StoreUnavailableError,
@@ -30,7 +42,9 @@ from livelift.api.store import (
 log = logging.getLogger("livelift.api")
 
 
-def create_app(store: Store | None = None) -> FastAPI:
+def create_app(
+    store: Store | None = None, ingest_client_factory: ClientFactory | None = None
+) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         # Snapshotting is attached ONLY to a store the app built itself: an
@@ -44,9 +58,22 @@ def create_app(store: Store | None = None) -> FastAPI:
         # ever called /actions/execute, so every auto session ended with
         # compliance 0.0 and no estimate, silently (incident 12/09).
         app.state.autopilot_task = autopilot.start(app.state.store)
+        # Bộ thu bình luận chạy nền (kiểm toán 17/09/2026): bật/tắt từ trình
+        # duyệt thay cho lệnh terminal. Tệp trạng thái chỉ dùng cho kho do ứng
+        # dụng tự dựng — cùng lý do với ảnh chụp ở trên.
+        from livelift.config import get_settings
+
+        app.state.ingest = IngestManager(
+            app.state.store,
+            client_factory=ingest_client_factory,
+            state_path=get_settings().ingest_state_path if owned else None,
+        )
+        if owned:
+            await app.state.ingest.resume()
         try:
             yield
         finally:
+            await app.state.ingest.shutdown()
             await autopilot.stop(app.state.autopilot_task)
             if app.state.snapshot is not None:
                 app.state.snapshot.stop()
@@ -192,6 +219,8 @@ def create_app(store: Store | None = None) -> FastAPI:
     app.include_router(redirect.router, tags=["redirect"])
     app.include_router(reports.router, tags=["reports"])
     app.include_router(replays.router, tags=["replays"])
+    app.include_router(ingest.router, tags=["ingest"])
+    app.include_router(orders.router, tags=["orders"])
     app.include_router(demo.router, tags=["demo"])
     app.include_router(ws.router)
     return app

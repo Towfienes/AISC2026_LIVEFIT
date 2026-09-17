@@ -25,6 +25,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 from livelift.api import service
+from livelift.api.auth import dia_chi_goi
 from livelift.api.service import StoreDep
 from livelift.core.click_validity import PriorClick, classify_click
 
@@ -37,7 +38,11 @@ _PROCESS_SALT = secrets.token_hex(16)
 
 
 def _dedup_hash(request: Request, session_id: str | None) -> str:
-    client = request.client.host if request.client else ""
+    # Địa chỉ THẬT của người xem, không phải của Caddy (kiểm toán 17/09/2026):
+    # trước đó mọi click sau proxy băm cùng một địa chỉ, nên luật refractory
+    # và volume-cap của click_validity gộp mọi người xem thành MỘT người và
+    # đánh dấu click hợp lệ của người thứ hai trở đi là vô hiệu.
+    client = dia_chi_goi(request)
     ua = request.headers.get("user-agent", "")
     material = f"{_PROCESS_SALT}:{session_id or ''}:{client}:{ua}"
     return hashlib.sha256(material.encode()).hexdigest()[:32]

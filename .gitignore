@@ -59,3 +59,7 @@ research_specs.txt
 # Thông tin cá nhân của đội thi (ngày sinh, MSSV, SĐT) — không bao giờ commit.
 # Tạo từ docs/competition/thong-tin-doi.example.json.
 docs/competition/thong-tin-doi.local.json
+
+# Bo thu chay nen: danh sach bo thu dang bat (tu noi lai sau khoi dong lai)
+data/ingest-jobs.json
+data/ingest-jobs.tmp

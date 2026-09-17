@@ -15,7 +15,13 @@ import type {
   ExperimentSummary,
   HealthInfo,
   HostState,
+  IngestPlatform,
+  IngestStatus,
+  OrderImportResult,
+  OrderItem,
+  OrderSummary,
   OverrideReason,
+  PlatformReadiness,
   Product,
   ReactionItem,
   ReplayJob,
@@ -724,4 +730,75 @@ export function createShortlink(body: {
   target_url: string;
 }): Promise<{ code: string; product_id: string; target_url: string }> {
   return request("/shortlinks", { method: "POST", body: JSON.stringify(body) });
+}
+
+// ---------------------------------------------------------------------------
+// Bộ thu bình luận chạy nền (kiểm toán 17/09/2026) — thay lệnh terminal
+// `python -m livelift.ingest.runner` bằng nút bấm. Bật/tắt đòi token ghi khi
+// máy chủ đặt INGEST_TOKEN (đường tốn tài nguyên, như /replays/youtube).
+// ---------------------------------------------------------------------------
+
+/** Nền tảng nào thu được ngay trên máy chủ này, thiếu biến nào. */
+export function getPlatforms(): Promise<PlatformReadiness[]> {
+  return request<PlatformReadiness[]>("/platforms");
+}
+
+export function getIngestStatus(sessionId: string): Promise<IngestStatus> {
+  return request<IngestStatus>(`/sessions/${sessionId}/ingest`);
+}
+
+/** `source`: link/id video (YouTube), live-video id hoặc rỗng để tự tìm
+ *  (Facebook), session_id (Shopee). Máy chủ trả 422 với câu tiếng Việt khi
+ *  thiếu khoá hoặc link sai — `request` đưa nguyên câu đó lên Error. */
+export function startIngest(
+  sessionId: string,
+  body: { platform?: IngestPlatform; source: string },
+): Promise<IngestStatus> {
+  return request<IngestStatus>(`/sessions/${sessionId}/ingest`, {
+    method: "POST",
+    body: JSON.stringify(body),
+    timeoutMs: 10000,
+  });
+}
+
+export function stopIngest(sessionId: string): Promise<IngestStatus> {
+  return request<IngestStatus>(`/sessions/${sessionId}/ingest/stop`, {
+    method: "POST",
+    timeoutMs: 10000,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Đơn hàng — ghi tay hoặc nhập CSV xuất từ Seller Center (kiểm toán 17/09/2026)
+// ---------------------------------------------------------------------------
+
+export function getOrders(sessionId: string): Promise<OrderSummary> {
+  return request<OrderSummary>(`/sessions/${sessionId}/orders`);
+}
+
+export function createOrder(
+  sessionId: string,
+  body: {
+    order_id?: string;
+    ts_utc?: string;
+    product_id?: string;
+    qty?: number;
+    gross: number;
+    fees?: number;
+  },
+): Promise<OrderItem> {
+  return request<OrderItem>(`/sessions/${sessionId}/orders`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+/** Dán NỘI DUNG tệp CSV (không phải tệp). Cột bắt buộc: thời gian đặt đơn +
+ *  tổng tiền; nên có mã đơn để nhập lại không bị trùng. */
+export function importOrdersCsv(sessionId: string, csv: string): Promise<OrderImportResult> {
+  return request<OrderImportResult>(`/sessions/${sessionId}/orders/import`, {
+    method: "POST",
+    body: JSON.stringify({ csv }),
+    timeoutMs: 30000,
+  });
 }

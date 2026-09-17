@@ -27,6 +27,13 @@ ALLOWED_OVERRIDE_REASONS: frozenset[str] = frozenset({"hết hàng", "sai giá",
 OverrideReason = Literal["hết hàng", "sai giá", "sự cố kỹ thuật"]
 
 Platform = Literal["youtube", "facebook", "tiktok", "replay", "sim"]
+EventPlatform = Literal["youtube", "facebook", "tiktok", "shopee", "replay", "sim"]
+"""Nguồn của MỘT sự kiện (bình luận, tương tác trả phí) — rộng hơn ``Platform``
+của phiên. Kiểm toán 17/09/2026: bộ thu Shopee gắn ``platform="shopee"`` cho mọi
+bình luận, nhưng API chỉ nhận năm giá trị của ``Platform`` nên trả 422, và
+``ApiSink`` coi 422 là lỗi vĩnh viễn rồi VỨT bản ghi. Kết quả: đường Shopee có
+26 test xanh nhưng chưa từng lưu được một bình luận nào. Cột ``platform`` của
+``comment_event``/``reaction_event`` là text tự do nên không cần migration."""
 SessionMode = Literal["auto", "suggest"]
 SessionStatus = Literal["planned", "scheduled", "live", "ended", "cancelled"]
 """Vòng đời phiên. ``cancelled`` = ĐÓNG mà KHÔNG phát sóng (migration 0008).
@@ -298,7 +305,7 @@ class CommentIn(BaseModel):
     """
 
     text: str = Field(min_length=1, max_length=2000)
-    platform: Platform | None = None
+    platform: EventPlatform | None = None
     ext_id: str | None = Field(default=None, min_length=1, max_length=128)
     ts_utc: datetime | None = None
     client_ts: datetime | None = None
@@ -371,7 +378,7 @@ class ReactionIn(BaseModel):
     ts_utc: datetime | None = None
     amount: float | None = Field(default=None, ge=0)
     currency: str | None = Field(default=None, min_length=1, max_length=16)
-    platform: Platform | None = None
+    platform: EventPlatform | None = None
     ext_id: str | None = Field(default=None, min_length=1, max_length=128)
 
     @field_validator("ts_utc")

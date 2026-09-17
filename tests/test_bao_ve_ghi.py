@@ -58,6 +58,10 @@ BANG_MUC_BAO_VE: dict[tuple[str, str], str] = {
     ("POST", "/sessions/{session_id}/reactions"): MUC_TOKEN,
     # Tốn tài nguyên: máy chủ tải video theo địa chỉ người gọi đưa.
     ("POST", "/replays/youtube"): MUC_TOKEN,
+    # Bộ thu chạy nền (17/09/2026): mở kết nối tới nền tảng và đốt quota của
+    # khoá thật — cùng lý do với /replays/youtube.
+    ("POST", "/sessions/{session_id}/ingest"): MUC_TOKEN,
+    ("POST", "/sessions/{session_id}/ingest/stop"): MUC_TOKEN,
     # Vòng đời phiên + can thiệp + danh mục: khách của bản trưng bày được
     # dùng, nhưng CHỈ trên dữ liệu mẫu, và có trần tần suất.
     ("POST", "/products"): MUC_DEMO,
@@ -69,6 +73,9 @@ BANG_MUC_BAO_VE: dict[tuple[str, str], str] = {
     ("POST", "/sessions/{session_id}/cancel"): MUC_DEMO,
     ("POST", "/sessions/{session_id}/actions/execute"): MUC_DEMO,
     ("POST", "/sessions/{session_id}/actions/override"): MUC_DEMO,
+    # Đơn hàng (17/09/2026): phiên thật cần token, khách chỉ ghi vào phiên mẫu.
+    ("POST", "/sessions/{session_id}/orders"): MUC_DEMO,
+    ("POST", "/sessions/{session_id}/orders/import"): MUC_DEMO,
     ("POST", "/demo/seed"): MUC_DEMO,
     ("POST", "/demo/seed-vang"): MUC_DEMO,
 }
@@ -179,6 +186,22 @@ def _yeu_cau_ghi(sid: str) -> dict[tuple[str, str], tuple[str, dict[str, Any] | 
         ("POST", "/sessions/{session_id}/reactions"): (
             f"/sessions/{sid}/reactions",
             {"kind": "like", "platform": "youtube", "ext_id": "r-1"},
+        ),
+        # Nền tảng không tồn tại ⇒ 422 ở tầng kiểm tra dữ liệu: cổng xác thực
+        # vẫn được kiểm, mà bộ test không bao giờ mở kết nối thật tới YouTube
+        # trên một máy tình cờ có khoá trong .env.
+        ("POST", "/sessions/{session_id}/ingest"): (
+            f"/sessions/{sid}/ingest",
+            {"platform": "khong-co", "source": ""},
+        ),
+        ("POST", "/sessions/{session_id}/ingest/stop"): (f"/sessions/{sid}/ingest/stop", None),
+        ("POST", "/sessions/{session_id}/orders"): (
+            f"/sessions/{sid}/orders",
+            {"order_id": "DH-TEST", "gross": 1000},
+        ),
+        ("POST", "/sessions/{session_id}/orders/import"): (
+            f"/sessions/{sid}/orders/import",
+            {"csv": "order_id,ts,gross\nDH-CSV,2026-09-17T12:00:00+00:00,1000\n"},
         ),
         ("POST", "/demo/seed"): ("/demo/seed", {"n_sessions": 1, "duration_min": 30}),
         ("POST", "/demo/seed-vang"): ("/demo/seed-vang", None),

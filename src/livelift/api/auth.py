@@ -62,6 +62,8 @@ ngẫu nhiên, phân tích hay khoá tiền đăng ký.
 
 from __future__ import annotations
 
+import functools
+import ipaddress
 import logging
 import math
 import secrets
@@ -262,21 +264,57 @@ class GioiHanTanSuat:
             del self._lich_su[k]
 
 
-def dia_chi_goi(conn: HTTPConnection) -> str:
-    """Địa chỉ người gọi, đọc qua Caddy.
+@functools.lru_cache(maxsize=8)
+def mang_proxy_tin_cay(
+    spec: str,
+) -> tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...]:
+    """Phân tích ``TRUSTED_PROXY_CIDRS``; mục sai cú pháp bị bỏ qua có cảnh báo."""
+    mang: list[ipaddress.IPv4Network | ipaddress.IPv6Network] = []
+    for phan in spec.split(","):
+        phan = phan.strip()
+        if not phan:
+            continue
+        try:
+            mang.append(ipaddress.ip_network(phan, strict=False))
+        except ValueError:
+            logger.warning("TRUSTED_PROXY_CIDRS: bỏ qua mục không hợp lệ %r", phan)
+    return tuple(mang)
 
-    Lấy phần tử CUỐI của ``X-Forwarded-For``, không phải phần tử đầu. Caddy
-    **nối thêm** địa chỉ của bên nó thật sự nhận gói tin vào cuối header, nên
-    phần tử cuối là thứ duy nhất người gọi không tự bịa được; phần tử đầu thì
-    ai cũng đặt được bằng một dòng curl và như vậy giới hạn tần suất trở thành
-    trang trí.
+
+def _thuoc_proxy_tin_cay(
+    dia_chi: str, mang: tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...]
+) -> bool:
+    try:
+        ip = ipaddress.ip_address(dia_chi)
+    except ValueError:
+        return False
+    return any(ip in m for m in mang)
+
+
+def dia_chi_goi(conn: HTTPConnection) -> str:
+    """Địa chỉ thật của người gọi, kể cả khi đứng sau Caddy.
+
+    Hai quy tắc, cả hai đều chống giả mạo:
+
+    1. ``X-Forwarded-For`` CHỈ được đọc khi kết nối trực tiếp đến từ một proxy
+       tin cậy (``TRUSTED_PROXY_CIDRS``). Người gọi thẳng vào API thì header do
+       chính họ viết — tin nó là cho họ tự chọn địa chỉ.
+    2. Đọc từ PHẢI sang TRÁI, bỏ qua các chặng proxy tin cậy, lấy địa chỉ đầu
+       tiên KHÔNG phải proxy. Caddy **nối thêm** địa chỉ bên nó nhận gói tin
+       vào cuối header, nên phần bên phải là phần người gọi không bịa được;
+       phần tử đầu thì ai cũng đặt được bằng một dòng curl.
     """
+    client = conn.client
+    truc_tiep = client.host if client else ""
+    mang = mang_proxy_tin_cay(get_settings().trusted_proxy_cidrs)
+    if not truc_tiep or not _thuoc_proxy_tin_cay(truc_tiep, mang):
+        return truc_tiep or "khong-ro"
     xff = conn.headers.get("x-forwarded-for", "")
     phan = [p.strip() for p in xff.split(",") if p.strip()]
-    if phan:
-        return phan[-1]
-    client = conn.client
-    return client.host if client else "khong-ro"
+    for dia_chi in reversed(phan):
+        if not _thuoc_proxy_tin_cay(dia_chi, mang):
+            return dia_chi
+    return phan[0] if phan else truc_tiep
 
 
 def _bo_dem(conn: HTTPConnection) -> GioiHanTanSuat:

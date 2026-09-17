@@ -384,3 +384,26 @@ def test_env_example_tai_lieu_hoa_cors_origins():
     nên một bản triển khai thật sẽ im lặng giữ mặc định localhost."""
     text = (ROOT / ".env.example").read_text(encoding="utf-8")
     assert re.search(r"^CORS_ORIGINS=", text, re.M), ".env.example thiếu biến CORS_ORIGINS"
+
+
+def test_compose_truyen_cau_hinh_bao_mat_va_nen_tang_vao_api(compose):
+    """Kiểm toán 17/09/2026: khối environment của api từng chỉ có 4 dòng, nên
+    INGEST_TOKEN đặt trong .env không bao giờ tới được API — bản công khai chạy
+    với MỌI đường ghi mở trong khi người vận hành tin là đã khoá."""
+    prod = yaml.safe_load(PROD.read_text(encoding="utf-8"))
+    can_co = (
+        "INGEST_TOKEN",
+        "PUBLIC_DEMO_WRITES",
+        "RESULTS_FREEZE_UNTIL",
+        "TRUSTED_PROXY_CIDRS",
+        "YOUTUBE_API_KEY",
+        "FACEBOOK_PAGE_ACCESS_TOKEN",
+        "SHOPEE_PARTNER_KEY",
+    )
+    for ten_tep, env in (
+        ("docker-compose.yml", compose["services"]["api"]["environment"]),
+        ("docker-compose.prod.yml", prod["services"]["api"]["environment"]),
+    ):
+        for khoa in can_co:
+            assert khoa in env, f"{ten_tep}: api thiếu {khoa} — giá trị trong .env không tới được"
+        assert "${INGEST_TOKEN" in str(env["INGEST_TOKEN"])

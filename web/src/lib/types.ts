@@ -521,6 +521,94 @@ export interface HealthInfo {
   [key: string]: unknown;
 }
 
+// ---------------------------------------------------------------------------
+// Bộ thu bình luận chạy nền + nền tảng + đơn hàng (kiểm toán 17/09/2026)
+// — SHARED API CONTRACT. Tên trường khớp nguyên văn src/livelift/api/routes/
+// ingest.py (PlatformReadiness, IngestStatus) và routes/orders.py.
+// ---------------------------------------------------------------------------
+
+/** `GET /platforms` — nền tảng nào thu được NGAY, thiếu biến nào. Không bao
+ *  giờ chứa giá trị khoá, chỉ TÊN biến còn thiếu. */
+export interface PlatformReadiness {
+  platform: "youtube" | "facebook" | "shopee" | "tiktok" | string;
+  ten: string;
+  ready: boolean;
+  mode: "chinh_thuc" | "du_phong" | "khong_ho_tro";
+  missing: string[];
+  source_hint: string;
+  note: string;
+}
+
+/** Vòng đời bộ thu (xem src/livelift/api/ingest_jobs.py). */
+export type IngestState =
+  | "chua_bat"
+  | "dang_khoi_dong"
+  | "dang_thu"
+  | "dang_thu_lai"
+  | "cho_len_song"
+  | "da_dung"
+  | "phien_ket_thuc"
+  | "nguon_ket_thuc"
+  | "loi";
+
+/** `mo_phong` = phát lại bình luận đã lưu như một buổi live (kiểm thử đường ống
+ *  đầu-cuối không cần nền tảng) — máy chủ chỉ cho dùng trên phiên demo/chạy thử. */
+export type IngestPlatform = "youtube" | "facebook" | "shopee" | "mo_phong";
+
+/** `GET|POST /sessions/{id}/ingest` và `POST .../ingest/stop`. */
+export interface IngestStatus {
+  session_id: string;
+  state: IngestState;
+  running: boolean;
+  platform: string | null;
+  source_id: string | null;
+  resolved_source: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+  restarts: number;
+  comments_seen: number;
+  comments_posted: number;
+  ticks_posted: number;
+  last_viewers: number | null;
+  write_failures: number;
+  last_event_at: string | null;
+  seconds_since_last_event: number | null;
+  last_error: string | null;
+  tick_error: string | null;
+  api_usage_pct: number | null;
+}
+
+/** Một đơn hàng (`OrderOut`). Không có trường người mua nào (quy tắc cứng 1). */
+export interface OrderItem {
+  order_id: string;
+  session_id: string;
+  block_id: string | null;
+  ts: string;
+  product_id: string | null;
+  qty: number;
+  gross: number;
+  fees: number;
+  net_margin: number | null;
+}
+
+/** `GET /sessions/{id}/orders`. */
+export interface OrderSummary {
+  session_id: string;
+  tong_don: number;
+  tong_san_pham: number;
+  tong_doanh_thu: number;
+  don: OrderItem[];
+}
+
+/** `POST /sessions/{id}/orders/import`. */
+export interface OrderImportResult {
+  nhap_moi: number;
+  trung_bo_qua: number;
+  loi: { dong: number; ly_do: string }[];
+  tong_don: number;
+  tong_doanh_thu: number;
+}
+
 /** Chart chrome tokens — v2 khớp thang mặt phẳng xanh đêm của gói SKIN
  *  (tailwind.config.ts giữ cùng bộ giá trị; số contrast trong globals.css). */
 export const CHART = {

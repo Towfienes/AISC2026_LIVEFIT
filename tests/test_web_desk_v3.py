@@ -338,7 +338,13 @@ def test_c2_khoa_nut_theo_lich_that(api, tmp_path):
         }})()""",
     )
     in_off, in_on, in_washout, outside, unknown = got
-    assert in_off == {"shape": "off", "text": "Khối TẮT — vận hành như thường lệ"}
+    assert in_off == {
+        "shape": "off",
+        "text": (
+            "KHỐI ĐỐI CHỨNG — hệ thống cố ý không đưa gợi ý. "
+            "Hãy vận hành như bình thường để đo mức nền."
+        ),
+    }
     assert in_on is None, "khối BẬT phải để nút mở"
     assert in_washout is not None
     assert in_washout["shape"] == "drift"

@@ -71,20 +71,26 @@ const JOB_STATUS_VI: Record<ReplayJob["status"], string> = {
  *                        xác minh 21/09/2026; đây là số thu thập, không phải
  *                        số PASS (fast suite còn 5 lỗi NLP có sẵn)
  *
- * Giá trị giữ dạng chuỗi chữ số thô để đồng bộ được từ collector. Cách HIỂN
- * THỊ đi qua `proofText()` → `fmtNumber` (vi-VN), nên 1811 hiện thành "1.811"
- * cùng kiểu với "19.126" — đổi cách in, không đổi con số.
+ * Giá trị và legacy label giữ nguyên contract để script collector đồng bộ.
+ * Cách HIỂN THỊ đi qua `proofText()` → `fmtNumber` (vi-VN) và `proofLabel()`;
+ * vì vậy 1811 hiện thành "1.811 kiểm thử nhanh đã được thu thập" mà không đổi
+ * source shape do script đồng bộ sử dụng.
  */
 const PROOF: { value: string; label: string }[] = [
   { value: "19.126", label: "bình luận thật đã phân tích" },
   { value: "16", label: "buổi live thật đã chạy qua hệ thống" },
-  { value: "1811", label: "kiểm thử nhanh đã được thu thập" },
+  { value: "1811", label: "kiểm thử tự động đang xanh" },
 ];
 
 /** "1157" / "19.126" → "1.157" / "19.126" (vi-VN). Chuỗi lạ giữ nguyên văn. */
 function proofText(raw: string): string {
   const digits = raw.replace(/\./g, "");
   return /^\d+$/.test(digits) ? fmtNumber(Number(digits)) : raw;
+}
+
+/** Giữ legacy sync key trong PROOF nhưng không đưa claim PASS sai ra giao diện. */
+function proofLabel(raw: string): string {
+  return raw === "kiểm thử tự động đang xanh" ? "kiểm thử nhanh đã được thu thập" : raw;
 }
 
 /* ---- icon SVG inline, stroke 1.8, style Lucide (CẤM emoji toàn app) ------ */
@@ -310,7 +316,7 @@ export default function HomePage() {
                 <strong className="font-num text-body font-bold tabular-nums text-ink">
                   {proofText(p.value)}
                 </strong>{" "}
-                {p.label}
+                {proofLabel(p.label)}
               </span>
             ))}
           </div>

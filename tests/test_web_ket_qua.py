@@ -272,6 +272,26 @@ def test_danh_sach_phien_tach_nhom_that_demo():
     assert "filter((s) => s.is_demo)" in src
 
 
+def test_real_chua_du_co_cta_demo_vang_nhung_khong_redirect_mac_dinh():
+    """CTA phải đứng trên real verdict, resolve UUID từ API và dán nhãn demo;
+    `/ket-qua` vẫn mặc định env=real, không âm thầm thay bằng số mô phỏng."""
+    src = _read(KET_QUA)
+    assert "function DemoVangCta" in src
+    assert "Chưa có kết quả thử nghiệm thật." in src
+    for label in ("Dương rõ", "Chưa kết luận", "Chưa đủ dữ liệu", "DEMO/MÔ PHỎNG"):
+        assert label in src
+    assert 'env === "real"' in src
+    assert 'verdict?.state === "chuadu"' in src
+    assert 'useState<"real" | "demo">("real")' in src
+    assert "sessions.find(" in src
+    assert "encodeURIComponent(found.session_id)" in src
+    assert not re.search(
+        r"[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}",
+        src,
+        re.I,
+    ), "CTA không được hard-code session UUID"
+
+
 # ---------------------------------------------------------------------------
 # 7. Chi tiết thống kê giữ nguyên (MDE/CV/tuân thủ) + p-floor trung thực
 # ---------------------------------------------------------------------------

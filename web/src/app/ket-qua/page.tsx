@@ -654,6 +654,42 @@ function SessionRows({ rows }: { rows: SessionSummary[] }) {
   );
 }
 
+/**
+ * CTA trung thực cho trạng thái real chưa đủ: vẫn giữ nguyên verdict thật ở
+ * ngay bên dưới, nhưng đưa ba trạng thái Demo Vàng lên trước để người xem biết
+ * app có thể trình bày những kết cục nào. Session id luôn lấy từ API runtime;
+ * thiếu đúng mẫu nào thì link mẫu đó rơi về bản gộp demo, không ghim UUID vào
+ * source và không bao giờ đổi mặc định `/ket-qua` khỏi env=real.
+ */
+function DemoVangCta({ sessions }: { sessions: SessionSummary[] }) {
+  const hrefFor = (needle: string) => {
+    const found = sessions.find(
+      (s) => s.is_demo && (s.title ?? "").toLocaleUpperCase("vi-VN").includes(needle),
+    );
+    return found ? `/ket-qua?phien=${encodeURIComponent(found.session_id)}` : "/ket-qua?env=demo";
+  };
+
+  const links = [
+    ["Dương rõ", hrefFor("DƯƠNG RÕ")],
+    ["Chưa kết luận", hrefFor("NULL")],
+    ["Chưa đủ dữ liệu", hrefFor("CHƯA ĐỦ")],
+  ] as const;
+
+  return (
+    <Callout tone="warn" className="mb-4">
+      <p className="font-display text-strong text-ink">Chưa có kết quả thử nghiệm thật.</p>
+      <p className="mt-1 text-body text-sec">Xem 3 kịch bản Demo Vàng:</p>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        {links.map(([label, href]) => (
+          <Link key={label} href={href} className={buttonCls("ghost", "sm")}>
+            {label} <span className="text-warn-ink">· DEMO/MÔ PHỎNG</span>
+          </Link>
+        ))}
+      </div>
+    </Callout>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Trang
 // ---------------------------------------------------------------------------
@@ -797,6 +833,10 @@ export default function KetQuaPage() {
             </p>
           ) : null}
         </PageHeader>
+
+        {!loading && !err && !phien && env === "real" && verdict?.state === "chuadu" ? (
+          <DemoVangCta sessions={demoSessions} />
+        ) : null}
 
         {loading ? <ResultSkeleton /> : null}
 

@@ -67,17 +67,18 @@ const JOB_STATUS_VI: Record<ReplayJob["status"], string> = {
  *   19.126 bình luận — lô đo có hệ thống 10/09/2026
  *                      (docs/benchmarks/live-fire-da-nguon.md §1)
  *   16 buổi live     — cùng lô đo đó, cùng tài liệu
- *   1803 kiểm thử     — `pytest -m "not slow"`, chạy 14/09/2026, exit 0
+ *   1811 kiểm thử nhanh — pytest collector + `scripts/dong_bo_so_test.py`,
+ *                        xác minh 21/09/2026; đây là số thu thập, không phải
+ *                        số PASS (fast suite còn 5 lỗi NLP có sẵn)
  *
- * Giá trị giữ dạng chuỗi chữ số thô vì `scripts/dong_bo_so_test.py` ghi đè
- * đúng mẫu `{ value: "<số>", label: "kiểm thử tự động đang xanh" }`. Cách
- * HIỂN THỊ đi qua `proofText()` → `fmtNumber` (vi-VN), nên 1157 hiện thành
- * "1.157" cùng kiểu với "19.126" — đổi cách in, không đổi con số.
+ * Giá trị giữ dạng chuỗi chữ số thô để đồng bộ được từ collector. Cách HIỂN
+ * THỊ đi qua `proofText()` → `fmtNumber` (vi-VN), nên 1811 hiện thành "1.811"
+ * cùng kiểu với "19.126" — đổi cách in, không đổi con số.
  */
 const PROOF: { value: string; label: string }[] = [
   { value: "19.126", label: "bình luận thật đã phân tích" },
   { value: "16", label: "buổi live thật đã chạy qua hệ thống" },
-  { value: "1803", label: "kiểm thử tự động đang xanh" },
+  { value: "1811", label: "kiểm thử nhanh đã được thu thập" },
 ];
 
 /** "1157" / "19.126" → "1.157" / "19.126" (vi-VN). Chuỗi lạ giữ nguyên văn. */

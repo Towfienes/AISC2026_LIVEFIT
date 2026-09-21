@@ -141,7 +141,8 @@ def test_current_block_is_rendered_at_display_size():
     # Hero v2 phải GIẢI THÍCH trạng thái bằng một câu người thường (spec UX-FLOW
     # e2: "hệ thống đang điều khiển" vs "vận hành như thường lệ").
     assert "Hệ thống đang điều khiển việc ghim sản phẩm" in src
-    assert "Vận hành như thường lệ" in src
+    assert "Khối đối chứng — hệ thống cố ý không đưa gợi ý" in src
+    assert "hãy vận hành như bình thường để đo mức nền" in src
 
     # ... and the vitals — now KPI tiles — keep display figures with a real
     # label, not a bare number glued to a sentence.

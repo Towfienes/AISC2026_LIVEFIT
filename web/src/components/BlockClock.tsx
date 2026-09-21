@@ -89,7 +89,7 @@ const BAR_FILL: Record<StatusShape, string> = {
  */
 const EXPLAIN: Record<StatusShape, string> = {
   on: "Hệ thống đang điều khiển việc ghim sản phẩm",
-  off: "Vận hành như thường lệ — nhánh đối chứng để so sánh",
+  off: "Khối đối chứng — hệ thống cố ý không đưa gợi ý; hãy vận hành như bình thường để đo mức nền",
   drift: "Khoảng chuyển tiếp — không tính vào kết quả",
 };
 
@@ -161,7 +161,12 @@ export function actionLockReason(
 ): { shape: StatusShape; text: string } | null {
   if (view) {
     if (view.washout) return { shape: "drift", text: "Khoảng trôi — chờ khối BẬT kế tiếp" };
-    if (view.assignment === "OFF") return { shape: "off", text: "Khối TẮT — vận hành như thường lệ" };
+    if (view.assignment === "OFF") {
+      return {
+        shape: "off",
+        text: "KHỐI ĐỐI CHỨNG — hệ thống cố ý không đưa gợi ý. Hãy vận hành như bình thường để đo mức nền.",
+      };
+    }
     return null;
   }
   if (scheduleKnown) return { shape: "off", text: "Ngoài lịch khối — chưa ghim được" };

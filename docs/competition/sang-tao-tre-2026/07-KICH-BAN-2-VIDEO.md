@@ -1,74 +1,111 @@
-# Kịch bản 2 video bắt buộc — Bảng C, Vòng loại
+# Kịch bản 2 video bắt buộc — Bảng C, đường trường cử
 
-*Căn cứ: `BRIEF-THE-LE.md` §3. Cả hai video đều **tối đa 05 phút**. Thiếu một trong hai là loại về hình thức.*
+*Căn cứ: `BRIEF-THE-LE.md` §3. Mỗi video **tối đa 05:00**. Thiếu một trong hai là loại về hình thức.
+Viết lại 25/09/2026 theo giao diện hiện tại (`/`, `/bat-dau`, `/chay-phien`, `/desk`, `/host`,
+`/bao-cao/[id]`, `/ket-qua`) và theo hồ sơ `noi-dung.md` bản 25/09. Thay cho bản 15/09.*
 
-> **Luật bao trùm cả hai video:** không nói một con số nào không có trong
-> `docs/competition/FACT-SHEET.md`. Giám khảo Bảng C được thể lệ giao quyền
-> "kiểm tra, xác minh sản phẩm"; một con số trong video không khớp hồ sơ là
-> mất điểm trọng tâm 5 *khả năng kiểm chứng đầu ra* — chỗ đắt nhất của bảng này.
+> **Ba luật bao trùm cả hai video**
+>
+> 1. **Không nói con số nào không có trong `docs/competition/FACT-SHEET.md` và `noi-dung.md`.**
+>    Giám khảo Bảng C được quyền "kiểm tra, xác minh sản phẩm"; một số trong video lệch hồ sơ
+>    là mất điểm trọng tâm 5. Bảng "Số được phép nói" ở cuối tệp là danh sách duy nhất.
+> 2. **Không quay dữ liệu cá nhân thật.** Mọi bình luận trên hình lấy từ nguồn **Mô phỏng**
+>    (200 câu tổng hợp do tác tử AI soạn, số điện thoại trong đó là số giả) trên một phiên
+>    **chạy thử**. Không mở VOD của người khác, không mở `.env`, không mở `data/labeling/`.
+> 3. **Không cắt ghép che bước.** Điều 5 khoản 7 Thể lệ cấm giả mạo video demo. Đoạn chờ thì
+>    tua nhanh và ghi rõ trên hình "tua nhanh ×N"; đoạn chuyển cảnh giữa hai lượt quay thì ghi
+>    "chuyển cảnh" — không ghép để trông như một lượt.
 
----
-
-## VIDEO 1 — THUYẾT TRÌNH (≤ 5:00)
-
-Thể lệ yêu cầu đúng 5 nội dung: **vấn đề cần giải quyết · phương pháp xây dựng giải pháp · kết quả đạt được · giá trị thực tiễn · khả năng phát triển**. Kịch bản dưới đây đi đúng thứ tự đó để giám khảo tick được từng ô.
-
-Hình thức: người nói xuất hiện trên hình (webcam góc nhỏ), slide chiếm phần còn lại. Cả 3 thành viên nên xuất hiện — vòng sau bắt buộc, tập trước từ bây giờ.
-
-| Thời lượng | Người nói | Nội dung | Hình trên màn |
-|---|---|---|---|
-| 0:00–0:25 | Minh | **Móc câu.** "Phút 30 ghim sản phẩm B, phút 35 doanh thu tăng. Vì sao? Ba lời giải thích cùng đúng: vì vừa ghim, vì nền tảng vừa đẩy người vào phòng, vì người dẫn vừa kể xong chuyện hay. Cả ngành đang quyết định bằng thứ chưa qua một phép thử nào." | Cảnh quay màn hình một phiên live thật + đường doanh thu nhích lên |
-| 0:25–1:00 | Minh | **Vấn đề & quy mô.** 2,5 triệu phiên/tháng, hơn 50.000 nhà bán. Dữ liệu thì thừa, nhưng mọi công cụ chỉ trả lời "bán được bao nhiêu", không cái nào trả lời "bao nhiêu là do bạn". Năng lực thí nghiệm hôm nay là đặc quyền: Eppo ~42.000 USD/năm ≈ 1,1 tỷ đồng. | Slide 3 con số lớn |
-| 1:00–1:50 | Khánh | **Phương pháp.** Không chia được người xem vì cả phòng nhìn một màn hình → chỉ chia được **thời gian**. Ví von cái quạt và căn phòng. Switchback: 90 phút → 16 khối 5 phút, mỗi khối bốc thăm bật/tắt, **lịch khóa trước khi lên sóng**. | Hoạt hình dải khối bật/tắt chạy dọc trục thời gian |
-| 1:50–2:40 | Khánh | **Ba cơ chế liêm chính** — phần khác biệt nhất, nói chậm: (1) khóa tiền đăng ký bằng `design_hash`, không có thì API chặn 409; (2) khóa kết quả *fail-closed* — chưa tới mốc thì chính nhóm cũng không xem được p-value; (3) làm mù người dẫn. **Đây là mã nguồn, không phải lời hứa.** | Quay màn hình thật: thử gọi API khi chưa có design_hash → HTTP 409 |
-| 2:40–3:40 | Tiến | **Kết quả đạt được.** A/A 200 lần: bác bỏ 3,50% so với danh nghĩa 5%, phủ KTC 96,50%. 19.126 bình luận thật từ 16 buổi live. 1.174 kiểm thử. **Và số xấu:** mô hình ý định 0,870 trên bộ tự soạn nhưng chỉ **0,211 trên chat thật** — nhóm tự đo, tự công bố, truy ra 3 nguyên nhân, rồi dựng lại khung đo và nâng lên **0,565**. **Và 0 phiên thí nghiệm thật — nói thẳng.** | Bảng kết quả, ô số xấu tô đỏ chứ không giấu |
-| 3:40–4:20 | Tiến | **Giá trị thực tiễn.** Hạ chi phí của một năng lực khoa học từ 1,1 tỷ đ/năm xuống mức tổ ba người dùng được. Gắn Nghị quyết 57-NQ/TW: đưa phương pháp khoa học vào một ngành kinh tế số. | Bảng so sánh 4 nhóm giải pháp (mục 9.1 hồ sơ) |
-| 4:20–4:50 | Minh | **Khả năng phát triển.** Ưu tiên 1: những phiên ngẫu nhiên thật đầu tiên. Ưu tiên 2: NLP dùng được cho quyết định. Mở rộng: lõi phương pháp không gắn với thương mại — truyền thông cộng đồng, phổ biến pháp luật, khuyến nông trực tuyến. | Slide lộ trình |
-| 4:50–5:00 | Cả 3 | Chốt: "LiveLift không hứa giúp bạn bán nhiều hơn. LiveLift nói cho bạn biết **cái gì thật sự có tác dụng** — kèm khoảng tin cậy." | Cả 3 trên hình |
-
-**Ba điều PHẢI có trong video 1** (đây là thứ tách đội này khỏi phần còn lại):
-1. Nói ra con số xấu **trước khi** giám khảo tìm thấy nó.
-2. Quay màn hình thật cảnh hệ thống **tự chặn chính mình** (HTTP 409) — không slide nào thay được.
-3. Nói rõ "0 phiên thí nghiệm thật" — giấu là rủi ro bị loại theo Điều 5 §7; nói ra là bằng chứng của trọng tâm 8 *trách nhiệm của đội thi*.
+**Cả ba thành viên xuất hiện trên hình ở cả hai video** (vòng Khu vực bắt buộc video có mặt tất cả
+thành viên; tập từ vòng này). Webcam góc phải dưới, đổi người theo cột "Ai" ở bảng dưới.
 
 ---
 
-## VIDEO 2 — DEMO SẢN PHẨM (≤ 5:00)
+## VIDEO 1 — THUYẾT TRÌNH (mục tiêu 4:50, trần 5:00)
 
-Thể lệ yêu cầu quay: **quá trình vận hành · các chức năng chính · kết quả xử lý · khả năng tích hợp · khả năng ứng dụng**.
+Thể lệ yêu cầu đúng 5 nội dung, theo thứ tự: **vấn đề · phương pháp xây dựng giải pháp · kết quả
+đạt được · giá trị thực tiễn · khả năng phát triển**. Mỗi nội dung có một thẻ tiêu đề nhỏ góc trên
+để giám khảo tick được.
 
-Quay màn hình liền mạch một lượt, **không cắt ghép giữa các bước** — cắt ghép ở video demo là thứ giám khảo soi đầu tiên, và Điều 5 §7 cấm giả mạo video demo. Nếu phải cắt, ghi rõ trên hình "tua nhanh ×N".
+Hình thức: slide chiếm màn hình, người nói ở ô webcam; mở và kết thúc bằng cảnh cả ba người.
+Slide lấy thẳng hình của hồ sơ (`docs/competition/sang-tao-tre-2026/hinh/`) — không vẽ hình mới
+có số khác.
 
-| Thời lượng | Bước | Quay gì | Câu thoại chốt |
-|---|---|---|---|
-| 0:00–0:20 | Mở đầu | Trang chủ, chỉ rõ nhãn **chế độ DEMO / chế độ THẬT** | "Mọi thứ các thầy cô sắp xem đều gắn nhãn rõ đâu là mô phỏng, đâu là dữ liệu thật." |
-| 0:20–1:10 | **Chuẩn bị phiên** | Wizard: khai danh mục sản phẩm → tạo phiên → **bốc lịch** | "Lịch bốc thăm sinh ra ở đây, kèm `design_hash`. Từ giây này lịch không sửa được nữa." |
-| 1:10–1:35 | **Cổng chặn** | Thử phát sóng một phiên **chưa có lịch** → API trả **HTTP 409** | "Hệ thống từ chối chính người tạo ra nó. Đây là cưỡng chế bằng kiến trúc." |
-| 1:35–2:30 | **Vận hành trực tiếp** | Bàn điều khiển `/desk`: dải khối, đồng hồ đếm, bình luận chảy vào theo thời gian thực, radar ý định | "Bình luận đi qua bộ khử PII **trước khi** chạm đĩa. Đây là số điện thoại thật trong chat — và đây là thứ được ghi xuống." (chỉ vào chuỗi đã che) |
-| 2:30–3:00 | **Làm mù người dẫn** | Mở song song `/host` cạnh `/desk` | "Cùng một phiên. Người dẫn không thấy khối nào bật, khối nào tắt — nếu thấy, phép đo sẽ đo tâm lý người dẫn thay vì đo can thiệp." |
-| 3:00–3:40 | **Kết quả xử lý** | Trang `/report` với **ba trạng thái**: đủ bằng chứng / không đủ bằng chứng / chưa đủ dữ liệu | "Không phải phiên nào cũng ra một con số. Ép ra con số khi dữ liệu không đủ là nói dối người dùng." |
-| 3:40–4:10 | **Khả năng tích hợp** | Nạp thật từ một VOD YouTube qua API chính chủ; chỉ endpoint link đo `/r/{code}` | "Thêm một nền tảng chỉ là thêm một adapter nạp. Lõi phân tích không đổi." |
-| 4:10–4:40 | **Kiểm chứng** | Chạy `pytest -m "not slow"` cho chạy lên màn hình; mở `docs/incident-log.md` | "1.174 kiểm thử. 47 sự cố có phân tích nguyên nhân gốc — kể cả sự cố tự bác bỏ mô hình của chính nhóm." |
-| 4:40–5:00 | **Ứng dụng** | Địa chỉ demo công khai trên trình duyệt sạch | "Các thầy cô mở được ngay tại địa chỉ này." |
+| Mốc | Ai | Nội dung | Lời thoại (đọc gần nguyên văn) | Cảnh quay |
+|---|---|---|---|---|
+| 0:00–0:15 | Cả 3 | Mở | **Minh:** "Chúng em là đội LiveLift, trường Đại học Tôn Đức Thắng: em là Minh, đây là Khánh và Tiến. Sản phẩm của chúng em đo xem một hành động trong phiên livestream có thật sự làm bán được hơn không." | Cả ba ngồi cạnh nhau, cỡ trung |
+| 0:15–0:55 | Minh | **Vấn đề** | "Phút 30 người trợ live ghim sản phẩm B, phút 35 doanh thu nhích lên. Vì ghim, vì nền tảng vừa đẩy thêm người vào phòng, hay vì người dẫn vừa kể một câu chuyện hay? Số liệu sau phiên không tách được. Công cụ của nền tảng trả lời 'bán được bao nhiêu', chưa có công cụ nào nhà bán tự dùng được để trả lời 'bao nhiêu là do mình'. Các thí nghiệm ngẫu nhiên trong livestream đã làm được điều đó — nhưng do chính nền tảng chạy. Nhà bán không sở hữu nền tảng." | Slide: đường doanh thu có ba mũi tên giải thích; dòng nguồn [6], [7] của hồ sơ |
+| 0:55–1:45 | Khánh | **Phương pháp (1): thí nghiệm** | "Trong livestream cả phòng nhìn một màn hình, nên không chia người xem được. Thứ chia được là thời gian. Phiên 90 phút chia thành 16 khối, khối đầu và cuối 10 phút, mỗi khối bốc thăm bật hay tắt can thiệp. Lịch bốc thăm được lưu kèm một mã băm trước giờ phát; chưa có lịch thì hệ thống không cho lên sóng. Người dẫn không được thấy khối nào đang bật, vì biết thì sẽ hào hứng hơn và phép đo thành đo tâm lý người dẫn. Kết quả tính bằng kiểm định ngẫu nhiên hóa, bốc lại bằng đúng hàm gán đang chạy." | Hình 1 của hồ sơ (`h1-switchback.png`), zoom lần lượt vào khối đầu, mốc khóa lịch, dải burn-in |
+| 1:45–2:15 | Khánh | **Phương pháp (2): phần AI** | "Phần AI nằm ở hai chỗ. Một bộ lọc che số điện thoại, địa chỉ, tên tài khoản ngay khi bình luận vào hệ thống, trước khi ghi đĩa. Và một bộ phân loại ý định mua cho bình luận tiếng Việt, để người trợ live thấy khách đang hỏi giá hay chốt đơn. Nhãn ý định chỉ hiện trên bàn điều khiển, không đi vào phép tính nhân quả." | Hình 6 (`h2-kien-truc.png`), khoanh ba ô đỏ: lọc PII, HTTP 409, khóa kết quả |
+| 2:15–3:25 | Tiến | **Kết quả đạt được** | "Bộ ước lượng được kiểm trên mô phỏng có đáp án: 200 lần thí nghiệm giả không có tác động, hệ thống báo có tác động 3,50% số lần, sát mức 5% cho phép; khoảng tin cậy chứa giá trị thật 96,50% số lần. Hệ thống đã nạp 19.126 bình luận quan sát từ 16 buổi phát lại trên YouTube — tải bằng yt-dlp, không qua API chính thức, và chúng em ghi rõ điều đó trong hồ sơ. Bộ phân loại ý định đạt 0,870 trên câu mẫu do AI soạn, nhưng trên chat thật chỉ 0,211; sau khi làm lại bộ nhãn và dữ liệu, lên 0,542 — đo so với nhãn tham chiếu do tác tử AI gán, chưa phải nhãn người. Độ đúng khi báo 'có khách muốn mua' tăng, nhưng tỷ lệ bắt được giảm. 1.830 kiểm thử tự động, 60 sự cố có phân tích nguyên nhân gốc. Điều chưa có: chưa có phiên thí nghiệm ngẫu nhiên thật nào — 0 phiên." | Hình 2 (`h3-hieu-chuan-aa.png`), rồi Bảng 8 của hồ sơ (dòng B2 và C2 tô đậm, cột recall khoanh); dòng "0 phiên" để trên nền trắng, chữ lớn |
+| 3:25–4:05 | Minh | **Giá trị thực tiễn** | "Nhà bán không cần sở hữu TikTok hay Facebook: họ chỉ bốc thăm hành động của chính mình theo thời gian. Mã nguồn mở, chạy được trên một máy chủ phổ thông, không cần GPU. Nhưng chúng em nói rõ ai dùng được: lực thống kê phụ thuộc số người xem và số phiên. Với vài chục người xem trở lên, hoặc gộp nhiều phiên, hệ thống phát hiện được tác động vừa phải; nhà bán chỉ có vài người xem thì chỉ thấy được tác động rất lớn. Nghị quyết 57 coi khoa học, công nghệ và chuyển đổi số là đột phá quan trọng hàng đầu; LiveLift đưa cách làm thí nghiệm vào một kênh kinh tế số đang chạy bằng kinh nghiệm." | Hình 4 (`h4-mde.png`), khoanh vùng 5–15 người xem và chữ "ước tính, chưa đo" |
+| 4:05–4:40 | Tiến | **Khả năng phát triển** | "Trước vòng Khu vực: khóa API YouTube chính thức, một buổi phát thử trên kênh của nhóm, và hai bạn gán nhãn lại tập kiểm tra để có nhãn người. Tháng 10–11: phiên ngẫu nhiên thật đầu tiên với shop đối tác có văn bản đồng ý. Trước chung kết: địa chỉ công khai chạy liên tục 48 giờ. Phương pháp này dùng được ở mọi nơi có một kênh phát và nhiều người xem." | Bảng 11 của hồ sơ (lộ trình) |
+| 4:40–4:55 | Cả 3 | Chốt | **Khánh:** "LiveLift không hứa làm bạn bán nhiều hơn." **Tiến:** "Nó cho bạn biết hành động nào thật sự có tác dụng, kèm khoảng tin cậy." **Minh:** "Cảm ơn thầy cô." | Cả ba trên hình |
 
-**Chuẩn bị bắt buộc trước khi bấm ghi** (≥15 phút):
-1. Dựng lại CSDL sạch + nạp dữ liệu mẫu, xác nhận trang không trống.
-2. Chạy `pytest -m "not slow"` một lượt cho chắc xanh.
-3. Đóng mọi cửa sổ có thông tin cá nhân / token; đổi sang hồ sơ trình duyệt sạch.
-4. Kiểm tra địa chỉ demo công khai truy cập được từ **mạng khác** (dùng 4G điện thoại).
-5. Tắt thông báo hệ thống.
-
-Kịch bản demo chi tiết từng lệnh đã có sẵn ở `docs/competition/kich-ban-demo-7-phut.md` — cắt xuống 5 phút theo bảng trên.
+**Ba điều bắt buộc có trong video 1:**
+1. Nói số xấu (0,211; 0 phiên; dữ liệu qua yt-dlp) trong phần kết quả, không để giám khảo tự tìm.
+2. Nói rõ nhãn tham chiếu do tác tử AI gán — hồ sơ và kho mã đều ghi như vậy.
+3. Không nói "API chính chủ" cho 19.126 bình luận, không nói "địa chỉ demo công khai" khi chưa có.
 
 ---
+
+## VIDEO 2 — DEMO SẢN PHẨM (mục tiêu 4:50, trần 5:00)
+
+Thể lệ yêu cầu quay: **quá trình vận hành · các chức năng chính · kết quả xử lý · khả năng tích hợp ·
+khả năng ứng dụng**. Mỗi phần có thẻ tiêu đề nhỏ góc trên.
+
+Hình thức: quay màn hình **một lượt** trên bản build (không phải `next dev`), trình duyệt 1920×1080
+hồ sơ sạch; webcam góc phải dưới đổi người theo cột "Ai". Chờ khối chạy thì bộ thu đặt Mô phỏng
+×10 và ghi "tua nhanh ×N" nếu phải tua thêm.
+
+| Mốc | Ai | Phần | Thao tác trên màn hình | Lời thoại |
+|---|---|---|---|---|
+| 0:00–0:15 | Tiến | Mở | Trang chủ `/`; chỉ vào chip **Dữ liệu mẫu / Dữ liệu thật** ở đầu trang | "Mọi màn hình thầy cô sắp xem đều ghi rõ đâu là dữ liệu mẫu, đâu là dữ liệu thật. Hôm nay mọi bình luận là dữ liệu mô phỏng." |
+| 0:15–1:05 | Tiến | **Vận hành (1): chuẩn bị phiên** | `/chay-phien` → "Dùng sản phẩm mẫu" → "Điền link mẫu" → bước 2: YouTube, 90 phút, **Chạy thử** → "Tạo phiên" → "Bốc thăm": hiện lịch 16 khối và mã bằng chứng lịch | "Lịch bốc thăm sinh ở đây, trước giờ phát, kèm mã băm của tham số và hạt giống. Ai giữ tệp thiết kế cũng tính lại được mã này để thấy lịch không bị sửa." |
+| 1:05–1:25 | Tiến | **Vận hành (2): cổng chặn** | Tab thứ hai `/docs` (Swagger của API) → `POST /sessions/{id}/start` với một phiên **vừa tạo, chưa bốc lịch** → trả **409** | "Phiên chưa có lịch thì chính người tạo ra nó cũng không cho lên sóng được." |
+| 1:25–1:45 | Tiến | **Vận hành (3): lên sóng** | Quay lại phiên đã bốc lịch → bước 4: tích "đã dán link", **Bộ thu bình luận = Mô phỏng ×10**, "Mở màn người dẫn" → "Bắt đầu phát sóng" | "Bộ thu bình luận chạy nền trong máy chủ, bật bằng một nút. Nguồn Mô phỏng chỉ dùng được cho phiên chạy thử — phiên thật bị máy chủ từ chối." |
+| 1:45–2:40 | Khánh | **Chức năng chính (1): bàn trợ live** | `/desk`: dải khối, đồng hồ khối, bình luận chảy vào; dừng ở một bình luận có `[SĐT]`; chỉ radar ý định | "Đây là một số điện thoại giả trong kịch bản mô phỏng — và đây là thứ được ghi xuống: `[SĐT]`. Bộ lọc chạy trước khi ghi đĩa. Radar ý định cho người trợ live thấy khách đang hỏi gì; bản đang chạy mặc định là bản cũ, và nhãn này không dùng để tính tác động." |
+| 2:40–3:05 | Khánh | **Chức năng chính (2): làm mù người dẫn** | Mở `/host` cạnh `/desk` (chia đôi màn hình) | "Cùng một phiên. Màn người dẫn chỉ có thời gian, sản phẩm đang ghim, giá, tồn kho — không có khối, không có nhánh." |
+| 3:05–3:45 | Khánh | **Kết quả xử lý** | Trên `/desk`: "Kết thúc phiên" → xác nhận hai bước → "Xem báo cáo phiên →": nhãn **CHẠY THỬ — không tính vào kết quả gộp**, "Chưa đủ khối", ô THIẾU ở tim/quà/đơn. Rồi `/ket-qua?env=demo`: bản gộp CHỈ dữ liệu mẫu, nhãn MÔ PHỎNG; từ danh sách phiên mẫu ngay dưới, bấm "Báo cáo" (`/bao-cao/<id>`) của ba phiên demo vàng ở ba trạng thái (DƯƠNG, NULL, CHƯA ĐỦ ĐIỀU KIỆN — xem `docs/demo-vang.md`). Rồi `/ket-qua` mặc định: 0 phiên thật, "CHƯA ĐỦ ĐIỀU KIỆN" | "Phiên chạy thử không lọt vào kết quả thật. Không đủ dữ liệu thì hệ thống nói chưa đủ, không ép ra một con số. Còn kết quả thật hôm nay là 0 phiên — đúng như hồ sơ." |
+| 3:45–4:25 | Minh | **Khả năng tích hợp** | `/bat-dau`: trả lời 3 câu hỏi → khối trạng thái nền tảng (đọc `GET /platforms`) hiện nền tảng nào thiếu khóa. Quay lại báo cáo phiên chạy thử (`/bao-cao/<id>`): ô nhập đơn hàng CSV (tệp mẫu tổng hợp); mở một link đo `/r/{code}` đã tạo ở bước 4 của `/chay-phien`. Terminal: `python scripts/kiem_tra_youtube.py` báo thiếu khóa (không in khóa) | "Mỗi nền tảng là một bộ nối riêng qua API chính thức; lõi phân tích không đổi. Đơn hàng nhập từ tệp xuất của Seller Center, không đọc thông tin người mua. Hôm nay chúng em chưa có khóa nền tảng nào, nên luồng thầy cô vừa xem chạy bằng nguồn mô phỏng." |
+| 4:25–4:50 | Minh | **Khả năng ứng dụng** | Terminal: `pytest tests/test_pii_filter.py -q` chạy xong trên hình; mở trang GitHub của kho, cuộn tới README | "Mỗi con số trong hồ sơ có lệnh chạy lại trong kho mã công khai này. Sản phẩm dùng được cho nhà bán tự phát sóng có lượng xem ổn định, và cho mọi nơi có một kênh phát, nhiều người xem." |
+| 4:50–4:55 | Cả 3 | Chốt | Cả ba trên webcam | **Minh:** "Cảm ơn thầy cô đã theo dõi." |
+
+**Không quay trong video 2** (và lý do):
+- Trang `/ket-qua?phien=<id>` của phiên chạy thử: bản 25/09 từng sập khi phiên có ≥4 khối mà 0 lượt nhấp (kiểm toán 25/09, runtime mục 3.0) — chỉ quay khi bản vá đã vào nhánh nộp và đã thử lại.
+- Phân tích VOD YouTube ở `/bat-dau` (đường yt-dlp, không chính thức) và bất kỳ buổi live của người khác.
+- Bộ test đầy đủ (`pytest -m "not slow"` mất nhiều phút): chỉ chạy một tệp ngắn trên hình.
+
+**Chuẩn bị trước khi bấm ghi** (≥ 20 phút):
+1. Dựng bản build và chạy API với kho sạch (`scripts/chay_local.py`); gieo phiên mẫu bằng `POST /demo/seed-vang`.
+2. `python scripts/kiem_tra_truoc_demo.py` xanh.
+3. Bấm giờ `pytest tests/test_pii_filter.py -q` trên máy quay; quá 20 giây thì thay bằng tệp ngắn hơn.
+4. Đóng mọi cửa sổ có thông tin cá nhân, token, `.env`; tắt thông báo hệ thống; trình duyệt hồ sơ sạch.
+5. Tập trước một lượt trọn vẹn, bấm giờ từng phần.
+
+---
+
+## Số được phép nói (khớp `noi-dung.md` 25/09 — đổi hồ sơ thì đổi bảng này)
+
+| Số | Giá trị | Nguồn |
+|---|---|---|
+| Thiết kế | Phiên 90 phút · 16 khối · khối đầu và cuối 10 phút, 14 khối giữa 5 phút | `livelift.core.assigner.outer._block_lengths_min`; Hình 1 |
+| A/A | 3,50% (7/200), danh nghĩa 5% | `scripts/do_lai_so_hieu_chuan.py --kiem` |
+| Độ phủ KTC 95% | 96,50% (193/200) | như trên |
+| Bình luận quan sát | 19.126 · 16 buổi · qua yt-dlp | `docs/benchmarks/live-fire-da-nguon.md` |
+| Ý định | 0,870 (câu mẫu AI soạn) · 0,211 (chat thật, v1) · 0,542 (chat thật, v2, đo 25/09) — nhãn do tác tử AI gán | `docs/benchmarks/intent-eval/results.md` |
+| Kiểm thử | 1.830 (1.803 nhanh + 17 chậm + 10 trình duyệt) — đồng bộ lại ngày quay | `scripts/dong_bo_so_test.py --xem-truoc` |
+| Sự cố | 60 | `docs/incident-log.md` |
+| Phiên thí nghiệm thật | 0 | FACT-SHEET |
+| Người xem | "5–15" chỉ được nói kèm chữ **ước tính, chưa đo** | FACT-SHEET |
 
 ## Việc con người phải làm
 
 | Việc | Ai | Hạn |
 |---|---|---|
-| Dựng slide cho video 1 | Minh | |
-| Tập đọc kịch bản, bấm giờ từng đoạn | Cả 3 | |
-| Quay video 1 (3 người) | Cả 3 | |
-| Quay video 2 (một lượt liền mạch) | Khánh + Tiến | |
-| Dựng, thêm phụ đề, kiểm tra độ dài < 5:00 | Tiến | |
-| Xem lại: đối chiếu **từng con số** trong video với FACT-SHEET | Minh | trước khi nộp ≥24h |
+| Slide video 1 (dùng hình trong `hinh/`) | Minh | 27/09 |
+| Tập đọc, bấm giờ từng đoạn | Cả 3 | 27/09 |
+| Quay video 1 (cả 3 trên hình) | Cả 3 | 28/09 |
+| Quay video 2 (một lượt, cả 3 xuất hiện ở ô webcam) | Cả 3, Tiến điều khiển máy | 28/09 |
+| Dựng, phụ đề, `ffprobe` kiểm độ dài ≤ 300 giây mỗi video | Tiến | 28/09 |
+| Đối chiếu từng con số trong hai video với bảng trên | Minh | ≥ 24 giờ trước khi nộp |

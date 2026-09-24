@@ -3,6 +3,18 @@
 *Đo ngày 10/09/2026 · 16 phiên `platform=replay` · **19.126 bình luận thật** ·
 tất cả đi qua `POST /replays/youtube`, không có đường tắt nào*
 
+> **Đính chính nguồn dữ liệu và nguồn nhãn (15/09, ghi lại 25/09/2026) — đọc trước.**
+> - **Dữ liệu:** "API của hệ thống" ở tiêu đề là API của **LiveLift**
+>   (`POST /replays/youtube`). Chat của 16 VOD YouTube **công khai** được tải bằng
+>   **yt-dlp**, **không phải API chính thức của YouTube**. Đây là dữ liệu **quan sát**:
+>   không buổi nào có can thiệp hay bốc thăm.
+> - **Nhãn ở §4:** 393 nhãn do **một tác tử AI (Claude) gán** ngày 09/09/2026 trên
+>   bảng xáo trộn, không phải người (đối chiếu transcript, sổ sự cố 15/09). **Chưa có
+>   nhãn người, chưa có κ.** Mọi precision/tỷ lệ nền ở §4 vì vậy là **mức đồng thuận với
+>   nhãn AI**. Những chỗ tài liệu này từng ghi "nhãn tay"/"người gán" đã được sửa.
+> - **PII:** văn bản lô 2 được lọc lại ngày 25/09 bằng bộ lọc hiện hành (1 tên tài
+>   khoản sót trong 393 dòng) — `data/labeling/README.md`.
+
 > **Kết luận một dòng:** hệ thống **chạy đúng và chạy chắc** trên dữ liệu thật
 > (16/17 video vào được, cô lập phiên hoàn hảo kể cả khi chạy song song, tái lập
 > từng bit sau 2 ngày và 3 tiến trình khác nhau), nhưng **radar ý định KHÔNG có
@@ -42,7 +54,8 @@ S=scripts/live_fire_da_nguon.py
 .venv/Scripts/python $S colap     ZU_0QJzsR6w gT0LDiBta2k # mục 3.2
 .venv/Scripts/python $S song-song 1NMt8BChQrI fhv_rKUeEIc # mục 3.3
 
-# 4. Số của mục 4 (gán nhãn tay MÙ) — lô nằm ngoài git theo chính sách PII
+# 4. Số của mục 4 (nhãn do tác tử AI gán trên bảng xáo trộn) — lô nằm ngoài git
+#    theo chính sách PII
 .venv/Scripts/python data/labeling/lot2-da-nguon-10-09/sample_gold.py   # rút lại mẫu
 .venv/Scripts/python data/labeling/lot2-da-nguon-10-09/score_gold.py    # chấm
 
@@ -51,7 +64,7 @@ S=scripts/live_fire_da_nguon.py
 .venv/Scripts/python -m ruff check src tests scripts
 ```
 
-Bảng gán nhãn mù, nhãn tay, khoá ghép và kết quả chấm nằm trong
+Bảng gán nhãn mù, nhãn (do tác tử AI gán), khoá ghép và kết quả chấm nằm trong
 `data/labeling/lot2-da-nguon-10-09/` (`to_label.txt` · `gold.txt` · `key.json` ·
 `scored.json`) — **không vào git**, đúng chính sách "bình luận thật không nằm
 trong repo". Seed rút mẫu: `SEED_A=20260910`, `SEED_B=4242`, xáo trộn `777`.
@@ -239,7 +252,7 @@ không phải nút thắt.
 
 ### 4.1 Giao thức — chặt hơn lần 08/09
 
-Lần 08/09 gán nhãn theo từng tầng, tức người gán biết mình đang soi lớp nào.
+Lần 08/09 gán nhãn theo từng tầng, tức bên gán biết mình đang soi lớp nào.
 Lần này:
 
 - **Mù**: 393 dòng của cả hai mẫu được **gộp và xáo trộn** trước khi in ra;
@@ -252,7 +265,8 @@ Lần này:
 - Guideline 11 lớp trong `src/livelift/nlp/labels.py`. Quy tắc định trước cho ca
   mơ hồ: **chọn lớp hành động** — tức mọi con số dưới đây là **cận trên có lợi
   cho model**.
-- **Giới hạn giữ nguyên từ lần trước:** một người gán nhãn, không đo được κ.
+- **Bên gán:** một tác tử AI (Claude), không phải người (đính chính 15/09); một
+  bên gán duy nhất nên không đo được κ.
 
 ### 4.2 Precision của nhãn hành động — dao động 50 lần giữa các buổi
 
@@ -339,7 +353,7 @@ không phải vì model tốt lên.
 
 ### 4.5 Bộ 6 lớp bỏ sót cái gì — đo lại trên nguồn khác
 
-Phân bố nhãn tay của 200 dòng ngẫu nhiên:
+Phân bố nhãn (tác tử AI gán) của 200 dòng ngẫu nhiên:
 
 | Nhóm | Số / 200 | Tỷ lệ |
 |---|---:|---:|
@@ -360,7 +374,7 @@ thù một kênh. Nó xác nhận quyết định mở bộ nhãn lên 11 lớp 
 
 ### 4.6 Độ tự tin dùng được để làm gì, và KHÔNG dùng được để làm gì
 
-- **Trong một phiên: dùng được.** Trên 193 dự đoán hành động đã gán nhãn tay,
+- **Trong một phiên: dùng được.** Trên 193 dự đoán hành động đã có nhãn (tác tử AI),
   độ tự tin trung vị là **0,660 khi đúng** và **0,539 khi sai**; AUC phân biệt
   đúng/sai = **0,696**. Đủ tín hiệu để xếp hạng, để chọn dòng gửi đi gán nhãn
   (đúng như `label_llm` đang dùng).

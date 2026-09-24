@@ -60,6 +60,17 @@ Toàn bộ số liệu đọc lại **qua chính API của hệ thống**, khôn
 3. Khoảng tin cậy 95% dùng công thức **Wilson** (mẫu nhỏ, tỷ lệ gần 0 — Wald sẽ
    cho cận âm).
 
+> **Ghi chú nguồn nhãn (25/09/2026).** Các câu "người gán nhãn thủ công", "gán nhãn
+> tay", "một người gán nhãn" trong tệp này là khai báo gốc ngày 08/09 và **chưa kiểm
+> chứng được**: tệp nhãn của lần đo này **không được lưu**, nên không đối chiếu được ai
+> (người hay tác tử AI) đã gán. Cùng giai đoạn, hai bộ dữ liệu khác từng được khai là
+> "người gán"/"tự viết" hoá ra do Claude tạo (đính chính 15/09, `docs/incident-log.md`),
+> nên **không được trích các câu trên như sự thật đã kiểm**. Con số **0,271** (và 11,0%)
+> **không tái lập được**; số "trước cải tiến" chính thức từ 14/09 là **0,211** trên lô
+> 393 dòng (nhãn do tác tử AI gán, chưa có nhãn người) — `docs/benchmarks/intent-eval/`.
+> Chat của buổi này là VOD YouTube công khai, nạp qua `POST /replays/youtube` — đường
+> này tải chat bằng **yt-dlp**, không phải API chính thức của YouTube; dữ liệu quan sát.
+
 **Giới hạn của phương pháp, nói trước:** một người gán nhãn, không đo được
 đồng thuận giữa người gán (κ). Với các trường hợp mơ hồ ("111" là spam số hay
 chốt đơn?) tài liệu này chọn cách **có lợi cho model** rồi vẫn báo con số thấp —

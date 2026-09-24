@@ -1,7 +1,19 @@
 # `data/labeling/` — các lô gán nhãn ý định
 
 Thư mục này chứa **bình luận thật** (đã lọc PII ở tầng ingest) lấy từ các phiên
-quan sát, chuẩn bị để gửi đi 2 LLM gán nhãn.
+quan sát, chuẩn bị để gửi đi 2 LLM gán nhãn. Nguồn: chat của VOD YouTube công khai
+tải bằng **yt-dlp** (không phải API chính thức của YouTube) rồi nạp qua
+`POST /replays/youtube` — dữ liệu quan sát, không có can thiệp.
+
+> **Lọc lại PII 25/09/2026.** Dữ liệu ở đây được lưu 08–14/09, trước khi bộ lọc
+> được sửa để bắt tên tài khoản có dấu (15/09). Quét lại bằng bộ lọc hiện hành còn
+> **57 tên tài khoản** (45 trong `comments_b519f75c.jsonl`, 11 trong
+> `train_llm.jsonl` — trùng 11 dòng của `batch.jsonl`, 1 trong `to_label.txt`).
+> Đã lọc lại tại chỗ bằng **đúng hàm `scrub` của sản phẩm**
+> (`scripts/gan_mu/loc_lai_pii.py`): chỉ trường văn bản đổi, mọi khoá/nhãn/thứ tự
+> dòng giữ nguyên; quét lại ra **0**, chạy lần hai không đổi byte nào. Kiểm lại:
+> `.venv/Scripts/python scripts/gan_mu/loc_lai_pii.py --kiem-tra` (còn PII thì mã
+> thoát 1). Bản sao TRƯỚC khi lọc giữ ngoài repo, chỉ để đối chiếu.
 
 > **Chỉ file README.md này vào git.** Mọi thứ khác bị `.gitignore` chặn
 > (`data/labeling/*`). Bình luận đã lọc PII vẫn là dữ liệu người dùng — chính
@@ -66,7 +78,7 @@ Khi store là Postgres (dữ liệu nằm trong DB thật), bỏ bước 1 và d
 | File nhãn | `train_llm.jsonl` — **1.800 dòng** `{id, text, label, stratum, session, labeler}` |
 | Người/máy gán | **LLM (Claude), một mô hình, KHÔNG có đồng thuận 2 model, KHÔNG có người duyệt** |
 | Bộ nhãn | 11 lớp |
-| Dùng vào | **CHỈ huấn luyện.** Không một con số đánh giá nào đo trên nhãn do AI sinh |
+| Dùng vào | **CHỈ huấn luyện.** Lưu ý: nhãn TEST (lô 2) cũng do tác tử AI gán — mọi con số đánh giá là mức đồng thuận với nhãn AI, chưa có nhãn người (xem Lô 2) |
 | Kê khai | `docs/competition/sang-tao-tre-2026/03-NLP-NANG-CAP.md` §7 (Điều 5 §5–6) |
 
 Phân bố: `khac` 1.149 · `cam_on_khen` 382 · `chao_hoi` 173 · `hoi_daily` 40 ·
@@ -96,11 +108,17 @@ Phân bố: `khac` 1.149 · `cam_on_khen` 382 · `chao_hoi` 173 · `hoi_daily` 4
 
 ## Lô 2 — `lot2-da-nguon-10-09/`
 
-Lô **gán nhãn tay MÙ**, không phải lô gửi LLM. 393 dòng từ **ba** buổi live khác
-nhau (`gT0LDiBta2k`, `1NMt8BChQrI`, `47oGShxf80A`), gộp và xáo trộn trước khi in
-ra để người gán **không thấy** dự đoán của model, lớp, hay tên phiên — sửa đúng
-điểm yếu phương pháp của lô 1 (gán theo từng tầng nên biết mình đang soi lớp
-nào). Sinh ra §4 của `docs/benchmarks/live-fire-da-nguon.md`.
+Lô **tập test**, nhãn do **một tác tử AI (Claude) gán** ngày 09/09/2026 — không
+phải người (đính chính 15/09 sau khi đối chiếu transcript; các bản trước ghi "gán
+nhãn tay mù" là **sai**). **Chưa có nhãn người, chưa có κ.** 393 dòng từ **ba**
+buổi live khác nhau (`gT0LDiBta2k`, `1NMt8BChQrI`, `47oGShxf80A`), gộp và xáo trộn
+trước khi in ra để bên gán **không thấy** dự đoán của model, lớp, hay tên phiên —
+sửa đúng điểm yếu phương pháp của lô 1 (gán theo từng tầng nên biết mình đang soi
+lớp nào). Sinh ra §4 của `docs/benchmarks/live-fire-da-nguon.md`.
+
+Bảng gán mù cho **hai người** (393 dòng, mã dòng ngẫu nhiên, không kèm nhãn AI) đã
+chuẩn bị 25/09: `docs/benchmarks/intent-eval/gan-mu/README.md`; κ tính bằng
+`scripts/tinh_kappa.py`.
 
 Kết quả quan trọng nhất: precision nhãn hành động **1,3% / 12,3% / 67,9%** giữa
 ba buổi — nó đi theo **tỷ lệ nền** ý định mua của buổi (0,0% / 6,8% / 48,0%),

@@ -3,11 +3,12 @@
 *Cập nhật 08/09/2026 · sinh lại bằng `python -m livelift.nlp.train_intent`*
 *Bổ sung 14/09/2026 — xem khối 🆕 ngay dưới trước khi đọc phần còn lại.*
 
-> ⚠️ **ĐỌC TRƯỚC KHI TRÍCH BẤT KỲ CON SỐ NÀO.** Con số 0.870 dưới đây đo trên bộ
-> **tự biên soạn**, cùng phân phối với dữ liệu huấn luyện. Trên chat bán hàng
-> **thật**, cùng mô hình đó đạt **macro-F1 0.271** và precision gộp **11%** —
+> ⚠️ **ĐỌC TRƯỚC KHI TRÍCH BẤT KỲ CON SỐ NÀO.** Con số 0.870 dưới đây đo trên **320 câu
+> mẫu do AI (Claude) soạn** ngày 01/09, cùng phân phối với dữ liệu huấn luyện. Trên chat
+> bán hàng **thật**, cùng mô hình đó đạt **macro-F1 0.271** và precision gộp **11%** —
 > đo ngày 08/09 trên 6.586 bình luận thật, xem
-> [live-fire-achan.md](live-fire-achan.md). **Không được nêu 0.870 một mình.**
+> [live-fire-achan.md](live-fire-achan.md) (con số đó **không tái lập được**, xem khối 🆕).
+> **Không được nêu 0.870 một mình.**
 
 > 🆕 **14/09/2026 — đã có khung đo chạy lại được và một bản nâng cấp.**
 > Toàn bộ trang này mô tả **bộ 6 lớp và artifact `intent_clf.joblib`**, vẫn là mặc
@@ -15,14 +16,20 @@
 >
 > | | Cũ (`intent_clf.joblib`) | Mới (`intent_clf_v2.joblib`) |
 > |---|---:|---:|
-> | macro-F1 trên chat thật, leave-one-session-out, 393 dòng người gán | **0,211** (KTC95 0,172–0,247) | **0,565** (KTC95 0,491–0,649) |
-> | Accuracy | 0,338 | 0,741 |
-> | Precision nhãn hành động | 23,0% (54/235) | 66,7% (40/60) |
+> | macro-F1 trên chat thật, leave-one-session-out, 393 dòng — **nhãn tham chiếu do tác tử AI gán, chưa có nhãn người** | **0,211** (KTC95 0,172–0,247) | **0,542** (KTC95 0,478–0,625) |
+> | Accuracy | 0,338 | 0,730 |
+> | Precision nhãn hành động | 23,0% (54/235) | 65,5% (38/58) |
+> | Recall nhãn hành động | 78,3% (54/69) | 55,1% (38/69) |
 > | Số lớp dự đoán được | 6 | 11 |
 >
 > **Con số 0,271 ở trên KHÔNG tái lập được đến từng dòng** (file nhãn của 200 dòng
 > ngày 08/09 không được lưu). Con số "TRƯỚC" chính thức từ nay là **0,211**, đo bằng
-> `python -m livelift.nlp.eval_intent` trên lô nhãn tay 10/09 còn nguyên vẹn.
+> `python -m livelift.nlp.eval_intent` trên lô 393 dòng còn nguyên vẹn (nhãn do tác tử AI
+> gán ngày 09/09 — đính chính 15/09; mọi số là mức đồng thuận với nhãn AI).
+> **Đo lại 25/09/2026** sau khi lọc lại PII dữ liệu gán nhãn (12 dòng văn bản đổi): cột v2
+> đổi từ 0,565 / 0,741 / 66,7% (40/60) của bản 14/09 sang số ở bảng trên; lần chạy đối chiếu
+> trên bản sao trước khi lọc tái lập đúng số 14/09. v2 vẫn chỉ bật bằng
+> `LIVELIFT_INTENT_MODEL=v2`; mặc định là v1.
 > Phương pháp, bảng baseline, bảng ablation, phân tích lỗi và hạn chế:
 > [`docs/competition/sang-tao-tre-2026/03-NLP-NANG-CAP.md`](../competition/sang-tao-tre-2026/03-NLP-NANG-CAP.md).
 > Số gốc: [`intent-eval/results.json`](intent-eval/results.json).
@@ -34,7 +41,7 @@
 | Baseline từ khóa (tiền đăng ký, ablation) | biên soạn | 0.653 | 0.669 |
 | **TF-IDF (char 2-5 + word 1-2) + LogReg — holdout 30%** | biên soạn | **0.831** | 0.823 |
 | **TF-IDF + LogReg — 5-fold cross-validation** | biên soạn | **0.870** | 0.866 |
-| Cùng mô hình đó, **chat bán hàng THẬT** (200 mẫu ngẫu nhiên) | live-fire 08/09 | **0.271** | 0.920 |
+| Cùng mô hình đó, **chat bán hàng THẬT** (200 mẫu ngẫu nhiên; **không tái lập được**) | live-fire 08/09 | **0.271** | 0.920 |
 | Baseline tầm thường `return "khac"` trên chính 200 mẫu đó | live-fire 08/09 | 0.166 | **0.995** |
 
 F1 theo lớp (5-fold CV, bộ biên soạn): `hoi_gia` 0.855 · `hoi_size` 0.917 ·
@@ -48,7 +55,8 @@ Fallback tự động về baseline từ khóa khi thiếu sklearn hoặc thiế
 
 ## Dữ liệu huấn luyện là gì — nói thẳng
 
-**320 bình luận được biên soạn thủ công** (60/50/50/50/50/60 theo lớp), mô phỏng
+**320 câu mẫu do AI (Claude) soạn ngày 01/09** (60/50/50/50/50/60 theo lớp; đính chính
+15/09 — bản trước ghi "biên soạn thủ công" là sai nguồn), mô phỏng
 chat live bán hàng Việt thực tế: có dấu / mất dấu / teencode / viết tắt / emoji /
 lỗi gõ. Đây là **bộ khởi động (bootstrap)**, không phải dữ liệu cào từ production.
 
@@ -133,7 +141,7 @@ Phân biệt hai tập lớp:
 | `che_dat` | Chê **GIÁ** đắt/mắc/cao, trả giá xuống. **Không** phải khen rẻ, **không** phải "cao" nghĩa chiều cao | `500tr cao quá ạ` · `300tr khả thì hơn` · `Mẹt bảo Sầu Riêng ngoài [ĐỊA CHỈ] mà B bán 600k` |
 | `chot_don` | **KHÁCH** chốt đơn/đặt mua. Không phải shop hô hào "cả nhà chốt đơn nha" | `Au chưa chốt đơn 👍 Cho xin một đơn ủng hộ Tuyên nào❤` |
 | `van_chuyen` | Hỏi giao hàng, phí ship, COD, thời gian nhận, gửi đi tỉnh/nước ngoài, hoặc hối đơn đã đặt | `Sâm mật ông có ship Đài Loan được không em báu` · `có thể gởi hàng qua Hàn Quốc được không em` · `Bưởi giao lâu quá` |
-| **`chao_hoi`** ✨ | Chào hỏi, điểm danh, tạm biệt. **10,0%** chat thật | `Chao A Chan ! Chao Ca Nha !` · `chào cả nhà buổi tối bình an` · `EM CHAO CA NHA` · `TINA NGUYEN : HELLO` |
+| **`chao_hoi`** ✨ | Chào hỏi, điểm danh, tạm biệt. **10,0%** chat thật | `Chao A Chan ! Chao Ca Nha !` · `chào cả nhà buổi tối bình an` · `EM CHAO CA NHA` · `[TÊN] : HELLO` |
 | **`cam_on_khen`** ✨ | Cảm ơn, chúc mừng, chúc sức khỏe, khen, cổ vũ, đồng tình. **28,0%** chat thật | `Chúc mừng Achan shop hp` · `cảm ơn a chan đưa sản phẩm Trà Măng Đen lên kệ` · `Xoài rẻ quá ạ` · `Tuyệt vời quá` |
 | **`hoi_sanpham`** ✨ | Hỏi về sản phẩm **ngoài giá và size**: còn hàng, có bán không, HSD, thành phần, xem ở đâu | `có bán dầu dừa ạ` · `còn sốt muối tắc chưa B` · `Thời hạn su dung bao nhiêu em` · `vào đâu để xem các mặt hàng nhỉ` |
 | **`hoi_daily`** ✨ | Hỏi mở đại lý / chi nhánh / CTV / hợp tác — khách muốn **BÁN CÙNG**, không mua lẻ | `Tôi muốn mở đại lý ở [ĐỊA CHỈ] có được không bóng` · `mở đại lý bên hàn được không em` · `em có mở sốp Vũng Tàu ko` |
@@ -171,8 +179,10 @@ bắt buộc file dữ liệu phải là kết quả của bảng đó. File g�
 là baseline tiền đăng ký của mọi con số cũ.
 
 Đo được đóng góp của việc trả nợ này (ablation A7 vs A8, chấm trên cùng không gian
-6 lớp): macro-F1 **0,574 → 0,609**, accuracy **0,850 → 0,880**. Tức bộ nhãn 11 lớp
-làm mô hình bớt sai **ngay trên bài toán 6 lớp cũ**.
+6 lớp): bản 14/09 đo macro-F1 **0,574 → 0,609**, accuracy **0,850 → 0,880**; đo lại 25/09 (sau lọc
+lại PII): macro-F1 **0,574 → 0,572** (ngang nhau), accuracy **0,850 → 0,875**. Tức trên bài
+toán 6 lớp cũ, bộ nhãn 11 lớp **không hơn về macro-F1** (chênh lệch nằm trong KTC95 của cả
+hai dòng); nó chỉ nhỉnh hơn về accuracy (+0,025) và precision nhãn hành động (54,8% → 65,5%).
 
 ### Giới hạn phải nói khi trình bày
 

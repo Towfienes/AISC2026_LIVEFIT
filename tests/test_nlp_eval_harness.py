@@ -1,10 +1,13 @@
 """Khung đánh giá ý định: chuẩn hoá, chỉ số, chia theo buổi live, rào rò rỉ.
 
-Vì sao những test này tồn tại: bộ phân loại từng công bố macro-F1 0,870 trên bộ
-tự biên soạn rồi rơi xuống 0,271 trên chat thật. Nguyên nhân không nằm ở mô hình
-mà ở **cách đo**. Nên phần được khoá bằng test ở đây là chính cái khung đo:
-công thức macro-F1 (đúng quy ước đã công bố), phép chia không cho một buổi live
-nằm cả hai phía, và rào chắn loại dòng train trùng khít dòng test.
+Vì sao những test này tồn tại: bộ phân loại từng công bố macro-F1 0,870 trên 320
+câu mẫu do AI (Claude) soạn rồi rơi xuống 0,271 trên chat thật (con số 08/09 không
+tái lập được; số đo lại là 0,211). Nguyên nhân không nằm ở mô hình mà ở **cách
+đo**. Nên phần được khoá bằng test ở đây là chính cái khung đo: công thức macro-F1
+(đúng quy ước đã công bố), phép chia không cho một buổi live nằm cả hai phía, rào
+chắn loại dòng train trùng khít dòng test — và từ 25/09, **câu kê khai nguồn nhãn**
+(nhãn tham chiếu do tác tử AI gán, chưa có nhãn người) cùng bộ công cụ gán mù cho
+người: lọc lại PII, sinh bảng gán mù, tính Cohen κ.
 """
 
 from __future__ import annotations
@@ -407,7 +410,15 @@ def test_v2_meta_declares_provenance_and_matches_the_artifact():
     ]
     # Xuất xứ từng nguồn dữ liệu phải nằm trong sidecar — Điều 5 §5–6 buộc kê
     # khai phần nào do AI tạo ra, và artifact là chỗ con số ấy sống lâu nhất.
-    assert set(meta["sources"]) <= {"gold_human", "authored_11", "authored_6", "llm_lot1"}
+    # "gold_ai" là tên nguồn đúng từ 25/09 (nhãn lô 2 do tác tử AI gán); "gold_human"
+    # còn trong sidecar của artifact đóng gói 14/09 — tên SAI nguồn, chờ đóng gói lại.
+    assert set(meta["sources"]) <= {
+        "gold_ai",
+        "gold_human",
+        "authored_11",
+        "authored_6",
+        "llm_lot1",
+    }
     assert meta["n_samples"] == sum(meta["sources"].values())
 
 
@@ -481,3 +492,557 @@ def test_env_var_switches_the_served_artifact_to_v2(monkeypatch):
     finally:
         monkeypatch.delenv(intent_mod.INTENT_MODEL_ENV, raising=False)
         importlib.reload(intent_mod)
+
+
+# ---------------------------------------------------------------------------
+# Nguồn nhãn: nhãn tham chiếu do tác tử AI gán — không bao giờ khai là của người
+# (sự cố 15/09; kiểm toán 25/09 thấy results.md vẫn in "Nhãn test do người gán")
+# ---------------------------------------------------------------------------
+
+#: Cụm khai sai nguồn nhãn từng nằm trong results.md tự sinh. So khớp KHÔNG phân
+#: biệt hoa thường.
+FORBIDDEN_PROVENANCE = ("người gán", "gán nhãn tay", "nhãn tay", "do người", "gold_human")
+
+
+def _synthetic_gold() -> list[ev.GoldRow]:
+    """Ba buổi, đủ hai tầng, có cả nhãn hành động — không cần dữ liệu thật."""
+    rows = []
+    plan = {
+        "S1": ["khac", "chao_hoi", "hoi_gia", "khac", "cam_on_khen", "chot_don"],
+        "S2": ["khac", "hoi_gia", "chot_don", "van_chuyen", "khac", "chao_hoi"],
+        "S3": ["cam_on_khen", "khac", "hoi_size", "khac", "bao_gia_shop", "che_dat"],
+    }
+    texts = {
+        "khac": "hôm nay trời đẹp",
+        "chao_hoi": "chào cả nhà",
+        "hoi_gia": "giá bao nhiêu shop",
+        "cam_on_khen": "đẹp quá shop ơi",
+        "chot_don": "chốt 1 cái",
+        "van_chuyen": "ship cod được không",
+        "hoi_size": "size L hay XL",
+        "bao_gia_shop": "ÁO THUN GIÁ 99K",
+        "che_dat": "đắt quá shop",
+    }
+    for session, labels in plan.items():
+        for i, label in enumerate(labels):
+            rows.append(
+                ev.GoldRow(
+                    uid=f"{session}-{i}",
+                    text=f"{texts[label]} {session} {i}",
+                    label=label,
+                    session=session,
+                    stratum="random" if i % 2 == 0 else "predicted",
+                )
+            )
+    return rows
+
+
+def _synthetic_report() -> dict:
+    gold = _synthetic_gold()
+    rows_b = [ev.evaluate_system(n, f, gold, []) for n, f in ev.baseline_systems()[:2]]
+    rows_c = [ev.evaluate_system("C2 · giả lập", ev.system_keyword, gold, [])]
+    rows_c[0]["packaged_as"] = ev.MODEL_V2.name
+    tables = [
+        {"title": "2. Baseline", "note": "n", "rows": rows_b},
+        {"title": "3. Sau cải tiến", "note": "n", "rows": rows_c},
+    ]
+    report = {
+        "generated_at": "2026-09-25T00:00:00+07:00",
+        "seed": ev.SEED,
+        "n_bootstrap": ev.N_BOOTSTRAP,
+        "label_provenance": ev.LABEL_PROVENANCE,
+        "inventory": ev.build_inventory(gold, []),
+        "tables": tables,
+    }
+    report["best"] = ev.select_reported_system([r for t in tables for r in t["rows"]])
+    report["best_rule"] = ev.BEST_RULE
+    return report
+
+
+def test_generated_report_never_claims_human_labels():
+    """Đỏ trên mã trước 25/09: ``render_markdown`` in cứng "Nhãn test do người gán"
+    và "gán nhãn TAY, mù" cho lô 393 dòng mà transcript cho thấy do Claude gán."""
+    md = ev.render_markdown(_synthetic_report())
+    lowered = md.lower()
+    for phrase in FORBIDDEN_PROVENANCE:
+        assert phrase not in lowered, f"results.md còn cụm khai sai nguồn: {phrase!r}"
+    assert "tác tử AI" in md
+    assert "chưa có nhãn người" in md
+    assert "yt-dlp" in md  # nguồn dữ liệu: quan sát, không phải API chính thức
+
+
+def test_provenance_constant_is_the_single_source_and_says_ai():
+    prov = ev.LABEL_PROVENANCE
+    assert "tác tử AI" in prov["test"]
+    assert "chưa có nhãn người" in prov["test"]
+    assert "đồng thuận" in prov["meaning"]
+    assert "yt-dlp" in prov["data"]
+    assert "không phải API chính thức" in prov["data"]
+    for text in prov.values():
+        for phrase in FORBIDDEN_PROVENANCE:
+            assert phrase not in text.lower()
+    assert ev.GOLD_SOURCE == "gold_ai"
+
+
+def test_inventory_and_training_rows_name_the_ai_source():
+    gold = _synthetic_gold()
+    inv = ev.build_inventory(gold, [ev.TrainRow("x", "khac", "llm_lot1")])
+    names = " ".join(s["name"] + " " + s["note"] for s in inv["sources"]).lower()
+    assert "tác tử ai" in names
+    for phrase in FORBIDDEN_PROVENANCE:
+        assert phrase not in names
+    rows = ev.TfidfSystem(use_authored=False, use_llm=False).training_rows(gold)
+    assert {r.source for r in rows} == {"gold_ai"}
+
+
+def test_eval_source_has_no_human_label_claim():
+    """Nghiệm thu K-03 (``09-PHAN-CONG.md``) viết thành test: tệp nguồn không còn
+    cụm "gán nhãn TAY" hay "người gán" ở bất kỳ đâu, kể cả chú thích."""
+    source = Path(ev.__file__).read_text(encoding="utf-8")
+    assert "gán nhãn TAY" not in source
+    assert "người gán" not in source
+
+
+# ---------------------------------------------------------------------------
+# Chọn hệ thống trình bày chi tiết: không lấy "tốt nhất" lẫn giữa hai thang
+# ---------------------------------------------------------------------------
+
+
+def test_reported_system_is_the_packaged_one_not_the_best_score_on_another_scale():
+    """Đỏ trên mã trước 25/09: ``max(macro_f1)`` trên mọi dòng chọn A8 (0,609 trên
+    thang 6 lớp gộp) làm "hệ thống tốt nhất" trong khi tài liệu trích F1 của C2."""
+    rows = [
+        {"name": "C1", "macro_f1": 0.55, "scale": "11_lop"},
+        {"name": "C2", "macro_f1": 0.56, "scale": "11_lop", "packaged_as": "v2"},
+        {"name": "A2", "macro_f1": 0.58, "scale": "11_lop"},
+        {"name": "A8", "macro_f1": 0.61, "scale": "6_lop_gop"},
+    ]
+    assert ev.select_reported_system(rows)["name"] == "C2"
+    unpackaged = [dict(r, packaged_as=None) for r in rows]
+    assert ev.select_reported_system(unpackaged)["name"] == "A2"  # cùng thang 11 lớp
+
+
+# ---------------------------------------------------------------------------
+# Recall nhãn hành động + số liệu cho hình
+# ---------------------------------------------------------------------------
+
+
+def test_action_recall_counts_every_true_action_row():
+    y_true = ["hoi_gia", "chot_don", "chot_don", "khac", "chao_hoi"]
+    y_pred = ["hoi_gia", "khac", "chot_don", "chot_don", "chao_hoi"]
+    rec = ev.action_recall(y_true, y_pred)
+    prec = ev.action_precision(y_true, y_pred)
+    assert (rec["k"], rec["n"]) == (2, 3)
+    assert (prec["k"], prec["n"]) == (2, 3)
+    assert rec["k"] == prec["k"]  # cùng định nghĩa "đúng lớp"
+    assert ev.action_recall(["khac"], ["hoi_gia"])["recall"] is None
+
+
+def test_silent_model_has_zero_recall_not_a_flattering_precision():
+    y_true = ["hoi_gia", "chot_don", "khac"]
+    y_pred = ["khac", "khac", "khac"]
+    assert ev.action_precision(y_true, y_pred)["n"] == 0
+    assert ev.action_recall(y_true, y_pred)["recall"] == 0.0
+
+
+def test_figure_details_are_consistent_and_contain_no_comment_text():
+    report = _synthetic_report()
+    fig = ev.figure_details(report)
+    blob = json.dumps(fig, ensure_ascii=False)
+    for row in _synthetic_gold():
+        assert row.text not in blob, "chi-tiet-hinh.json không được chứa văn bản bình luận"
+    assert "tác tử AI" in fig["nguon_nhan"]["test"]
+    cm = fig["ma_tran_nham_lan"]
+    assert cm["nhan"] == list(INTENT_LABELS)
+    assert len(cm["ma_tran"]) == len(INTENT_LABELS)
+    counts = report["inventory"]["gold_label_counts"]
+    for label, total in zip(cm["nhan"], cm["tong_hang"], strict=True):
+        assert total == counts.get(label, 0)
+    assert sum(cm["tong_cot"]) == len(_synthetic_gold())
+    codes = {r["ma"] for r in fig["macro_f1"]}
+    assert {"B0", "B1", "C2"} <= codes
+    for r in fig["macro_f1"]:
+        lo, hi = r["macro_f1_ktc95_bootstrap"]
+        assert lo <= r["macro_f1"] <= hi
+    for s in fig["precision_theo_buoi_va_ty_le_nen"]:
+        base = s["ty_le_nen_nhan_hanh_dong_tang_ngau_nhien"]
+        assert base["n"] == sum(
+            1 for r in _synthetic_gold() if r.session == s["buoi"] and r.stratum == "random"
+        )
+        assert {"B0", "B1", "C2"} <= set(s["he_thong"])
+
+
+def test_out_of_fold_predictions_are_exactly_what_evaluate_system_scores():
+    """``tinh_kappa`` chấm lại bằng ``predict_out_of_fold``; nếu hàm này lệch khỏi
+    ``evaluate_system`` thì "chấm lại theo nhãn người" so hai mô hình khác nhau."""
+    gold = _synthetic_gold()
+    folds, n_leaked = ev.predict_out_of_fold(ev.system_keyword, gold, [])
+    flat = [
+        (s, r.stratum, r.label, p)
+        for s, rows, preds in folds
+        for r, p in zip(rows, preds, strict=True)
+    ]
+    result = ev.evaluate_system("kw", ev.system_keyword, gold, [])
+    assert [tuple(x) for x in result["predictions"]] == flat
+    assert result["n_train_rows_dropped_as_leak"] == n_leaked
+
+
+def test_alternate_data_root_cannot_overwrite_published_results():
+    with pytest.raises(SystemExit):
+        ev.main(["--du-lieu", "khong-ton-tai"])
+    with pytest.raises(SystemExit):
+        ev.main(["--du-lieu", "khong-ton-tai", "--out-dir", "x", "--save-model"])
+
+
+# ---------------------------------------------------------------------------
+# Công cụ gán mù (scripts/gan_mu/, scripts/tinh_kappa.py) — dữ liệu tổng hợp
+# ---------------------------------------------------------------------------
+
+
+def _load_script(relpath: str, name: str):
+    import importlib.util
+    import sys
+
+    spec = importlib.util.spec_from_file_location(name, REPO / relpath)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.fixture(scope="module")
+def loc_pii():
+    return _load_script("scripts/gan_mu/loc_lai_pii.py", "loc_lai_pii")
+
+
+@pytest.fixture(scope="module")
+def gan_mu():
+    return _load_script("scripts/gan_mu/tao_bang_gan_mu.py", "tao_bang_gan_mu")
+
+
+@pytest.fixture(scope="module")
+def kappa():
+    return _load_script("scripts/tinh_kappa.py", "tinh_kappa")
+
+
+#: Tên tài khoản BỊA (không phải người thật) — đúng dạng bộ lọc cũ bỏ sót (có dấu).
+FAKE_HANDLE = "@Trần.Thị_Bịa99"
+
+
+def _write_fake_labeling(root: Path, newline: str = "\n") -> None:
+    lot1 = root / "lot1-achan-b519f75c"
+    lot2 = root / "lot2-da-nguon-10-09"
+    lot1.mkdir(parents=True)
+    lot2.mkdir(parents=True)
+    llm = [
+        {
+            "id": "u1",
+            "text": f"{FAKE_HANDLE} ơi giá bao nhiêu",
+            "label": "hoi_gia",
+            "stratum": "random",
+        },
+        {"id": "u2", "text": "chào cả nhà", "label": "chao_hoi", "stratum": "uncertain"},
+    ]
+    body = newline.join(json.dumps(r, ensure_ascii=False) for r in llm) + newline
+    (lot1 / "train_llm.jsonl").write_bytes(body.encode("utf-8"))
+    (lot1 / "batch.jsonl").write_bytes(
+        (
+            newline.join(
+                json.dumps({"id": r["id"], "text": r["text"]}, ensure_ascii=False) for r in llm
+            )
+            + newline
+        ).encode("utf-8")
+    )
+    tsv = (
+        newline.join(["A0001\tchốt 1 cái", f"B0002\tcảm ơn {FAKE_HANDLE}", "B0003\t=))"]) + newline
+    )
+    (lot2 / "to_label.txt").write_bytes(tsv.encode("utf-8"))
+
+
+def test_rescrub_removes_handles_keeps_labels_and_is_idempotent(tmp_path, loc_pii):
+    root = tmp_path / "labeling"
+    _write_fake_labeling(root, newline="\r\n")
+    before = {p.name: p.read_bytes() for p in root.rglob("*") if p.is_file()}
+
+    first = loc_pii.run(root, write=True)
+    assert sum(r.n_rows_changed for r in first) == 3
+    assert sum(r.pii_before["social"] for r in first) == 3
+    assert all(not r.pii_after for r in first)
+
+    llm_rows = [
+        json.loads(x)
+        for x in (root / "lot1-achan-b519f75c/train_llm.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    ]
+    assert [(r["id"], r["label"], r["stratum"]) for r in llm_rows] == [
+        ("u1", "hoi_gia", "random"),
+        ("u2", "chao_hoi", "uncertain"),
+    ]
+    assert "Bịa" not in llm_rows[0]["text"]
+    assert "[MXH]" in llm_rows[0]["text"]
+    tsv = (root / "lot2-da-nguon-10-09/to_label.txt").read_bytes()
+    assert tsv.count(b"\r\n") == 3  # kiểu xuống dòng giữ nguyên
+    assert tsv.startswith("A0001\tchốt 1 cái\r\n".encode())  # dòng sạch giữ từng byte
+
+    snapshot = {p.name: p.read_bytes() for p in root.rglob("*") if p.is_file()}
+    second = loc_pii.run(root, write=True)
+    assert sum(r.n_rows_changed for r in second) == 0
+    assert snapshot == {p.name: p.read_bytes() for p in root.rglob("*") if p.is_file()}
+    assert before != snapshot
+
+
+def test_rescrub_check_mode_is_a_gate_and_prints_no_comment_text(tmp_path, loc_pii, capsys):
+    root = tmp_path / "labeling"
+    _write_fake_labeling(root)
+    assert loc_pii.main(["--goc", str(root), "--kiem-tra"]) == 1  # còn PII -> mã 1
+    out = capsys.readouterr().out
+    assert "Bịa" not in out
+    assert "giá bao nhiêu" not in out
+    assert loc_pii.main(["--goc", str(root)]) == 0
+    assert loc_pii.main(["--goc", str(root), "--kiem-tra"]) == 0
+
+
+def _fake_lot2(root: Path) -> list[ev.GoldRow]:
+    """Lô 2 tổng hợp: to_label.txt + gold.txt + key.json, đúng định dạng thật."""
+    gold = _synthetic_gold()
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "to_label.txt").write_text(
+        "".join(f"{r.uid}\t{r.text}\n" for r in gold), encoding="utf-8"
+    )
+    (root / "gold.txt").write_text("".join(f"{r.uid} {r.label}\n" for r in gold), encoding="utf-8")
+    key = {r.uid: {"set": "B" if r.stratum == "random" else "A", "video": r.session} for r in gold}
+    (root / "key.json").write_text(json.dumps(key), encoding="utf-8")
+    return gold
+
+
+def test_blind_tables_hide_ai_labels_and_strata_and_are_deterministic(tmp_path, gan_mu):
+    gold = _fake_lot2(tmp_path / "lot2")
+    rows = gan_mu.load_rows(tmp_path / "lot2")
+    files = gan_mu.build_tables(rows, seed=123)
+    assert files == gan_mu.build_tables(rows, seed=123)  # tất định
+    assert files != gan_mu.build_tables(rows, seed=124)
+    t1, t2 = (files[n] for n in gan_mu.TABLE_NAMES)
+    bom = bytes([0xEF, 0xBB, 0xBF])
+    for table in (t1, t2):
+        assert table.startswith(bom)
+        assert b"\r\n" in table
+        text = table[3:].decode("utf-8")
+        assert text.splitlines()[0] == ",".join(gan_mu.COLUMNS)
+        stripped = text
+        for r in gold:
+            assert r.uid not in text  # uid lộ tầng A/B
+            stripped = stripped.replace(r.text, "")
+        for session in {r.session for r in gold}:
+            assert session not in stripped  # không có cột tên buổi
+        assert not (set(INTENT_LABELS) & {line.split(",")[3] for line in text.splitlines()[1:]})
+    import csv
+    import io
+
+    def codes(table: bytes) -> list[str]:
+        return [row["ma_dong"] for row in csv.DictReader(io.StringIO(table[3:].decode("utf-8")))]
+
+    assert sorted(codes(t1)) == sorted(codes(t2))
+    assert codes(t1) != codes(t2)  # hai thứ tự xáo trộn khác nhau
+    key = list(csv.DictReader(io.StringIO(files[gan_mu.KEY_NAME][3:].decode("utf-8"))))
+    assert sorted(k["uid_lo2"] for k in key) == sorted(r.uid for r in gold)
+    assert sorted(k["ma_dong"] for k in key) == sorted(codes(t1))
+
+
+def test_blind_table_cells_cannot_become_excel_formulas(gan_mu):
+    assert gan_mu.excel_safe("=))") == " =))"
+    assert gan_mu.excel_safe("@shop") == " @shop"
+    assert gan_mu.excel_safe("giá bn") == "giá bn"
+
+
+def test_blind_guide_uses_the_label_module_definitions(gan_mu):
+    from livelift.nlp.labels import LABEL_GUIDELINE
+
+    guide = gan_mu.guide_text(393)
+    for label in INTENT_LABELS:
+        assert f"`{label}`" in guide
+        assert LABEL_GUIDELINE[label].replace("|", "/") in guide
+    assert "Không dùng AI" in guide
+
+
+def test_blind_hashes_match_the_files_written(tmp_path, gan_mu):
+    import hashlib
+
+    _fake_lot2(tmp_path / "lot2")
+    out, hashes = tmp_path / "ra", tmp_path / "bam"
+    digests = gan_mu.write_all(out, hashes, seed=7, gold_dir=tmp_path / "lot2")
+    for name, digest in digests.items():
+        target = out / "khoa" / name if name == gan_mu.KEY_NAME else out / name
+        assert hashlib.sha256(target.read_bytes()).hexdigest() == digest
+        assert (hashes / f"{name}.sha256").read_text(encoding="utf-8").split()[0] == digest
+    assert not (hashes / gan_mu.KEY_NAME).exists()  # khoá không vào repo
+    with pytest.raises(SystemExit):
+        gan_mu.main(["--ra", str(REPO / "khong-duoc-ghi-trong-repo")])
+
+
+def test_default_blind_seed_is_secret_so_row_positions_do_not_reveal_the_stratum(tmp_path, gan_mu):
+    """Đỏ trên bản đầu (seed cố định 20260925 trong mã): uid ``A…`` đứng trước ``B…``
+    trong danh sách được xáo trộn, nên seed công khai + script công khai cho phép tính
+    ngược tầng của TỪNG dòng trong bảng phát (phản biện 25/09: 393/393). Mặc định seed
+    phải bí mật, chỉ nằm trong ``khoa/``, và vẫn sinh lại đúng từng byte khi biết seed."""
+    _fake_lot2(tmp_path / "lot2")
+    runs = []
+    for i in (1, 2):
+        out, bam = tmp_path / f"ra{i}", tmp_path / f"bam{i}"
+        gan_mu.main(["--ra", str(out), "--bam", str(bam), "--goc-lo2", str(tmp_path / "lot2")])
+        runs.append((out, bam))
+    (out1, bam1), (out2, _bam2) = runs
+    table = gan_mu.TABLE_NAMES[0]
+    assert (out1 / table).read_bytes() != (out2 / table).read_bytes()  # không seed cố định
+
+    secret = json.loads((out1 / "khoa" / gan_mu.SEED_NAME).read_text(encoding="utf-8"))
+    seed = secret["seed_ma_mu"]
+    rebuilt = gan_mu.build_tables(gan_mu.load_rows(tmp_path / "lot2"), seed)
+    assert rebuilt[table] == (out1 / table).read_bytes()  # biết seed thì tái lập được
+
+    distributed = [out1 / n for n in (*gan_mu.TABLE_NAMES, gan_mu.GUIDE_NAME, "manifest.json")]
+    distributed += list(bam1.iterdir())
+    for path in distributed:
+        assert str(seed) not in path.read_text(encoding="utf-8-sig"), path.name
+
+
+def test_cohen_kappa_matches_sklearn_and_edge_cases(kappa):
+    import random
+
+    metrics = pytest.importorskip("sklearn.metrics")
+    rng = random.Random(3)
+    labels = list(INTENT_LABELS)
+    a = [rng.choice(labels[:4]) for _ in range(200)]
+    b = [x if rng.random() < 0.7 else rng.choice(labels[:4]) for x in a]
+    assert kappa.cohen_kappa(a, b) == pytest.approx(metrics.cohen_kappa_score(a, b), abs=1e-12)
+    assert kappa.cohen_kappa(["khac"] * 5, ["khac"] * 5) == 1.0
+    assert kappa.cohen_kappa(["a", "b"], ["b", "a"]) < 0
+    lo, hi = kappa.bootstrap_kappa(a, b, n=200)
+    assert lo <= kappa.cohen_kappa(a, b) <= hi
+    assert kappa.kappa_band(0.5) == "trung bình"
+
+
+def test_kappa_reads_excel_semicolon_and_cp1258_tables(tmp_path, kappa):
+    semicolon = (
+        "stt;ma_dong;binh_luan;nhan;ghi_chu\r\n1;GM000001;chào;chao_hoi;\r\n2;GM000002;x;3;\r\n"
+    )
+    p1 = tmp_path / "a.csv"
+    p1.write_bytes(bytes([0xEF, 0xBB, 0xBF]) + semicolon.encode("utf-8"))
+    labels, diag = kappa.read_labeled_table(p1)
+    assert labels == {"GM000001": "chao_hoi", "GM000002": "che_dat"}
+    p2 = tmp_path / "b.csv"
+    cp1258_csv = (
+        "stt,ma_dong,binh_luan,nhan,ghi_chu\n"
+        '1,GM000001,"chào, b; c",Khac,\n'
+        "2,GM000002,y,,\n"
+        "3,GM000003,z,sai_nhan,\n"
+    )
+    p2.write_bytes(cp1258_csv.encode("cp1258"))  # "CSV (Comma delimited)" của Excel cũ
+    labels, diag = kappa.read_labeled_table(p2)
+    assert labels == {"GM000001": "khac"}
+    assert diag["blank"] == ["GM000002"]
+    assert diag["invalid"][0][0] == "GM000003"
+    problems = kappa.check_table(labels, diag, {"GM000002": "u2", "GM000009": "u9"}, "bảng")
+    assert any("chưa gán" in p for p in problems)  # GM000002 để trống
+    assert any("không có trong khoá" in p for p in problems)  # GM000001 lạ
+    assert any("thiếu 1 mã dòng" in p for p in problems)  # GM000009 không ai gán
+
+
+def _fill(table: bytes, labels_by_code: dict[str, str]) -> bytes:
+    import csv
+    import io
+
+    rows = list(csv.DictReader(io.StringIO(table[3:].decode("utf-8"))))
+    buf = io.StringIO(newline="")
+    writer = csv.DictWriter(buf, fieldnames=list(rows[0].keys()), lineterminator="\r\n")
+    writer.writeheader()
+    for row in rows:
+        row["nhan"] = labels_by_code[row["ma_dong"]]
+        writer.writerow(row)
+    return bytes([0xEF, 0xBB, 0xBF]) + buf.getvalue().encode("utf-8")
+
+
+def test_kappa_end_to_end_on_synthetic_blind_labels(tmp_path, gan_mu, kappa):
+    """Người 1 chép đúng nhãn AI, người 2 sửa 3 dòng: κ(người 1–AI) = 1, κ người–người
+    < 1, và chấm lại B0/B1 theo nhãn AI trùng khít số ``evaluate_system``."""
+    import csv
+    import io
+
+    gold = _fake_lot2(tmp_path / "lot2")
+    ai = {r.uid: r.label for r in gold}
+    files = gan_mu.build_tables(gan_mu.load_rows(tmp_path / "lot2"), seed=11)
+    key = {
+        k["ma_dong"]: k["uid_lo2"]
+        for k in csv.DictReader(io.StringIO(files[gan_mu.KEY_NAME][3:].decode("utf-8")))
+    }
+    h1 = {code: ai[uid] for code, uid in key.items()}
+    changed = sorted(key)[:3]
+    h2 = {
+        code: ("khac" if ai[key[code]] != "khac" else "chao_hoi") if code in changed else lb
+        for code, lb in h1.items()
+    }
+    (tmp_path / "k.csv").write_bytes(files[gan_mu.KEY_NAME])
+    (tmp_path / "1.csv").write_bytes(_fill(files[gan_mu.TABLE_NAMES[0]], h1))
+    (tmp_path / "2.csv").write_bytes(_fill(files[gan_mu.TABLE_NAMES[1]], h2))
+
+    report = kappa.run(
+        tmp_path / "1.csv",
+        tmp_path / "2.csv",
+        tmp_path / "k.csv",
+        gold_dir=tmp_path / "lot2",
+        cham_lai=True,
+        systems=["B0", "B1"],
+        extra=[],
+        n_boot=50,
+    )
+    pairs = report["dong_thuan"]
+    assert pairs["người 1 – AI"]["kappa"] == 1.0
+    assert pairs["người 1 – người 2"]["kappa"] < 1.0
+    assert pairs["người 1 – người 2"]["n"] == len(gold)
+    assert report["n_dong_thuan_hai_nguoi"] == len(gold) - 3
+    for entry in report["cham_lai"]:
+        factory = {n.split(" ", 1)[0]: f for n, f in ev.baseline_systems()}[entry["ma"]]
+        published = ev.evaluate_system(entry["ma"], factory, gold, [])
+        assert entry["tham_chieu"]["AI, toàn bộ"]["macro_f1"] == published["macro_f1"]
+        assert entry["tham_chieu"]["AI, toàn bộ"]["accuracy"] == published["accuracy"]
+    md = kappa.render_markdown(report)
+    assert "κ" in md
+    for r in gold:
+        assert r.text not in md
+        assert r.text not in json.dumps(report, ensure_ascii=False)
+
+
+def test_kappa_refuses_incomplete_tables(tmp_path, gan_mu, kappa, capsys):
+    import csv
+    import io
+
+    _fake_lot2(tmp_path / "lot2")
+    files = gan_mu.build_tables(gan_mu.load_rows(tmp_path / "lot2"), seed=5)
+    codes = [
+        k["ma_dong"]
+        for k in csv.DictReader(io.StringIO(files[gan_mu.KEY_NAME][3:].decode("utf-8")))
+    ]
+    full = dict.fromkeys(codes, "khac")
+    partial = dict(full, **{codes[0]: ""})
+    (tmp_path / "k.csv").write_bytes(files[gan_mu.KEY_NAME])
+    (tmp_path / "1.csv").write_bytes(_fill(files[gan_mu.TABLE_NAMES[0]], full))
+    (tmp_path / "2.csv").write_bytes(_fill(files[gan_mu.TABLE_NAMES[1]], partial))
+    code = kappa.main(
+        [
+            "--bang1",
+            str(tmp_path / "1.csv"),
+            "--bang2",
+            str(tmp_path / "2.csv"),
+            "--khoa",
+            str(tmp_path / "k.csv"),
+            "--goc-lo2",
+            str(tmp_path / "lot2"),
+            "--out-dir",
+            str(tmp_path / "out"),
+        ]
+    )
+    assert code == 2
+    assert "chưa gán" in capsys.readouterr().err
+    assert not (tmp_path / "out").exists()

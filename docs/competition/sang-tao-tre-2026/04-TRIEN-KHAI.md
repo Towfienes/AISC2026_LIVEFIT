@@ -13,13 +13,53 @@ trực tuyến / demo ổn định ít nhất 48 GIỜ trước thời điểm k
 được do lỗi chủ quan → **điểm vận hành có thể bị tính 0**."* Trọng tâm 7 của rubric chấm thẳng
 *"khả năng triển khai, mở rộng và duy trì"*. Tính đến hôm nay dự án **chưa có một địa chỉ công khai nào**.
 
+> **ĐÍNH CHÍNH 25/09/2026 — lịch sử Docker (kiểm toán Docker, nhánh `hoan-thien/ho-so-2509`).**
+> Tài liệu này là ảnh chụp ngày 14/09. Ba câu của nó về Docker **không đúng** và được sửa như sau:
+>
+> 1. *"Chưa từng chạy `docker compose up` thành công"* — **sai một phần.** Trên Docker Desktop của
+>    máy dev, `db`, `redis`, `api` và `backup` **đã chạy**: nhật ký
+>    `%LOCALAPPDATA%\Docker\log\host\com.docker.backend.exe.log.20260918-000251.409` ghi lúc
+>    `2026-09-17T15:05:50Z` các container `/livelift-api-1` (cổng dev `127.0.0.1:8000`),
+>    `/livelift-db-1`, `/livelift-redis-1`, `/livelift-backup-1`; thư mục `backups/` có 4 bản dump do
+>    service `backup` sinh ra (04/09, 13/09, 18/09, 19/09); sổ sự cố 11/09 ghi đã dựng
+>    `docker compose up -d db`, chạy migration và `tests/test_store_contract.py` trên Postgres thật.
+>    **Chưa từng chạy:** `web` và `caddy` (không xuất hiện trong nhật ký nào) và lớp phủ
+>    `docker-compose.prod.yml`. Tức là **ngăn xếp đầy đủ qua cổng Caddy vẫn CHƯA KIỂM CHỨNG.**
+> 2. *"Docker daemon không khởi động được vì thiếu quyền quản trị"* — đúng cho **phiên làm việc
+>    14/09** (§1.1), không phải nguyên nhân chung. Ngày 25/09 daemon chết vì **hết bộ nhớ**:
+>    `monitor.log.20260925-013741.239` ghi `fatal error: out of memory` lúc `2026-09-24T18:37:41Z`
+>    (01:37:41 giờ Việt Nam), khi máy 15,7 GB RAM chỉ còn khoảng 1–1,5 GB trống.
+> 3. *"Không có cái nào chặn bởi lỗi trong cấu hình"* (§9) — **sai.** Kiểm toán 25/09 tìm ra lỗi cấu
+>    hình thật, và các lỗi trong kho mã đã sửa trên nhánh `hoan-thien/ho-so-2509`, mỗi lỗi có cổng test:
+>    - **P0** `pyproject.toml` ghim `scikit-learn>=1.5,<1.8` trong khi artifact ý định huấn luyện bằng
+>      1.9.0 ⇒ ảnh `api` và CI cài 1.7.2, mô hình không dự đoán được (393/393 bình luận rơi về bộ từ
+>      khoá) mà `/health` vẫn khai `tfidf_logreg`. Sửa: ghim `==1.9.0`; `intent.py` tự kiểm
+>      `predict_proba` lúc nạp và `/health` báo `keyword_fallback` kèm `intent_fallback_reason`.
+>    - **P1** `/app` thuộc root nên user `livelift` không ghi được tệp trạng thái bộ thu và spool.
+>      Sửa: `api.Dockerfile` tạo `/app/data` cho `livelift`, compose gắn volume `appdata`.
+>    - **P1** trang lỗi 503 của Caddy mất cả 5 header bảo mật và lộ `Server: Caddy`. Sửa: header thành
+>      snippet `(bao_mat)` được `import` ở cả khối site lẫn `handle_errors`.
+>    - **P1** `pytest -m db tests/test_store_contract.py` chọn **0 test** (tham số postgres không mang
+>      dấu `db`). Sửa: `pytest.param(..., marks=pytest.mark.db)`.
+>    - **P2** không có `.dockerignore` ⇒ ngữ cảnh build khoảng 4,2 GB (cả `data/`, `.env`, bản dump).
+>      Sửa: `.dockerignore` gốc kiểu danh sách cho phép + `web/.dockerignore`.
+>    - **Còn lại, ngoài kho mã:** `.env` cục bộ của máy dev đặt `NEXT_PUBLIC_API_URL=http://localhost:8000`
+>      (giá trị từ thời chạy venv) — dựng bằng Docker thì bundle web gọi sai cổng. Đổi thành
+>      `http://localhost/api` (hoặc xoá dòng) rồi `docker compose build web`.
+>
+> `caddy validate` **đã chạy** ngày 25/09 bằng Caddy v2.11.4 bản chính chủ, ngoài container:
+> `Valid configuration` cả khi `DOMAIN` trống lẫn `DOMAIN=shop.example.com`; chạy thật trước upstream
+> đã tắt thì trang lỗi 503 có đủ 5 header bảo mật và không còn `Server`. `docker compose config` (gốc,
+> + prod, + dev-ports) đều mã thoát 0. Vẫn **CHƯA KIỂM CHỨNG**: build ảnh, `docker compose up` trọn
+> ngăn xếp, `/health` báo `durable: true` qua Docker, `pg_restore` thật.
+
 ---
 
 ## 0. TÓM TẮT ĐIỀU HÀNH
 
 | | Trạng thái |
 |---|---|
-| Dựng bằng `docker compose up -d` | **CHƯA KIỂM CHỨNG ĐƯỢC trên máy này** — Docker daemon không khởi động (xem §1). Cấu hình đã được soát và sửa; cần một máy có Docker để xác nhận. |
+| Dựng bằng `docker compose up -d` | **CHƯA KIỂM CHỨNG trọn ngăn xếp.** `db`/`redis`/`api`/`backup` đã chạy trên Docker của máy dev (04–19/09, xem hộp đính chính ở trên); `web` và `caddy` chưa từng chạy. Ngày 14/09 daemon không khởi động (§1); ngày 25/09 daemon chết vì hết bộ nhớ. |
 | Đường chạy thay thế (venv, không cần Docker) | **ĐÃ KIỂM CHỨNG, mã thoát 0** — `scripts/chay_local.py` dựng API + web, CSS 63.673 byte, 33 phiên. |
 | Địa chỉ công khai | **CHƯA CÓ.** Quy trình dựng đã viết xong tới bước cuối (§4); dừng lại chờ người bấm nút — cần một tài khoản và một tên miền, hai thứ chỉ con người mở được. |
 | Phương án hosting khuyến nghị | **Oracle Cloud Always Free, vùng Singapore — 0 đồng, 2 OCPU/12 GB, không ngủ đông, ~35 ms từ TP.HCM.** Dự phòng bắt buộc: Vultr Singapore tính tiền **theo giây** ⇒ **48 giờ chỉ tốn ~17.000 ₫**. Tên miền: đội đủ điều kiện lấy **`.id.vn` MIỄN PHÍ** (Thông tư 64/2025, công dân 18–23 — cả ba bạn 20 tuổi). Chi tiết §3. |
@@ -33,7 +73,9 @@ trực tuyến / demo ổn định ít nhất 48 GIỜ trước thời điểm k
 | Lỗ hổng còn lại | **P1 — 12/15 endpoint POST không có xác thực.** Không thuộc phạm vi tôi sửa (logic ứng dụng); đã ghi rõ ở §8 để agent kiểm toán mã xử lý. |
 
 **Ba việc chỉ con người làm được** (chi tiết §12):
-1. Mở Docker Desktop bằng quyền quản trị viên rồi chạy lại §2 để xác nhận `docker compose up`.
+1. Cho Docker Desktop đủ RAM (đóng bớt ứng dụng; cân nhắc `%USERPROFILE%\.wslconfig` với
+   `[wsl2]` `memory=4GB`), khởi động lại nó — mở bằng quyền quản trị nếu `com.docker.service` không
+   lên như ngày 14/09 — rồi chạy lại §2 để xác nhận `docker compose up` trọn ngăn xếp.
 2. Quyết định nhà cung cấp + đăng ký tài khoản + trỏ tên miền (§3, §4).
 3. Quyết định có bịt 12 endpoint ghi trước khi mở ra Internet hay không (§8).
 
@@ -55,6 +97,10 @@ Máy: Windows 11 Pro 10.0.22631 · RAM 15,7 GB · trống C: 17,2 GB, D: 40,4 GB
 | Bản dựng web | Có | `web/.next-chay-local`, CSS 63.673 byte |
 
 ### 1.1. Vì sao Docker không chạy — nguyên nhân gốc, không phải phỏng đoán
+
+*(Số đo của phiên làm việc 14/09. Ngày 25/09 daemon chết vì một nguyên nhân KHÁC — backend Docker
+Desktop hết bộ nhớ, xem hộp đính chính ở đầu tài liệu. Trước và sau 14/09, `db`/`redis`/`api`/`backup`
+đã chạy được trên chính máy này.)*
 
 Đây là kết luận sau khi bóc từng lớp, không phải "thử lại lần nữa xem sao":
 
@@ -848,8 +894,13 @@ Mọi dòng dưới đây là lệnh đã chạy thật hôm nay, kết quả d�
 
 **Chưa kiểm chứng được, và vì sao:** `docker compose up -d` · `caddy validate` · `pg_restore` thật ·
 HTTPS/chứng chỉ thật · header bảo mật qua Caddy · đo `docker stats` để siết trần bộ nhớ.
-Tất cả đều chặn bởi **một** nguyên nhân duy nhất: Docker daemon không khởi động được vì thiếu quyền
-quản trị (§1.1). Không có cái nào chặn bởi lỗi trong cấu hình.
+Ngày 14/09 tất cả bị chặn vì Docker daemon không khởi động trong phiên làm việc đó (§1.1).
+
+*Đính chính 25/09/2026:* câu cũ "Không có cái nào chặn bởi lỗi trong cấu hình" là **sai** — kiểm toán
+25/09 tìm ra lỗi cấu hình thật (ghim scikit-learn làm mô hình ý định không chạy trong ảnh `api`, `/app`
+không ghi được, trang lỗi Caddy mất header bảo mật, `pytest -m db` chọn 0 test, thiếu `.dockerignore`);
+chi tiết và bản sửa ở hộp đính chính đầu tài liệu. `caddy validate` và header bảo mật trên trang lỗi
+đã được kiểm bằng Caddy v2.11.4 chạy thật ngoài container ngày 25/09.
 
 ---
 
@@ -857,7 +908,8 @@ quản trị (§1.1). Không có cái nào chặn bởi lỗi trong cấu hình.
 
 **T-48 giờ — dựng và để chạy**
 
-- [ ] Mở Docker Desktop bằng **quyền quản trị**, `docker ps` trả bảng rỗng (không phải lỗi 500)
+- [ ] Docker Desktop đủ RAM (25/09 nó chết vì hết bộ nhớ) và chạy được — mở bằng **quyền quản trị**
+      nếu cần; `docker ps` trả bảng rỗng (không phải lỗi 500)
 - [ ] `docker compose config >/dev/null` — hợp lệ
 - [ ] `docker compose run --rm caddy caddy validate --config /etc/caddy/Caddyfile` — hợp lệ
 - [ ] `.env` trên máy chủ: `POSTGRES_PASSWORD` mạnh · `DOMAIN=<tên miền>` · `LIVELIFT_ENV=prod` ·
@@ -941,8 +993,8 @@ này cho đẹp". Mọi thay đổi phải xong **trước** mốc T-48. Cách h
 
 | # | Rủi ro | Mức | Ai xử lý | Việc cụ thể |
 |---|---|---|---|---|
-| 1 | **Chưa từng chạy `docker compose up` thành công** | **CAO** | Người dùng | Mở Docker bằng quyền quản trị, chạy §2.1 và §10 khối T-48. Đây là rủi ro lớn nhất của cả tài liệu: mọi thứ ở §5 đều **soát tĩnh**, chưa qua lửa. |
-| 2 | **`Caddyfile` chưa được `caddy validate`** | **CAO** | Người dùng | Một lệnh ở §10. Hỏng thì `git checkout -- docker/Caddyfile` là về nguyên trạng. |
+| 1 | **Chưa từng chạy trọn ngăn xếp `docker compose up`** (`db`/`redis`/`api`/`backup` đã chạy trên máy dev 04–19/09; `web`, `caddy` và lớp phủ prod thì chưa) | **CAO** | Người dùng | Cho Docker đủ RAM, chạy §2.1 và §10 khối T-48. Mọi thứ ở §5 vẫn chủ yếu **soát tĩnh**, chưa qua lửa. |
+| 2 | **`Caddyfile` mới được `caddy validate` ngoài container** (Caddy v2.11.4, 25/09: hợp lệ, trang lỗi có đủ header) | TRUNG BÌNH | Người dùng | Chạy lại lệnh ở §10 trong container `caddy:2-alpine`. Hỏng thì quay về bản `docker/Caddyfile` trước đó trong git. |
 | 3 | **12 endpoint POST không xác thực** | **CAO** | Agent kiểm toán mã | §8.3. Phải quyết **trước** khi link ra công khai. |
 | 4 | Chưa có tài khoản hosting và tên miền | CAO | Người dùng | §3.6 chọn sẵn phương án, §4 có từng bước — cần thẻ/tài khoản, tôi dừng đúng trước bước đó |
 | 4b | Nhà cung cấp "miễn phí" có thể đổi luật với rất ít thông báo (Oracle đã cắt đôi hạn mức giữa năm 2026) | TRUNG BÌNH | Người dùng | Dựng thử đường dự phòng 17.000 ₫ **trước** mốc T-48 rồi xoá, để khi cần dựng lại trong 15 phút (§3.6) |

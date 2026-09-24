@@ -216,7 +216,8 @@ def test_freeze_does_not_lock_a_demo_sessions_bao_cao(client, monkeypatch):
 def test_health_mode_reflects_what_the_store_holds(client, store):
     empty = client.get("/health").json()
     assert empty["mode"] == "real"
-    assert empty["mode_counts"] == {"demo": 0, "real": 0}
+    # 25/09/2026: thêm khoá con dry_run (C-4 chỉ THÊM) — tests/test_health_chay_thu.py.
+    assert empty["mode_counts"] == {"demo": 0, "real": 0, "dry_run": 0}
 
     client.post("/demo/seed", json={"n_sessions": 1, "duration_min": 40})
     demo_only = client.get("/health").json()
@@ -229,7 +230,7 @@ def test_health_mode_reflects_what_the_store_holds(client, store):
     )
     mixed = client.get("/health").json()
     assert mixed["mode"] == "mixed"
-    assert mixed["mode_counts"] == {"demo": 2, "real": 1}
+    assert mixed["mode_counts"] == {"demo": 2, "real": 1, "dry_run": 0}
     assert mixed["mode_note"], "mode phải kèm câu giải thích tiếng Việt"
 
 

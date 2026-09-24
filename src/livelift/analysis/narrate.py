@@ -360,12 +360,19 @@ def tom_tat_phien(
     n_off: int = 0,
     message: str | None = None,
     nguong_khoi: int = 4,
+    viec_nen_lam: str | None = None,
 ) -> list[Cau]:
     """Ba câu cho báo cáo MỘT phiên. Luôn trả về ĐÚNG 3 câu.
 
     ``loai_phien="quan_sat"``: không có lịch gán ⇒ không câu nào nhân quả và
     không câu nào mang huy hiệu ``thi_nghiem`` — nói thẳng đó là thiết kế,
     không phải thiếu sót của buổi live.
+
+    ``viec_nen_lam`` (kiểm toán 25/09/2026): khi máy chủ biết CHÍNH XÁC vì sao
+    chưa ước lượng được (chỉ số chính THIẾU link đo, KTC không xác định), câu
+    "việc nên làm" mặc định — "kéo dài thời lượng" — là lời khuyên sai; máy chủ
+    truyền câu đúng vào đây. Chỉ dùng ở nhánh chưa ước lượng được và nhánh khoá
+    (phiên đã huỷ: "tiếp tục chạy phiên theo lịch" là lời khuyên sai).
     """
     mo_ta_phan = [f"{tong_binh_luan} bình luận"]
     refs_mo_ta = ["tong_quan.tong_binh_luan"]
@@ -423,12 +430,16 @@ def tom_tat_phien(
             ),
             Cau(
                 text=(
-                    "Việc nên làm: tiếp tục chạy phiên theo lịch; tới ngày mở khóa, "
-                    f"{n_blocks} khối của phiên này vào ước lượng gộp mà chưa ai nhìn "
-                    "trộm giữa chừng."
+                    _cham("Việc nên làm: " + viec_nen_lam)
+                    if viec_nen_lam
+                    else (
+                        "Việc nên làm: tiếp tục chạy phiên theo lịch; khi khóa được mở (phiên "
+                        f"kết thúc, và qua ngày mở khóa §7 nếu có), {n_blocks} khối của phiên "
+                        "này vào ước lượng mà chưa ai nhìn trộm giữa chừng."
+                    )
                 ),
                 badge=BADGE_THIEU_DU_LIEU,
-                refs=(f"{_KQ}n_blocks",),
+                refs=(f"{_KQ}ly_do_khoa",) if viec_nen_lam else (f"{_KQ}n_blocks",),
             ),
         ]
 
@@ -449,12 +460,16 @@ def tom_tat_phien(
             ),
             Cau(
                 text=(
-                    "Việc nên làm: phiên tới kéo dài thời lượng để có ít nhất "
-                    f"{nguong_khoi} khối đo được (mỗi khối là một lượt so sánh BẬT/TẮT); "
-                    "phần mô tả của phiên này vẫn dùng được nguyên vẹn."
+                    _cham("Việc nên làm: " + viec_nen_lam)
+                    if viec_nen_lam
+                    else (
+                        "Việc nên làm: phiên tới kéo dài thời lượng để có ít nhất "
+                        f"{nguong_khoi} khối đo được (mỗi khối là một lượt so sánh BẬT/TẮT); "
+                        "phần mô tả của phiên này vẫn dùng được nguyên vẹn."
+                    )
                 ),
                 badge=BADGE_THIEU_DU_LIEU,
-                refs=(f"{_KQ}n_blocks",),
+                refs=(f"{_KQ}message",) if viec_nen_lam else (f"{_KQ}n_blocks",),
             ),
         ]
 

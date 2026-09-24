@@ -10,11 +10,14 @@
 # Trình duyệt gọi API qua tiền tố /api (NEXT_PUBLIC_API_URL=http://<DOMAIN>/api);
 # FastAPI phục vụ ở gốc nên tiền tố /api bị cắt trước khi chuyển tiếp.
 
-{$DOMAIN:http://localhost} {
-	# --- Nén: giảm băng thông cho máy chủ 1 vCPU và người xem dùng 3G/4G ---
-	encode zstd gzip
-
-	# --- Header bảo mật (áp cho MỌI phản hồi, kể cả trang lỗi) -------------
+# --- Header bảo mật (snippet, áp cho MỌI phản hồi, KỂ CẢ trang lỗi) ---------
+# Vì sao là snippet (kiểm toán 25/09/2026, docker.md P1-3 — đã chạy thật Caddy
+# 2.11.4): `handle_errors` là một chuỗi route RIÊNG, không kế thừa `header`
+# của khối site. Khi header còn nằm thẳng trong khối site, trang lỗi 503 bên
+# dưới thiếu cả 5 header bảo mật và lộ `Server: Caddy` — trái đúng câu chú
+# thích cũ "áp cho mọi phản hồi". Snippet được `import bao_mat` ở CẢ khối site
+# lẫn handle_errors; tests/test_infra_public.py chặn việc gỡ một trong hai.
+(bao_mat) {
 	header {
 		# Trình duyệt không được tự đoán kiểu tệp (chống MIME sniffing).
 		X-Content-Type-Options "nosniff"
@@ -34,6 +37,15 @@
 		-Server
 		-X-Powered-By
 	}
+}
+
+{$DOMAIN:http://localhost} {
+	# --- Nén: giảm băng thông cho máy chủ 1 vCPU và người xem dùng 3G/4G ---
+	encode zstd gzip
+
+	# --- Header bảo mật: snippet (bao_mat) ở trên, import ở ĐÂY và trong ------
+	# handle_errors bên dưới — thiếu một trong hai là trang lỗi mất header.
+	import bao_mat
 
 	# Shortlink đo click /r/{code} — biến kết quả chính của thí nghiệm.
 	handle /r/* {
@@ -87,6 +99,8 @@
 	# mà được chuyển thẳng cho trình duyệt, nên không sợ trang lỗi HTML này đè
 	# lên một câu trả lời 404 hợp lệ của API.
 	handle_errors {
+		# Chuỗi route riêng — KHÔNG kế thừa header của khối site (xem snippet).
+		import bao_mat
 		header Content-Type "text/html; charset=utf-8"
 		header Retry-After "10"
 		# CỐ Ý không dùng khối <style>, và trong phần HTML không có một cặp

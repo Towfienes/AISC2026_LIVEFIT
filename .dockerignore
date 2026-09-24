@@ -1,0 +1,16 @@
+# Ngữ cảnh build của ảnh api VÀ migrate (docker-compose.yml: context ".").
+#
+# DANH SÁCH CHO PHÉP: chặn tất cả, chỉ mở đúng ba thứ docker/api.Dockerfile
+# COPY. Kiểm toán Docker 25/09/2026 (docker.md P2-1): không có tệp này thì
+# ngữ cảnh build ~4,2 GB — data/ (bình luận thô, 2,6 GB), .venv, web/node_modules,
+# web/.next*, backups/*.dump.gz và cả .env đều bị đẩy vào BuildKit (và vào cache
+# build) dù ảnh chỉ dùng ba thứ dưới đây.
+#
+# Thêm một lệnh COPY vào api.Dockerfile thì phải mở thêm nguồn đó ở đây —
+# tests/test_infra_public.py đối chiếu hai tệp và đỏ nếu lệch.
+*
+!pyproject.toml
+!README.md
+!src/
+**/__pycache__
+**/*.py[cod]

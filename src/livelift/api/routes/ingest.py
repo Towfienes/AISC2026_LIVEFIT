@@ -33,6 +33,7 @@ from livelift.api.ingest_jobs import (
     IngestManager,
     cho_phep_mo_phong,
     chuan_hoa_nguon,
+    ghi_chu_truoc_len_song,
     muc_san_sang_nen_tang,
 )
 from livelift.api.service import StoreDep
@@ -84,6 +85,11 @@ class IngestStatus(BaseModel):
     last_error: str | None = None
     tick_error: str | None = None
     api_usage_pct: float | None = None
+    ghi_chu_truoc_len_song: str | None = None
+    """Kiểm toán 25/09/2026: câu tiếng Việt khi bộ thu đã bật mà phiên CHƯA lên
+    sóng — bình luận ghi lúc đó không thuộc khối nào; nguồn Mô phỏng phát ngay
+    chứ không chờ nút Bắt đầu phát sóng. ``None`` khi phiên đã lên sóng/đã đóng
+    hoặc chưa bật bộ thu. Trường THÊM, không đổi trường cũ."""
 
 
 def _manager(request: Request) -> IngestManager:
@@ -97,6 +103,13 @@ def _chua_bat(session_id: str) -> IngestStatus:
     return IngestStatus(session_id=session_id, state="chua_bat", running=False)
 
 
+def _trang_thai(job: Any, session: dict[str, Any] | None) -> IngestStatus:
+    tt = job.trang_thai()
+    return IngestStatus(
+        **tt, ghi_chu_truoc_len_song=ghi_chu_truoc_len_song(session, tt.get("platform"))
+    )
+
+
 @router.get("/platforms", response_model=list[PlatformReadiness])
 def platforms() -> list[dict[str, Any]]:
     return muc_san_sang_nen_tang(get_settings())
@@ -104,9 +117,9 @@ def platforms() -> list[dict[str, Any]]:
 
 @router.get("/sessions/{session_id}/ingest", response_model=IngestStatus)
 def ingest_status(session_id: str, request: Request, store: StoreDep) -> IngestStatus:
-    service.require_session(store, session_id)
+    session = service.require_session(store, session_id)
     job = _manager(request).get(session_id)
-    return IngestStatus(**job.trang_thai()) if job else _chua_bat(session_id)
+    return _trang_thai(job, session) if job else _chua_bat(session_id)
 
 
 @chi_token
@@ -152,12 +165,12 @@ async def ingest_start(
         raise HTTPException(
             status_code=409, detail="Phiên này đã có bộ thu đang chạy — tắt nó trước khi bật lại."
         ) from exc
-    return IngestStatus(**job.trang_thai())
+    return _trang_thai(job, session)
 
 
 @chi_token
 @router.post("/sessions/{session_id}/ingest/stop", response_model=IngestStatus)
 async def ingest_stop(session_id: str, request: Request, store: StoreDep) -> IngestStatus:
-    service.require_session(store, session_id)
+    session = service.require_session(store, session_id)
     job = await _manager(request).stop(session_id)
-    return IngestStatus(**job.trang_thai()) if job else _chua_bat(session_id)
+    return _trang_thai(job, session) if job else _chua_bat(session_id)

@@ -80,6 +80,10 @@ def test_fallback_when_model_missing(monkeypatch):
     keyword baseline, never crash the ingest path."""
     monkeypatch.setattr(intent_mod, "_model", None)
     monkeypatch.setattr(intent_mod, "_model_tried", True)
+    # Từ 25/09/2026 classifier_info() tách keyword_baseline (không có artifact)
+    # với keyword_fallback (artifact hỏng, lý do ở biến toàn cục này): xoá lý do
+    # để một test trước đó làm hỏng mô hình không rò sang đây.
+    monkeypatch.setattr(intent_mod, "_model_fallback_reason", None)
     assert classify("giá bao nhiêu vậy shop") == classify_keywords("giá bao nhiêu vậy shop")
     assert classifier_info()["backend"] == "keyword_baseline"
 

@@ -408,3 +408,119 @@ def test_compose_truyen_cau_hinh_bao_mat_va_nen_tang_vao_api(compose):
         for khoa in can_co:
             assert khoa in env, f"{ten_tep}: api thiếu {khoa} — giá trị trong .env không tới được"
         assert "${INGEST_TOKEN" in str(env["INGEST_TOKEN"])
+
+
+# ---------------------------------------------------------------------------
+# Kiểm toán Docker 25/09/2026 (docker.md): các lỗi cấu hình chỉ lộ ra khi dựng
+# thật — cổng tĩnh để lần sau không ai vô tình gỡ bản vá.
+# ---------------------------------------------------------------------------
+
+API_DOCKERFILE = ROOT / "docker" / "api.Dockerfile"
+CI_YML = ROOT / ".github" / "workflows" / "ci.yml"
+
+
+def _khoi_handle_errors(text: str) -> str:
+    """Ruột khối ``handle_errors { ... }`` (đếm ngoặc, bỏ qua heredoc HTML)."""
+    i = text.index("handle_errors {")
+    sau = text[i + len("handle_errors {") :]
+    return sau.split("respond <<HTML", 1)[0]
+
+
+def test_header_bao_mat_la_snippet_import_ca_o_trang_loi():
+    """docker.md P1-3 (đã chạy thật Caddy 2.11.4): trang lỗi 503 của Caddy thiếu
+    CẢ 5 header bảo mật và lộ ``Server: Caddy`` — ``handle_errors`` là chuỗi
+    route riêng, không kế thừa ``header`` của khối site. Chú thích cũ "áp cho
+    MỌI phản hồi, kể cả trang lỗi" là sai cho tới khi header thành snippet và
+    được ``import`` ở cả hai nơi."""
+    text = CADDYFILE.read_text(encoding="utf-8")
+    assert re.search(r"^\(bao_mat\)\s*\{", text, re.M), "thiếu snippet (bao_mat) ở cấp trên cùng"
+    snippet = text.split("(bao_mat)", 1)[1].split("{$DOMAIN", 1)[0]
+    for header in (
+        "X-Content-Type-Options",
+        "X-Frame-Options",
+        "Referrer-Policy",
+        "Permissions-Policy",
+        "Strict-Transport-Security",
+        "-Server",
+    ):
+        assert header in snippet, f"snippet bao_mat thiếu {header}"
+    site = text.split("{$DOMAIN", 1)[1]
+    import_dong = re.compile(r"^\s*import bao_mat\s*$", re.M)
+    assert import_dong.search(site.split("handle_errors {", 1)[0]), "khối site chưa import bao_mat"
+    assert import_dong.search(_khoi_handle_errors(text)), (
+        "handle_errors chưa import bao_mat — trang lỗi mất header bảo mật (docker.md P1-3)"
+    )
+
+
+def _dockerignore(path: Path) -> list[str]:
+    return [
+        ln.strip()
+        for ln in path.read_text(encoding="utf-8").splitlines()
+        if ln.strip() and not ln.strip().startswith("#")
+    ]
+
+
+def test_dockerignore_goc_la_danh_sach_cho_phep_khop_api_dockerfile():
+    """docker.md P2-1: không có .dockerignore ⇒ ngữ cảnh build ~4,2 GB, kéo cả
+    ``data/`` (bình luận thô), ``.env`` và bản dump DB vào BuildKit. Danh sách
+    CHO PHÉP: chặn hết, chỉ mở đúng những gì api.Dockerfile COPY."""
+    path = ROOT / ".dockerignore"
+    assert path.exists(), "thiếu .dockerignore ở gốc repo"
+    dong = _dockerignore(path)
+    assert dong[0] == "*", "dòng đầu phải chặn tất cả (kiểu danh sách cho phép)"
+    mo = {d[1:].rstrip("/") for d in dong if d.startswith("!")}
+    copy_nguon = []
+    for ln in API_DOCKERFILE.read_text(encoding="utf-8").splitlines():
+        if ln.startswith("COPY ") and "--from" not in ln:
+            copy_nguon.extend(ln.split()[1:-1])
+    assert copy_nguon, "api.Dockerfile không có lệnh COPY nào?"
+    for nguon in copy_nguon:
+        assert nguon.rstrip("/") in mo, f"api.Dockerfile COPY {nguon} nhưng .dockerignore chặn nó"
+    for cam in ("data", ".env", ".venv", "backups", "web"):
+        assert cam not in mo, f".dockerignore không được mở {cam}"
+
+
+def test_web_dockerignore_chan_node_modules_windows_va_env_local():
+    """docker.md P2-1: ``COPY . .`` của web.Dockerfile chép ``node_modules`` build
+    trên Windows ĐÈ lên bản Linux của stage deps; ``.env.local`` có thể nhúng
+    NEXT_PUBLIC_* của máy dev vào bundle."""
+    path = ROOT / "web" / ".dockerignore"
+    assert path.exists(), "thiếu web/.dockerignore (ngữ cảnh build của web là ./web)"
+    dong = set(_dockerignore(path))
+    for can in ("node_modules", ".next", ".env*.local"):
+        assert can in dong, f"web/.dockerignore thiếu {can}"
+
+
+def test_api_co_thu_muc_data_ghi_duoc_va_volume_appdata(compose):
+    """docker.md P1-2: ``/app`` thuộc root còn tiến trình chạy bằng user livelift,
+    nên tệp trạng thái bộ thu (``data/ingest-jobs.json``) và spool
+    (``data/spool``) không ghi được ⇒ "tự nối lại bộ thu sau restart" chết âm
+    thầm (chỉ một dòng WARNING). Thư mục phải thuộc livelift và nằm trên volume
+    để sống qua ``up --build`` / ``--force-recreate``."""
+    text = API_DOCKERFILE.read_text(encoding="utf-8")
+    truoc_user = text.split("USER livelift", 1)[0]
+    assert "mkdir -p /app/data" in truoc_user, "api.Dockerfile phải tạo /app/data trước USER"
+    assert re.search(r"chown\s+livelift:livelift\s+/app/data", truoc_user), (
+        "/app/data phải thuộc user livelift"
+    )
+    volumes = compose["services"]["api"].get("volumes") or []
+    assert any(str(v).split(":")[:2] == ["appdata", "/app/data"] for v in volumes), (
+        f"api phải mount volume appdata:/app/data, đang có {volumes}"
+    )
+    assert "appdata" in (compose.get("volumes") or {}), "thiếu khai báo volume appdata"
+
+
+def test_ci_va_anh_api_cai_sklearn_theo_pyproject():
+    """Ghim scikit-learn nằm MỘT chỗ (pyproject, xem tests/test_intent_artifact_hong.py);
+    CI và ảnh api phải cài theo extra ``ml`` chứ không cài sklearn riêng."""
+    ci = CI_YML.read_text(encoding="utf-8")
+    assert ci.count('pip install -e ".[dev,server,ml]"') >= 2, (
+        "job test + nightly cài theo pyproject"
+    )
+    docker = API_DOCKERFILE.read_text(encoding="utf-8")
+    assert '".[server,ml]"' in docker
+    for ten, noi_dung in (("ci.yml", ci), ("api.Dockerfile", docker)):
+        cai = [ln for ln in noi_dung.splitlines() if "pip install" in ln and "#" not in ln[:3]]
+        assert not [ln for ln in cai if "scikit" in ln or "sklearn" in ln], (
+            f"{ten} cài scikit-learn riêng, lệch ghim pyproject: {cai}"
+        )

@@ -90,6 +90,12 @@ services:
     restart: unless-stopped
     command: ["uvicorn", "livelift.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
     environment: *app_env
+    # Tệp trạng thái bộ thu (data/ingest-jobs.json) + spool (data/spool), đường
+    # dẫn tương đối theo WORKDIR /app. Không có volume thì `restart` vẫn nối lại
+    # được bộ thu, nhưng `up --build`/`--force-recreate` làm mất tệp; trước
+    # 25/09/2026 thư mục còn không ghi được (docker.md P1-2, xem api.Dockerfile).
+    volumes:
+      - appdata:/app/data
     # Không publish cổng ra ngoài — mọi truy cập đi qua caddy. Cần cổng dev
     # trực tiếp (127.0.0.1:8000)? Dùng thêm docker-compose.dev-ports.yml.
     expose:
@@ -210,3 +216,4 @@ volumes:
   redisdata:
   caddydata:
   caddyconfig:
+  appdata:

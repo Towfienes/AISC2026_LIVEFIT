@@ -599,6 +599,42 @@ def experiment_summary(store: StoreDep, env: Literal["real", "demo"] = "real") -
             ),
         )
 
+    # Kiểm toán 25/09/2026: estimable=true với KTC null làm sập /ket-qua (bản
+    # gộp dùng cùng component với trang một phiên). KTC không xác định ⇒
+    # estimable=False kèm lý do, và mọi trường suy luận để trống như nhánh thiếu.
+    ktc_reason = _ly_do_ktc_khong_xac_dinh(res)
+    if ktc_reason is not None:
+        return ExperimentSummary(
+            label=label,
+            env=env,
+            n_sessions=n_sessions,
+            n_blocks=res.n_blocks,
+            n_on=res.n_on,
+            n_off=res.n_off,
+            raw_clicks=raw_clicks,
+            valid_clicks=valid_clicks,
+            sessions_excluded=sessions_excluded,
+            estimable=False,
+            message=ktc_reason,
+            measured_cv=cv,
+            cv_poisson_floor=float(cv_floor) if np.isfinite(cv_floor) else None,
+            reducible_share=float(reducible) if np.isfinite(reducible) else None,
+            measured_compliance=measured_comp,
+            power_table=power_rows,
+            denominator_check=denominator,
+            tom_tat_3_cau=_cau_list(
+                narrate.tom_tat_gop(
+                    estimable=False,
+                    message=ktc_reason,
+                    n_sessions=n_sessions,
+                    n_blocks=res.n_blocks,
+                    n_on=res.n_on,
+                    n_off=res.n_off,
+                    valid_clicks=valid_clicks,
+                )
+            ),
+        )
+
     return ExperimentSummary(
         label=label,
         env=env,
@@ -730,6 +766,97 @@ def _finite(x: Any) -> float | None:
         return None
     v = float(x)
     return v if np.isfinite(v) else None
+
+
+BAO_CAO_LIVE_NOTE = (
+    "Chỉ số vận hành (số khối, số bình luận, khoảnh khắc) vẫn hiển thị; ước lượng "
+    "nhân quả chỉ được tính sau khi phiên kết thúc."
+)
+
+
+def _ly_do_khoa_chua_ket_thuc(session: dict[str, Any]) -> str | None:
+    """Khoá chống nhìn trộm GIỮA PHIÊN (kiểm toán 25/09/2026, runtime.md 3.9/§5).
+
+    Trước bản vá, khi ``RESULTS_FREEZE_UNTIL`` để trống (mặc định) thì
+    ``/bao-cao`` của một phiên KHÔNG phải demo đang ``live`` chạy estimator
+    ngay khi đủ 4 khối: mở trang giữa buổi là thấy ước lượng nhân quả trước khi
+    thí nghiệm xong — đúng điều PREREGISTRATION §7 cấm. Bản gộp
+    ``/experiment/summary`` vốn đã chỉ lấy phiên ``ended`` (§8.2); báo cáo MỘT
+    phiên nay theo cùng luật. Phiên demo được miễn ở nơi gọi (như khoá §7).
+    """
+    status = session.get("status")
+    if status == "ended":
+        return None
+    if status == "live":
+        return (
+            "Phiên đang chạy — ước lượng nhân quả chỉ tính sau khi phiên kết thúc "
+            "(tiền đăng ký §7: không nhìn trộm giữa phiên); chỉ hiển thị số liệu vận hành"
+        )
+    if status == "cancelled":
+        # Chỉ huỷ được từ planned/scheduled (routes/sessions.py): phiên huỷ CHƯA
+        # TỪNG lên sóng — không có khối đo, không bao giờ vào mẫu (tiền đăng ký §8.2).
+        return (
+            "Phiên đã huỷ trước khi lên sóng — không có buổi phát nào nên không có ước "
+            "lượng nhân quả cho phiên này (tiền đăng ký §8.2); chỉ hiển thị số liệu vận hành"
+        )
+    return (
+        "Phiên chưa lên sóng — ước lượng nhân quả chỉ tính sau khi phiên phát xong "
+        "và kết thúc; chỉ hiển thị số liệu vận hành"
+    )
+
+
+def _ly_do_ktc_khong_xac_dinh(res: Any) -> str | None:
+    """estimable=true nhưng estimate/KTC/p không phải số hữu hạn ⇒ lý do, else None.
+
+    Kiểm toán 25/09/2026 (runtime.md 3.0, P1 SẬP TRANG): phiên ≥ 4 khối mà 0
+    lượt nhấp ở mọi khối cho ``estimable=true, estimate=0.0, ci_low=null,
+    ci_high=null, p_value=1.0`` — web gọi ``ciLow.toFixed`` trên null và trang
+    Kết quả sập; báo cáo in "ước lượng +0.000, KTC [—; —]". Luật mới, ở cả báo
+    cáo một phiên lẫn bản gộp: ``estimable=true`` thì cả bốn trường đều là số.
+    ``analyze_outer`` trả KTC NaN khi thống kê kiểm định không xác định (mọi
+    khối cùng giá trị) và ±inf khi một phía không bị chặn — cả hai đều không
+    phải một ước lượng đọc được.
+    """
+    if not res.estimable:
+        return None
+    so = (res.estimate, res.ci_low, res.ci_high, res.p_value)
+    if all(_finite(v) is not None for v in so):
+        return None
+    bien = [float(v) for v in (res.ci_low, res.ci_high) if v is not None]
+    if len(bien) < 2 or any(np.isnan(v) for v in bien):
+        chi_tiet = (
+            "thống kê kiểm định không xác định — thường do mọi khối đo được có cùng giá "
+            "trị, ví dụ 0 lượt nhấp hợp lệ ở mọi khối"
+        )
+    elif any(np.isinf(v) for v in bien):
+        chi_tiet = (
+            "khoảng không bị chặn ở một phía — dữ liệu chưa đủ thông tin để khoanh vùng tác động"
+        )
+    else:
+        chi_tiet = "ước lượng hoặc p-value không phải số hữu hạn"
+    return (
+        f"Không công bố ước lượng: khoảng tin cậy 95% không xác định được ({chi_tiet}). "
+        "Tuyên bố thiếu, không trả số."
+    )
+
+
+VIEC_NEN_LAM_KTC = (
+    "kiểm tra link đo đã dán vào bình luận ghim và có người bấm — cần lượt nhấp ở "
+    "cả khối BẬT lẫn khối TẮT thì mới có khoảng tin cậy"
+)
+VIEC_NEN_LAM_THIEU_LINK = (
+    "tạo link đo (/r/…) cho sản phẩm và dán vào bình luận ghim TRƯỚC giờ phát — không "
+    "có lượt nhấp hợp lệ thì chỉ số chính không tồn tại, kéo dài phiên cũng không giúp gì"
+)
+VIEC_NEN_LAM_LOC_GIVT = (
+    "kiểm tra nguồn truy cập của link đo — mọi lượt bấm đã ghi đều bị bộ lọc GIVT-lite "
+    "gắn cờ không hợp lệ (bot, xem trước link, bấm dồn); chỉ lượt nhấp HỢP LỆ của người "
+    "xem mới vào chỉ số chính, nên tạo thêm link hay kéo dài phiên đều không giúp gì"
+)
+VIEC_NEN_LAM_PHIEN_HUY = (
+    "phiên này đã huỷ và không bao giờ vào ước lượng; muốn đo tác động thì lập phiên mới "
+    "và bốc thăm lịch BẬT/TẮT trước giờ phát"
+)
 
 
 def _signal_detail(cov: SignalCoverage, name: str) -> str:
@@ -895,11 +1022,25 @@ def _bao_cao_khoanh_khac(
     return out, None
 
 
-def _bao_cao_ket_qua(session: dict[str, Any], store) -> KetQuaThiNghiem:
+def _bao_cao_ket_qua(
+    session: dict[str, Any], store, cov: SignalCoverage | None = None
+) -> KetQuaThiNghiem:
     """Phần nhân quả — đúng đường analyze_outer tiền đăng ký, tôn trọng §7.
 
     Freeze được kiểm TRƯỚC KHI ước lượng được tính: trong thời gian khóa,
     estimator không chạy — không tồn tại con số nào để rò rỉ.
+
+    Thứ tự các cửa (kiểm toán 25/09/2026 thêm cửa 2, 4 và 5):
+
+    1. khoá §7 theo ngày (``RESULTS_FREEZE_UNTIL``);
+    2. phiên chưa kết thúc ⇒ khoá "Phiên đang chạy" (chống nhìn trộm giữa phiên);
+    3. chưa đủ ``MIN_BAO_CAO_BLOCKS`` khối đo được;
+    4. chỉ số chính (lượt nhấp HỢP LỆ qua link đo) THIẾU nguồn theo ma trận tín
+       hiệu ⇒ không ước lượng — THIẾU không phải 0;
+    5. estimator trả KTC/ước lượng không hữu hạn ⇒ ``estimable=False`` kèm lý do.
+
+    ``cov`` là ma trận tín hiệu của chính phiên này (báo cáo đã tính sẵn thì
+    truyền vào để khỏi tính hai lần); bỏ trống thì tự tính.
 
     NGOẠI LỆ DUY NHẤT: phiên ``is_demo`` (gói DEMO-THẬT). §7 tồn tại để chặn
     nhìn trộm KẾT QUẢ THẬT trước ngày mở khóa; "hiệu ứng" của một phiên demo
@@ -914,7 +1055,8 @@ def _bao_cao_ket_qua(session: dict[str, Any], store) -> KetQuaThiNghiem:
     zs = [int(r["z"]) for r in frame]
     n_on, n_off = sum(zs), len(zs) - sum(zs)
 
-    freeze_reason = None if session.get("is_demo") else _results_freeze_reason(service.now_utc())
+    is_demo = bool(session.get("is_demo"))
+    freeze_reason = None if is_demo else _results_freeze_reason(service.now_utc())
     if freeze_reason is not None:
         return KetQuaThiNghiem(
             khoa=True,
@@ -925,6 +1067,17 @@ def _bao_cao_ket_qua(session: dict[str, Any], store) -> KetQuaThiNghiem:
             n_off=n_off,
             message=BAO_CAO_FREEZE_NOTE,
         )
+    live_reason = None if is_demo else _ly_do_khoa_chua_ket_thuc(session)
+    if live_reason is not None:
+        return KetQuaThiNghiem(
+            khoa=True,
+            ly_do_khoa=live_reason,
+            estimable=False,
+            n_blocks=len(frame),
+            n_on=n_on,
+            n_off=n_off,
+            message=BAO_CAO_LIVE_NOTE,
+        )
     if len(frame) < MIN_BAO_CAO_BLOCKS:
         return KetQuaThiNghiem(
             estimable=False,
@@ -934,6 +1087,21 @@ def _bao_cao_ket_qua(session: dict[str, Any], store) -> KetQuaThiNghiem:
             message=(
                 f"Chưa đủ khối đo được để ước lượng ({len(frame)} khối, cần ≥ "
                 f"{MIN_BAO_CAO_BLOCKS}) — tuyên bố thiếu, không trả số."
+            ),
+        )
+
+    if cov is None:
+        cov = _signal_coverage(session, store)
+    clicks = next((sig for sig in cov.signals if sig.name == "clicks"), None)
+    if clicks is not None and clicks.status == "missing":
+        return KetQuaThiNghiem(
+            estimable=False,
+            n_blocks=len(frame),
+            n_on=n_on,
+            n_off=n_off,
+            message=(
+                "Chỉ số chính (lượt nhấp HỢP LỆ qua link đo) đang THIẾU nguồn: "
+                f"{clicks.detail}. THIẾU không phải 0 — không ước lượng, không trả số."
             ),
         )
 
@@ -950,6 +1118,15 @@ def _bao_cao_ket_qua(session: dict[str, Any], store) -> KetQuaThiNghiem:
         analyzed_mask=np.array([bool(r.get("measurable", True)) for r in frame_all], dtype=bool),
         design_params={sid: service.rebuild_design_params(session)},
     )
+    ktc_reason = _ly_do_ktc_khong_xac_dinh(res)
+    if ktc_reason is not None:
+        return KetQuaThiNghiem(
+            estimable=False,
+            n_blocks=res.n_blocks,
+            n_on=res.n_on,
+            n_off=res.n_off,
+            message=ktc_reason,
+        )
     return KetQuaThiNghiem(
         estimable=res.estimable,
         n_blocks=res.n_blocks,
@@ -993,6 +1170,27 @@ def _bao_cao_goi_y(
     return out
 
 
+def _viec_nen_lam(kq: KetQuaThiNghiem) -> str | None:
+    """Câu "việc nên làm" đúng lý do khi máy chủ biết vì sao chưa ước lượng được."""
+    if kq.khoa:
+        # Phiên huỷ chưa từng lên sóng và không bao giờ kết thúc: câu mặc định
+        # "tiếp tục chạy phiên theo lịch" của nhánh khoá là lời khuyên sai.
+        if (kq.ly_do_khoa or "").startswith("Phiên đã huỷ"):
+            return VIEC_NEN_LAM_PHIEN_HUY
+        return None
+    if kq.estimable or not kq.message:
+        return None
+    if kq.message.startswith("Chỉ số chính"):
+        # clicks=missing có hai nguồn trong core/signals.py: chưa có link đo, hoặc
+        # link CÓ mà GIVT-lite gắn cờ toàn bộ lượt bấm — "tạo link" sai ở nguồn sau.
+        if "GIVT-lite gắn cờ toàn bộ" in kq.message:
+            return VIEC_NEN_LAM_LOC_GIVT
+        return VIEC_NEN_LAM_THIEU_LINK
+    if kq.message.startswith("Không công bố ước lượng: khoảng tin cậy"):
+        return VIEC_NEN_LAM_KTC
+    return None
+
+
 NHAN_QUAN_SAT = (
     "báo cáo sau phiên — phiên QUAN SÁT: chỉ số mô tả, KHÔNG có số nhân quả "
     "(không có lịch gán ngẫu nhiên để suy diễn)"
@@ -1027,7 +1225,7 @@ def session_bao_cao(session_id: str, store: StoreDep) -> BaoCaoOut:
     # Tóm tắt 3 câu (AI-LAYER lớp 0): tính MỘT lần từ đúng khối nhân quả sẽ
     # được serialize — phiên quan sát narrate không câu nào nhân quả, phiên
     # thí nghiệm narrate tôn trọng khóa §7 y như ket_qua_thi_nghiem.
-    ket_qua = None if observational else _bao_cao_ket_qua(session, store)
+    ket_qua = None if observational else _bao_cao_ket_qua(session, store, cov)
     if observational:
         tom_tat = narrate.tom_tat_phien(
             loai_phien="quan_sat",
@@ -1055,6 +1253,7 @@ def session_bao_cao(session_id: str, store: StoreDep) -> BaoCaoOut:
             n_off=ket_qua.n_off,
             message=ket_qua.message,
             nguong_khoi=MIN_BAO_CAO_BLOCKS,
+            viec_nen_lam=_viec_nen_lam(ket_qua),
         )
     return BaoCaoOut(
         session_id=session_id,

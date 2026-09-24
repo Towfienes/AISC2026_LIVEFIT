@@ -6,7 +6,10 @@ PostgresStore raised a UniqueViolation. Tests only exercised the in-memory
 backend, so the divergence never showed up until it hit the real database.
 
 These tests pin the contract itself. The postgres half is marked ``db`` and
-runs only when a database is available (``docker compose up -d db``).
+runs only when a database is available (``docker compose up -d db``) AND
+``DATABASE_URL`` points at it: ``DATABASE_URL=... pytest -m db
+tests/test_store_contract.py`` runs exactly the postgres half; without
+``DATABASE_URL`` that command selects 0 tests (rc=5), which is NOT a pass.
 """
 
 from __future__ import annotations
@@ -85,13 +88,20 @@ def _link(code: str, pid: str = "P1") -> dict:
 
 
 def _stores():
-    """Every available backend, so contract tests run against all of them."""
-    yield "memory", InMemoryStore()
+    """Every available backend, so contract tests run against all of them.
+
+    The postgres half carries ``pytest.mark.db`` (kiểm toán 25/09/2026,
+    docker.md P1-4): before, it yielded a bare tuple, so ``pytest -m db`` selected
+    NOTHING ("13 deselected", rc=5) — the acceptance command of
+    docs/VIEC-CAN-LAM.md item 8 never ran a single test. It still needs
+    ``DATABASE_URL``: without it there is no postgres param to select.
+    """
+    yield pytest.param("memory", InMemoryStore(), id="memory")
     url = os.environ.get("DATABASE_URL")
     if url:
         from livelift.api.store import PostgresStore
 
-        yield "postgres", PostgresStore(url)
+        yield pytest.param("postgres", PostgresStore(url), id="postgres", marks=pytest.mark.db)
 
 
 @pytest.mark.parametrize(("name", "store"), list(_stores()), ids=lambda v: getattr(v, "backend", v))
@@ -466,3 +476,27 @@ def test_tick_bucket_upserts_in_every_backend(name, store):
     ticks = store.list_ticks(sid)
     assert len(ticks) == 1
     assert ticks[0]["viewers"] == 25.0
+
+
+def test_nua_postgres_mang_dau_db_de_pytest_m_db_chon_dung(monkeypatch):
+    """Kiểm toán Docker 25/09/2026 (docker.md P1-4): docstring nói nửa Postgres
+    "is marked db" nhưng ``_stores()`` yield tuple trần, cả thư mục tests/ không
+    có một ``mark.db`` nào ⇒ ``pytest -m db tests/test_store_contract.py`` ra
+    "13 deselected", rc=5 — chính lệnh mà docs/VIEC-CAN-LAM.md việc 8 dùng làm
+    tiêu chí nghiệm thu chưa từng chạy một test nào."""
+    pytest.importorskip("psycopg")
+    from livelift.api.store import PostgresStore
+
+    # Cổng không ai nghe: dựng PostgresStore không cần kết nối ngay (pool lười).
+    monkeypatch.setenv("DATABASE_URL", "postgresql://u:p@127.0.0.1:9/khong_co")
+    params = list(_stores())
+    by_id = {p.id: p for p in params}
+    assert set(by_id) == {"memory", "postgres"}
+    assert not [m for m in by_id["memory"].marks if m.name == "db"], "memory không cần DB"
+    assert [m for m in by_id["postgres"].marks if m.name == "db"], (
+        "tham số postgres phải mang pytest.mark.db để `pytest -m db` chọn đúng nó"
+    )
+    for p in params:
+        store = p.values[1]
+        if isinstance(store, PostgresStore):
+            store.close()

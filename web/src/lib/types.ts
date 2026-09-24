@@ -547,7 +547,9 @@ export interface HealthInfo {
   status: string;
   store_backend: string;
   mode: "demo" | "real" | "mixed";
-  mode_counts: { demo: number; real: number };
+  /** `dry_run` (máy chủ từ 25/09/2026): số phiên CHẠY THỬ, nằm TRONG `real`.
+   *  Tuỳ chọn — máy chủ cũ không gửi; ModeChip chịu được cả hai. */
+  mode_counts: { demo: number; real: number; dry_run?: number };
   /** Câu giải thích tiếng Việt, hiển thị được nguyên văn trong tooltip chip. */
   mode_note: string;
   /** Các trường an toàn dữ liệu khác của /health (durable, storage_mode, ...). */

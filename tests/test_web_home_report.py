@@ -46,6 +46,7 @@ TOM_TAT = SRC / "components" / "TomTat3Cau.tsx"
 BAO_CAO = APP / "bao-cao" / "[id]" / "page.tsx"
 ORDERS = SRC / "components" / "OrdersPanel.tsx"
 DONG_BO_SO_TEST = ROOT / "scripts" / "dong_bo_so_test.py"
+TYPES_TS = SRC / "lib" / "types.ts"
 
 
 def read(p: Path) -> str:
@@ -186,7 +187,9 @@ def test_e3_kho_rong_duoc_goi_la_trong_khong_phai_that(client):
     ``mode_counts`` và nói TRỐNG. Kiểm hai đầu để hợp đồng không lệch."""
     body = client.get("/health").json()
     assert body["mode"] == "real"
-    assert body["mode_counts"] == {"demo": 0, "real": 0}
+    # CẬP NHẬT CÓ CHỦ ĐÍCH (25/09/2026): máy chủ có thể gửi thêm khoá dry_run —
+    # so hai khoá cũ thay vì so nguyên dict (xem test_e3_hop_dong_health_...).
+    assert {k: body["mode_counts"][k] for k in ("demo", "real")} == {"demo": 0, "real": 0}
     src = code(read(MODECHIP))
     assert "c.real === 0 && c.demo === 0" in src
     assert 'return "trong"' in src
@@ -542,3 +545,111 @@ def test_trang_404_dung_thuat_ngu_thong_nhat_va_token_chuyen_dong():
 
 def test_tom_tat_khong_lan_thuat_ngu_tieng_anh():
     assert "template" not in code(read(TOM_TAT))
+
+
+# ---------------------------------------------------------------------------
+# Kiểm toán thử thật 25/09/2026 — chip kho, số trang chủ, công cụ đồng bộ số
+# ---------------------------------------------------------------------------
+
+
+def _tach_khai_bao(src: str, ten: str) -> str:
+    """Tách nguyên văn một function cấp cao nhất khỏi nguồn TypeScript."""
+    lines = src.replace("\r\n", "\n").split("\n")
+    for i, line in enumerate(lines):
+        if re.match(rf"^(?:export )?function {re.escape(ten)}\b", line):
+            for j in range(i + 1, len(lines)):
+                if lines[j].rstrip() == "}":
+                    return "\n".join(lines[i : j + 1])
+    raise AssertionError(f"không tách được hàm {ten!r}")
+
+
+def _node_eval(tmp_path: Path, module: str, expr: str):
+    import json
+    import shutil
+    import subprocess
+
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("không có node — bỏ qua phần chạy thử hàm thuần")
+    tep = tmp_path / "thuan.mts"
+    tep.write_text(module + f"\nconsole.log(JSON.stringify({expr}));\n", encoding="utf-8")
+    out = subprocess.run(
+        [node, "--experimental-strip-types", "--no-warnings", str(tep)],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=60,
+    )
+    if out.returncode != 0 and "bad option" in out.stderr:
+        pytest.skip("node quá cũ, chưa bỏ được chú thích kiểu")
+    assert out.returncode == 0, out.stderr
+    return json.loads(out.stdout.strip().splitlines()[-1])
+
+
+def test_chip_kho_dem_phien_chay_thu_rieng(tmp_path):
+    """Kiểm toán 25/09/2026 (runtime.md §3.2): tập dượt bằng "Chạy thử" một lần là
+    chip đổi thành "KHO: THẬT + MẪU" — máy chủ đếm phiên chạy thử bên "real"
+    (chạy thử là phiên thật, chỉ không được TÍNH). Khi ``/health`` gửi thêm
+    ``mode_counts.dry_run``, chip phải tách nó ra; máy chủ cũ không gửi thì giữ
+    đúng luật cũ (web phải chịu được khi khoá chưa có)."""
+    import json
+
+    ham = _tach_khai_bao(read(MODECHIP), "khoTu")
+    ca = [
+        # máy chủ cũ — không có khoá dry_run: luật cũ giữ nguyên
+        ("real", {"demo": 0, "real": 0}, "trong"),
+        ("real", {"demo": 0, "real": 2}, "that"),
+        ("mixed", {"demo": 1, "real": 1}, "ca-hai"),
+        ("demo", {"demo": 2, "real": 0}, "mau"),
+        ("unknown", None, "chua-ro"),
+        ("khac", {"demo": 0, "real": 0}, None),
+        # máy chủ mới — có khoá dry_run (phiên chạy thử nằm TRONG số real)
+        ("real", {"demo": 0, "real": 0, "dry_run": 0}, "trong"),
+        ("real", {"demo": 0, "real": 2, "dry_run": 2}, "chay-thu"),
+        ("mixed", {"demo": 8, "real": 2, "dry_run": 2}, "mau-chay-thu"),
+        ("mixed", {"demo": 8, "real": 3, "dry_run": 2}, "ca-hai"),
+        ("real", {"demo": 0, "real": 3, "dry_run": 1}, "that"),
+        ("demo", {"demo": 2, "real": 0, "dry_run": 0}, "mau"),
+    ]
+    ra = _node_eval(
+        tmp_path,
+        ham,
+        "[" + ",".join(f"khoTu({json.dumps(m)}, {json.dumps(c)})" for m, c, _ in ca) + "]",
+    )
+    assert ra == [k for _, _, k in ca]
+
+    src = code(read(MODECHIP))
+    block = src[src.index("const KHO_META") : src.index("function ChipGlyph")]
+    for trang_thai in ("chay-thu", "mau-chay-thu"):
+        m = re.search(rf'"{trang_thai}":\s*\{{\s*text:\s*"([^"]+)"', block)
+        assert m, f"KHO_META thiếu trạng thái {trang_thai!r}"
+        assert "CHẠY THỬ" in m.group(1)
+        assert "THẬT" not in m.group(1), "kho chỉ có phiên chạy thử không được gọi là THẬT"
+
+
+def test_e3_hop_dong_health_chiu_duoc_khoa_dry_run(client):
+    """Hai đầu của hợp đồng ``mode_counts``: web đọc ``dry_run`` nếu máy chủ gửi,
+    và test này không được gãy khi máy chủ thêm khoá mới (kiểm toán 25/09)."""
+    body = client.get("/health").json()
+    counts = body["mode_counts"]
+    assert counts["demo"] == 0
+    assert counts["real"] == 0
+    assert counts.get("dry_run", 0) == 0
+    assert "dry_run?: number" in read(TYPES_TS), "HealthInfo phải khai dry_run (tuỳ chọn)"
+
+
+def test_hang_so_trang_chu_noi_ro_16_buoi_la_quan_sat():
+    """Kiểm toán 25/09/2026 (runtime.md §3.10): "16 buổi live thật đã chạy qua hệ
+    thống" đọc thành 16 buổi LiveLift đã vận hành — thật ra là 16 VOD công khai
+    PHÂN TÍCH QUAN SÁT (lấy bình luận qua yt-dlp, không can thiệp, 0 phiên thí
+    nghiệm). Nhãn PROOF số test giữ nguyên mẫu mà dong_bo_so_test.py ghi đè."""
+    raw = read(HOME)
+    m = re.search(r'\{ value: "16", label: "([^"]+)" \}', raw)
+    assert m, "không đọc được ô 16 buổi trong PROOF"
+    assert "quan sát" in m.group(1)
+    assert "chạy qua hệ thống" not in m.group(1)
+    assert re.search(r'\{ value: "\d+", label: "kiểm thử tự động đang xanh" \}', raw)
+    # Dòng chú thích nguồn số test (script ghi đè số) từng ghi ngày chạy sai.
+    dong = [d for d in raw.splitlines() if re.search(r"\*\s+\d+ kiểm thử\s+— `pytest", d)]
+    assert len(dong) == 1, dong
+    assert "14/09/2026" not in dong[0], "số 1803 không phải số chạy ngày 14/09"

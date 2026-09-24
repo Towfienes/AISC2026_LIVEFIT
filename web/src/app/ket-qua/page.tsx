@@ -38,7 +38,7 @@ import SectionTitle from "@/components/ui/SectionTitle";
 import Skeleton from "@/components/ui/Skeleton";
 import StatTile from "@/components/ui/StatTile";
 import { getBaoCao, getExperimentSummary, listSessions } from "@/lib/api";
-import { fmtDateHCM, fmtNumber, fmtPct } from "@/lib/format";
+import { fmtDateHCM, fmtNumber, fmtPct, fmtThapPhan } from "@/lib/format";
 import type {
   BaoCao,
   BaoCaoKetQuaThiNghiem,
@@ -55,8 +55,13 @@ import type {
 function formatP(p: number | null, draws: number | null): string {
   if (p == null) return "—";
   const floor = draws ? 1 / (draws + 1) : null;
-  if (floor != null && p <= floor * 1.001) return `p < ${floor.toFixed(4)}`;
-  return `p = ${p.toFixed(4)}`;
+  if (floor != null && p <= floor * 1.001) return `p < ${fmtThapPhan(floor, 4)}`;
+  return `p = ${fmtThapPhan(p, 4)}`;
+}
+
+/** Ước lượng có dấu, 3 chữ số thập phân vi-VN: "+0,533" / "-0,173". */
+function fmtUocLuong(x: number): string {
+  return `${x > 0 ? "+" : ""}${fmtThapPhan(x, 3)}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -106,13 +111,37 @@ interface VerdictData {
  */
 type SummaryCoLuotNhap = ExperimentSummary & { valid_clicks?: number | null };
 
-/** Cùng luật phân loại với analysis/narrate.trang_thai_ket_luan phía server. */
+/**
+ * Verdict có đủ ba số để vẽ khoảng tin cậy. `verdictState` chỉ trả DƯƠNG/ÂM/
+ * NULL khi có đủ ba số, và trang dùng type guard này thay cho dấu `!` — dấu `!`
+ * chỉ tắt tiếng `tsc`, không chặn được null lúc chạy (sự cố 25/09/2026).
+ */
+type VerdictCoSo = VerdictData & { estimate: number; ciLow: number; ciHigh: number };
+
+function coDuSo(v: VerdictData): v is VerdictCoSo {
+  return v.estimate != null && v.ciLow != null && v.ciHigh != null;
+}
+
+/**
+ * Lý do khi máy chủ nói "ước lượng được" nhưng không gửi KTC. Kiểm toán
+ * 25/09/2026: phiên ≥ 4 khối mà 0 lượt nhấp trả {estimable: true, estimate: 0,
+ * ci_low: null} và trang SẬP. Không có KTC thì không có kết luận nào để vẽ.
+ */
+const KTC_THIEU =
+  "Máy chủ chưa tính được khoảng tin cậy 95% (thường vì chỉ số chính — lượt nhấp " +
+  "qua link đo — đang THIẾU), nên hệ thống không kết luận có hay không có tác động.";
+
+/**
+ * Cùng luật phân loại với analysis/narrate.trang_thai_ket_luan phía server —
+ * cộng một luật an toàn: thiếu MỘT đầu KTC là CHƯA ĐỦ, không phải NULL.
+ */
 function verdictState(
   estimable: boolean,
   ciLow: number | null,
   ciHigh: number | null,
 ): VerdictState {
   if (!estimable) return "chuadu";
+  if (ciLow == null || ciHigh == null) return "chuadu";
   if (ciLow != null && ciLow > 0) return "duong";
   if (ciHigh != null && ciHigh < 0) return "am";
   return "null";
@@ -120,11 +149,12 @@ function verdictState(
 
 function verdictFromSummary(d: ExperimentSummary): VerdictData {
   const estimable = d.estimable !== false && d.n_blocks > 0 && d.estimate != null;
+  const ktcThieu = estimable && (d.ci_low == null || d.ci_high == null);
   return {
     state: verdictState(estimable, d.ci_low, d.ci_high),
     // Bản gộp không có cờ khóa riêng — nhận diện §7 qua chính câu lý do.
     khoa: d.estimable === false && (d.message ?? "").includes("§7"),
-    lyDo: d.message ?? null,
+    lyDo: d.message ?? (ktcThieu ? KTC_THIEU : null),
     estimate: d.estimate,
     ciLow: d.ci_low,
     ciHigh: d.ci_high,
@@ -147,10 +177,11 @@ function verdictFromKetQua(
   tq: BaoCaoTongQuan | null | undefined,
 ): VerdictData {
   const estimable = kq.estimable && kq.estimate != null;
+  const ktcThieu = estimable && (kq.ci_low == null || kq.ci_high == null);
   return {
     state: verdictState(estimable, kq.ci_low, kq.ci_high),
     khoa: kq.khoa,
-    lyDo: kq.khoa ? kq.ly_do_khoa : (kq.message ?? null),
+    lyDo: kq.khoa ? kq.ly_do_khoa : (kq.message ?? (ktcThieu ? KTC_THIEU : null)),
     estimate: kq.estimate,
     ciLow: kq.ci_low,
     ciHigh: kq.ci_high,
@@ -194,7 +225,9 @@ function CIBar({
   const pad = (max - min || 1) * 0.1;
   const d0 = min - pad;
   const span = max + pad - d0;
-  const pct = (x: number) => `${(((x - d0) / span) * 100).toFixed(2)}%`;
+  // Vị trí CSS (không phải số hiển thị): làm tròn 2 chữ số, không qua toFixed
+  // để trang không còn một lời gọi toFixed nào (số hiển thị đi qua fmtThapPhan).
+  const pct = (x: number) => `${Math.round(((x - d0) / span) * 10000) / 100}%`;
   const band =
     tone === "good" ? "bg-good/25" : tone === "crit" ? "bg-critical/25" : "bg-white/20";
   const dot = tone === "good" ? "bg-good" : tone === "crit" ? "bg-critical" : "bg-ink";
@@ -230,13 +263,13 @@ function CIBar({
       </div>
       <div className="relative h-4 text-meta text-dim">
         <span className="tnum absolute -translate-x-1/2" style={{ left: pct(lo) }}>
-          {lo.toFixed(3)}
+          {fmtThapPhan(lo, 3)}
         </span>
         <span className="tnum absolute -translate-x-1/2" style={{ left: pct(0) }}>
           0
         </span>
         <span className="tnum absolute -translate-x-1/2" style={{ left: pct(hi) }}>
-          {hi.toFixed(3)}
+          {fmtThapPhan(hi, 3)}
         </span>
       </div>
     </div>
@@ -279,8 +312,13 @@ function EvidenceRow({ v }: { v: VerdictData }) {
 // BA TRẠNG THÁI VERDICT — ba thiết kế riêng, cùng mức công phu
 // ---------------------------------------------------------------------------
 
-/** DƯƠNG / ÂM: KTC 95% loại 0 — chỉ ở đây con dấu "TÁC ĐỘNG THẬT" được đóng. */
-function VerdictCoTacDong({ v }: { v: VerdictData }) {
+/**
+ * DƯƠNG / ÂM: KTC 95% loại 0 — chỉ ở đây con dấu "TÁC ĐỘNG THẬT" được đóng.
+ * Trên dữ liệu MẪU con dấu đổi chữ (kiểm toán 25/09/2026, runtime.md §3.3):
+ * chip xanh "THẬT" đứng cạnh "DEMO — dữ liệu mẫu" là thứ bị chụp màn hình rồi
+ * hiểu sai; con dấu demo nói đúng điều KTC nói, không nói "thật".
+ */
+function VerdictCoTacDong({ v }: { v: VerdictCoSo }) {
   const duong = v.state === "duong";
   return (
     <Card
@@ -303,7 +341,7 @@ function VerdictCoTacDong({ v }: { v: VerdictData }) {
               trong chính con dấu — không bao giờ tách điểm ước lượng khỏi
               khoảng của nó (phản biện #1). */}
           <Badge tone={duong ? "good" : "critical"} dot>
-            TÁC ĐỘNG THẬT · KTC 95% không chứa 0
+            {v.isDemo ? "HIỆU ỨNG RÕ · KTC 95% không chứa 0" : "TÁC ĐỘNG THẬT · KTC 95% không chứa 0"}
           </Badge>
           {v.isDemo ? <Badge tone="warn">DEMO — dữ liệu mẫu</Badge> : null}
         </div>
@@ -316,18 +354,17 @@ function VerdictCoTacDong({ v }: { v: VerdictData }) {
           <span
             className={`tnum font-num text-num-l ${duong ? "text-good-ink" : "text-crit-ink"}`}
           >
-            {v.estimate! > 0 ? "+" : ""}
-            {v.estimate!.toFixed(3)}
+            {fmtUocLuong(v.estimate)}
           </span>
           <span className="tnum text-strong text-sec">
-            KTC 95% [{v.ciLow!.toFixed(3)} … {v.ciHigh!.toFixed(3)}]
+            KTC 95% [{fmtThapPhan(v.ciLow, 3)} … {fmtThapPhan(v.ciHigh, 3)}]
           </span>
         </div>
         <p className="mt-1 text-meta leading-snug text-sec">
           nhấp thêm trên mỗi 1000 giây·người xem so với khối TẮT · giá trị thật nằm trong
           khoảng trên với độ tin cậy 95%
         </p>
-        <CIBar lo={v.ciLow!} hi={v.ciHigh!} est={v.estimate!} tone={duong ? "good" : "crit"} />
+        <CIBar lo={v.ciLow} hi={v.ciHigh} est={v.estimate} tone={duong ? "good" : "crit"} />
         <EvidenceRow v={v} />
         {!duong ? (
           <p className="mt-3 text-body leading-relaxed text-sec">
@@ -345,7 +382,7 @@ function VerdictCoTacDong({ v }: { v: VerdictData }) {
  * MDE ~20%, nên nó được thiết kế đẹp ngang kết quả dương: đây là hệ thống
  * đang trung thực, không phải hệ thống đang thất bại.
  */
-function VerdictNull({ v, powerTable }: { v: VerdictData; powerTable: PowerRow[] }) {
+function VerdictNull({ v, powerTable }: { v: VerdictCoSo; powerTable: PowerRow[] }) {
   return (
     <Card padding="lg" className="motion-reveal relative overflow-hidden border-s7/40" data-verdict="null">
       <div
@@ -367,19 +404,16 @@ function VerdictNull({ v, powerTable }: { v: VerdictData; powerTable: PowerRow[]
           CHƯA ĐỦ BẰNG CHỨNG để kết luận — và đó là một kết quả hợp lệ
         </h2>
         <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-          <span className="tnum font-num text-num-l text-ink">
-            {v.estimate! > 0 ? "+" : ""}
-            {v.estimate!.toFixed(3)}
-          </span>
+          <span className="tnum font-num text-num-l text-ink">{fmtUocLuong(v.estimate)}</span>
           <span className="tnum text-strong text-sec">
-            KTC 95% [{v.ciLow!.toFixed(3)} … {v.ciHigh!.toFixed(3)}] · còn chứa 0
+            KTC 95% [{fmtThapPhan(v.ciLow, 3)} … {fmtThapPhan(v.ciHigh, 3)}] · còn chứa 0
           </span>
         </div>
         <p className="mt-1 text-meta leading-snug text-sec">
           nhấp thêm trên mỗi 1000 giây·người xem — khoảng tin cậy vắt qua vạch 0, nên tăng hay
           giảm đều chưa loại trừ được may rủi
         </p>
-        <CIBar lo={v.ciLow!} hi={v.ciHigh!} est={v.estimate!} tone="neutral" />
+        <CIBar lo={v.ciLow} hi={v.ciHigh} est={v.estimate} tone="neutral" />
         <EvidenceRow v={v} />
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <div className="rounded-lg border border-hairline bg-page/40 p-4">
@@ -456,7 +490,7 @@ function VerdictChuaDu({ v }: { v: VerdictData }) {
   const gop = v.nSessions != null;
   const checklist = gop
     ? [
-        { can: "≥ 2 phiên thí nghiệm đã kết thúc", hienCo: v.nSessions!, nguong: 2 },
+        { can: "≥ 2 phiên thí nghiệm đã kết thúc", hienCo: v.nSessions ?? 0, nguong: 2 },
         { can: "≥ 8 khối đo được", hienCo: v.nBlocks, nguong: 8 },
       ]
     : [{ can: "≥ 4 khối đo được trong phiên", hienCo: v.nBlocks, nguong: 4 }];
@@ -635,6 +669,7 @@ function SessionRows({ rows }: { rows: SessionSummary[] }) {
             {s.title ?? s.session_id}
           </span>
           {s.is_demo ? <Badge tone="warn">DEMO</Badge> : null}
+          {s.dry_run ? <Badge tone="neutral">CHẠY THỬ</Badge> : null}
           <span className="shrink-0 text-meta text-dim">
             {s.platform}
             {s.start_ts ? ` · ${fmtDateHCM(s.start_ts)}` : ""}
@@ -739,7 +774,11 @@ export default function KetQuaPage() {
   const tomTat = (phien ? baoCao?.tom_tat_3_cau : data?.tom_tat_3_cau) ?? [];
   const isDemoView = phien ? (baoCao?.is_demo ?? false) : env === "demo";
   const powerTable = data?.power_table ?? [];
-  const realSessions = endedSessions.filter((s) => !s.is_demo);
+  // Kiểm toán 25/09/2026 (runtime.md §3.2): phiên CHẠY THỬ là phiên thật
+  // (is_demo=false) nhưng bị loại khỏi kết quả gộp (PREREGISTRATION §8.2) —
+  // xếp nó vào "Phiên thật" là nói ngược hồ sơ "0 phiên thí nghiệm thật".
+  const realSessions = endedSessions.filter((s) => !s.is_demo && s.dry_run !== true);
+  const chayThuSessions = endedSessions.filter((s) => !s.is_demo && s.dry_run === true);
   const demoSessions = endedSessions.filter((s) => s.is_demo);
 
   return (
@@ -818,9 +857,9 @@ export default function KetQuaPage() {
           <VerdictQuanSat isDemo={baoCao.is_demo} />
         ) : null}
         {!loading && !err && verdict ? (
-          verdict.state === "duong" || verdict.state === "am" ? (
+          (verdict.state === "duong" || verdict.state === "am") && coDuSo(verdict) ? (
             <VerdictCoTacDong v={verdict} />
-          ) : verdict.state === "null" ? (
+          ) : verdict.state === "null" && coDuSo(verdict) ? (
             <VerdictNull v={verdict} powerTable={powerTable} />
           ) : (
             <VerdictChuaDu v={verdict} />
@@ -884,7 +923,9 @@ export default function KetQuaPage() {
                         <td className="tnum px-3 py-2 text-right text-sec">
                           {r.n_blocks_total}
                         </td>
-                        <td className="tnum px-3 py-2 text-right text-sec">{r.cv.toFixed(2)}</td>
+                        <td className="tnum px-3 py-2 text-right text-sec">
+                          {fmtThapPhan(r.cv, 2)}
+                        </td>
                         <td className="tnum px-3 py-2 text-right font-semibold text-ink">
                           {fmtPct(r.mde_relative)}
                         </td>
@@ -896,7 +937,7 @@ export default function KetQuaPage() {
               <div className="mt-3 grid gap-3 md:grid-cols-2">
                 <StatTile
                   label="Hệ số biến thiên đo được (CV)"
-                  value={data.measured_cv?.toFixed(3) ?? "—"}
+                  value={data.measured_cv != null ? fmtThapPhan(data.measured_cv, 3) : "—"}
                   hint="Mức dao động của kết quả giữa các khối. CV càng cao thì càng cần nhiều dữ liệu — bảng MDE ở trên tính bằng chính con số đo được này, không phải giả định."
                 />
                 <StatTile
@@ -934,6 +975,16 @@ export default function KetQuaPage() {
           <section className="mt-8">
             <SectionTitle meta={`${realSessions.length} phiên`}>Phiên thật</SectionTitle>
             <SessionRows rows={realSessions.slice(0, 10)} />
+          </section>
+        ) : null}
+        {!phien && chayThuSessions.length > 0 ? (
+          <section className="mt-6">
+            <SectionTitle
+              meta={`${chayThuSessions.length} phiên · tập dượt, không bao giờ vào kết quả gộp`}
+            >
+              Phiên chạy thử
+            </SectionTitle>
+            <SessionRows rows={chayThuSessions.slice(0, 10)} />
           </section>
         ) : null}
         {!phien && demoSessions.length > 0 ? (

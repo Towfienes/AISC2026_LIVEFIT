@@ -381,3 +381,30 @@ def test_the_operating_clock_is_documented_as_operator_only():
     head = src[: re.search(r"(?m)^import ", src).start()]
     assert "OPERATOR" in head, "BlockClock thiếu ghi chú ranh giới làm mù ở đầu file"
     assert "HostView" in head, "ghi chú phải nêu đích danh file không được import nó"
+
+
+# --------------------------------------------------------------------------
+# kiểm toán thử thật 25/09/2026 — feed bình luận co về 55px
+# --------------------------------------------------------------------------
+#: Hai số đo DOM trong đợt thử thật 25/09/2026 (runtime.md §3.1, Chromium,
+#: 1366×768 và 1920×1080): với sàn 6rem (96px), vùng cuộn của feed chỉ còn
+#: ``clientHeight=55`` — tức phần tiêu đề "Bình luận trực tiếp" + nút tạm dừng +
+#: ``pt-2`` ăn 41px — và mỗi dòng bình luận cao 32px.
+FEED_TIEU_DE_PX = 41
+FEED_DONG_PX = 32
+
+
+def test_feed_binh_luan_du_cao_cho_tam_dong():
+    """Feed định vị tuyệt đối (CommentFeed.tsx) nên co ĐÚNG về sàn chiều cao của
+    khung bọc nó. Sàn 6rem cho 1,7 dòng: giám khảo không đọc được bình luận và
+    không thấy PII đã bị che — đúng thứ bàn trợ live sinh ra để cho thấy."""
+    src = code(DESK_PAGE.read_text(encoding="utf-8"))
+    i = src.index("<CommentFeed")
+    boc = _opening_tag(src, src.rindex("<div", 0, i))
+    m = re.search(r"min-h-\[([\d.]+)rem\]", boc)
+    assert m, f"khung bọc feed phải có sàn chiều cao riêng: {boc}"
+    so_dong = (float(m.group(1)) * 16 - FEED_TIEU_DE_PX) / FEED_DONG_PX
+    assert so_dong >= 8, f"sàn feed chỉ đủ {so_dong:.1f} dòng bình luận — cần tối thiểu 8"
+    # Khung xương lúc tải phải giữ cùng sàn, nếu không bố cục nhảy khi dữ liệu về.
+    san = m.group(0)
+    assert src.count(san) >= 2, "khung xương của feed phải dùng cùng sàn chiều cao"

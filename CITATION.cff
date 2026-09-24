@@ -2,7 +2,14 @@ cff-version: 1.2.0
 message: "Nếu sử dụng LiveLift trong nghiên cứu, vui lòng trích dẫn như sau."
 title: "LiveLift: Causal Experimentation Infrastructure for Live Commerce Operations"
 type: software
+version: "0.1.0"
 authors:
+  - family-names: "Ngô"
+    given-names: "Bình Minh"
+  - family-names: "Lê"
+    given-names: "Xuân Khánh"
+  - family-names: "Ngô"
+    given-names: "Lâm Tiến"
   - name: "LiveLift Team (AISC'26)"
 repository-code: "https://github.com/bminhnemhoi/AISC2026_LIVEFIT"
 license: AGPL-3.0

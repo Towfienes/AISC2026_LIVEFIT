@@ -30,6 +30,18 @@ export function fmtVnd(n: number): string {
   return vndFmt.format(n);
 }
 
+/**
+ * Số thập phân cố định `digits` chữ số, theo vi-VN: dấu PHẨY thập phân, dấu
+ * chấm hàng nghìn (0,533 · -0,490 · 1.234,5). Kiểm toán 25/09/2026: `toFixed`
+ * in "+0.533" ngay cạnh "39.000 ₫", và người đọc Việt hiểu 0.533 thành 533.
+ */
+export function fmtThapPhan(x: number, digits: number): string {
+  return x.toLocaleString("vi-VN", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+}
+
 /** Elapsed seconds -> "HH:MM:SS". */
 export function fmtClock(totalS: number): string {
   const s = Math.max(0, Math.floor(totalS));

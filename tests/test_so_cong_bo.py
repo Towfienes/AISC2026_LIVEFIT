@@ -87,24 +87,43 @@ def test_so_binh_luan_live_fire_trong_readme_khop_bao_cao_lo_do(readme: str) -> 
     )
 
 
+F1_BIEN_SOAN_RE = re.compile(r"0[.,]870?\b")
+# Số trên chat thật. 0,211 là số "trước" CHÍNH THỨC, chạy lại được
+# (``python -m livelift.nlp.eval_intent``, 393 dòng nhãn do tác tử AI gán); 0,271
+# (live-fire 08/09) KHÔNG tái lập được. Phản biện 25/09/2026: gate cũ chỉ nhận
+# 0,271, tức là ép README trích lại đúng con số không tái lập được — nay nhận cả hai.
+F1_CHAT_THAT_RE = re.compile(r"0[.,](?:211|271)\b")
+
+
+def _dong_neu_f1_bien_soan_mot_minh(text: str) -> list[str]:
+    return [
+        f"dòng {i}: {d.strip()[:110]}"
+        for i, d in enumerate(text.splitlines(), 1)
+        if F1_BIEN_SOAN_RE.search(d) and not F1_CHAT_THAT_RE.search(d)
+    ]
+
+
 def test_readme_khong_bao_gio_neu_f1_bo_bien_soan_mot_minh(readme: str) -> None:
     """Quy tắc của chính docs/benchmarks/intent-classifier.md, nâng lên thành gate.
 
     Con số đẹp (bộ biên soạn) và con số thật (chat bán hàng) phải đi CẶP trên
     cùng một dòng — một giám khảo đọc lướt chỉ thấy dòng đó.
     """
-    dep = re.compile(r"0[.,]870?\b")
-    that = re.compile(r"0[.,]271\b")
-    vi_pham = [
-        f"dòng {i}: {d.strip()[:110]}"
-        for i, d in enumerate(readme.splitlines(), 1)
-        if dep.search(d) and not that.search(d)
-    ]
+    vi_pham = _dong_neu_f1_bien_soan_mot_minh(readme)
     assert not vi_pham, (
         "README nêu macro-F1 bộ biên soạn (0,870) mà không kèm số trên chat thật "
-        "(0,271) trên cùng dòng — đúng điều docs/benchmarks/intent-classifier.md "
-        "in đậm cấm ('Không được nêu 0.870 một mình'):\n  " + "\n  ".join(vi_pham)
+        "(0,211 chính thức; 0,271 cũ, không tái lập được) trên cùng dòng — đúng điều "
+        "docs/benchmarks/intent-classifier.md in đậm cấm ('Không được nêu 0.870 một "
+        "mình'):\n  " + "\n  ".join(vi_pham)
     )
+
+
+def test_gate_f1_nhan_so_chinh_thuc_0_211_khong_ep_trich_0_271() -> None:
+    """Dòng chỉ ghép 0,870 với số chính thức 0,211 là HỢP LỆ; 0,870 một mình vẫn đỏ."""
+    assert not _dong_neu_f1_bien_soan_mot_minh(
+        "macro-F1 0,870 trên 320 câu do AI soạn, nhưng trên 393 bình luận thật chỉ 0,211"
+    )
+    assert _dong_neu_f1_bien_soan_mot_minh("macro-F1 0,870 trên 320 câu do AI soạn")
 
 
 def _ten_configure(cay: ast.Module) -> set[str]:

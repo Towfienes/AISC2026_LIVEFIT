@@ -66,8 +66,17 @@ const JOB_STATUS_VI: Record<ReplayJob["status"], string> = {
  * hồ sơ, ưu tiên con số NHỎ HƠN nhưng truy được về một lô đo duy nhất:
  *   19.126 bình luận — lô đo có hệ thống 10/09/2026
  *                      (docs/benchmarks/live-fire-da-nguon.md §1)
- *   16 buổi live     — cùng lô đo đó, cùng tài liệu
- *   1803 kiểm thử     — `pytest -m "not slow"`, chạy 14/09/2026, exit 0
+ *   16 buổi live     — cùng lô đo đó, cùng tài liệu: VOD YouTube CÔNG KHAI,
+ *                      bình luận lấy qua yt-dlp, chỉ phân tích QUAN SÁT —
+ *                      không buổi nào có can thiệp hay bốc thăm BẬT/TẮT
+ *   1892 kiểm thử     — `pytest -m "not slow"` thu thập được (con số do
+ *                      scripts/dong_bo_so_test.py ghi; KHÔNG ghi ngày ở đây
+ *                      vì script chỉ cập nhật số — ngày cứng sẽ lại sai)
+ *
+ * Sửa 25/09/2026 (kiểm toán thử thật, runtime.md §3.10): nhãn "16 buổi live
+ * thật đã chạy qua hệ thống" đọc thành 16 buổi LiveLift đã vận hành, trong khi
+ * số phiên thí nghiệm ngẫu nhiên thật vẫn là 0. Chú thích cũ còn ghi con số
+ * test "chạy 14/09" — sai: 1803 là số đếm 18/09, script chỉ cập nhật số.
  *
  * Giá trị giữ dạng chuỗi chữ số thô vì `scripts/dong_bo_so_test.py` ghi đè
  * đúng mẫu `{ value: "<số>", label: "kiểm thử tự động đang xanh" }`. Cách
@@ -76,8 +85,8 @@ const JOB_STATUS_VI: Record<ReplayJob["status"], string> = {
  */
 const PROOF: { value: string; label: string }[] = [
   { value: "19.126", label: "bình luận thật đã phân tích" },
-  { value: "16", label: "buổi live thật đã chạy qua hệ thống" },
-  { value: "1803", label: "kiểm thử tự động đang xanh" },
+  { value: "16", label: "buổi live công khai đã phân tích (quan sát, không can thiệp)" },
+  { value: "1892", label: "kiểm thử tự động đang xanh" },
 ];
 
 /** "1157" / "19.126" → "1.157" / "19.126" (vi-VN). Chuỗi lạ giữ nguyên văn. */

@@ -350,7 +350,7 @@ function DeskSkeleton() {
         <Card padding="sm" className="flex min-h-[14rem] flex-col gap-2 xl:col-start-2 xl:row-start-2">
           <Skeleton className="h-4 w-40" />
           <Skeleton className="min-h-[6rem] flex-[2]" />
-          <div className="flex min-h-[6rem] flex-[3] flex-col gap-1.5 border-t border-hairline pt-2">
+          <div className="flex min-h-[20rem] flex-[3] flex-col gap-1.5 border-t border-hairline pt-2">
             <Skeleton className="h-5 w-3/4" />
             <Skeleton className="h-5 w-2/3" />
             <Skeleton className="h-5 w-4/5" />
@@ -1050,7 +1050,12 @@ export default function DeskPage() {
               <div className="min-h-[6rem] flex-[2]">
                 <CommentRadar comments={desk.comments} nowS={desk.elapsedS} />
               </div>
-              <div className="mt-2 flex min-h-[6rem] flex-[3] flex-col border-t border-hairline pt-2">
+              {/* Kiểm toán 25/09/2026 (runtime.md §3.1): feed định vị tuyệt đối
+                  nên co ĐÚNG về sàn này. Sàn 6rem để lại 55px — 1,7 dòng — ở cả
+                  1366×768 lẫn 1920×1080. 20rem = 320px, trừ 41px tiêu đề còn
+                  ~279px ≈ 8,7 dòng 32px — số TÍNH từ hai số đo DOM cùng đợt
+                  (41px, 32px), chưa đo lại trên trình duyệt sau khi sửa. */}
+              <div className="mt-2 flex min-h-[20rem] flex-[3] flex-col border-t border-hairline pt-2">
                 <CommentFeed
                   comments={desk.comments}
                   emptyHint={

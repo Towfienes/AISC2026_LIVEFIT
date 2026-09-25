@@ -392,6 +392,16 @@ def test_nguon_md_sinh_tu_tom_tat_khong_sua_tay(vh, monkeypatch, tmp_path):
     assert (ra / "NGUON.md").read_text(encoding="utf-8") == (HINH / "NGUON.md").read_text(
         encoding="utf-8"
     )
+    # Hội đồng thử 25/09/2026: /host vẫn hiện sản phẩm đang ghim, và ở chế độ Tự ghim lệnh
+    # ghim chỉ đến trong khối BẬT — hồ sơ mục 5.3 nói làm mù "một phần". Hình 2 (hồ sơ
+    # gọi là Hình 6) và NGUON.md không được nói người dẫn "bị làm mù"; thứ bị che là lịch.
+    for ten, chu in (
+        ("html_h2()", vh.html_h2()),
+        ("h2-kien-truc.html", (HINH / "h2-kien-truc.html").read_text(encoding="utf-8")),
+        ("NGUON.md", (HINH / "NGUON.md").read_text(encoding="utf-8")),
+    ):
+        assert "làm mù" not in chu, f"{ten} còn nói người dẫn bị làm mù"
+        assert "không thấy lịch" in chu, f"{ten} phải nói thứ bị che là lịch"
 
 
 # ------------------------------------------------------------------ khổ in PNG

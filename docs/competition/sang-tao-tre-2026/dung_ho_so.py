@@ -167,6 +167,9 @@ def set_font(run, *, bold=False, size=CO, italic=False, mono=False):
 # Mã trước, rồi đậm, rồi nghiêng: ở cùng một vị trí, phép chọn của regex theo thứ
 # tự nhánh — nên `a**b` là mã, không phải mở đầu chữ đậm.
 _INLINE = re.compile(r"(`[^`\n]+`|\*\*.+?\*\*|\*[^*\n]+?\*)")
+# "(Hình" cuối dòng, "1)" đầu dòng sau: Word ngắt ở khoảng trắng thường. Khoảng trắng
+# không ngắt (U+00A0) giữ tên đối tượng dính với số của nó (hội đồng biên tập 25/09/2026).
+_KHONG_NGAT = re.compile(r"\b(Hình|Bảng|mục|Điều|khoản) (?=\d)")
 
 
 def emit_runs(p, text, *, size=CO, bold=False, italic=False):
@@ -187,7 +190,8 @@ def emit_runs(p, text, *, size=CO, bold=False, italic=False):
         elif chunk.startswith("*") and chunk.endswith("*") and len(chunk) > 2:
             emit_runs(p, chunk[1:-1], size=size, bold=bold, italic=True)
         else:
-            set_font(p.add_run(chunk), bold=bold, italic=italic, size=size)
+            chu = _KHONG_NGAT.sub("\\1\u00a0", chunk)
+            set_font(p.add_run(chu), bold=bold, italic=italic, size=size)
 
 
 def para(
@@ -1098,6 +1102,19 @@ def tu_kiem() -> int:
             str(font_ma),
         )
         kq("thiếu hình được ghi nhận, không sập", ctx.thieu_hinh == ["khong-ton-tai.png"])
+        # Hội đồng biên tập 25/09/2026: bản PDF ngắt dòng giữa "(Hình" và "1)", giữa
+        # "mục" và số. Khoảng trắng sau Hình/Bảng/mục/Điều/khoản đứng trước chữ số phải
+        # là khoảng trắng không ngắt (U+00A0) — trong văn bản thường, không đụng chữ mã.
+        chu_in = "".join(
+            t.text or "" for t in Document(str(td / "a.docx")).element.body.iter(qn("w:t"))
+        )
+        kq(
+            "khoảng trắng không ngắt giữa 'Hình'/'mục' và số, chú thích 'Hình 1.' giữ nguyên",
+            "Như Hình 1 cho thấy" in chu_in
+            and "xem mục 1." in chu_in
+            and "Như Hình 1 cho" not in chu_in,
+            repr(chu_in[chu_in.find("Như") : chu_in.find("Như") + 20]),
+        )
 
         # (3) Còn ⬜ → mã 1, KHÔNG đụng bản nộp cũ.
         doi_o = {"thanh_vien": [dict(tv, noi_o="⬜"), dict(tv), dict(tv)]}

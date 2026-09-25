@@ -42,7 +42,7 @@
      Chưa có lịch gán → không cho lên sóng. Đã lên sóng → không bốc lại lịch.</div>
    <div class="hop" id="phat" style="flex:1"><b>Phát sóng</b>
      /desk: vận hành thấy khối, nhánh<br>
-     /host: người dẫn bị <b style="display:inline">làm mù</b></div>
+     /host: <b style="display:inline">không thấy lịch</b></div>
   </div>
  </div>
  <div class="lan" style="background:#f6f6f3">
@@ -50,7 +50,7 @@
   <div class="luoi">
    <div class="cot">
     <div class="hop" id="api"><b>API chính thức</b>YouTube, Facebook, Shopee
-      <div class="phu">bộ nối đã viết, chưa chạy với khoá thật</div></div>
+      <div class="phu">bộ nối đã viết, chưa chạy với khóa thật</div></div>
     <div class="hop quan-sat" id="vod"><b>VOD đã kết thúc</b>
       yt-dlp; dữ liệu QUAN SÁT, không qua API chính thức</div>
     <div class="hop mo-phong" id="sim"><b>Mô phỏng</b>kịch bản AI soạn; chỉ phiên chạy thử</div>
@@ -73,16 +73,16 @@
    </div>
    <div class="cot">
     <div class="hop" id="khung"><b>Gắn khối + burn-in</b>
-      theo lịch đã khoá; bỏ 60 s đầu mỗi khối</div>
+      theo lịch đã khóa; bỏ 60 s đầu mỗi khối</div>
     <div class="hop" id="ri"><b>Suy luận nhân quả</b>
       kiểm định ngẫu nhiên hoá, bốc lại bằng CHÍNH hàm gán; KTC Fisher</div>
-    <div class="ghi-chu">Nhãn ý định chỉ để mô tả (bàn điều khiển, phân bố trong
+    <div class="ghi-chu">Nhãn ý định chỉ để mô tả (bàn trợ live, phân bố trong
       /bao-cao), không vào phân tích nhân quả.</div>
    </div>
    <div class="cot">
-    <div class="hop cong" id="cong3"><span class="the">CỔNG 3 · KHOÁ</span><br>
-      RESULTS_<wbr>FREEZE_<wbr>UNTIL: trước ngày mở khoá, /ket-qua và /bao-cao không trả
-      ước lượng, p, KTC phiên thật; sai định dạng vẫn khoá.
+    <div class="hop cong" id="cong3"><span class="the">CỔNG 3 · KHÓA</span><br>
+      RESULTS_<wbr>FREEZE_<wbr>UNTIL: trước ngày mở khóa, /ket-qua và /bao-cao không trả
+      ước lượng, p, KTC phiên thật; sai định dạng vẫn khóa.
       <div class="phu">Để trống = tắt (mặc định). Còn lọt: GET
       /sessions/&#123;id&#125;/<wbr>report vẫn trả chênh lệch trung bình.</div></div>
     <div class="hop" id="kq"><b>Kết quả</b>/ket-qua, /bao-cao</div>
@@ -91,7 +91,7 @@
  </div>
  <div class="nguon">Nguồn: đọc từ mã src/livelift — api/routes/sessions.py (409) ·
   ingest/base.py, api/ingest_jobs.py, api/routes/events.py (lọc PII) · api/routes/reports.py
-  (khoá kết quả, burn-in) · core/assigner/outer.py · api/routes/redirect.py. Vẽ bằng python scripts/ve_hinh_ho_so.py</div>
+  (khóa kết quả, burn-in) · core/assigner/outer.py · api/routes/redirect.py. Vẽ bằng python scripts/ve_hinh_ho_so.py</div>
  <div class="nhan-mui" id="nhan-lich">lưu lịch + <i>design_hash</i></div>
  <svg id="mui"></svg>
 </div>

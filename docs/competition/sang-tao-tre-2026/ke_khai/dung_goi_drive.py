@@ -48,7 +48,13 @@ TAI_LIEU_KY_THUAT = [
     ("docs/benchmarks/live-fire-da-nguon.md", "Báo cáo nạp 19.126 bình luận VOD (quan sát)"),
     ("docs/benchmarks/kuailive-calibration.md", "Hiệu chỉnh mô phỏng theo KuaiLive"),
     ("docs/competition/sang-tao-tre-2026/05-BAN-KE-KHAI.md", "Nguồn Markdown của bản kê khai"),
+    (
+        "docs/competition/sang-tao-tre-2026/hinh/NGUON.md",
+        "Nguồn và lệnh sinh lại các hình của hồ sơ",
+    ),
 ]
+NHANH_HO_SO = "hoan-thien/ho-so-2509"
+"""Nhánh hoàn thiện hồ sơ 25/09/2026: chờ trưởng nhóm duyệt. Chưa hợp nhất thì liệt kê riêng."""
 
 
 def _git(*args: str) -> str:
@@ -71,7 +77,27 @@ def _so(n: int) -> str:
     return f"{n:,}".replace(",", ".")
 
 
-def tien_trinh(nhanh: str = "main", nhanh_pr: str = "origin/tien/aisc-round2") -> str:
+def _nhanh_chua_hop_nhat(nhanh: str, goc: str, fmt: str) -> str:
+    """Commit của ``nhanh`` chưa có trong ``goc``; rỗng nếu nhánh không tồn tại."""
+    try:
+        return _git(
+            "log",
+            nhanh,
+            "--not",
+            goc,
+            "--reverse",
+            "--date=format:%Y-%m-%d %H:%M",
+            f"--format={fmt}",
+        )
+    except subprocess.CalledProcessError:
+        return ""
+
+
+def tien_trinh(
+    nhanh: str = "main",
+    nhanh_pr: str = "origin/tien/aisc-round2",
+    nhanh_ho_so: str = NHANH_HO_SO,
+) -> str:
     """Mốc commit theo ngày từ git log — chỉ tên tác giả, không email."""
     sep = "\x1f"
     fmt = sep.join(
@@ -112,18 +138,23 @@ def tien_trinh(nhanh: str = "main", nhanh_pr: str = "origin/tien/aisc-round2") -
         for h, gio, ten, tieu_de, ai in theo_ngay[ngay]:
             ra.append(f"| {gio} | `{h}` | {ten} | {tieu_de.replace('|', '/')} | {ai or '—'} |")
         ra.append("")
-    try:
-        pr = _git(
-            "log",
-            nhanh_pr,
-            "--not",
-            nhanh,
-            "--reverse",
-            "--date=format:%Y-%m-%d %H:%M",
-            f"--format={fmt}",
-        )
-    except subprocess.CalledProcessError:
-        pr = ""
+    hs = _nhanh_chua_hop_nhat(nhanh_ho_so, nhanh, fmt)
+    if hs.strip():
+        ra += [
+            f"## Nhánh `{nhanh_ho_so}` (hoàn thiện hồ sơ, chưa hợp nhất vào `{nhanh}`)",
+            "",
+            "Nhánh chờ trưởng nhóm duyệt; hợp nhất xong thì các commit này nằm trong phần trên.",
+            "",
+            "| Thời điểm | Commit | Tác giả | Nội dung | Đồng tác giả AI |",
+            "|---|---|---|---|---|",
+        ]
+        for d in hs.splitlines():
+            if d.strip():
+                h, ts, ten, tieu_de, trailer = (d.split(sep) + [""] * 5)[:5]
+                ai = trailer.split("<")[0].strip() or "—"
+                ra.append(f"| {ts} | `{h}` | {ten} | {tieu_de.replace('|', '/')} | {ai} |")
+        ra.append("")
+    pr = _nhanh_chua_hop_nhat(nhanh_pr, nhanh, fmt)
     if pr.strip():
         ra += [
             f"## Nhánh `{nhanh_pr.split('/', 1)[-1]}` (PR số 1, chưa hợp nhất vào `{nhanh}`)",
@@ -201,7 +232,9 @@ PL=D:/AISC2026/GOI-DRIVE-SANG-TAO-TRE/01-Prompt-Log
 - Nhật ký gốc `.jsonl` của Claude Code (chứa dữ liệu cá nhân chưa che).
 - `docs/competition/thong-tin-doi.local.json`, giấy xác nhận sinh viên, bản hồ sơ có số điện
   thoại hoặc ngày sinh — nộp Ban Tổ chức qua kênh riêng.
-- Dữ liệu bình luận thật trong `data/labeling/`.
+- Dữ liệu bình luận thật trong `data/labeling/`, bản sao lưu `D:/AISC2026/backup-labeling-2509/`
+  (còn tên tài khoản người bình luận), khoá gán mù `D:/AISC2026/gan-mu-2509/khoa/`, và thư mục
+  nhật ký gốc `D:/AISC2026/prompt-log-goc/`. Xem hồ sơ mục 3.3 về phương án lưu, xoá.
 
 ## 4. Tải lên và mở quyền
 
@@ -219,6 +252,9 @@ PL=D:/AISC2026/GOI-DRIVE-SANG-TAO-TRE/01-Prompt-Log
 ## 5. Bảng kiểm cuối
 
 - [ ] `--quet` trên `01-Prompt-Log` ra 0 (sau khi thêm nhật ký của Tiến)
+- [ ] Prompt Log đã xuất lại SAU khi bộ lọc bắt được tên tài khoản dính liền `chữ@tên`
+  (kiểm kê 25/09/2026 thấy 2 tên thật dạng này lọt trong 2 tệp `tac-tu-con/`, mà `--quet`
+  vẫn ra 0 vì dùng cùng bộ lọc)
 - [ ] `01-Prompt-Log/ngoai-claude-code/` có nhật ký Antigravity, Codex hoặc GHI-CHU.md có lý do
 - [ ] `05-Ban-ke-khai/` có bản PDF đã ký của cả ba thành viên
 - [ ] `03-Tai-lieu-ky-thuat/` đã chép đủ danh sách
@@ -279,7 +315,8 @@ def link_kho() -> str:
 - Nhánh chính `main` lúc dựng gói: commit `{main}` ({n} commit). Commit nộp chính thức sẽ được
   gắn thẻ (tag) và ghi lại ở đây ngay trước khi nộp.
 - Lịch sử commit thật, không viết lại; mọi commit trên `main` có dòng đồng tác giả AI.
-- Nhánh `tien/aisc-round2` (PR số 1) chưa hợp nhất tại lúc dựng gói.
+- Nhánh `tien/aisc-round2` (PR số 1) và nhánh hoàn thiện hồ sơ `hoan-thien/ho-so-2509` chưa
+  hợp nhất tại lúc dựng gói (xem `02-Minh-chung-tien-trinh/tien-trinh.md`).
 - Tải mã: `git clone {KHO}.git` hoặc nút **Code → Download ZIP** trên GitHub.
 
 (Dựng từ cây làm việc ở commit `{head}`.)

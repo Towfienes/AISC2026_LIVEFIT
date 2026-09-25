@@ -39,8 +39,16 @@
 > đã chọn TRƯỚC để đóng gói thành v2, và nó hơn C1 ở accuracy và precision; (2) **recall
 > nhãn hành động của C2 là 55,1% (38/69), THẤP hơn artifact cũ
 > (78,3%, 54/69)** — v2 bớt cảnh báo giả bằng cách im lặng
-> nhiều hơn. Artifact `intent_clf_v2.joblib` hiện vẫn là bản đóng gói 14/09 (trên văn bản
-> chưa lọc lại); đóng gói lại là quyết định của trưởng nhóm.
+> nhiều hơn. Artifact `intent_clf_v2.joblib` đã đóng gói lại ngày 25/09 trên dữ liệu đã lọc
+> (bản 14/09 chỉ còn trong lịch sử git).
+>
+> **Lọc lần hai (25/09/2026 chiều).** Bộ lọc được sửa để bắt tên tài khoản viết dính liền chữ
+> đứng trước (`chữ@tên`, cả `@@tên`); lọc lại đổi thêm **4 dòng lô LLM** mà khung đánh giá
+> đọc (0 dòng tập test), không đổi nhãn nào. Chạy lại `eval_intent --ablation --coverage`:
+> **bảng 2–3 (B0–B3, C1–C3) không đổi từng chữ số**, C2 vẫn 0,542 [0,478; 0,625]; chỉ
+> dòng A2, A7 của bảng ablation và ba điểm 0,30 / 0,50 / 0,70 của đường độ phủ đổi (đã
+> cập nhật ở §5 và §6.1). Lần chạy đối chiếu trên bản sao trước khi lọc (`--du-lieu`,
+> cùng mã) tái lập đúng `results.json` cũ, nên chênh lệch là do 4 dòng văn bản.
 
 ---
 
@@ -259,13 +267,13 @@ nên phải chấm trên **cùng không gian nhãn 6 lớp** (so macro-F1 trên 
 |---|---|---:|---|---:|---:|---:|---:|
 | **A0** | **Đầy đủ** (chuẩn hoá + phong cách + 11 lớp + mọi nguồn) | **0,542** | [0,478; 0,625] | — | 0,730 | 65,5% | 0,516 |
 | A1 | − chuẩn hoá văn bản (NFKC/teencode/emoji) | 0,559 | [0,488; 0,643] | **+0,016** | 0,735 | 65,0% | 0,500 |
-| A2 | − đặc trưng phong cách (caps / mốc giá / `‖`) | 0,576 | [0,512; 0,682] | **+0,033** | 0,735 | 64,3% | 0,545 |
+| A2 | − đặc trưng phong cách (caps / mốc giá / `‖`) | 0,576 | [0,513; 0,682] | **+0,034** | 0,738 | 64,3% | 0,546 |
 | A3 | − 1.800 nhãn LLM buổi thứ tư | 0,563 | [0,491; 0,621] | **+0,021** | 0,611 | 47,3% | 0,455 |
 | A4 | − bộ câu mẫu (chỉ dữ liệu thật) | 0,362 | [0,317; 0,423] | **−0,180** | 0,672 | 87,5% (7/8) | 0,331 |
 | A5 | − nhãn AI 2 buổi trong train (chỉ câu mẫu + LLM) | 0,580 | [0,504; 0,666] | **+0,038** | 0,728 | 71,0% | 0,427 |
 | A6 | + từ chối trả lời (ngưỡng chọn trong train) | 0,493 | [0,441; 0,562] | **−0,050** | 0,707 | 66,7% | 0,538 |
-| A7 | **Bộ nhãn 6 lớp** (chấm trên không gian 6 lớp) | 0,574 | [0,461; 0,665] | — (thang 6 lớp) | 0,850 | 54,8% | 0,455 |
-| A8 | **Bộ nhãn 11 lớp**, gộp về 6 khi chấm (cùng thang A7) | 0,572 | [0,471; 0,667] | **−0,003 vs A7** | 0,875 | 65,5% | 0,626 |
+| A7 | **Bộ nhãn 6 lớp** (chấm trên không gian 6 lớp) | 0,579 | [0,465; 0,669] | — (thang 6 lớp) | 0,852 | 55,4% | 0,455 |
+| A8 | **Bộ nhãn 11 lớp**, gộp về 6 khi chấm (cùng thang A7) | 0,572 | [0,471; 0,667] | **−0,007 vs A7** | 0,875 | 65,5% | 0,626 |
 
 *Số 25/09 (sau lọc lại PII). Trong các dòng cùng thang 11 lớp (A1–A6), trừ A4, điểm đều nằm trong KTC95 của A0 — không dòng nào khác A0 một cách chắc chắn. A7/A8 chấm trên thang 6 lớp, chỉ so với nhau.*
 
@@ -279,8 +287,8 @@ nên phải chấm trên **cùng không gian nhãn 6 lớp** (so macro-F1 trên 
   ý định mua để dạy nổi. Precision hành động của A4 lên 87,5% chỉ vì nó gần như **không
   dám dự đoán gì** (8 dự đoán trên 393 dòng): đó là precision của sự im lặng.
 - **Bộ nhãn 11 lớp so với bộ 6 lớp trên chính thang đo của bộ 6 lớp (A8 vs A7): macro-F1
-  −0,003 (ngang nhau), accuracy +0,025, precision hành động
-  54,8% → 65,5%.** Bản 14/09 ghi "+0,035 macro-F1" và gọi đây là bằng chứng quan
+  −0,007 (ngang nhau), accuracy +0,023, precision hành động
+  55,4% → 65,5%.** Bản 14/09 ghi "+0,035 macro-F1" và gọi đây là bằng chứng quan
   trọng nhất; sau khi lọc lại PII, phần macro-F1 **biến mất** (A8 0,609 → 0,572) — nó
   chỉ là dao động của vài dòng lớp nhỏ. Phần còn đứng được là accuracy và precision:
   thêm lớp giúp `chào cả nhà` có chỗ để đi thay vì bị ép thành `chot_don`.
@@ -297,7 +305,7 @@ nên phải chấm trên **cùng không gian nhãn 6 lớp** (so macro-F1 trên 
   là lý do kiến trúc này được chọn từ đầu — nên chuẩn hoá làm lại một việc đã xong. Module
   được giữ lại vì nó có ích cho mô hình có tokenizer (ViSoBERT, xem §8), **không phải vì
   nó cải thiện mô hình hiện tại**.
-- **Đặc trưng phong cách: tắt đi thì macro-F1 +0,033 (tức TẮT nó thì TỐT HƠN).** Chín đặc trưng "ai đang nói"
+- **Đặc trưng phong cách: tắt đi thì macro-F1 +0,034 (tức TẮT nó thì TỐT HƠN).** Chín đặc trưng "ai đang nói"
   (tỷ lệ viết hoa, số mốc giá, dấu `‖`) **làm giảm** macro-F1, dù chúng nâng precision hành
   động 64,3% → 65,5% và giúp `bao_gia_shop` đạt F1 0,812. Đọc đúng: chúng giúp đúng cái
   chúng được thiết kế để giúp (tách bảng giá shop khỏi khách hỏi giá) và **trả giá ở chỗ
@@ -321,7 +329,7 @@ nên phải chấm trên **cùng không gian nhãn 6 lớp** (so macro-F1 trên 
 | 0,40 | 0,522 | 0,730 | 12,5% | 73,5% | [0,597; 0,838] |
 | 0,45 *(ngưỡng sản phẩm hiện tại)* | 0,523 | 0,738 | 11,7% | 73,9% | [0,597; 0,844] |
 | 0,60 | 0,577 | 0,730 | 8,4% | **87,9%** | [0,727; 0,952] |
-| 0,70 | 0,545 | 0,700 | 7,6% | **90,0%** | [0,744; 0,965] |
+| 0,70 | 0,548 | 0,700 | 7,9% | **90,3%** | [0,751; 0,967] |
 | 0,80 | 0,488 | 0,674 | 5,6% | 90,9% | [0,722; 0,975] |
 
 Bảng này là **thực đơn**, không phải kết quả đã thẩm định: chọn điểm đẹp nhất trên đây rồi
@@ -445,7 +453,7 @@ Sinh bằng `python -m livelift.nlp.eval_intent --errors <file>`. Bình luận �
    hiện tại (suy luận < 1 ms/bình luận, artifact 86 KB, không cần torch). **Quyết định:
    không hứa ViSoBERT trong hồ sơ vòng 1.** Module `normalize.py` được giữ lại chính vì
    nó là bước chuẩn bị đúng cho tokenizer của ViSoBERT, dù nó không giúp TF-IDF.
-8. **Tăng gấp đôi kích thước artifact.** `intent_clf_v2.joblib` ≈ **925 KB** so với 86 KB
+8. **Tăng gấp đôi kích thước artifact.** `intent_clf_v2.joblib` ≈ **921 KB** so với 86 KB
    (từ vựng char n-gram lớn hơn 8 lần vì có dữ liệu thật). Vẫn nạp được trong < 1 s, vẫn
    không cần torch, nhưng con số phải được ghi đúng ở mọi nơi.
 

@@ -16,6 +16,14 @@ con nằm trong ``<phiên>/subagents/**/agent-*.jsonl``.
     # quét lại một thư mục đã xuất: còn dữ liệu cá nhân / bí mật nào không
     python scripts/xuat_prompt_log.py --quet D:/AISC2026/GOI-DRIVE-SANG-TAO-TRE/01-Prompt-Log
 
+    # đối chiếu ĐỘC LẬP (không qua bộ lọc) với băm tên tài khoản thật đã biết; tập băm lập
+    # một lần từ dữ liệu gốc và lưu NGOÀI kho mã (thêm 25/09/2026, sau khi 2 tên dạng
+    # ``chữ@tên`` lọt bản "đã làm sạch" mà ``--quet`` vẫn báo 0)
+    python scripts/xuat_prompt_log.py --lap-doi-chieu D:/AISC2026/dinh-danh-da-biet.sha256 \\
+        --nguon D:/AISC2026/backup-labeling-2509 --nguon data/labeling --tru-tu-trong .
+    python scripts/xuat_prompt_log.py --quet <thư mục> \\
+        --doi-chieu D:/AISC2026/dinh-danh-da-biet.sha256
+
 PHÂN VAI (sửa 25/09/2026). Claude Code lưu cả kết quả công cụ, thông báo tác vụ
 và chỉ dẫn nạp tự động dưới ``type == "user"``. Bản trước gán nhãn "NGƯỜI DÙNG"
 cho tất cả, nên "câu lệnh của đội" bị thổi phồng khoảng 20 lần (1.297 so với 66
@@ -61,7 +69,9 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
+import unicodedata
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta, timezone
@@ -82,6 +92,7 @@ _GOC_REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_GOC_REPO / "src"))
 from livelift.console import configure  # noqa: E402
 from livelift.ingest.pii import filter as _pii  # noqa: E402
+from livelift.ingest.pii import patterns as _mau  # noqa: E402
 
 GIO_VN = timezone(timedelta(hours=7))
 CAT_KET_QUA_MAC_DINH = 2000  # ký tự giữ lại của mỗi kết quả công cụ
@@ -385,6 +396,207 @@ def quet_thu_muc(thu_muc: Path) -> Counter:
         for d, m in _muc_theo_dong(f.relative_to(thu_muc), dong):
             kq.update(dem_con_sot(d, m))
     return kq
+
+
+# --------------------------------------------------------------------------
+# Đối chiếu ĐỘC LẬP với tập định danh thật đã biết (thêm 25/09/2026)
+# --------------------------------------------------------------------------
+# ``--quet`` chạy lại CHÍNH bộ lọc đã dùng khi xuất: bộ lọc lọt dạng nào thì ``--quet`` mù
+# đúng dạng đó. Ngày 25/09/2026 bản "đã làm sạch" còn 2 tên tài khoản thật dạng ``chữ@tên``
+# trong khi ``--quet`` báo 0. Phép đối chiếu dưới đây KHÔNG dùng bộ lọc: nó băm mọi chuỗi
+# chữ-số của bản xuất (kèm các đoạn con tách ở ``.``/``_``/``-``) rồi so với tập băm SHA-256
+# các tên tài khoản thật đã biết. Tập băm lập từ dữ liệu gốc bằng ``--lap-doi-chieu`` và lưu
+# NGOÀI kho mã, ngoài gói tải lên; tệp chỉ chứa băm. Mọi báo cáo chỉ in băm rút gọn.
+DO_DAI_DINH_DANH_TOI_THIEU = 3  # thân handle ngắn nhất mà SOCIAL_HANDLE_RE nhận
+_DUOI_VAN_BAN = (".md", ".txt", ".json", ".jsonl", ".js", ".html", ".tsv", ".csv", ".py")
+_CHUOI_CHU = re.compile(r"[\w.\-]+")
+_NGAN_CACH = re.compile(r"([._\-])")
+_TOI_DA_MANH = 12  # chuỗi dài (đường dẫn mô-đun…) chỉ ghép tối đa 12 mảnh liền nhau
+# Mọi "@thân" ở mọi ngữ cảnh (đứng riêng, dính liền chữ, "@@") — rộng hơn bộ lọc sản phẩm.
+_HANDLE_THO = re.compile(r"@+(\w[\w.\-]{1,30}\w)")
+# Thân chỉ là giá / giờ / cỡ ("@50k", "@7h30", "@2XL") thì không phải định danh.
+_KHONG_PHAI_DINH_DANH = re.compile(rf"(?i:{_mau._GIA}|{_mau._GIO}|{_mau._CO})")
+_BAM_HOP_LE = re.compile(r"[0-9a-f]{64}")
+
+
+def chuan_dinh_danh(s: str) -> str:
+    """Dạng chuẩn trước khi băm: NFKC, bỏ ``@`` ở đầu, không phân biệt hoa thường."""
+    return unicodedata.normalize("NFKC", s).lstrip("@").casefold()
+
+
+def bam_dinh_danh(s: str) -> str:
+    return hashlib.sha256(chuan_dinh_danh(s).encode("utf-8")).hexdigest()
+
+
+def _ung_vien(dong: str):
+    """Mọi chuỗi chữ-số liền nhau của dòng (đã NFKC) cùng mọi đoạn con ghép từ các mảnh tách
+    ở ``.``/``_``/``-``: ``tên.8106`` sinh ``tên``, ``8106`` và ``tên.8106``. ``@`` không thuộc
+    chuỗi nên ``chữ@tên`` tách thành ``chữ`` và ``tên``."""
+    for m in _CHUOI_CHU.finditer(unicodedata.normalize("NFKC", dong)):
+        chuoi = m.group(0).strip(".-")
+        if len(chuoi) < DO_DAI_DINH_DANH_TOI_THIEU:
+            continue
+        manh = _NGAN_CACH.split(chuoi)  # [từ0, dấu, từ1, dấu, từ2, …]
+        so_tu = (len(manh) + 1) // 2
+        if so_tu == 1:
+            yield chuoi
+            continue
+        for i in range(so_tu):
+            for j in range(i, min(so_tu, i + _TOI_DA_MANH)):
+                ung = "".join(manh[2 * i : 2 * j + 1])
+                if len(ung) >= DO_DAI_DINH_DANH_TOI_THIEU:
+                    yield ung
+
+
+def _chuoi_trong_dong(dong: str):
+    """Văn bản của một dòng dữ liệu gốc: mọi giá trị chuỗi nếu dòng là JSON (để ``\\uXXXX``
+    được giải mã), ngược lại chính dòng đó."""
+    try:
+        obj = json.loads(dong)
+    except ValueError:
+        yield dong
+        return
+    ngan = [obj]
+    while ngan:
+        x = ngan.pop()
+        if isinstance(x, str):
+            yield x
+        elif isinstance(x, dict):
+            ngan.extend(x.values())
+        elif isinstance(x, list):
+            ngan.extend(x)
+
+
+def _tep_van_ban(goc: Path):
+    if goc.is_file():
+        yield goc
+        return
+    for f in sorted(goc.rglob("*")):
+        if f.is_file() and f.suffix.lower() in _DUOI_VAN_BAN:
+            yield f
+
+
+def _bam_trung_trong_tep(f: Path, tap: set[str]):
+    """(số dòng, băm) cho mỗi ứng viên của tệp ``f`` có băm nằm trong ``tap``."""
+    with open(f, encoding="utf-8", errors="replace") as fh:
+        for so_dong, dong in enumerate(fh, 1):
+            for ung in _ung_vien(dong):  # đã NFKC, không có "@" → chỉ còn casefold
+                bam = hashlib.sha256(ung.casefold().encode("utf-8")).hexdigest()
+                if bam in tap:
+                    yield so_dong, bam
+
+
+def _tep_cua_kho(goc: Path) -> list[Path]:
+    """Tệp văn bản git đang theo dõi (thư mục có ``.git``); không phải kho git thì mọi tệp."""
+    if (goc / ".git").exists():
+        kq = subprocess.run(  # noqa: S603 - danh sách đối số cố định trong tệp này
+            ["git", "-C", str(goc), "ls-files", "-z"],  # noqa: S607 - git lấy từ PATH là chủ ý
+            capture_output=True,
+            check=True,
+        )
+        ten = kq.stdout.decode("utf-8").split("\0")
+        return [goc / t for t in ten if t and Path(t).suffix.lower() in _DUOI_VAN_BAN]
+    return list(_tep_van_ban(goc))
+
+
+def lap_tap_bam(
+    nguon: list[Path], tru_tu_trong: list[Path] | None = None
+) -> tuple[set[str], Counter, dict[str, int]]:
+    """Tập băm tên tài khoản thật lấy từ dữ liệu gốc (chỉ trả băm và số đếm).
+
+    ``tru_tu_trong``: loại những "tên" cũng là một token trong các thư mục này (thường là kho
+    mã). Lần lập thật 25/09/2026 có 4/37 "tên" là từ thông dụng (mỗi từ có trong 9–84 tệp mã
+    hoặc tài liệu của kho); giữ chúng thì đối chiếu báo 8.283 chỗ giả.
+    Trả thêm {băm: số tệp chứa nó} của các băm bị loại để người duyệt thấy, không loại ngầm.
+    """
+    tap: set[str] = set()
+    dem: Counter = Counter()
+    for goc in nguon:
+        for f in _tep_van_ban(Path(goc)):
+            dem["tep"] += 1
+            for dong in f.read_text("utf-8", errors="replace").splitlines():
+                if "@" not in dong:
+                    continue
+                for van_ban in _chuoi_trong_dong(dong):
+                    van_ban = _mau.EMAIL_RE.sub(" ", unicodedata.normalize("NFKC", van_ban))
+                    for m in _HANDLE_THO.finditer(van_ban):
+                        than = m.group(1)
+                        if not any(c.isalpha() for c in than) or _KHONG_PHAI_DINH_DANH.fullmatch(
+                            than
+                        ):
+                            dem["bo_qua_gia_gio_co_so"] += 1
+                            continue
+                        dem["lan_gap"] += 1
+                        tap.add(bam_dinh_danh(than))
+    dem["dinh_danh_tim_thay"] = len(tap)
+    tep_chua: dict[str, set[Path]] = {}
+    for goc in tru_tu_trong or []:
+        for f in _tep_cua_kho(Path(goc)):
+            for _so_dong, bam in _bam_trung_trong_tep(f, tap):
+                tep_chua.setdefault(bam, set()).add(f)
+    loai = {bam: len(ds) for bam, ds in tep_chua.items()}
+    return tap - set(loai), dem, loai
+
+
+def ghi_tap_bam(
+    tep: Path,
+    tap: set[str],
+    dem: Counter,
+    nguon: list[Path],
+    loai: dict[str, int] | None = None,
+    tru_tu_trong: list[Path] | None = None,
+) -> None:
+    loai = loai or {}
+    dau = [
+        "# Băm SHA-256 của tên tài khoản thật đã biết — CHỈ có băm, không có chuỗi gốc.",
+        "# Chuẩn hoá trước khi băm: NFKC, bỏ '@' ở đầu, casefold.",
+        "# Dùng: python scripts/xuat_prompt_log.py --quet <thư mục> --doi-chieu <tệp này>",
+        "# KHÔNG đưa tệp này vào kho mã hay vào gói tải lên.",
+        f"# Lập {datetime.now(GIO_VN).isoformat(timespec='seconds')} từ: "
+        + "; ".join(str(Path(g)) for g in nguon),
+        f"# {dem['tep']} tệp · {dem['lan_gap']} lần gặp · "
+        f"{dem['dinh_danh_tim_thay']} định danh khác nhau · giữ {len(tap)}",
+    ]
+    if loai:
+        dau.append(
+            f"# Loại {len(loai)} vì cũng là token trong "
+            + "; ".join(str(Path(g)) for g in tru_tu_trong or [])
+            + " (băm 12 ký tự đầu × số tệp chứa): "
+            + ", ".join(f"{b[:12]}×{n}" for b, n in sorted(loai.items(), key=lambda x: -x[1]))
+        )
+    _ghi_lf(tep, "\n".join([*dau, *sorted(tap)]) + "\n")
+
+
+def doc_tap_bam(tep: Path) -> set[str]:
+    tap: set[str] = set()
+    for i, dong in enumerate(Path(tep).read_text("utf-8").splitlines(), 1):
+        dong = dong.strip()
+        if not dong or dong.startswith("#"):
+            continue
+        bam = dong.split()[0].lower()
+        if not _BAM_HOP_LE.fullmatch(bam):
+            raise ValueError(f"{tep}:{i}: không phải băm SHA-256 (64 ký tự hex)")
+        tap.add(bam)
+    if not tap:
+        raise ValueError(f"{tep}: tập băm rỗng — đối chiếu sẽ luôn ra 0")
+    return tap
+
+
+def doi_chieu_thu_muc(thu_muc: Path, tap: set[str]) -> list[tuple[str, int, str]]:
+    """(tệp tương đối, số dòng, 12 ký tự đầu của băm) cho mỗi chuỗi của bản xuất băm trùng
+    tập định danh đã biết. Không dùng bộ lọc PII ở bất kỳ bước nào."""
+    goc = Path(thu_muc)
+    return [
+        (f.relative_to(goc).as_posix(), so_dong, bam[:12])
+        for f in _tep_van_ban(goc)
+        for so_dong, bam in _bam_trung_trong_tep(f, tap)
+    ]
+
+
+def _in_doi_chieu(trung: list[tuple[str, int, str]], so_bam: int) -> None:
+    print(f"Đối chiếu độc lập với {so_bam} băm định danh đã biết: {len(trung)} chỗ trùng")
+    for tep, so_dong, bam in trung[:200]:
+        print(f"  {tep}:{so_dong}  băm {bam}")
 
 
 # --------------------------------------------------------------------------
@@ -985,6 +1197,34 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--kiem-tra", action="store_true", help="chỉ đếm, không ghi tệp")
     ap.add_argument("--quet", type=Path, help="quét lại một thư mục đã xuất; còn sót thì mã 1")
     ap.add_argument(
+        "--doi-chieu",
+        type=Path,
+        metavar="TEP_BAM",
+        help="đối chiếu ĐỘC LẬP (không dùng bộ lọc) bản xuất với tập băm định danh thật đã "
+        "biết; còn chuỗi nào băm trùng thì mã 1 (đi cùng --quet hoặc --ra)",
+    )
+    ap.add_argument(
+        "--lap-doi-chieu",
+        type=Path,
+        metavar="TEP_BAM",
+        help="lập tập băm định danh thật từ dữ liệu gốc (--nguon), ghi ra TEP_BAM ngoài kho mã",
+    )
+    ap.add_argument(
+        "--nguon",
+        type=Path,
+        action="append",
+        default=[],
+        help="thư mục/tệp dữ liệu gốc cho --lap-doi-chieu (lặp lại được)",
+    )
+    ap.add_argument(
+        "--tru-tu-trong",
+        type=Path,
+        action="append",
+        default=[],
+        help="--lap-doi-chieu: loại 'tên' cũng là token trong thư mục này (kho git: tệp đang "
+        "theo dõi) — từ thông dụng làm đối chiếu báo động giả; băm bị loại ghi ở đầu tệp",
+    )
+    ap.add_argument(
         "--lap-manifest",
         type=Path,
         help="tính lại MANIFEST-SHA256.txt cho một thư mục (sau khi thêm log công cụ khác)",
@@ -1014,13 +1254,38 @@ def main(argv: list[str] | None = None) -> int:
         _ghi_manifest(a.lap_manifest)
         print(f"Đã lập lại {a.lap_manifest / 'MANIFEST-SHA256.txt'}")
         return 0
+    if a.lap_doi_chieu:
+        if not a.nguon:
+            ap.error("--lap-doi-chieu cần ít nhất một --nguon <dữ liệu gốc>")
+        tap, dem, loai = lap_tap_bam(a.nguon, a.tru_tu_trong)
+        if not tap:
+            print("Không tìm thấy định danh nào trong nguồn — không ghi tệp", file=sys.stderr)
+            return 1
+        ghi_tap_bam(a.lap_doi_chieu, tap, dem, a.nguon, loai, a.tru_tu_trong)
+        print(
+            f"Đã ghi {len(tap)} băm định danh ({dem['lan_gap']} lần gặp, {dem['tep']} tệp; "
+            f"bỏ {dem['bo_qua_gia_gio_co_so']} chuỗi chỉ là giá/giờ/cỡ/số) vào {a.lap_doi_chieu}"
+        )
+        if loai:
+            print(
+                f"Loại {len(loai)} vì cũng là token trong {', '.join(map(str, a.tru_tu_trong))}: "
+                + ", ".join(f"{b[:12]} ({n} tệp)" for b, n in sorted(loai.items()))
+            )
+        return 0
+    tap_doi_chieu = doc_tap_bam(a.doi_chieu) if a.doi_chieu else None
     if a.quet:
         kq = quet_thu_muc(a.quet)
         tong = sum(kq.values())
         print(f"Quét {a.quet}: {tong} chỗ còn khớp bộ lọc")
         for k, v in kq.most_common():
             print(f"  {k}: {v}")
-        return 1 if tong else 0
+        trung = []
+        if tap_doi_chieu is not None:
+            trung = doi_chieu_thu_muc(a.quet, tap_doi_chieu)
+            _in_doi_chieu(trung, len(tap_doi_chieu))
+        return 1 if tong or trung else 0
+    if tap_doi_chieu is not None and not a.ra:
+        ap.error("--doi-chieu đi cùng --quet <thư mục> hoặc --ra <thư mục>")
     if not a.kiem_tra and not a.ra:
         ap.error("cần --ra <thư mục> (hoặc --kiem-tra để xem trước, --quet để quét)")
 
@@ -1199,6 +1464,11 @@ def main(argv: list[str] | None = None) -> int:
 
     kq_quet = quet_thu_muc(a.ra)
     so["quet_lai"] = {"tong": sum(kq_quet.values()), "chi_tiet": dict(kq_quet)}
+    trung: list[tuple[str, int, str]] = []
+    if tap_doi_chieu is not None:
+        trung = doi_chieu_thu_muc(a.ra, tap_doi_chieu)
+        # chỉ số đếm vào tệp tải lên — vị trí (tệp:dòng, băm) chỉ in ra màn hình
+        so["doi_chieu_doc_lap"] = {"so_bam_da_biet": len(tap_doi_chieu), "trung": len(trung)}
     (a.ra / "SO-DEM.json").write_text(json.dumps(so, ensure_ascii=False, indent=1), "utf-8")
     # README ghi lần đầu TRƯỚC khi quét (để chính nó cũng được quét); ghi lại với kết quả
     # quét thật — phản biện 25/09: bản xuất thật in "**chưa chạy** chỗ còn khớp".
@@ -1211,13 +1481,23 @@ def main(argv: list[str] | None = None) -> int:
             + (" — " + ", ".join(f"{k}: {v}" for k, v in kq_quet.most_common()) if kq_quet else "")
             + ".\n"
         )
+        if tap_doi_chieu is not None:
+            f.write(
+                "\n## Đối chiếu độc lập với định danh thật đã biết\n\n"
+                "`python scripts/xuat_prompt_log.py --quet <thư mục> --doi-chieu <tệp băm>`: "
+                "băm mọi chuỗi chữ-số của bản xuất (không qua bộ lọc) và so với "
+                f"{len(tap_doi_chieu)} băm SHA-256 tên tài khoản thật lập từ dữ liệu gốc (tệp "
+                f"băm lưu ngoài gói): **{len(trung)}** chỗ trùng.\n"
+            )
     _ghi_manifest(a.ra)
     print("\n".join(bang))
     print(
         f"Đã xuất vào {a.ra} · thay thế {sum(bd.thay.values())} chỗ · "
         f"cắt {bd.so_cho_cat} chỗ (đều có dấu) · quét lại: {sum(kq_quet.values())}"
     )
-    return 0 if not kq_quet else 1
+    if tap_doi_chieu is not None:
+        _in_doi_chieu(trung, len(tap_doi_chieu))
+    return 0 if not kq_quet and not trung else 1
 
 
 _TEP_SINH_RA = (
@@ -1435,6 +1715,15 @@ def _readme(so: dict) -> str:
         "có thể thành `[TÊN]`. Số lần che theo loại ở `BAO-CAO-LAM-SACH.md`.",
         "",
         f"Quét lại bản xuất (chạy lại bộ lọc, đúng mức, trên từng dòng): **{quet}** chỗ còn khớp.",
+        *(
+            [
+                "Đối chiếu độc lập (không qua bộ lọc) mọi chuỗi chữ-số của bản xuất với "
+                f"{so['doi_chieu_doc_lap']['so_bam_da_biet']} băm SHA-256 tên tài khoản thật đã",
+                f"biết (tệp băm lưu ngoài gói): **{so['doi_chieu_doc_lap']['trung']}** chỗ trùng.",
+            ]
+            if "doi_chieu_doc_lap" in so
+            else []
+        ),
         "",
         "## Công cụ AI khác — PHẢI bổ sung trước khi nộp",
         "",
@@ -1461,6 +1750,7 @@ def _readme(so: dict) -> str:
         "python scripts/xuat_prompt_log.py --kiem-tra --sao-luu <thư mục sao lưu>  # chỉ đếm",
         "python scripts/xuat_prompt_log.py --ra <thư mục> --sao-luu <thư mục sao lưu>",
         "python scripts/xuat_prompt_log.py --quet <thư mục>                         # phải ra 0",
+        "python scripts/xuat_prompt_log.py --quet <thư mục> --doi-chieu <tệp băm>   # phải ra 0",
         "```",
         "",
         "Phiên đang chạy lúc xuất vẫn tiếp tục ghi nhật ký; chạy lại lệnh xuất ngay trước khi",

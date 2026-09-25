@@ -181,9 +181,10 @@ là baseline tiền đăng ký của mọi con số cũ.
 
 Đo được đóng góp của việc trả nợ này (ablation A7 vs A8, chấm trên cùng không gian
 6 lớp): bản 14/09 đo macro-F1 **0,574 → 0,609**, accuracy **0,850 → 0,880**; đo lại 25/09 (sau lọc
-lại PII): macro-F1 **0,574 → 0,572** (ngang nhau), accuracy **0,850 → 0,875**. Tức trên bài
+lại PII, cả lần lọc thứ hai bắt tên dính liền `chữ@tên`): macro-F1 **0,579 → 0,572** (ngang
+nhau), accuracy **0,852 → 0,875**. Tức trên bài
 toán 6 lớp cũ, bộ nhãn 11 lớp **không hơn về macro-F1** (chênh lệch nằm trong KTC95 của cả
-hai dòng); nó chỉ nhỉnh hơn về accuracy (+0,025) và precision nhãn hành động (54,8% → 65,5%).
+hai dòng); nó chỉ nhỉnh hơn về accuracy (+0,023) và precision nhãn hành động (55,4% → 65,5%).
 
 ### Giới hạn phải nói khi trình bày
 

@@ -19,6 +19,7 @@ import importlib.util
 import json
 import re
 import sys
+from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -565,3 +566,153 @@ def test_loi_xep_hang_khong_mang_dau_may_duoc_dem_de_canh_bao():
         )
     assert nk.dem["dinh_kem_bo_qua"] == 2
     assert nk.dem["dinh_kem_xep_hang_khong_ro_nguon"] == 1
+
+
+# --------------------------------------------------------------------------
+# 6. Tên tài khoản dính liền + đối chiếu ĐỘC LẬP (25/09/2026)
+# --------------------------------------------------------------------------
+# Sự cố: bản xuất "đã làm sạch" còn 2 tên tài khoản thật dạng ``chữ@tên`` trong khi
+# ``--quet`` báo 0 — vì ``--quet`` chạy lại đúng bộ lọc đã lọt. Mọi tên dưới đây là BỊA.
+TEN_BIA = ("minhthu8106", "TrầnThịMai-k3x", "kimchi_88", "lan.anh99")
+
+
+def test_lam_sach_bat_ten_tai_khoan_dinh_lien_o_ca_hai_muc():
+    for muc in (xpl.DAY_DU, xpl.DINH_DANH):
+        for tho, ten in (
+            ("cảm ơn bạn@minhthu8106 nhiều", "minhthu8106"),
+            ("hay quá@lan.anh99 ơi", "lan.anh99"),
+            ("đẹp@@kimchi_88", "kimchi_88"),
+        ):
+            assert sum(xpl.dem_con_sot(tho, muc).values()) >= 1, "--quet phải thấy dạng này"
+            sach = xpl.lam_sach(tho, Counter(), muc)
+            assert ten not in sach, sach
+            assert "[MXH]" in sach, sach
+    # giá dùng "@" vẫn giữ nguyên
+    assert xpl.lam_sach("3 cái@50k, 2@99k", Counter(), xpl.DAY_DU) == "3 cái@50k, 2@99k"
+
+
+def _nguon_goc(thu_muc: Path) -> Path:
+    """Dữ liệu gốc tổng hợp: JSONL (một dòng ghi ``ensure_ascii`` để có ``\\uXXXX``) + TSV."""
+    thu_muc.mkdir(parents=True, exist_ok=True)
+    dong = [
+        json.dumps({"text": "cảm ơn bạn@minhthu8106 nhiều"}, ensure_ascii=False),
+        json.dumps({"text": "@TrầnThịMai-k3x chốt 2 cái"}, ensure_ascii=True),
+        json.dumps({"text": "đẹp@@kimchi_88", "khac": ["3 cái@50k", "size@2XL"]}),
+        json.dumps({"text": "mail hoa.nguyen89@gmail.com, npm i next@14.2.3, hẹn@7h30"}),
+    ]
+    (thu_muc / "binh_luan.jsonl").write_text("\n".join(dong) + "\n", "utf-8")
+    (thu_muc / "to_label.txt").write_text("u1\tchào ạ@lan.anh99 nha\n", "utf-8")
+    return thu_muc
+
+
+def test_lap_tap_bam_chi_ghi_bam_cua_ten_tai_khoan(tmp_path, capsys):
+    tep = tmp_path / "ngoai-kho" / "dinh-danh.sha256"
+    tep.parent.mkdir()
+    goc = _nguon_goc(tmp_path / "goc")
+    assert xpl.main(["--lap-doi-chieu", str(tep), "--nguon", str(goc)]) == 0
+    noi_dung = tep.read_text("utf-8")
+    assert xpl.doc_tap_bam(tep) == {xpl.bam_dinh_danh(t) for t in TEN_BIA}
+    for tho in (*TEN_BIA, "minhthu", "kimchi", "Trần"):
+        assert tho.casefold() not in noi_dung.casefold(), "tệp băm không được chứa chuỗi gốc"
+    for khong in ("50k", "2XL", "gmail.com", "14.2.3", "7h30"):
+        assert xpl.bam_dinh_danh(khong) not in noi_dung
+    out = capsys.readouterr().out
+    assert "4 băm định danh" in out
+    assert not any(t.casefold() in out.casefold() for t in TEN_BIA)
+
+
+def test_lap_tap_bam_loai_tu_thong_dung_co_trong_kho_va_ghi_ro(tmp_path, capsys):
+    """Lần lập thật: 4/37 "tên" là từ thông dụng có trong hàng chục tệp của kho mã, làm
+    đối chiếu báo 8.283 chỗ giả. ``--tru-tu-trong`` loại chúng NHƯNG ghi băm + số tệp."""
+    goc = tmp_path / "goc"
+    goc.mkdir()
+    (goc / "bl.jsonl").write_text(
+        json.dumps({"text": "cảm ơn @chaocanha và bạn@minhthu8106"}) + "\n", "utf-8"
+    )
+    kho = tmp_path / "kho"
+    (kho / "docs").mkdir(parents=True)
+    (kho / "docs" / "a.md").write_text("mở đầu: chaocanha mọi người\n", "utf-8")
+    (kho / "b.py").write_text("X = 'chaocanha'\n", "utf-8")
+    tep = tmp_path / "da-biet.sha256"
+    lenh = ["--lap-doi-chieu", str(tep), "--nguon", str(goc), "--tru-tu-trong", str(kho)]
+    assert xpl.main(lenh) == 0
+    assert xpl.doc_tap_bam(tep) == {xpl.bam_dinh_danh("minhthu8106")}
+    noi_dung = tep.read_text("utf-8")
+    assert f"{xpl.bam_dinh_danh('chaocanha')[:12]}×2" in noi_dung
+    assert "chaocanha" not in noi_dung
+    assert "chaocanha" not in capsys.readouterr().out
+
+
+def test_doc_tap_bam_tu_choi_tep_hong_hoac_rong(tmp_path):
+    hong = tmp_path / "hong.sha256"
+    hong.write_text("# chú thích\nkhong-phai-bam\n", "utf-8")
+    with pytest.raises(ValueError, match="64 ký tự hex"):
+        xpl.doc_tap_bam(hong)
+    rong = tmp_path / "rong.sha256"
+    rong.write_text("# chỉ có chú thích\n", "utf-8")
+    with pytest.raises(ValueError, match="rỗng"):
+        xpl.doc_tap_bam(rong)
+
+
+def _tep_bam(tmp_path: Path, *ten: str) -> Path:
+    tep = tmp_path / "da-biet.sha256"
+    tep.write_text("# tổng hợp\n" + "\n".join(xpl.bam_dinh_danh(t) for t in ten) + "\n", "utf-8")
+    return tep
+
+
+def test_doi_chieu_bat_cho_ma_quet_mu_va_chi_in_bam(ra, tmp_path, capsys):
+    """Tên thật đứng TRẦN (không ``@``) hay nằm trong một chuỗi chấm-gạch: bộ lọc không bắt
+    (``--quet`` = 0) nhưng đối chiếu độc lập bắt, và chỉ in băm."""
+    tep = _tep_bam(tmp_path, *TEN_BIA, "Cường-123")
+    capsys.readouterr()
+    # bản xuất sạch (handle tổng hợp "@Cường-123" đã thành [MXH]) → 0
+    assert xpl.main(["--quet", str(ra), "--doi-chieu", str(tep)]) == 0
+    assert "0 chỗ trùng" in capsys.readouterr().out
+    lot = ra / "phien" / "lot.md"
+    lot.write_text("khách minhthu8106 hỏi giá\nxem lan.anh99.vlog và TRẦNTHỊMAI-K3X\n", "utf-8")
+    assert sum(xpl.quet_thu_muc(ra).values()) == 0, "tiền đề: bộ lọc không thấy dạng trần"
+    trung = xpl.doi_chieu_thu_muc(ra, xpl.doc_tap_bam(tep))
+    assert {(t, d) for t, d, _ in trung} == {("phien/lot.md", 1), ("phien/lot.md", 2)}
+    assert len(trung) == 3
+    assert xpl.main(["--quet", str(ra), "--doi-chieu", str(tep)]) == 1
+    out = capsys.readouterr().out
+    assert "3 chỗ trùng" in out
+    assert "phien/lot.md:1" in out
+    assert xpl.bam_dinh_danh("minhthu8106")[:12] in out
+    assert not any(t.casefold() in out.casefold() for t in TEN_BIA)
+
+
+def test_ra_kem_doi_chieu_ghi_so_dem_khong_ghi_vi_tri(goc, tmp_path):
+    tep = _tep_bam(tmp_path, *TEN_BIA, "Cường-123")
+    out = tmp_path / "ra-doi-chieu"
+    assert xpl.main(["--ra", str(out), "--doi-chieu", str(tep)]) == 0
+    so = json.loads((out / "SO-DEM.json").read_text("utf-8"))
+    assert so["doi_chieu_doc_lap"] == {"so_bam_da_biet": 5, "trung": 0}
+    assert "Đối chiếu độc lập" in (out / "README.md").read_text("utf-8")
+    assert "**0** chỗ trùng" in (out / "BAO-CAO-LAM-SACH.md").read_text("utf-8")
+
+
+def test_ra_kem_doi_chieu_co_trung_thi_ma_1_va_vi_tri_chi_in_man_hinh(goc, tmp_path, capsys):
+    """Ca CÓ trùng (ca 0 trùng ở trên không kiểm được gì về vị trí): mã thoát 1, tệp tải lên
+    chỉ có số đếm; ``tệp:dòng`` và băm chỉ in ra màn hình."""
+    tep = _tep_bam(tmp_path, "DUOI-TEP-XYZ")  # chuỗi có thật trong đầu vào công cụ tổng hợp
+    bam12 = xpl.bam_dinh_danh("DUOI-TEP-XYZ")[:12]
+    out = tmp_path / "ra-co-trung"
+    capsys.readouterr()
+    assert xpl.main(["--ra", str(out), "--doi-chieu", str(tep)]) == 1
+    so = json.loads((out / "SO-DEM.json").read_text("utf-8"))
+    n = so["doi_chieu_doc_lap"]["trung"]
+    assert n >= 1
+    assert f"**{n}** chỗ trùng" in (out / "BAO-CAO-LAM-SACH.md").read_text("utf-8")
+    for f in out.rglob("*"):
+        if f.is_file():
+            assert bam12 not in f.read_text("utf-8", errors="replace"), f"lộ băm ở {f.name}"
+    man_hinh = capsys.readouterr().out
+    assert f"{n} chỗ trùng" in man_hinh
+    assert bam12 in man_hinh
+
+
+def test_doi_chieu_can_quet_hoac_ra(tmp_path):
+    tep = _tep_bam(tmp_path, "minhthu8106")
+    with pytest.raises(SystemExit):
+        xpl.main(["--doi-chieu", str(tep), "--kiem-tra"])

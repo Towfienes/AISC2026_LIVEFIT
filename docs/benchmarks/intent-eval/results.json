@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-25T03:44:30+07:00",
+  "generated_at": "2026-09-25T16:09:53+07:00",
   "seed": 2026,
   "n_bootstrap": 2000,
   "label_provenance": {
@@ -23720,13 +23720,13 @@
         {
           "name": "A2 · − đặc trưng phong cách (caps/giá/‖ → mô hình người nói)",
           "n_test": 393,
-          "macro_f1": 0.5755,
+          "macro_f1": 0.5764,
           "macro_f1_ci95": [
-            0.5117,
+            0.5126,
             0.682
           ],
-          "macro_f1_support_only": 0.6331,
-          "accuracy": 0.7354,
+          "macro_f1_support_only": 0.634,
+          "accuracy": 0.7379,
           "action_precision": {
             "k": 45,
             "n": 70,
@@ -23794,11 +23794,11 @@
               "n_pred": 44
             },
             "cam_on_khen": {
-              "precision": 0.7143,
-              "recall": 0.7558,
-              "f1": 0.7345,
+              "precision": 0.7174,
+              "recall": 0.7674,
+              "f1": 0.7416,
               "support": 86,
-              "n_pred": 91
+              "n_pred": 92
             },
             "hoi_sanpham": {
               "precision": 0.3333,
@@ -23822,11 +23822,11 @@
               "n_pred": 21
             },
             "khac": {
-              "precision": 0.7389,
+              "precision": 0.7436,
               "recall": 0.7582,
-              "f1": 0.7484,
+              "f1": 0.7508,
               "support": 153,
-              "n_pred": 157
+              "n_pred": 156
             }
           },
           "confusion": {
@@ -23841,8 +23841,8 @@
               "hoi_daily": 1
             },
             "cam_on_khen": {
-              "cam_on_khen": 65,
-              "khac": 15,
+              "cam_on_khen": 66,
+              "khac": 14,
               "hoi_size": 5,
               "che_dat": 1
             },
@@ -23892,8 +23892,8 @@
           "per_session": {
             "1NMt8BChQrI": {
               "n": 147,
-              "macro_f1": 0.4191,
-              "accuracy": 0.7551,
+              "macro_f1": 0.4216,
+              "accuracy": 0.7619,
               "action_precision": {
                 "k": 1,
                 "n": 16,
@@ -23964,12 +23964,12 @@
           "chosen_thresholds": [],
           "random_stratum": {
             "n": 200,
-            "macro_f1": 0.5448,
+            "macro_f1": 0.5465,
             "macro_f1_ci95": [
-              0.3967,
-              0.7036
+              0.3984,
+              0.7051
             ],
-            "accuracy": 0.72,
+            "accuracy": 0.725,
             "action_precision": {
               "k": 7,
               "n": 9,
@@ -24690,7 +24690,7 @@
               "1NMt8BChQrI",
               "random",
               "cam_on_khen",
-              "khac"
+              "cam_on_khen"
             ],
             [
               "1NMt8BChQrI",
@@ -36876,29 +36876,29 @@
         {
           "name": "A7 · bộ nhãn 6 lớp (chấm trên không gian 6 lớp)",
           "n_test": 393,
-          "macro_f1": 0.5743,
+          "macro_f1": 0.5791,
           "macro_f1_ci95": [
-            0.4606,
-            0.6647
+            0.4652,
+            0.6694
           ],
-          "macro_f1_support_only": 0.5743,
-          "accuracy": 0.8499,
+          "macro_f1_support_only": 0.5791,
+          "accuracy": 0.8524,
           "action_precision": {
-            "k": 40,
-            "n": 73,
-            "precision": 0.5479,
+            "k": 41,
+            "n": 74,
+            "precision": 0.5541,
             "ci95": [
-              0.4342,
-              0.6569
+              0.4409,
+              0.6618
             ]
           },
           "action_recall": {
-            "k": 40,
+            "k": 41,
             "n": 69,
-            "recall": 0.5797,
+            "recall": 0.5942,
             "ci95": [
-              0.4621,
-              0.6889
+              0.4764,
+              0.7021
             ]
           },
           "scale": "6_lop_gop",
@@ -36920,18 +36920,18 @@
               "n_pred": 6
             },
             "che_dat": {
-              "precision": 0.1111,
+              "precision": 0.125,
               "recall": 0.2,
-              "f1": 0.1429,
+              "f1": 0.1538,
               "support": 5,
-              "n_pred": 9
+              "n_pred": 8
             },
             "chot_don": {
-              "precision": 0.625,
-              "recall": 0.4545,
-              "f1": 0.5263,
+              "precision": 0.6154,
+              "recall": 0.4848,
+              "f1": 0.5424,
               "support": 33,
-              "n_pred": 24
+              "n_pred": 26
             },
             "van_chuyen": {
               "precision": 0.5294,
@@ -36941,20 +36941,20 @@
               "n_pred": 17
             },
             "khac": {
-              "precision": 0.9187,
+              "precision": 0.9216,
               "recall": 0.9074,
-              "f1": 0.913,
+              "f1": 0.9145,
               "support": 324,
-              "n_pred": 320
+              "n_pred": 319
             }
           },
           "confusion": {
             "khac": {
               "khac": 294,
-              "che_dat": 7,
+              "che_dat": 6,
+              "chot_don": 10,
               "hoi_size": 4,
               "van_chuyen": 8,
-              "chot_don": 9,
               "hoi_gia": 2
             },
             "van_chuyen": {
@@ -36964,8 +36964,8 @@
               "che_dat": 1
             },
             "chot_don": {
-              "khac": 18,
-              "chot_don": 15
+              "khac": 17,
+              "chot_don": 16
             },
             "che_dat": {
               "che_dat": 1,
@@ -37007,24 +37007,24 @@
             },
             "47oGShxf80A": {
               "n": 78,
-              "macro_f1": 0.7083,
-              "accuracy": 0.6667,
+              "macro_f1": 0.7155,
+              "accuracy": 0.6795,
               "action_precision": {
-                "k": 34,
-                "n": 45,
-                "precision": 0.7556,
+                "k": 35,
+                "n": 46,
+                "precision": 0.7609,
                 "ci95": [
-                  0.6133,
-                  0.8576
+                  0.6206,
+                  0.8609
                 ]
               },
               "action_recall": {
-                "k": 34,
+                "k": 35,
                 "n": 51,
-                "recall": 0.6667,
+                "recall": 0.6863,
                 "ci95": [
-                  0.5297,
-                  0.7803
+                  0.5497,
+                  0.7967
                 ]
               }
             },
@@ -37056,19 +37056,19 @@
           "chosen_thresholds": [],
           "random_stratum": {
             "n": 200,
-            "macro_f1": 0.4546,
+            "macro_f1": 0.4552,
             "macro_f1_ci95": [
-              0.2404,
-              0.6829
+              0.2456,
+              0.73
             ],
-            "accuracy": 0.89,
+            "accuracy": 0.895,
             "action_precision": {
               "k": 6,
-              "n": 15,
-              "precision": 0.4,
+              "n": 14,
+              "precision": 0.4286,
               "ci95": [
-                0.1982,
-                0.6425
+                0.2138,
+                0.6741
               ]
             },
             "action_recall": {
@@ -37314,7 +37314,7 @@
               "1NMt8BChQrI",
               "predicted",
               "khac",
-              "khac"
+              "chot_don"
             ],
             [
               "1NMt8BChQrI",
@@ -37896,7 +37896,7 @@
               "1NMt8BChQrI",
               "random",
               "khac",
-              "che_dat"
+              "khac"
             ],
             [
               "1NMt8BChQrI",
@@ -38058,7 +38058,7 @@
               "47oGShxf80A",
               "predicted",
               "chot_don",
-              "khac"
+              "chot_don"
             ],
             [
               "47oGShxf80A",
@@ -42027,8 +42027,8 @@
     },
     {
       "threshold": 0.3,
-      "macro_f1": 0.5477,
-      "accuracy": 0.7303,
+      "macro_f1": 0.5486,
+      "accuracy": 0.7328,
       "action_coverage": 0.1399,
       "action_precision": 0.6909,
       "action_ci95": [
@@ -42060,8 +42060,8 @@
     },
     {
       "threshold": 0.5,
-      "macro_f1": 0.5227,
-      "accuracy": 0.7328,
+      "macro_f1": 0.5754,
+      "accuracy": 0.7354,
       "action_coverage": 0.112,
       "action_precision": 0.75,
       "action_ci95": [
@@ -42082,13 +42082,13 @@
     },
     {
       "threshold": 0.7,
-      "macro_f1": 0.5446,
+      "macro_f1": 0.5477,
       "accuracy": 0.6997,
-      "action_coverage": 0.0763,
-      "action_precision": 0.9,
+      "action_coverage": 0.0789,
+      "action_precision": 0.9032,
       "action_ci95": [
-        0.7438,
-        0.9654
+        0.751,
+        0.9665
       ]
     },
     {

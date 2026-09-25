@@ -2056,6 +2056,20 @@ def _luu_y_h6(h: dict | None) -> list[str]:
     return ra
 
 
+CHUP_H7 = Path(__file__).resolve().parents[1] / "docs" / "img" / "v2" / "chup.json"
+
+
+def doc_h7() -> dict:
+    """Hình 7 không vẽ ở đây: chỉ đọc nguồn (bản build, ngày chụp) cho NGUON.md."""
+    if not (RA / "h7-giao-dien.png").is_file() or not CHUP_H7.is_file():
+        sys.exit(
+            "DỪNG: thiếu hinh/h7-giao-dien.png hoặc docs/img/v2/chup.json — chạy "
+            "python scripts/chup_giao_dien.py chup rồi ghep."
+        )
+    c = json.loads(CHUP_H7.read_text(encoding="utf-8"))
+    return {"ban_git": c["git"]["head"], "ngay_chup": c["bat_dau"][:10]}
+
+
 def ghi_nguon(tom_tat: dict) -> None:
     """Viết NGUON.md từ chính các số vừa vẽ — không gõ tay số nào."""
     dong = [
@@ -2195,6 +2209,19 @@ def ghi_nguon(tom_tat: dict) -> None:
             f"(sinh bằng `{LENH_NLP}`, đo {h['ngay_do']}); tên lớp: "
             "`livelift.nlp.labels.LABEL_DISPLAY` |"
         )
+    h7 = tom_tat.get("h7")
+    if h7:
+        n = h7["ngay_chup"]
+        dong.append(
+            "| `h7-giao-dien.png` | Giao diện thật — ảnh chụp tự động (Playwright, Chromium) bản "
+            f"build `{h7['ban_git']}` ngày {n[8:10]}/{n[5:7]}/{n[:4]}, lưới 2×2: (a) wizard "
+            "bước 3, lịch 16 khối BẬT/TẮT bốc trước giờ phát của một phiên CHẠY THỬ; (b) feed "
+            "bình luận trên bàn trợ live, câu có số điện thoại giả đã thành [SĐT]; (c) màn "
+            "người dẫn cùng phiên — không có khối, không có nhánh; (d) kết quả một phiên Demo "
+            "Vàng, nhãn DEMO | "
+            "`python scripts/chup_giao_dien.py chup` (API + web production đang chạy) rồi "
+            "`python scripts/chup_giao_dien.py ghep`; ảnh cắt và số đo: `docs/img/v2/` |"
+        )
     # Cỡ mẫu mỗi mức bán rã đọc từ chính số đã vẽ, không gõ tay.
     co_mau = sorted({v["phu"][1] for v in tom_tat.get("h5", {}).values()})
     kem_co_mau = f" (n = {'/'.join(str(n) for n in co_mau)} mỗi mức)" if co_mau else ""
@@ -2218,6 +2245,15 @@ def ghi_nguon(tom_tat: dict) -> None:
         "`GET /sessions/{id}/report` vẫn trả chênh lệch trung bình (đường lọt đã biết, kiểm "
         "toán 25/09) — hộp CỔNG 3 ghi rõ; vá xong thì sửa `html_h2()` và chạy lại `--chi h2`.",
         *_luu_y_h6(tom_tat.get("h6")),
+        *(
+            [
+                "- `h7-giao-dien.png` là ảnh chụp giao diện: bình luận là dữ liệu mô phỏng tổng "
+                "hợp của một phiên chạy thử (không phải khách thật); ô (d) là dữ liệu MẪU — không "
+                "phải kết quả thí nghiệm (dự án có 0 phiên thí nghiệm ngẫu nhiên thật)."
+            ]
+            if tom_tat.get("h7")
+            else []
+        ),
         "",
         "## Chạy lại",
         "",
@@ -2241,7 +2277,9 @@ def ghi_nguon(tom_tat: dict) -> None:
 def main() -> int:
     configure()
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--chi", default="h1,h2,h3,h4,h5,h6", help="danh sách hình cần vẽ, ví dụ h1,h4")
+    ap.add_argument(
+        "--chi", default="h1,h2,h3,h4,h5,h6,h7", help="danh sách hình cần vẽ, ví dụ h1,h4"
+    )
     nhom = ap.add_mutually_exclusive_group()
     nhom.add_argument(
         "--tinh-lai",
@@ -2257,7 +2295,7 @@ def main() -> int:
     args = ap.parse_args()
     che_do = "tinh_lai" if args.tinh_lai else "kiem" if args.kiem else "doc"
     chon = {h.strip() for h in args.chi.split(",") if h.strip()}
-    la = chon - {"h1", "h2", "h3", "h4", "h5", "h6"}
+    la = chon - {"h1", "h2", "h3", "h4", "h5", "h6", "h7"}
     if la:
         ap.error(f"không có hình {sorted(la)}")
 
@@ -2302,6 +2340,9 @@ def main() -> int:
     if "h6" in chon:
         print("Hình 6 — phân loại ý định trên chat thật")
         tom_tat["h6"] = ve_h6(plt)
+    if "h7" in chon:
+        print("Hình 7 — giao diện (ảnh chụp; dựng bằng scripts/chup_giao_dien.py ghep)")
+        tom_tat["h7"] = doc_h7()
 
     DU_LIEU.mkdir(parents=True, exist_ok=True)
     tom_tat_cu.write_text(

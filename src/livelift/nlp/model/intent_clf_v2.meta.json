@@ -5,7 +5,7 @@
   "joblib_version": "1.5.3",
   "numpy_version": "2.5.2",
   "python_version": "3.12.6",
-  "trained_at_utc": "2026-09-25T03:01:49+00:00",
+  "trained_at_utc": "2026-09-25T09:09:25+00:00",
   "n_samples": 2513,
   "labels": [
     "hoi_gia",
@@ -25,7 +25,7 @@
     "authored_11": 320,
     "llm_lot1": 1800
   },
-  "du_lieu_train_sha256": "1d797e1a57906f54980d80ede15e4a99b67eff0a8a34d319a2c39bafa3e81379",
+  "du_lieu_train_sha256": "b95a0eee9a4cccb79ee4e12196688a994a32136bb57f61bd119531f88089005f",
   "seed": 2026,
   "style_features": [
     "caps_ratio",

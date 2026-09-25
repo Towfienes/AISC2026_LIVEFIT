@@ -1,6 +1,6 @@
 # Kết quả đánh giá bộ phân loại ý định — sinh tự động
 
-*Sinh bởi `python -m livelift.nlp.eval_intent` · 2026-09-25T03:44:30+07:00*
+*Sinh bởi `python -m livelift.nlp.eval_intent` · 2026-09-25T16:09:53+07:00*
 
 > **Nguồn nhãn.** Nhãn tham chiếu của 393 dòng test do một tác tử AI (Claude) gán ngày 09/09/2026 trên bảng xáo trộn — chưa có nhãn người. Vì vậy mọi con số là mức đồng thuận với nhãn tham chiếu do AI gán, chưa phải độ chính xác so với con người.
 > Nhãn train bổ sung kê khai riêng ở mục 1: 320 câu mẫu do AI (Claude) soạn ngày 01/09/2026; 1.800 nhãn train buổi thứ tư do LLM (Claude) gán, không có người duyệt.
@@ -85,12 +85,12 @@ macro-F1 từng buổi live (bất định thật nằm ở đây, không ở KT
 |---|---:|---|---:|---:|---:|---:|
 | A0 · đầy đủ (chuẩn hoá + phong cách + 11 lớp + mọi nguồn) | **0,542** | [0,478; 0,625] | 0,597 | 0,730 | 0,655 (38/58) | 0,516 [0,375; 0,660] |
 | A1 · − chuẩn hoá văn bản (NFKC/teencode/emoji) | **0,559** | [0,488; 0,643] | 0,615 | 0,735 | 0,650 (39/60) | 0,500 [0,369; 0,651] |
-| A2 · − đặc trưng phong cách (caps/giá/‖ → mô hình người nói) | **0,576** | [0,512; 0,682] | 0,633 | 0,735 | 0,643 (45/70) | 0,545 [0,397; 0,704] |
+| A2 · − đặc trưng phong cách (caps/giá/‖ → mô hình người nói) | **0,576** | [0,513; 0,682] | 0,634 | 0,738 | 0,643 (45/70) | 0,546 [0,398; 0,705] |
 | A3 · − nhãn LLM buổi thứ tư | **0,563** | [0,491; 0,621] | 0,563 | 0,611 | 0,472 (43/91) | 0,455 [0,330; 0,545] |
 | A4 · − bộ biên soạn (chỉ dữ liệu thật) | **0,362** | [0,317; 0,423] | 0,398 | 0,672 | 0,875 (7/8) | 0,331 [0,288; 0,447] |
 | A5 · − gold 2 buổi train (chỉ biên soạn + LLM) | **0,580** | [0,504; 0,666] | 0,638 | 0,728 | 0,710 (44/62) | 0,427 [0,314; 0,582] |
 | A6 · + từ chối trả lời (ngưỡng chọn trong train) | **0,493** | [0,441; 0,562] | 0,542 | 0,707 | 0,667 (30/45) | 0,538 [0,382; 0,679] |
-| A7 · bộ nhãn 6 lớp (chấm trên không gian 6 lớp) | **0,574** | [0,461; 0,665] | 0,574 | 0,850 | 0,548 (40/73) | 0,455 [0,240; 0,683] |
+| A7 · bộ nhãn 6 lớp (chấm trên không gian 6 lớp) | **0,579** | [0,465; 0,669] | 0,579 | 0,852 | 0,554 (41/74) | 0,455 [0,246; 0,730] |
 | A8 · bộ nhãn 11 lớp, gộp về 6 khi chấm (cùng thang với A7) | **0,572** | [0,471; 0,667] | 0,572 | 0,875 | 0,655 (38/58) | 0,626 [0,317; 0,823] |
 
 macro-F1 từng buổi live (bất định thật nằm ở đây, không ở KTC bootstrap):
@@ -99,12 +99,12 @@ macro-F1 từng buổi live (bất định thật nằm ở đây, không ở KT
 |---|---|---|---|
 | A0 · đầy đủ (chuẩn hoá + phong cách + 11 lớp + mọi nguồn) | 0,368 | 0,599 | 0,525 |
 | A1 · − chuẩn hoá văn bản (NFKC/teencode/emoji) | 0,369 | 0,630 | 0,518 |
-| A2 · − đặc trưng phong cách (caps/giá/‖ → mô hình người nói) | 0,419 | 0,642 | 0,592 |
+| A2 · − đặc trưng phong cách (caps/giá/‖ → mô hình người nói) | 0,422 | 0,642 | 0,592 |
 | A3 · − nhãn LLM buổi thứ tư | 0,327 | 0,623 | 0,497 |
 | A4 · − bộ biên soạn (chỉ dữ liệu thật) | 0,402 | 0,260 | 0,479 |
 | A5 · − gold 2 buổi train (chỉ biên soạn + LLM) | 0,347 | 0,611 | 0,555 |
 | A6 · + từ chối trả lời (ngưỡng chọn trong train) | 0,368 | 0,449 | 0,525 |
-| A7 · bộ nhãn 6 lớp (chấm trên không gian 6 lớp) | 0,190 | 0,708 | 0,508 |
+| A7 · bộ nhãn 6 lớp (chấm trên không gian 6 lớp) | 0,190 | 0,716 | 0,508 |
 | A8 · bộ nhãn 11 lớp, gộp về 6 khi chấm (cùng thang với A7) | 0,239 | 0,729 | 0,556 |
 
 ## Đường đánh đổi độ phủ ↔ độ chính xác (tuỳ chọn từ chối trả lời)
@@ -112,12 +112,12 @@ macro-F1 từng buổi live (bất định thật nằm ở đây, không ở KT
 | Ngưỡng | macro-F1 | Accuracy | Độ phủ nhãn hành động | Precision | KTC95 |
 |---:|---:|---:|---:|---:|---|
 | 0,00 | 0,542 | 0,730 | 0,148 | 0,655 | [0,527; 0,764] |
-| 0,30 | 0,548 | 0,730 | 0,140 | 0,691 | [0,560; 0,797] |
+| 0,30 | 0,549 | 0,733 | 0,140 | 0,691 | [0,560; 0,797] |
 | 0,40 | 0,522 | 0,730 | 0,125 | 0,735 | [0,597; 0,838] |
 | 0,45 | 0,523 | 0,738 | 0,117 | 0,739 | [0,597; 0,844] |
-| 0,50 | 0,523 | 0,733 | 0,112 | 0,750 | [0,606; 0,854] |
+| 0,50 | 0,575 | 0,735 | 0,112 | 0,750 | [0,606; 0,854] |
 | 0,60 | 0,577 | 0,730 | 0,084 | 0,879 | [0,727; 0,952] |
-| 0,70 | 0,545 | 0,700 | 0,076 | 0,900 | [0,744; 0,965] |
+| 0,70 | 0,548 | 0,700 | 0,079 | 0,903 | [0,751; 0,967] |
 | 0,80 | 0,488 | 0,674 | 0,056 | 0,909 | [0,722; 0,975] |
 
 ## Nhãn hành động: precision VÀ recall

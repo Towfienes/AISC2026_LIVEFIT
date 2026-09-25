@@ -308,10 +308,10 @@ C2 tốt hơn B2 ở cả ba buổi (macro-F1 0,064 / 0,412 / 0,138 lên 0,368 /
 | − bộ 320 câu mẫu | 0,362 [0,317; 0,423] | **−0,180** |
 | − 1.800 nhãn LLM | 0,563 [0,491; 0,621] | +0,021 |
 | − chuẩn hóa văn bản | 0,559 [0,488; 0,643] | +0,017 |
-| − đặc trưng "ai đang nói" | 0,576 [0,512; 0,682] | +0,034 |
+| − đặc trưng "ai đang nói" | 0,576 [0,513; 0,682] | +0,034 |
 | − nhãn thật của 2 buổi còn lại | 0,580 [0,504; 0,666] | +0,038 |
 | + tự chọn ngưỡng từ chối theo tập huấn luyện | 0,493 [0,441; 0,562] | −0,049 |
-| 6 lớp so với 11 lớp gộp về 6, chấm cùng thang | 0,574 so với 0,572 | — |
+| 6 lớp so với 11 lớp gộp về 6, chấm cùng thang | 0,579 so với 0,572 | — |
 
 **Đọc bảng.** Chỉ bộ 320 câu mẫu có đóng góp rõ (−0,180, KTC không chồng lấn): lô nhãn LLM chỉ có 2 dòng ý định mua trên 1.800, nên thiếu câu mẫu là thiếu gần hết ví dụ mua hàng. Nhãn LLM không tăng macro-F1 nhưng nâng precision từ 47,2% lên 65,5%. Các dòng còn lại lệch dưới 0,05 với KTC chồng lấn: với 3 buổi kiểm tra, không kết luận được thành phần nào có hại hay có ích.
 

@@ -1,4 +1,4 @@
-"""Vẽ năm hình minh hoạ cho hồ sơ thuyết minh Sáng tạo trẻ AI 2026 (Bảng C).
+"""Vẽ sáu hình minh hoạ cho hồ sơ thuyết minh Sáng tạo trẻ AI 2026 (Bảng C).
 
 Vì sao tệp này tồn tại
 ----------------------
@@ -7,12 +7,14 @@ một biểu đồ vẽ tay từ số chép lại sẽ lặp đúng lớp lỗi 
 (số cũ nằm lại trong tài liệu sau khi mã đã đổi). Vì vậy KHÔNG có con số nào
 trên hình được gõ tay: lịch khối sinh bằng chính hàm gán production, số hiệu
 chuẩn chạy lại bằng đúng tham số của cổng và đối chiếu với
-``docs/benchmarks/so-hieu-chuan.json``, MDE tính bằng ``livelift.analysis.power``.
+``docs/benchmarks/so-hieu-chuan.json``, MDE tính bằng ``livelift.analysis.power``,
+số phân loại ý định (hình 6) đọc từ ``docs/benchmarks/intent-eval/chi-tiet-hinh.json``
+do ``python -m livelift.nlp.eval_intent --ablation --coverage`` ghi.
 Chân mỗi hình ghi nguồn.
 
 Chạy (từ gốc kho)::
 
-    .venv/Scripts/python scripts/ve_hinh_ho_so.py               # vẽ cả 5 hình
+    .venv/Scripts/python scripts/ve_hinh_ho_so.py               # vẽ cả 6 hình
     .venv/Scripts/python scripts/ve_hinh_ho_so.py --chi h1,h4   # chỉ vẽ vài hình
     .venv/Scripts/python scripts/ve_hinh_ho_so.py --kiem        # chạy lại, đối chiếu du-lieu/
     .venv/Scripts/python scripts/ve_hinh_ho_so.py --tinh-lai    # chạy lại Monte-Carlo, ghi đè
@@ -25,11 +27,12 @@ cổng đã đổi (khi đó báo lỗi và đòi ``--tinh-lai``) hoặc có ``-
 và ``NGUON.md`` từ số vừa chạy (trùng từng lần lặp với tệp đã lưu nếu khớp).
 Số tổng của A/A PHẢI khớp ``so-hieu-chuan.json`` — lệch thì script DỪNG, không vẽ.
 
-Phụ thuộc ngoài pyproject: ``matplotlib`` (hình 1, 3, 4, 5) và Playwright +
+Phụ thuộc ngoài pyproject: ``matplotlib`` (hình 1, 3, 4, 5, 6) và Playwright +
 Chromium (hình 2, sơ đồ kiến trúc viết bằng HTML rồi chụp ở 300 dpi).
 
 Kích thước: mọi hình rộng đúng 16 cm (bề rộng vùng chữ của hồ sơ: A4, lề trái
-3 cm, lề phải 2 cm), 300 dpi, chữ nhỏ nhất 8 pt. Chèn vào hồ sơ bằng
+3 cm, lề phải 2 cm), 300 dpi, chữ nhỏ nhất 8 pt (hình 6: 7,5 pt cho số trong ô ma
+trận, cao 8,2 cm). Chèn vào hồ sơ bằng
 ``![Hình N. ...](hinh/<tệp>.png){width=16cm}`` (cú pháp của ``dung_ho_so.py``;
 chú thích phải bắt đầu bằng "Hình N.") để chữ in ra vẫn ≥ 8 pt.
 """
@@ -114,14 +117,24 @@ def phan_tram(x: float, nd: int = 2) -> str:
 
 
 # ----------------------------------------------------------- nạp phụ thuộc
+def cach_cai_goi_ve() -> str:
+    """Câu hướng dẫn cài gói vẽ, đọc từ pyproject: đúng cả khi có lẫn chưa có extra ``hinh``."""
+    import tomllib
+
+    du_an = tomllib.loads((GOC / "pyproject.toml").read_text(encoding="utf-8")).get("project", {})
+    if "hinh" in du_an.get("optional-dependencies", {}):
+        return 'cài bằng `pip install -e ".[hinh]"` rồi `playwright install chromium`'
+    return (
+        "matplotlib không nằm trong pyproject — cài riêng bằng `pip install matplotlib`; "
+        "hình 2 cần thêm Playwright + Chromium"
+    )
+
+
 def nap_matplotlib():
     try:
         import matplotlib
     except ModuleNotFoundError:
-        sys.exit(
-            "Thiếu matplotlib — cài bằng:  .venv/Scripts/python -m pip install matplotlib\n"
-            "(matplotlib không nằm trong pyproject vì chỉ dùng để vẽ hình hồ sơ.)"
-        )
+        sys.exit(f"Thiếu matplotlib (chỉ dùng để vẽ hình hồ sơ): {cach_cai_goi_ve()}.")
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -1527,7 +1540,522 @@ def ve_h5(plt, du_lieu: dict) -> dict:
     return tong
 
 
+# ================================================================== HÌNH 6
+# Hình 6 KHÔNG chạy mô hình: nó đọc số do bộ đánh giá ý định đã ghi. Chạy lại
+# bộ đánh giá (LENH_NLP) → chi-tiet-hinh.json đổi → chạy lại `--chi h6`.
+CHI_TIET_NLP = GOC / "docs" / "benchmarks" / "intent-eval" / "chi-tiet-hinh.json"
+LENH_NLP = "python -m livelift.nlp.eval_intent --ablation --coverage"
+
+# Panel (b): (mã, nhãn ngắn trên hình, chuỗi PHẢI có trong trường "ten" của mã đó).
+# Chuỗi kiểm giữ nhãn ngắn khỏi trôi nghĩa: nếu eval_intent đổi định nghĩa một mã
+# (ví dụ B2 không còn là artifact đang chạy) thì script DỪNG, không vẽ nhãn sai.
+H6_HE_THONG = (
+    ("B0", "đoán lớp đa số", "lớp đa số"),
+    ("B1", "từ khóa", "từ khoá"),  # hình theo chính tả hồ sơ; JSON viết "khoá"
+    ("B2", "v1 đang chạy", "ĐANG CHẠY"),
+    ("B3", "học lại trên câu mẫu", "câu biên soạn"),
+    ("C1", "11 lớp + nhãn 2 buổi", "gold 2 buổi"),
+    ("C2", "v2: C1 + nhãn LLM", "nhãn LLM"),
+    ("C3", "C2 + từ chối trả lời", "từ chối trả lời"),
+    ("A4", "C2 bỏ bộ câu mẫu", "bộ biên soạn"),
+)
+# Hai cấu hình được đóng gói (v1 mặc định, v2 bật bằng cờ) — in đậm.
+H6_DONG_GOI = ("B2", "C2")
+# Dòng "đầy đủ" của bảng ablation; nó PHẢI trùng C2 thì mới được ghi "C2 bỏ …".
+H6_BAN_DAY_DU = "A0"
+H6_THANG = "11_lop"
+H6_RONG_CM = RONG_CM
+H6_CAO_CM = 8.2
+H6_CHU_O = 7.5  # cỡ số trong ô ma trận — nhỏ nhất của hình 6
+H6_CHU_TOI_THIEU = 7.5
+_H6_SAI_SO_LAM_TRON = 5e-5 + 1e-12  # JSON làm tròn 4 chữ số
+
+
+def _loi_h6(loi: list[str]) -> None:
+    if loi:
+        sys.exit(
+            f"DỪNG — {CHI_TIET_NLP.relative_to(GOC)} không nói đúng điều hình 6 sẽ nói:\n  - "
+            + "\n  - ".join(loi)
+        )
+
+
+def du_lieu_h6(chi_tiet: dict) -> dict:
+    """Mọi con số và nhãn của hình 6, lấy từ ``chi-tiet-hinh.json`` — hàm thuần, không vẽ.
+
+    DỪNG (``SystemExit``) thay vì vẽ khi dữ liệu không khớp điều hình sẽ khai: nguồn
+    nhãn không còn là tác tử AI, ma trận không thuộc hệ thống được chọn, ma trận
+    không cộng ra đúng n hay không tái tạo được accuracy/macro-F1 của chính hệ thống
+    đó, một dòng khác thang 11 lớp, hoặc dòng "đầy đủ" của ablation khác C2.
+    """
+    from livelift.nlp.labels import LABEL_DISPLAY
+
+    loi: list[str] = []
+    nguon = chi_tiet["nguon_nhan"]
+    if "tác tử AI" not in nguon["test"]:
+        loi.append("nguon_nhan.test không còn ghi 'tác tử AI' — chân hình sẽ khai sai nguồn nhãn")
+    if "yt-dlp" not in nguon["data"]:
+        loi.append("nguon_nhan.data không còn ghi 'yt-dlp' — chân hình sẽ khai sai nguồn dữ liệu")
+    _loi_h6(loi)
+
+    theo_ma = {d["ma"]: d for d in chi_tiet["macro_f1"]}
+    mt = chi_tiet["ma_tran_nham_lan"]
+    ma_mt = mt["he_thong"].split(" · ")[0]
+    if ma_mt not in theo_ma or theo_ma[ma_mt]["ten"] != mt["he_thong"]:
+        _loi_h6([f"ma trận ghi hệ thống '{mt['he_thong']}' — không có dòng macro_f1 nào trùng tên"])
+    # Hình gắn nhãn "v2" cho hệ thống của ma trận: chỉ đúng khi bộ đánh giá ghi rằng
+    # đó là cấu hình được đóng gói thành intent_clf_v2.joblib.
+    if ma_mt != "C2" or "intent_clf_v2" not in mt.get("quy_tac_chon", ""):
+        loi.append(
+            f"ma trận là của {ma_mt}, không được ghi là cấu hình đóng gói intent_clf_v2 — "
+            "hình sẽ gắn nhãn 'v2' sai"
+        )
+    he = theo_ma[ma_mt]
+    nhan = list(mt["nhan"])
+    dem = [list(map(int, hang)) for hang in mt["ma_tran"]]
+    k = len(nhan)
+    n = he["n_test"]
+    if len(dem) != k or any(len(h) != k for h in dem):
+        loi.append(f"ma trận không phải {k}×{k}")
+    thieu = [x for x in nhan if x not in LABEL_DISPLAY]
+    if thieu:
+        loi.append(f"nhãn chưa có tên tiếng Việt trong LABEL_DISPLAY: {thieu}")
+    _loi_h6(loi)
+    tong_hang = [sum(h) for h in dem]
+    tong_cot = [sum(dem[r][c] for r in range(k)) for c in range(k)]
+    if tong_hang != list(mt["tong_hang"]) or tong_cot != list(mt["tong_cot"]):
+        loi.append("tổng hàng/cột tính lại khác tong_hang/tong_cot đã ghi")
+    if sum(tong_hang) != n:
+        loi.append(f"ma trận cộng ra {sum(tong_hang)} dòng, còn {ma_mt} chấm trên {n}")
+    dung = sum(dem[i][i] for i in range(k))
+    acc = dung / sum(tong_hang) if sum(tong_hang) else float("nan")
+    f1_lop = []
+    for i in range(k):
+        p = dem[i][i] / tong_cot[i] if tong_cot[i] else 0.0
+        r = dem[i][i] / tong_hang[i] if tong_hang[i] else 0.0
+        f1_lop.append(2 * p * r / (p + r) if p + r else 0.0)
+    macro = sum(f1_lop) / k
+    if abs(acc - he["accuracy"]) > _H6_SAI_SO_LAM_TRON:
+        loi.append(f"accuracy từ ma trận {acc:.4f} ≠ {he['accuracy']} của {ma_mt}")
+    if abs(macro - he["macro_f1"]) > _H6_SAI_SO_LAM_TRON:
+        loi.append(f"macro-F1 từ ma trận {macro:.4f} ≠ {he['macro_f1']} của {ma_mt}")
+    _loi_h6(loi)
+
+    rung = []
+    for ma, nhan_ngan, chu_kiem in H6_HE_THONG:
+        d = theo_ma.get(ma)
+        if d is None:
+            loi.append(f"thiếu dòng {ma}")
+            continue
+        if chu_kiem not in d["ten"]:
+            loi.append(f"{ma} là '{d['ten']}', không còn chứa '{chu_kiem}' — nhãn ngắn sẽ sai")
+        if d["thang"] != H6_THANG:
+            loi.append(f"{ma} chấm trên thang {d['thang']}, không so được với {H6_THANG}")
+        if d["n_test"] != n:
+            loi.append(f"{ma} chấm trên {d['n_test']} dòng, không phải {n}")
+        lo, hi = d["macro_f1_ktc95_bootstrap"]
+        rung.append(
+            {
+                "ma": ma,
+                "nhan": nhan_ngan,
+                "nhom": d["bang"].split(" (")[0].split(". ", 1)[-1],
+                "macro_f1": d["macro_f1"],
+                "ktc": [lo, hi],
+            }
+        )
+    day_du = theo_ma.get(H6_BAN_DAY_DU)
+    if day_du is None or (
+        day_du["macro_f1"],
+        day_du["macro_f1_ktc95_bootstrap"],
+    ) != (theo_ma["C2"]["macro_f1"], theo_ma["C2"]["macro_f1_ktc95_bootstrap"]):
+        loi.append(
+            f"dòng đầy đủ {H6_BAN_DAY_DU} của ablation không trùng C2 — không được ghi 'C2 bỏ …'"
+        )
+    _loi_h6(loi)
+
+    buoi = chi_tiet["precision_theo_buoi_va_ty_le_nen"]
+    if sum(b["n_dong"] for b in buoi) != n:
+        _loi_h6([f"số dòng theo buổi cộng ra {sum(b['n_dong'] for b in buoi)} ≠ {n}"])
+    y, m, dd = chi_tiet["generated_at"][:10].split("-")
+    hanh_dong = list(chi_tiet["nhan_hanh_dong"])
+    return {
+        "he_thong_ma_tran": ma_mt,
+        "nhan": nhan,
+        "ten_lop": [LABEL_DISPLAY[x].replace(" / ", "/") for x in nhan],
+        "so_lop_hanh_dong_dau": len(hanh_dong) if nhan[: len(hanh_dong)] == hanh_dong else 0,
+        "ma_tran": dem,
+        "tong_hang": tong_hang,
+        "ty_le_hang": [
+            [c / tong_hang[i] for c in dem[i]] if tong_hang[i] else None for i in range(k)
+        ],
+        "accuracy_ma_tran": acc,
+        "macro_f1_ma_tran": macro,
+        "n": n,
+        "so_buoi": len(buoi),
+        "n_bootstrap": chi_tiet["n_bootstrap"],
+        "ngay_do": f"{dd}/{m}/{y}",
+        "rung": rung,
+        "ablation": {"tu": "C2", "den": "A4"},
+    }
+
+
+def _o_cm(fig, trai: float, duoi: float, rong: float, cao: float):
+    """Trục đặt bằng cm từ góc dưới-trái của hình."""
+    w, h = (v / CM for v in fig.get_size_inches())
+    return fig.add_axes((trai / w, duoi / h, rong / w, cao / h))
+
+
+def hinh_h6(plt, s: dict):
+    """Dựng hình 6 từ ``du_lieu_h6`` (không lưu). Trả ``fig`` để test đọc chữ trên hình.
+
+    Toạ độ tính bằng cm (khổ in). Bề rộng cột chữ đo bằng renderer ở 8 pt Arial ngày
+    25/09: tên lớp dài nhất 1,96 cm, nhãn hệ thống ≤ 2,6 cm, cột số 2,5 cm (chữ đậm).
+    """
+    from matplotlib.colors import LinearSegmentedColormap
+    from matplotlib.patches import Rectangle
+
+    fig = plt.figure(figsize=(H6_RONG_CM * CM, H6_CAO_CM * CM))
+    k = len(s["nhan"])
+
+    def chu_hinh(x_cm: float, y_tu_tren_cm: float, chu: str, **kw) -> None:
+        fig.text(x_cm / H6_RONG_CM, 1 - y_tu_tren_cm / H6_CAO_CM, chu, va="top", **kw)
+
+    # ---------------------------------------------------------------- (a) ma trận
+    canh_o, trai_mt, day_mt = 4.3, 2.18, 2.75
+    ax = _o_cm(fig, trai_mt, day_mt, canh_o, canh_o)
+    thang_mau = LinearSegmentedColormap.from_list(
+        "h6",
+        [(0.0, "#eef4fc"), (0.15, XANH_RAT_NHAT), (0.45, XANH_NHAT), (0.75, XANH), (1.0, XANH_TOI)],
+    ).with_extremes(bad="#f3f2ee")  # ô 0 (bị che): xám rất nhạt, khác ô có số
+    gia_tri = np.ma.masked_equal(
+        np.array([h if h is not None else [0.0] * k for h in s["ty_le_hang"]], dtype=float), 0.0
+    )
+    ax.pcolormesh(
+        np.arange(k + 1),
+        np.arange(k + 1),
+        gia_tri,
+        cmap=thang_mau,
+        vmin=0,
+        vmax=1,
+        edgecolors="white",
+        linewidth=0.9,
+    )
+    ax.set_xlim(0, k)
+    ax.set_ylim(k, 0)
+    for i, hang in enumerate(s["ty_le_hang"]):
+        if hang is None:  # lớp không có dòng tham chiếu nào: tỷ lệ theo hàng không xác định
+            ax.add_patch(
+                Rectangle(
+                    (0.04, i + 0.06),
+                    k - 0.08,
+                    0.88,
+                    facecolor="white",
+                    edgecolor=MUC_MO,
+                    hatch="////",
+                    lw=0,
+                    zorder=3,
+                )
+            )
+            ax.text(
+                k / 2,
+                i + 0.52,
+                "không có dòng nào (n = 0)",
+                ha="center",
+                va="center",
+                fontsize=H6_CHU_O,
+                color=MUC,
+                zorder=6,
+                bbox={"boxstyle": "square,pad=0.15", "facecolor": "white", "edgecolor": "none"},
+            )
+            continue
+        for j, v in enumerate(hang):
+            if s["ma_tran"][i][j] == 0:
+                continue
+            phan = round(100 * v)
+            ax.text(
+                j + 0.5,
+                i + 0.54,
+                "<1" if phan == 0 else str(phan),
+                ha="center",
+                va="center",
+                fontsize=H6_CHU_O,
+                color="white" if v >= 0.6 else MUC,
+                fontweight="bold" if i == j else "normal",
+            )
+    h = s["so_lop_hanh_dong_dau"]
+    if 0 < h < k:  # kẻ tách nhóm ý định hành động khỏi các lớp còn lại
+        ax.plot([h, h], [0, k], color=MUC, lw=0.9, zorder=5)
+        ax.plot([0, k], [h, h], color=MUC, lw=0.9, zorder=5)
+        x_ngoac = (0.45 - trai_mt) / canh_o * k  # cm → toạ độ dữ liệu
+        ax.plot(
+            [x_ngoac + 0.25, x_ngoac, x_ngoac, x_ngoac + 0.25],
+            [0.12, 0.12, h - 0.12, h - 0.12],
+            color=MUC_PHU,
+            lw=0.7,
+            clip_on=False,
+        )
+        ax.text(
+            x_ngoac - 0.15,
+            h / 2,
+            "hành động",
+            rotation=90,
+            ha="right",
+            va="center",
+            fontsize=8,
+            color=MUC_PHU,
+            clip_on=False,
+        )
+    ax.set_xticks(np.arange(k) + 0.5)
+    ax.set_yticks(np.arange(k) + 0.5)
+    ax.set_xticklabels(s["ten_lop"], rotation=45, ha="right", rotation_mode="anchor")
+    ax.set_yticklabels(s["ten_lop"])
+    ax.tick_params(length=0, pad=2.5)
+    for canh in ax.spines.values():
+        canh.set_visible(False)
+    # cột n: tỷ lệ theo hàng mà không kèm n thì 1/3 trông như 33/100
+    for i, c in enumerate(s["tong_hang"]):
+        ax.text(k + 0.2, i + 0.54, str(c), ha="left", va="center", fontsize=8, color=MUC_PHU)
+    ax.text(k + 0.2, -0.2, "n", ha="left", va="bottom", fontsize=8, color=MUC_PHU)
+    chu_hinh(
+        0.12,
+        0.1,
+        f"(a) Ma trận nhầm lẫn của {s['he_thong_ma_tran']} (v2)",
+        fontsize=9,
+        fontweight="bold",
+    )
+    chu_hinh(
+        0.12,
+        0.52,
+        "ô = % của hàng; hàng: tham chiếu, cột: mô hình đoán",
+        fontsize=8,
+        color=MUC_PHU,
+    )
+
+    # ------------------------------------------------------------ (b) biểu đồ rừng
+    trai_nhan, trai_b, phai_b = 7.35, 10.05, 13.2
+    rong_b = phai_b - trai_b
+    rung = s["rung"]
+    vi_tri, tieu_de_nhom, nhom_truoc, yv = [], [], None, 0.0
+    for d in rung:
+        if d["nhom"] != nhom_truoc:
+            yv -= 0.0 if nhom_truoc is None else 0.5
+            tieu_de_nhom.append((yv, d["nhom"]))
+            yv -= 0.9
+            nhom_truoc = d["nhom"]
+        vi_tri.append(yv)
+        yv -= 1.0
+    day_b, dinh_b = 1.85, 7.3
+    axb = _o_cm(fig, trai_b, day_b, rong_b, dinh_b - day_b)
+    axb.set_gid("h6-rung")
+    axb.set_ylim(yv + 0.5, 0.3)
+    moc = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7]
+    axb.set_xlim(moc[0], moc[-1])
+    axb.set_xticks(moc)
+    axb.set_xticklabels(
+        ["0" if v == 0 else so(v, 1) if i % 2 == 0 else "" for i, v in enumerate(moc)]
+    )
+    axb.set_yticks([])
+    axb.grid(True, axis="x", color=LUOI, lw=0.5)
+    axb.set_axisbelow(True)
+    for canh in ("top", "right", "left"):
+        axb.spines[canh].set_visible(False)
+    axb.tick_params(axis="x", length=2.5, pad=2)
+    axb.set_xlabel(
+        f"macro-F1 {k} lớp · KTC 95% bootstrap {so(s['n_bootstrap'], 0)} lần", labelpad=3
+    )
+    tf = axb.get_yaxis_transform()  # x theo trục (0–1), y theo dữ liệu
+    x_nhan = (trai_nhan - trai_b) / rong_b
+    x_so = 1 + 0.12 / rong_b
+    nghieng = {"fontsize": 8, "color": MUC_PHU, "fontstyle": "italic"}
+    for y0, ten in tieu_de_nhom:
+        axb.text(x_nhan, y0, ten, transform=tf, ha="left", va="center", **nghieng)
+    axb.text(
+        x_so,
+        tieu_de_nhom[0][0],
+        "macro-F1 [KTC 95%]",
+        transform=tf,
+        ha="left",
+        va="center",
+        **nghieng,
+    )
+    nhom_goc = rung[0]["nhom"]
+    toa_do = {}
+    for d, y in zip(rung, vi_tri, strict=True):
+        toa_do[d["ma"]] = (d, y)
+        dam = d["ma"] in H6_DONG_GOI
+        mau = XANH_TOI if dam else (MUC_MO if d["nhom"] == nhom_goc else XANH_DAM)
+        rong_ruot = d["ma"] == s["ablation"]["den"]
+        axb.plot(d["ktc"], [y, y], color=mau, lw=1.4, solid_capstyle="butt", zorder=3)
+        axb.plot(
+            d["macro_f1"],
+            y,
+            ls="none",
+            marker="D" if dam else "o",
+            ms=5.5 if dam else 4.8,
+            mfc="white" if rong_ruot else mau,
+            mec=mau,
+            mew=1.1 if rong_ruot else 0.8,
+            zorder=4,
+        )
+        kieu = {"fontsize": 8, "color": MUC, "fontweight": "bold" if dam else "normal"}
+        # nhãn dài được lấn vào đầu trục (điểm của các dòng đó nằm xa bên phải);
+        # nền trắng che lưới dưới chữ. _kiem_nhan_h6 bảo đảm nhãn không đè KTC.
+        axb.text(
+            x_nhan,
+            y,
+            f"{d['ma']} · {d['nhan']}",
+            transform=tf,
+            ha="left",
+            va="center",
+            bbox={"boxstyle": "square,pad=0.05", "facecolor": "white", "edgecolor": "none"},
+            gid=f"nhan-{d['ma']}",
+            **kieu,
+        )
+        axb.text(
+            x_so,
+            y,
+            f"{so(d['macro_f1'], 3)} [{so(d['ktc'][0], 3)}; {so(d['ktc'][1], 3)}]",
+            transform=tf,
+            ha="left",
+            va="center",
+            **kieu,
+        )
+    # ablation: bóng của C2 trên hàng A4, mũi tên tới cận trên KTC của A4 (không đè KTC)
+    tu, _ = toa_do[s["ablation"]["tu"]]
+    den, y_den = toa_do[s["ablation"]["den"]]
+    axb.plot(
+        tu["macro_f1"],
+        y_den,
+        ls="none",
+        marker="D",
+        ms=5.5,
+        mfc="white",
+        mec=MUC_MO,
+        mew=0.9,
+        zorder=4,
+    )
+    axb.annotate(
+        "",
+        xy=(den["ktc"][1] + 0.006, y_den),
+        xytext=(tu["macro_f1"] - 0.014, y_den),
+        arrowprops={
+            "arrowstyle": "-|>",
+            "color": MUC_PHU,
+            "lw": 0.8,
+            "mutation_scale": 7,
+            "shrinkA": 0,
+            "shrinkB": 0,
+        },
+        zorder=2,
+    )
+    chu_hinh(trai_nhan, 0.1, "(b) macro-F1 trên chat thật", fontsize=9, fontweight="bold")
+    chu_hinh(
+        trai_nhan,
+        0.52,
+        "đậm: hai bản đóng gói (v1 mặc định, v2 bật bằng cờ)",
+        fontsize=8,
+        color=MUC_PHU,
+    )
+    chan_nguon(
+        fig,
+        f"Nhãn tham chiếu do tác tử AI gán, {so(s['n'], 0)} bình luận thật, leave-one-session-out "
+        f"theo buổi ({s['so_buoi']} buổi live, VOD YouTube qua yt-dlp); số đo mức đồng thuận "
+        "với nhãn AI, chưa phải so với người. Nguồn: "
+        f"docs/benchmarks/intent-eval/chi-tiet-hinh.json, đo {s['ngay_do']}.",
+    )
+    return fig
+
+
+def _kiem_chu_h6(fig) -> None:
+    from matplotlib.text import Text
+
+    nho = sorted(
+        {
+            (round(t.get_fontsize(), 2), t.get_text())
+            for t in fig.findobj(Text)
+            if t.get_visible() and t.get_text().strip() and t.get_fontsize() < H6_CHU_TOI_THIEU
+        }
+    )
+    if nho:
+        sys.exit(f"DỪNG: hình 6 có chữ nhỏ hơn {so(H6_CHU_TOI_THIEU, 1)} pt: {nho[:5]}")
+
+
+def _kiem_nhan_h6(fig, s: dict) -> None:
+    """Nhãn hệ thống lấn vào đầu trục (b) phải dừng TRƯỚC điểm và KTC của chính dòng đó.
+
+    Bố cục cố định, số thì đổi theo lần đo: một hệ thống mới có macro-F1 gần 0 sẽ
+    đẩy KTC xuống dưới chữ. Khi đó DỪNG, không vẽ hình chữ đè số.
+    """
+    axb = next(a for a in fig.axes if a.get_gid() == "h6-rung")
+    ve = fig.canvas.get_renderer()
+    nghich = axb.transData.inverted()
+    loi = []
+    for d in s["rung"]:
+        chu = next(t for t in axb.texts if t.get_gid() == f"nhan-{d['ma']}")
+        mep_phai = nghich.transform((chu.get_window_extent(ve).x1, 0))[0]
+        if mep_phai > min(d["ktc"][0], d["macro_f1"]) - 0.005:
+            loi.append(f"{d['ma']}: chữ tới x = {mep_phai:.3f}, KTC bắt đầu ở {d['ktc'][0]}")
+    if loi:
+        sys.exit(
+            "DỪNG: nhãn hình 6 đè lên KTC — rút ngắn nhãn trong H6_HE_THONG:\n  - "
+            + "\n  - ".join(loi)
+        )
+
+
+def ve_h6(plt) -> dict:
+    s = du_lieu_h6(json.loads(CHI_TIET_NLP.read_text(encoding="utf-8")))
+    fig = hinh_h6(plt, s)
+    _kiem_chu_h6(fig)
+    _kiem_nhan_h6(fig, s)
+    duong = luu(fig, "h6-nlp.png")
+    plt.close(fig)
+    _, cao = _kiem_kho(duong)
+    if cao > H6_CAO_CM + 0.01:
+        sys.exit(f"DỪNG: h6-nlp.png cao {so(cao, 2)} cm > {so(H6_CAO_CM, 1)} cm.")
+    return {
+        "he_thong_ma_tran": s["he_thong_ma_tran"],
+        "n": s["n"],
+        "so_buoi": s["so_buoi"],
+        "ngay_do": s["ngay_do"],
+        "accuracy_ma_tran": s["accuracy_ma_tran"],
+        "macro_f1_ma_tran": s["macro_f1_ma_tran"],
+        "hang_trong": [x for x, c in zip(s["nhan"], s["tong_hang"], strict=True) if c == 0],
+        "ten_hang_trong": [t for t, c in zip(s["ten_lop"], s["tong_hang"], strict=True) if c == 0],
+        "rung": [{k: d[k] for k in ("ma", "nhan", "macro_f1", "ktc")} for d in s["rung"]],
+        # ma trận đã vẽ — test so với chi-tiet-hinh.json để biết PNG còn khớp bản JSON
+        "ma_tran": s["ma_tran"],
+        "ablation": s["ablation"],
+        "cao_cm": cao,
+    }
+
+
 # ================================================================== NGUON.md
+def _luu_y_h6(h: dict | None) -> list[str]:
+    """Lưu ý trung thực cho hình 6 — câu so sánh C1/C2 chỉ in khi số còn đúng như vậy."""
+    if not h:
+        return []
+    rung = {d["ma"]: d for d in h["rung"]}
+    v2 = H6_DONG_GOI[1]
+    ra = [
+        "- `h6-nlp.png` đo **mức đồng thuận với nhãn tham chiếu do tác tử AI gán**, chưa "
+        "phải độ chính xác so với người: chưa có nhãn người (bảng gán mù cho hai thành viên "
+        "đã chuẩn bị nhưng chưa gán — `docs/benchmarks/intent-eval/gan-mu/README.md`). "
+        "Dữ liệu là bình luận công khai của VOD lấy qua yt-dlp (quan sát, không qua API "
+        "chính thức). Ma trận là của "
+        f"{h['he_thong_ma_tran']} vì đó là cấu hình đóng gói `intent_clf_v2.joblib`, chọn "
+        "trước chứ không chọn theo điểm trên tập test."
+    ]
+    c1 = rung.get("C1")
+    if c1 and c1["macro_f1"] > rung[v2]["macro_f1"]:
+        chong = c1["ktc"][0] <= rung[v2]["ktc"][1] and rung[v2]["ktc"][0] <= c1["ktc"][1]
+        ra.append(
+            f"- Trên `h6-nlp.png`, C1 ({so(c1['macro_f1'], 3)}) cao hơn {v2} "
+            f"({so(rung[v2]['macro_f1'], 3)}) về macro-F1"
+            + (", KTC chồng lấn" if chong else "")
+            + " — trích đủ cả hai, không gọi C2 là “tốt nhất”."
+        )
+    return ra
+
+
 def ghi_nguon(tom_tat: dict) -> None:
     """Viết NGUON.md từ chính các số vừa vẽ — không gõ tay số nào."""
     dong = [
@@ -1541,6 +2069,14 @@ def ghi_nguon(tom_tat: dict) -> None:
         '(chú thích phải bắt đầu bằng "Hình N." — quy ước của `dung_ho_so.py`); chèn hẹp '
         "hơn 16 cm thì chữ",
         "in ra nhỏ hơn 8 pt. Mỗi hình có dòng nguồn ở chân hình.",
+        *(
+            [
+                f"Riêng `h6-nlp.png`: số trong ô ma trận {so(H6_CHU_O, 1)} pt, hình cao "
+                f"{so(tom_tat['h6']['cao_cm'], 1)} cm.",
+            ]
+            if "h6" in tom_tat
+            else []
+        ),
         "",
         "| Tệp | Mô tả một dòng | Nguồn chạy lại được |",
         "|---|---|---|",
@@ -1630,6 +2166,35 @@ def ghi_nguon(tom_tat: dict) -> None:
             "từng lần lặp: "
             "`du-lieu/hieu-ung-luu.json` |"
         )
+    if "h6" in tom_tat:
+        h = tom_tat["h6"]
+        rung = {d["ma"]: d for d in h["rung"]}
+
+        def f1_ktc(ma: str) -> str:
+            d = rung[ma]
+            return f"{so(d['macro_f1'], 3)} [{so(d['ktc'][0], 3)}; {so(d['ktc'][1], 3)}]"
+
+        v1, v2 = H6_DONG_GOI
+        den = h["ablation"]["den"]
+        trong = (
+            f"; lớp {', '.join(h['ten_hang_trong'])} không có dòng tham chiếu nào (n = 0)"
+            if h["ten_hang_trong"]
+            else ""
+        )
+        dong.append(
+            f"| `h6-nlp.png` | Phân loại ý định trên {so(h['n'], 0)} bình luận thật "
+            f"({h['so_buoi']} buổi live, leave-one-session-out), nhãn tham chiếu do tác tử AI "
+            f"gán: (a) ma trận nhầm lẫn {len(h['ma_tran'])} lớp của {h['he_thong_ma_tran']} "
+            "(v2) chuẩn hóa "
+            f"theo hàng, accuracy {so(h['accuracy_ma_tran'], 3)}{trong}; (b) macro-F1 kèm "
+            "KTC 95% bootstrap — "
+            + "; ".join(f"{d['ma']} {f1_ktc(d['ma'])}" for d in h["rung"])
+            + f". {v1} (v1 đang chạy) {so(rung[v1]['macro_f1'], 3)} → {v2} (v2) "
+            f"{so(rung[v2]['macro_f1'], 3)}; bỏ bộ câu mẫu: {so(rung[v2]['macro_f1'], 3)} → "
+            f"{so(rung[den]['macro_f1'], 3)} | `docs/benchmarks/intent-eval/chi-tiet-hinh.json` "
+            f"(sinh bằng `{LENH_NLP}`, đo {h['ngay_do']}); tên lớp: "
+            "`livelift.nlp.labels.LABEL_DISPLAY` |"
+        )
     # Cỡ mẫu mỗi mức bán rã đọc từ chính số đã vẽ, không gõ tay.
     co_mau = sorted({v["phu"][1] for v in tom_tat.get("h5", {}).values()})
     kem_co_mau = f" (n = {'/'.join(str(n) for n in co_mau)} mỗi mức)" if co_mau else ""
@@ -1652,6 +2217,7 @@ def ghi_nguon(tom_tat: dict) -> None:
         "`.env.example`; khi đặt, `/ket-qua` và `/bao-cao` bị khoá nhưng "
         "`GET /sessions/{id}/report` vẫn trả chênh lệch trung bình (đường lọt đã biết, kiểm "
         "toán 25/09) — hộp CỔNG 3 ghi rõ; vá xong thì sửa `html_h2()` và chạy lại `--chi h2`.",
+        *_luu_y_h6(tom_tat.get("h6")),
         "",
         "## Chạy lại",
         "",
@@ -1660,9 +2226,11 @@ def ghi_nguon(tom_tat: dict) -> None:
         f"{LENH} --kiem        # chạy lại Monte-Carlo, đối chiếu TỪNG lần lặp với du-lieu/ (~9 "
         "phút)",
         f"{LENH} --tinh-lai    # chạy lại Monte-Carlo và ghi đè du-lieu/ (khi mã đã đổi có chủ ý)",
+        f"{LENH_NLP}   # đo lại bộ phân loại ý định → chi-tiet-hinh.json",
+        f"{LENH} --chi h6      # rồi vẽ lại hình 6 từ chi-tiet-hinh.json (vài giây)",
         "```",
         "",
-        "Cần `matplotlib` (không nằm trong pyproject) và Playwright + Chromium cho hình 2.",
+        f"Cần `matplotlib`, Pillow, và Playwright + Chromium cho hình 2: {cach_cai_goi_ve()}.",
         "",
     ]
     (RA / "NGUON.md").write_text("\n".join(dong), encoding="utf-8")
@@ -1673,7 +2241,7 @@ def ghi_nguon(tom_tat: dict) -> None:
 def main() -> int:
     configure()
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--chi", default="h1,h2,h3,h4,h5", help="danh sách hình cần vẽ, ví dụ h1,h4")
+    ap.add_argument("--chi", default="h1,h2,h3,h4,h5,h6", help="danh sách hình cần vẽ, ví dụ h1,h4")
     nhom = ap.add_mutually_exclusive_group()
     nhom.add_argument(
         "--tinh-lai",
@@ -1689,7 +2257,7 @@ def main() -> int:
     args = ap.parse_args()
     che_do = "tinh_lai" if args.tinh_lai else "kiem" if args.kiem else "doc"
     chon = {h.strip() for h in args.chi.split(",") if h.strip()}
-    la = chon - {"h1", "h2", "h3", "h4", "h5"}
+    la = chon - {"h1", "h2", "h3", "h4", "h5", "h6"}
     if la:
         ap.error(f"không có hình {sorted(la)}")
 
@@ -1698,7 +2266,7 @@ def main() -> int:
     if tom_tat_cu.exists():
         tom_tat = json.loads(tom_tat_cu.read_text(encoding="utf-8"))
 
-    plt = nap_matplotlib() if chon & {"h1", "h3", "h4", "h5"} else None
+    plt = nap_matplotlib() if chon & {"h1", "h3", "h4", "h5", "h6"} else None
     mod_do_lai = nap_do_lai_so_hieu_chuan()
 
     if "h1" in chon:
@@ -1731,6 +2299,9 @@ def main() -> int:
         }
         du_lieu = doc_hoac_tinh("hieu-ung-luu", tinh_hieu_ung_luu, mong_doi, che_do, mod_do_lai)
         tom_tat["h5"] = ve_h5(plt, du_lieu)
+    if "h6" in chon:
+        print("Hình 6 — phân loại ý định trên chat thật")
+        tom_tat["h6"] = ve_h6(plt)
 
     DU_LIEU.mkdir(parents=True, exist_ok=True)
     tom_tat_cu.write_text(

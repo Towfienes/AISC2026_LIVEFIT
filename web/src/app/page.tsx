@@ -69,7 +69,7 @@ const JOB_STATUS_VI: Record<ReplayJob["status"], string> = {
  *   16 buổi live     — cùng lô đo đó, cùng tài liệu: VOD YouTube CÔNG KHAI,
  *                      bình luận lấy qua yt-dlp, chỉ phân tích QUAN SÁT —
  *                      không buổi nào có can thiệp hay bốc thăm BẬT/TẮT
- *   2005 kiểm thử     — `pytest -m "not slow"` thu thập được (con số do
+ *   2066 kiểm thử     — `pytest -m "not slow"` thu thập được (con số do
  *                      scripts/dong_bo_so_test.py ghi; KHÔNG ghi ngày ở đây
  *                      vì script chỉ cập nhật số — ngày cứng sẽ lại sai)
  *
@@ -86,7 +86,7 @@ const JOB_STATUS_VI: Record<ReplayJob["status"], string> = {
 const PROOF: { value: string; label: string }[] = [
   { value: "19.126", label: "bình luận thật đã phân tích" },
   { value: "16", label: "buổi live công khai đã phân tích (quan sát, không can thiệp)" },
-  { value: "2005", label: "kiểm thử tự động đang xanh" },
+  { value: "2066", label: "kiểm thử tự động đang xanh" },
 ];
 
 /** "1157" / "19.126" → "1.157" / "19.126" (vi-VN). Chuỗi lạ giữ nguyên văn. */

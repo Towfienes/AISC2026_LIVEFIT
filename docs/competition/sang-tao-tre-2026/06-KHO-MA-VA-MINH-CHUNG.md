@@ -10,7 +10,7 @@ Prompt Log + minh chứng phát triển + tài liệu kỹ thuật)
 > **78 câu lệnh người gõ trong 5 phiên** (+9 lệnh `/model`) và 567 nhật ký tác tử con — số
 > 1.297 cũ tính nhầm kết quả công cụ là câu lệnh của đội (sổ sự cố 25/09); (2) nhật ký Claude
 > Code từ bản 2.1.270 CÓ ảnh chụp system prompt (`prompt_snapshot`), có ở 3/5 phiên — mục B.3
-> sửa theo; (3) sổ sự cố nay có 99 hàng. Gói Drive thật dựng bằng
+> sửa theo; (3) sổ sự cố nay có 109 hàng. Gói Drive thật dựng bằng
 > `docs/competition/sang-tao-tre-2026/ke_khai/dung_goi_drive.py`; cây thư mục ở B.4 là đề xuất
 > ngày 14/09. Số test: xem `docs/competition/FACT-SHEET.md`.
 
@@ -357,7 +357,7 @@ LiveLift — AISC'26 Sáng tạo trẻ Quốc gia/
 │      │     ├── 01-ban-nhap/                    ⚠️ CẦN DỰNG — xem B.6
 │      │     └── 02-ban-hoan-thien/              27 ảnh từ docs/img/
 │      ├── c-so-su-co/
-│      │     ├── incident-log.md                 99 sự cố: root cause + gate
+│      │     ├── incident-log.md                109 sự cố: root cause + gate
 │      │     └── audit_findings.txt              16 phát hiện kiểm toán đối kháng
 │      └── d-tien-hoa-tai-lieu/
 │            └── FACT-SHEET.md                   Bộ số chuẩn duy nhất

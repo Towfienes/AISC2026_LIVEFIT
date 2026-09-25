@@ -36,7 +36,7 @@ hoàn thành**.
 | Từ chối có kỷ luật: thiết kế không kiểm định được → `estimable=False` + lý do, **không bao giờ bịa số** | ✅ | sửa lỗi FATAL "NaN→significance" (52% dương tính giả → 6.2%) |
 | MDE gắn với **lực thống kê đo được** (margin 1.2 đo bằng sweep), within-session CV, poisson_floor | ✅ | `analysis/power.py`, gate MDE-khớp-lực |
 | Mô phỏng **hiệu chỉnh theo KuaiLive** (1.16M phòng shop thật) + đo trung thực dưới hiệu ứng lưu | ✅ | `docs/benchmarks/kuailive-calibration.md` |
-| Kiểm toán đối kháng 4 góc + 2 phản biện/phát hiện: 16/16 xử lý; đợt 2 (06/09, 13 tác tử): 5 nhóm lỗi chặn đã sửa | ✅ | `docs/incident-log.md` (99 sự cố đủ root cause, đếm 25/09/2026) |
+| Kiểm toán đối kháng 4 góc + 2 phản biện/phát hiện: 16/16 xử lý; đợt 2 (06/09, 13 tác tử): 5 nhóm lỗi chặn đã sửa | ✅ | `docs/incident-log.md` (109 sự cố đủ root cause, đếm 25/09/2026) |
 | Tiền đăng ký phân tích bản mẫu đầy đủ (quy tắc hiệp biến hợp lệ, sensitivity burn-in, 2 kịch bản lực) | ✅ chưa khóa | `PREREGISTRATION.md` — khóa tuần 6 |
 
 ### I.2 Sản phẩm

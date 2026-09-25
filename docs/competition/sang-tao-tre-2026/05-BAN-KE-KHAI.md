@@ -243,9 +243,9 @@ Các nguồn tài liệu trên do Claude tìm và đọc trong quá trình phát
 ## VIII. Quy trình kiểm chứng đầu ra AI
 
 - Quy trình cấp dự án `HARNESS.md`: logic quyết định là hàm thuần, kiểm thử được không cần hạ tầng; mỗi lỗi phải có test tái hiện trước khi sửa và một dòng trong sổ sự cố.
-- Bộ kiểm thử (theo `docs/competition/FACT-SHEET.md`, 25/09/2026): 2.032 test thu thập trên nhánh hoàn thiện hồ sơ — 2.005 test nhanh, 17 test chậm (13 mô phỏng/thống kê, 1 đánh giá NLP, 3 dựng CSS), 10 test trình duyệt. Chạy trọn ngày 25/09/2026 trên nhánh đó: 2.030 đạt, 2 bỏ qua có lý do, 0 lỗi (17/17 test chậm, 10/10 test trình duyệt). Một ca bỏ qua là phần dựng .docx của bản kê khai này (cần python-docx, chỉ có trong môi trường riêng), đã chạy riêng và đạt.
+- Bộ kiểm thử (theo `docs/competition/FACT-SHEET.md`, 25/09/2026): 2.093 test thu thập trên nhánh hoàn thiện hồ sơ — 2.066 test nhanh, 17 test chậm (13 mô phỏng/thống kê, 1 đánh giá NLP, 3 dựng CSS), 10 test trình duyệt. Chạy trọn ngày 25/09/2026 trên nhánh đó: 2.091 đạt, 2 bỏ qua có lý do, 0 lỗi (17/17 test chậm, 10/10 test trình duyệt). Một ca bỏ qua là phần dựng .docx của bản kê khai này (cần python-docx, chỉ có trong môi trường riêng), đã chạy riêng và đạt.
 - Hiệu chuẩn thống kê (trên mô phỏng, 200 lần lặp A/A): tỷ lệ bác bỏ 3,50% (7/200), p nhị thức 0,4168; độ phủ khoảng tin cậy 95% là 96,50%. Đo lại ngày 25/09/2026 trên nhánh hoàn thiện hồ sơ: khớp từng chữ số.
-- Sổ sự cố `docs/incident-log.md`: 99 sự cố có nguyên nhân gốc (đếm 25/09/2026, gồm 39 dòng thêm ngày 25/09).
+- Sổ sự cố `docs/incident-log.md`: 109 sự cố có nguyên nhân gốc (đếm 25/09/2026, gồm 49 dòng thêm ngày 25/09).
 - Các ràng buộc chống nói quá nằm trong mã: thẻ dự báo từ mô hình không mang khoảng tin cậy; màn hình người dẫn không thấy nhánh thí nghiệm; phân tích VOD không mang ngôn ngữ thí nghiệm; nhãn DEMO/THẬT do máy chủ quyết định.
 - Các lỗi đã biết còn mở tại ngày kê khai được ghi trong sổ sự cố và báo cáo kiểm toán, không lược đi.
 

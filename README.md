@@ -11,7 +11,7 @@ hành động *tạo ra giá trị* với *sự trùng hợp thời điểm*.
 
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
-[![Tests](https://img.shields.io/badge/tests-2005%20nhanh%20%2B%2017%20c%E1%BB%95ng%20ch%E1%BA%ADm-blue)](#-kết-quả-đã-kiểm-chứng)
+[![Tests](https://img.shields.io/badge/tests-2066%20nhanh%20%2B%2017%20c%E1%BB%95ng%20ch%E1%BA%ADm-blue)](#-kết-quả-đã-kiểm-chứng)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Next.js 14](https://img.shields.io/badge/Next.js-14-black?logo=next.js)](web/)
 
@@ -108,7 +108,7 @@ pip install -e ".[dev,server,ml]"
 > thẳng `.venv\Scripts\python -m pytest ...`. Linux/macOS: `source .venv/bin/activate`.
 
 ```bash
-pytest -m "not slow"                # 2005 test nhanh (số thu thập — đếm lại: scripts/dong_bo_so_test.py)
+pytest -m "not slow"                # 2066 test nhanh (số thu thập — đếm lại: scripts/dong_bo_so_test.py)
 pytest -m "slow and not browser"    # 17 cổng chậm (13 mô phỏng/thống kê · 1 đánh giá NLP · 3 cổng build CSS), ~25 phút
 pytest -m browser                   # 10 test trình duyệt (cần Chromium của Playwright)
 ruff check src tests                # lint
@@ -222,7 +222,7 @@ flowchart LR
 | **Lọc PII** | recall ≥ 95%/loại | gate `test_pii_filter.py` |
 | **Hiệu chỉnh KuaiLive** | 1,16M phòng shop; đơn vị ms **chứng minh bằng ràng buộc vật lý** | `analysis/calibration/` |
 | **Live-fire VOD công khai (quan sát)** | **19.126 bình luận · 16 buổi live · 7 ngành hàng** — chat của VOD YouTube công khai tải bằng yt-dlp, nạp qua `POST /replays/youtube` của LiveLift; chỉ phân tích quan sát, không can thiệp, 0 phiên thí nghiệm (lô 10/09/2026 thay lô 06/09 cũ 14.903) | `docs/benchmarks/live-fire-da-nguon.md` |
-| **Kiểm toán đối kháng** | 16/16 phát hiện xử lý (2 FATAL) · đợt 2 (06/09): 5 nhóm lỗi chặn phiên-thật đã sửa | **99 sự cố** đủ root cause + gate (đếm 25/09/2026) |
+| **Kiểm toán đối kháng** | 16/16 phát hiện xử lý (2 FATAL) · đợt 2 (06/09): 5 nhóm lỗi chặn phiên-thật đã sửa | **109 sự cố** đủ root cause + gate (đếm 25/09/2026) |
 
 ## 📁 Cấu trúc kho mã
 
@@ -263,7 +263,7 @@ flowchart LR
 │   ├── huong-dan-facebook-token.md  # lấy Page token (~25 phút, không cần App Review)
 │   ├── benchmarks/          # số sinh lại được (intent, KuaiLive)
 │   ├── research/            # 17 báo cáo nghiên cứu đa nguồn
-│   └── incident-log.md      # 99 sự cố: root cause + gate chặn tái diễn
+│   └── incident-log.md      # 109 sự cố: root cause + gate chặn tái diễn
 ├── PREREGISTRATION.md       # tiền đăng ký — KHÓA trước chuỗi khẳng định
 ├── HARNESS.md               # quy trình phát triển & quality gates   ← đọc thứ ba
 ├── CONTRIBUTING.md · CITATION.cff · LICENSE (AGPL-3.0)
@@ -289,7 +289,7 @@ Chi tiết thành tựu, việc còn lại (P0/P1/P2), nợ kỹ thuật không 
 ## 🧑‍💻 Quy trình & đóng góp
 
 Vòng lặp: *hiểu → nghiên cứu (có trích dẫn) → thiết kế test trước → code thuần ở lõi
-→ gate tự động → root cause mọi lỗi → sổ sự cố*. Quality gates: 2005 test nhanh ·
+→ gate tự động → root cause mọi lỗi → sổ sự cố*. Quality gates: 2066 test nhanh ·
 17 cổng chậm (13 mô phỏng/thống kê · 1 đánh giá NLP · 3 cổng build CSS) · recall PII · cân bằng gán 1000 lịch · **contract test web↔API**
 · cách ly collectors · ruff.
 

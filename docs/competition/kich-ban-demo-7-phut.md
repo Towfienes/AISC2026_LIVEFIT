@@ -244,7 +244,7 @@ Không mở thêm màn hình nào. Nói thẳng:
 > đo của chính nhà bán. Đơn hàng nằm trong app của nền tảng, và ở quy mô dưới 50
 > người xem đồng thời thì cỡ mẫu cũng chưa đủ để nói gì về nó.
 >
-> Cả 99 sự cố trong sổ đều ghi nguyên nhân gốc và cổng kiểm thử chặn tái diễn.
+> Cả 109 sự cố trong sổ đều ghi nguyên nhân gốc và cổng kiểm thử chặn tái diễn.
 > Nhóm em tin một đội dám nói giới hạn của mình bằng số thì đáng tin hơn một đội
 > khẳng định mọi thứ đều tốt.
 

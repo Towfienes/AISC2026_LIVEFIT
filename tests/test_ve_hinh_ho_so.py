@@ -402,6 +402,32 @@ def test_nguon_md_sinh_tu_tom_tat_khong_sua_tay(vh, monkeypatch, tmp_path):
     ):
         assert "làm mù" not in chu, f"{ten} còn nói người dẫn bị làm mù"
         assert "không thấy lịch" in chu, f"{ten} phải nói thứ bị che là lịch"
+    # Phần việc 2 (wf6): cùng lỗi còn ở chỗ khác — NGUON.md tả ô (c) của Hình 7 là "không có
+    # nhánh", trình quay video đọc "không có khối, không có nhánh" và "mọi nơi có một kênh
+    # phát", README nói màn host "không thể" rò nhánh, runbook "làm mù hoàn toàn".
+    nguon = (HINH / "NGUON.md").read_text(encoding="utf-8")
+    assert "không có nhánh" not in nguon, "NGUON.md (Hình 7c) còn nói màn người dẫn không có nhánh"
+    quay = (GOC / "scripts" / "chup_giao_dien.py").read_text(encoding="utf-8")
+    for cum in ("không có khối, không có nhánh", "mọi nơi có một kênh phát", "(2): làm mù"):
+        assert cum not in quay, f"lời dẫn/tiêu đề cảnh của trình quay còn {cum!r}"
+    tai_lieu = {
+        p: (GOC / p).read_text(encoding="utf-8")
+        for p in (
+            "README.md",
+            "docs/TONG-KET-DU-AN.md",
+            "docs/HUONG-DAN-SU-DUNG.md",
+            "ops/runbooks/quy-trinh-phien.md",
+        )
+    }
+    for p, chu in tai_lieu.items():
+        phang = re.sub(r"\s+", " ", chu)
+        for cum in ("làm mù hoàn toàn", "*không thể* rò nhánh", "KHÔNG BAO GIỜ**"):
+            assert cum not in phang, f"{p} còn nói làm mù trọn vẹn: {cum!r}"
+        assert "một phần" in phang, f"{p} phải nói làm mù người dẫn chỉ một phần"
+    for p in ("README.md", "docs/TONG-KET-DU-AN.md"):
+        for i, d in enumerate(tai_lieu[p].splitlines(), 1):
+            if "làm mù" in d:
+                assert "một phần" in d, f"{p}:{i} nói làm mù mà không nói 'một phần'"
 
 
 # ------------------------------------------------------------------ khổ in PNG

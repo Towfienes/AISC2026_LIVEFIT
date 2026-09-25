@@ -50,9 +50,9 @@ LiveLift nhắm vào: không phải một dashboard đẹp hơn — một **moat
 | | |
 |---|---|
 | 🎲 **Switchback hai tầng** | Khối thời gian gán ngẫu nhiên BẬT/TẮT theo thiết kế tối ưu (Bojinov et al. 2023); tầng trong chỉ khám phá khi mô hình *thật sự* không chắc, ghi propensity chính xác |
-| 📏 **Suy diễn tự chứng minh** | Kiểm định ngẫu nhiên hóa vẽ lại bằng *chính hàm gán production*; A/A 200 lặp: bác bỏ 3,50% (danh nghĩa 5%), độ phủ KTC 96,50% (đo 14/09/2026, `docs/benchmarks/so-hieu-chuan.json`) |
-| 🛡️ **Liêm chính ở cấp kiến trúc** | Số dự báo *không thể* mang khoảng tin cậy (validator từ chối); màn hình host *không thể* rò nhánh thí nghiệm (model riêng 4 trường); lịch gán lưu **trước** phát sóng, seed tái lập |
-| 🇻🇳 **Làm cho live commerce Việt** | Lọc PII tiếng Việt (SĐT viết chữ, teencode, 2 thế hệ đơn vị hành chính) recall ≥95% mỗi loại trên bộ gán nhãn 95 câu (riêng *tên người* ngưỡng ≥70% — trần của luật thuần quy tắc); phân loại ý định macro-F1 **0,870 trên 320 câu do AI soạn**, nhưng trên 393 bình luận thật (nhãn do **tác tử AI** gán) chỉ **0,211 → 0,542** sau nâng cấp (v2 bật bằng `LIVELIFT_INTENT_MODEL=v2`; đo lại 25/09/2026 sau khi lọc lại PII, số 14/09 là 0,565; số 0,271 công bố trước đây không tái lập được); toàn bộ UI tiếng Việt thường |
+| 📏 **Suy diễn tự chứng minh** | Kiểm định ngẫu nhiên hóa vẽ lại bằng *chính hàm gán production*; A/A 200 lặp: bác bỏ 3,50% (danh nghĩa 5%); độ phủ KTC 96,50% là mặt kia của cùng phép đo (193 = 200 − 7), không độc lập — bằng chứng riêng về độ phủ là thu hồi tác động biết trước: 37/40 (đo 14/09 và 25/09/2026, `docs/benchmarks/so-hieu-chuan.json`) |
+| 🛡️ **Liêm chính ở cấp kiến trúc** | Số dự báo *không thể* mang khoảng tin cậy (validator từ chối); màn hình host không nhận lịch, khối hay nhánh (model riêng 4 trường) — làm mù người dẫn chỉ *một phần*: host vẫn thấy sản phẩm đang ghim, mà ở chế độ Tự ghim lệnh ghim chỉ đến trong khối BẬT; lịch gán lưu **trước** phát sóng, seed tái lập |
+| 🇻🇳 **Làm cho live commerce Việt** | Lọc PII tiếng Việt (SĐT viết chữ, teencode, 2 thế hệ đơn vị hành chính) recall ≥95% mỗi loại trên bộ gán nhãn 95 câu (riêng *tên người* ngưỡng ≥70% — trần của luật thuần quy tắc); phân loại ý định macro-F1 **0,870 trên 320 câu do AI soạn**, nhưng trên 393 bình luận thật (nhãn do **tác tử AI** gán) chỉ **0,211 → 0,542** sau nâng cấp (thang 11 lớp; chấm cùng thang 6 lớp của bản cũ: **0,370 → 0,572**; v2 bật bằng `LIVELIFT_INTENT_MODEL=v2`; đo lại 25/09/2026 sau khi lọc lại PII, số 14/09 là 0,565; số 0,271 công bố trước đây không tái lập được); toàn bộ UI tiếng Việt thường |
 | 🔬 **Hiệu chỉnh bằng dữ liệu thật** | Mô phỏng thẩm định hiệu chỉnh theo **KuaiLive** (1,16 triệu phòng shop thật); phân tích quan sát VOD YouTube công khai (chat tải qua yt-dlp, không can thiệp) **19.126 bình luận · 16 buổi live · 7 ngành hàng** (lô đo 10/09/2026) |
 | 🚦 **Ma trận tín hiệu** | "Đo được gì từ nguồn này?" trả lời bằng ma trận 5 tín hiệu → 5 năng lực — thiếu tín hiệu là *tuyên bố*, không âm thầm ra số yếu |
 
@@ -82,7 +82,7 @@ Mọi truy cập đi qua **Caddy** (cổng 80/443) — cổng vào công khai du
 (không phải app điện thoại), mỗi bước ghi rõ *bấm nút nào · ở góc nào của màn
 hình · chuyện gì sẽ xảy ra · lỗi thì làm sao*, kèm **ảnh chụp thật từng bước**
 của 4 luồng: xem thử 30 giây → phân tích một buổi live YouTube có sẵn → chạy một
-phiên thí nghiệm thật (bàn điều khiển + màn hình host làm mù) → đọc kết quả.
+phiên thí nghiệm thật (bàn điều khiển + màn hình người dẫn không thấy lịch khối — làm mù một phần) → đọc kết quả.
 Có riêng mục **ai dùng màn nào** và mục **giới hạn hiện tại** nói thẳng những gì
 chưa làm được.
 
@@ -211,18 +211,18 @@ flowchart LR
 | Hạng mục | Kết quả | Kiểm chứng bằng |
 |---|---|---|
 | **Hiệu chỉnh ước lượng viên (A/A)** | bác bỏ **3,50%** (7/200; danh nghĩa 5%), nhị thức chính xác p = 0,4168 | 200 lặp Monte-Carlo, gate tự động; đo lại 14/09/2026 bằng `scripts/do_lai_so_hieu_chuan.py` |
-| **Độ phủ KTC 95%** | **96,50%** (193/200) | cùng gate |
+| **Độ phủ KTC 95%** | **96,50%** (193/200) — mặt kia của dòng trên (193 = 200 − 7), không độc lập | cùng gate, cùng KTC |
 | **Thu hồi tác động biết trước** | sai lệch **−0,84%**, phủ KTC 92,50% (37/40) | `docs/benchmarks/so-hieu-chuan.json` |
 | **Dưới hiệu ứng lưu** (bán rã 2 phút / 3 phút) | lệch −21,5% / −31,6% *về phía 0* (bảo thủ), độ phủ KTC 95% chỉ còn 76% (57/75) / 57% (43/75); không lưu: 96% (72/75). Mô phỏng, n = 75 mỗi mức (3 seed × 25 lần lặp). Bảng cũ đo 02/09 không tái lập được, đã thay | `python scripts/ve_hinh_ho_so.py --kiem` → `docs/competition/sang-tao-tre-2026/hinh/du-lieu/hieu-ung-luu.json` (Hình 5 hồ sơ) — lý do tuần 3 đo t_mix |
 | **Dưới phân cụm phiên (ICC≈0,05)** | A/A và độ phủ giữ nguyên ngưỡng cũ — switchback không phải trả giá ICC vì redraw diễn ra **trong** phiên | 2 gate slow mới; knob `session_click_sigma` |
 | **Ánh xạ knob → ICC (400 phiên)** | σ=0 → **+0,008**; σ=0,06 → **+0,048**; σ=0,3 → **+0,535**. Frailty có tác dụng phụ ICC (cv=2 → **+0,083**) và *chỉ* nó làm tăng phương sai trong-phiên — cột phân biệt hai cơ chế | `python analysis/calibration/bang_icc_mo_phong.py` → `docs/benchmarks/sim-icc-map.md` |
 | **Lưới SBC (bộ khung)** | 4/4 ô XANH; **cổng có răng**: lỗi tiêm vào làm ô ĐỎ đúng như phải thế | `python -m livelift.sim.cli --grid` → `docs/benchmarks/sim-validation-report.md` |
 | **MDE lượt nhấp (lực 80%)** | **16,4%** ở ~59 người xem đồng thời (40–114), từ CV trong phiên 0,263 đo trên 8 phiên mô phỏng; sàn Poisson cùng chỗ 16,0%. Số 20,1% của phép quét 30/08 (công thức cũ sai: 30,1%) **chưa đo lại** — không lệnh nào trong kho sinh lại được | `python scripts/ve_hinh_ho_so.py` → `docs/competition/sang-tao-tre-2026/hinh/du-lieu/tom-tat.json` (Hình 4 hồ sơ) |
-| **Ý định tiếng Việt** | macro-F1 **0,870** trên 320 câu do AI (Claude) soạn (5-fold) vs baseline 0,653 — **NHƯNG trên 393 bình luận thật chỉ 0,211** (KTC95 [0,172; 0,247], bản v1 đang phục vụ mặc định) → **0,542** với bản v2 (KTC95 [0,478; 0,625]; bật bằng `LIVELIFT_INTENT_MODEL=v2`; đo lại 25/09/2026 trên dữ liệu đã lọc lại tên tài khoản — số 14/09 trước khi lọc là 0,565 [0,491; 0,649]). Nhãn tham chiếu 393 dòng do **tác tử AI** gán, chưa có nhãn người; 3 buổi, leave-one-session-out. Số 0,271 công bố trước đây không tái lập được | `python -m livelift.nlp.eval_intent` → `docs/benchmarks/intent-eval/results.json` (tệp nhãn nằm ngoài git theo chính sách PII) · `docs/benchmarks/intent-classifier.md` |
+| **Ý định tiếng Việt** | macro-F1 **0,870** trên 320 câu do AI (Claude) soạn (5-fold) vs baseline 0,653 — **NHƯNG trên 393 bình luận thật chỉ 0,211** (KTC95 [0,172; 0,247], bản v1 đang phục vụ mặc định) → **0,542** với bản v2 (KTC95 [0,478; 0,625]; bật bằng `LIVELIFT_INTENT_MODEL=v2`; đo lại 25/09/2026 trên dữ liệu đã lọc lại tên tài khoản — số 14/09 trước khi lọc là 0,565 [0,491; 0,649]). Nhãn tham chiếu 393 dòng do **tác tử AI** gán, chưa có nhãn người; 3 buổi, leave-one-session-out. Chấm cùng thang 6 lớp của v1 (dòng A9 và A8): **0,370** [0,306; 0,432] → **0,572** [0,471; 0,667]. Số 0,271 công bố trước đây không tái lập được | `python -m livelift.nlp.eval_intent` → `docs/benchmarks/intent-eval/results.json` (tệp nhãn nằm ngoài git theo chính sách PII) · `docs/benchmarks/intent-classifier.md` |
 | **Lọc PII** | recall ≥ 95%/loại | gate `test_pii_filter.py` |
 | **Hiệu chỉnh KuaiLive** | 1,16M phòng shop; đơn vị ms **chứng minh bằng ràng buộc vật lý** | `analysis/calibration/` |
 | **Live-fire VOD công khai (quan sát)** | **19.126 bình luận · 16 buổi live · 7 ngành hàng** — chat của VOD YouTube công khai tải bằng yt-dlp, nạp qua `POST /replays/youtube` của LiveLift; chỉ phân tích quan sát, không can thiệp, 0 phiên thí nghiệm (lô 10/09/2026 thay lô 06/09 cũ 14.903) | `docs/benchmarks/live-fire-da-nguon.md` |
-| **Kiểm toán đối kháng** | 16/16 phát hiện xử lý (2 FATAL) · đợt 2 (06/09): 5 nhóm lỗi chặn phiên-thật đã sửa | **109 sự cố** đủ root cause + gate (đếm 25/09/2026) |
+| **Kiểm toán đối kháng** | 16/16 phát hiện xử lý (2 FATAL) · đợt 2 (06/09): 5 nhóm lỗi chặn phiên-thật đã sửa | **121 sự cố** đủ root cause + gate (đếm 25/09/2026) |
 
 ## 📁 Cấu trúc kho mã
 
@@ -244,7 +244,7 @@ flowchart LR
 │   ├── nlp/                 # ý định tiếng Việt (đã train) + dataset + trainer
 │   ├── api/                 # FastAPI: sessions/schedule/actions/reports/replays/signals
 │   └── migrations/          # SQL up/down
-├── web/                     # Next.js 14 — desk 3 vùng · host làm mù · replay · kết quả
+├── web/                     # Next.js 14 — desk 3 vùng · host che lịch (làm mù một phần) · replay · kết quả
 ├── collectors/tiktok_public # CÁCH LY — CI chặn import ngược vào lõi
 ├── analysis/                # notebook + script hiệu chỉnh
 ├── ops/                     # runbook phiên live, mẫu nhật ký, thư đối tác
@@ -263,7 +263,7 @@ flowchart LR
 │   ├── huong-dan-facebook-token.md  # lấy Page token (~25 phút, không cần App Review)
 │   ├── benchmarks/          # số sinh lại được (intent, KuaiLive)
 │   ├── research/            # 17 báo cáo nghiên cứu đa nguồn
-│   └── incident-log.md      # 109 sự cố: root cause + gate chặn tái diễn
+│   └── incident-log.md      # 121 sự cố: root cause + gate chặn tái diễn
 ├── PREREGISTRATION.md       # tiền đăng ký — KHÓA trước chuỗi khẳng định
 ├── HARNESS.md               # quy trình phát triển & quality gates   ← đọc thứ ba
 ├── CONTRIBUTING.md · CITATION.cff · LICENSE (AGPL-3.0)

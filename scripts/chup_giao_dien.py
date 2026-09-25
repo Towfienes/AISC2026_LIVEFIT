@@ -1140,9 +1140,12 @@ CANH = (
     ),
     Canh(
         "lam_mu",
-        "Chức năng chính (2): làm mù người dẫn",
+        "Chức năng chính (2): che lịch với người dẫn",
+        # Theo 07-KICH-BAN-2-VIDEO.md (hội đồng thử 25/09/2026): làm mù chỉ một phần — người
+        # dẫn vẫn thấy sản phẩm đang ghim, và ở Tự ghim khối TẮT hiện "Chưa ghim sản phẩm".
         "Cùng một phiên. Màn người dẫn chỉ có thời gian, sản phẩm đang ghim, giá, tồn kho — "
-        "không có khối, không có nhánh.",
+        "không có lịch khối. Người dẫn vẫn thấy sản phẩm đang ghim, nên thứ chúng em đo là cả "
+        "chiến lược ghim.",
         18,
         6,
         "desk và host cùng phiên, chia đôi",
@@ -1170,8 +1173,8 @@ CANH = (
         "ung_dung",
         "Khả năng ứng dụng",
         "Mỗi con số trong hồ sơ có lệnh chạy lại trong kho mã công khai này. Sản phẩm dùng "
-        "được cho nhà bán tự phát sóng có lượng xem ổn định, và cho mọi nơi có một kênh phát, "
-        "nhiều người xem.",
+        "được cho nhà bán tự phát sóng có lượng xem ổn định, chốt đơn qua website riêng hoặc "
+        "inbox.",
         18,
         9,
         "chạy test bộ lọc dữ liệu cá nhân",
@@ -1280,7 +1283,7 @@ def the_chia_doi(web: str, sid: str) -> str:
         f"iframe{{border:0;width:1366px;height:{cao_iframe}px;transform:scale({ti:.4f});"
         "transform-origin:0 0}"
         "</style></head><body><div class='dau'>"
-        "<span><b>QUAY TỰ ĐỘNG · 6/9 · Chức năng chính (2): làm mù người dẫn</b></span>"
+        "<span><b>QUAY TỰ ĐỘNG · 6/9 · Chức năng chính (2): che lịch với người dẫn</b></span>"
         "<span>Khung chia đôi do trình quay dựng: 2 khung nhúng, CÙNG MỘT PHIÊN đang phát · "
         "trái /desk (người trợ live) · phải /host (người dẫn)</span></div>"
         f"<div class='cot trai'><iframe src='{web}/desk?session={sid}'></iframe></div>"
@@ -1879,7 +1882,7 @@ def ghi_readme_video(ra: Path, kq: dict, co_phu_de: bool) -> None:
         "- Cảnh cổng chặn 409 dùng một **phiên nháp tạo sẵn qua `POST /sessions`** "
         f"(`{k.get('phien_nhap_409', '')[:8]}…`, chạy thử, chưa bốc lịch) trong Swagger `/docs`; "
         f"mã trả về đo được: {k.get('cong_chan_ma_http')}.",
-        "- Cảnh làm mù là **trang khung chia đôi do trình quay dựng** (2 khung nhúng /desk và "
+        "- Cảnh che lịch là **trang khung chia đôi do trình quay dựng** (2 khung nhúng /desk và "
         "/host của CÙNG một phiên đang phát) — tương đương chia đôi màn hình; trên hình có ghi.",
         '- Ba trạng thái Demo Vàng mở bằng nút "Kết quả" (`/ket-qua?phien=`) thay vì '
         '"Báo cáo" — thấy ngay kết luận ở đầu trang.',

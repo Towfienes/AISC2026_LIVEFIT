@@ -220,9 +220,9 @@ PL=D:/AISC2026/GOI-DRIVE-SANG-TAO-TRE/01-Prompt-Log
 .venv/Scripts/python docs/competition/sang-tao-tre-2026/ke_khai/dung_goi_drive.py
 ```
 
-Lệnh cuối so mọi số Prompt Log trong bản kê khai (mục I.1, I.2, I.3, VII) và hồ sơ (mục 13)
-với `01-Prompt-Log/SO-DEM.json` vừa xuất. Báo **LỆCH** (mã 1) thì sửa số trong
-`05-BAN-KE-KHAI.md` và `noi-dung.md`, dựng lại kê khai, dựng lại hồ sơ
+Lệnh cuối so mọi số Prompt Log trong bản kê khai (mục I.1, I.2, I.3, VII), hồ sơ (mục 13) và
+`06-KHO-MA-VA-MINH-CHUNG.md` với `01-Prompt-Log/SO-DEM.json` vừa xuất. Báo **LỆCH** (mã 1) thì
+sửa số trong ba tệp đó, dựng lại kê khai, dựng lại hồ sơ
 (`.venv-docx/Scripts/python docs/competition/sang-tao-tre-2026/dung_ho_so.py`), chạy lại lệnh
 cuối tới khi hết lệch.
 
@@ -363,6 +363,10 @@ dùng ảnh chỉnh sửa. Không để dữ liệu cá nhân (số điện tho�
 # SO-DEM.json của lần xuất đang nằm trong gói.
 KE_KHAI_MD = DAY.parent / "05-BAN-KE-KHAI.md"
 HO_SO_MD = DAY.parent / "noi-dung.md"
+#: Phần việc 2 (wf6, 25/09/2026): 06-KHO-MA-VA-MINH-CHUNG.md (nằm trong kho mã nộp kèm) vẫn
+#: ghi 78 câu / 567 nhật ký sau khi 05 và hồ sơ đã sửa theo lần xuất — cổng chỉ quét hai tệp.
+KHO_MA_MD = DAY.parent / "06-KHO-MA-VA-MINH-CHUNG.md"
+TEP_SO_PROMPT_LOG = (KE_KHAI_MD, HO_SO_MD, KHO_MA_MD)
 
 _SO = r"(\d[\d.]*)"
 #: (khoá, mẫu một nhóm số). Khoá trùng khoá của ``gia_tri_tu_so_dem``.
@@ -485,7 +489,7 @@ def main(argv: list[str] | None = None) -> int:
     so_dem = json.loads(tep_so_dem.read_text(encoding="utf-8"))
     lech = lech_so_prompt_log(
         gia_tri_tu_so_dem(so_dem),
-        [(p.name, p.read_text(encoding="utf-8")) for p in (KE_KHAI_MD, HO_SO_MD)],
+        [(p.name, p.read_text(encoding="utf-8")) for p in TEP_SO_PROMPT_LOG],
     )
     if not lech:
         print(f"  Số Prompt Log trong kê khai, hồ sơ khớp SO-DEM.json ({so_dem['xuat_luc']}).")
@@ -494,7 +498,8 @@ def main(argv: list[str] | None = None) -> int:
     for x in lech:
         print("   -", x)
     print(
-        "  Sửa số trong 05-BAN-KE-KHAI.md và noi-dung.md theo SO-DEM.json, dựng lại kê khai"
+        "  Sửa số trong 05-BAN-KE-KHAI.md, noi-dung.md và 06-KHO-MA-VA-MINH-CHUNG.md theo"
+        " SO-DEM.json, dựng lại kê khai"
         " (dung_ke_khai.py) và hồ sơ (dung_ho_so.py), rồi chạy lại tệp này."
     )
     return 1

@@ -222,6 +222,21 @@ def test_readme_khong_con_bo_so_hieu_chuan_cu_khong_tai_lap_duoc(readme: str) ->
         if so in d and "cũ" not in d and "không tái lập" not in d
     ]
     assert not con_lai, f"README còn trích bộ số hiệu chuẩn cũ: {con_lai}"
+    # Hội đồng thử 25/09/2026: độ phủ A/A 96,50% và tỷ lệ bác bỏ 3,50% tính từ CÙNG một KTC
+    # (validate.py: phủ = không bác bỏ, 193 = 200 − 7) — hồ sơ đã sửa (Bảng 4, Tóm tắt) mà
+    # README, FACT-SHEET, TONG-KET vẫn trình bày 96,50% như bằng chứng thứ hai. Dòng nào nêu
+    # 96,50% phải nói nó không độc lập.
+    for ten, van_ban in (
+        ("README.md", readme),
+        ("FACT-SHEET.md", FACT_SHEET.read_text(encoding="utf-8")),
+        ("TONG-KET-DU-AN.md", (GOC / "docs" / "TONG-KET-DU-AN.md").read_text(encoding="utf-8")),
+    ):
+        doc_lap = [
+            (i, d.strip()[:120])
+            for i, d in enumerate(van_ban.splitlines(), 1)
+            if "96,50%" in d and "không độc lập" not in d
+        ]
+        assert not doc_lap, f"{ten} nêu độ phủ A/A như bằng chứng độc lập: {doc_lap}"
 
 
 # ---------------------------------------------------------------------------
@@ -255,7 +270,10 @@ def test_so_su_co_o_fact_sheet_va_ho_so_khop_so_hang_cua_so_su_co() -> None:
     # Phần việc 3 (tối 25/09/2026): mẫu "**N** sự cố" ở trên không quét dòng BẢNG, nên Bảng 5
     # của hồ sơ và bảng "Số được phép nói" của kịch bản video còn ghi 99 sau khi sổ lên 109.
     # Quét mọi dạng trích trong cả ba tệp nộp: "N sự cố", "**N** sự cố", "| Sự cố … | N |".
-    for tep in (HO_SO, KE_KHAI, KICH_BAN):
+    # Phần việc 2 (wf6, 25/09/2026): TONG-KET-DU-AN.md vẫn ghi "**99** sự cố ghi sổ" và 06 ghi
+    # 109 khi sổ đã khác — hai tệp này (không nộp nhưng nằm trong gói Drive) ngoài vùng quét.
+    kho_ma = HO_SO.parent / "06-KHO-MA-VA-MINH-CHUNG.md"
+    for tep in (HO_SO, KE_KHAI, KICH_BAN, GOC / "docs" / "TONG-KET-DU-AN.md", kho_ma):
         t = tep.read_text(encoding="utf-8")
         so = [int(m) for m in re.findall(r"(\d+)(?:\*\*)? sự cố", t)]
         so += [int(m) for m in re.findall(r"^\| Sự cố[^|]*\| (\d+) \|", t, re.M)]

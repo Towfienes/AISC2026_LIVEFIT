@@ -8,7 +8,7 @@
 | Sản phẩm | LiveLift — nền tảng thí nghiệm vận hành cho livestream bán hàng |
 | Đội thi | Ngô Bình Minh (đội trưởng) · Lê Xuân Khánh · Ngô Lâm Tiến — Khoa Công nghệ thông tin, Trường Đại học Tôn Đức Thắng |
 | Kho mã nguồn (công khai) | https://github.com/bminhnemhoi/AISC2026_LIVEFIT |
-| Trạng thái mã nguồn khi kê khai | Nhánh `main` tại commit `390027b` (56 commit, 24/08 → 18/09/2026). Nhánh hoàn thiện hồ sơ `hoan-thien/ho-so-2509` (23 commit ngày 25/09/2026, commit cuối là commit dựng bản kê khai này) và nhánh `tien/aisc-round2` (PR số 1, 2 commit ngày 21/09/2026) đang chờ trưởng nhóm duyệt, chưa hợp nhất |
+| Trạng thái mã nguồn khi kê khai | Nhánh `main` tại commit `390027b` (56 commit, 24/08 → 18/09/2026). Nhánh hoàn thiện hồ sơ `hoan-thien/ho-so-2509` (các commit từ ngày 25/09/2026, liệt kê bằng `git log main..hoan-thien/ho-so-2509` và trong `02-Minh-chung-tien-trinh/tien-trinh.md` của gói Drive) và nhánh `tien/aisc-round2` (PR số 1, 2 commit ngày 21/09/2026) đang chờ trưởng nhóm duyệt, chưa hợp nhất |
 | Ngày lập | 25/09/2026 |
 | Người soạn | Bản này do tác tử AI (Claude, qua Claude Code) soạn nháp theo yêu cầu của đội trưởng, từ số đếm máy trên kho mã và nhật ký phiên. Ba thành viên đọc, sửa và ký ở mục X |
 
@@ -61,7 +61,7 @@ Ghi chú:
 |---|---:|---:|
 | Claude Opus 5 (`claude-opus-5`) | 30.050 | 26 (Opus 5, 1M context) + 1 (Opus 5) |
 | Claude Fable 5 (`claude-fable-5`) | 6.296 | 29 |
-| Claude Opus 5.5 (`claude-opus-5-5`) | 9.676 | 0 trên `main`; 23/23 commit của nhánh hoàn thiện hồ sơ (25/09, chưa hợp nhất) |
+| Claude Opus 5.5 (`claude-opus-5-5`) | 9.676 | 0 trên `main`; mọi commit của nhánh hoàn thiện hồ sơ (từ 25/09, chưa hợp nhất) |
 | Claude Fable 5.1 (`claude-fable-5-1`) | 372 | 0 |
 
 Số bản ghi trả lời đếm trên mọi nhật ký (phiên chính và tác tử con), không tính tin nhắn lỗi tổng hợp. Claude Code ghi mỗi khối văn bản, khối suy luận hay lời gọi công cụ thành một bản ghi riêng, nên đây không phải số lần gọi mô hình (một lần gọi thường sinh nhiều bản ghi). Truy cập qua thuê bao Claude Code của đội trưởng.
@@ -222,7 +222,7 @@ Các nguồn tài liệu trên do Claude tìm và đọc trong quá trình phát
 | Commit mang dòng đồng tác giả Claude | **56/56** | `git log --format=%(trailers)` |
 | Danh tính tác giả git | Cả 56 commit dùng một danh tính chung "LiveLift Team" | `git log --format=%an` |
 | Commit trên nhánh PR số 1 (chưa hợp nhất) | 2 commit của Tiến, 0 dòng khai báo AI; tài liệu trong commit ghi do Antigravity và Codex tạo | `git log origin/tien/aisc-round2` |
-| Commit trên nhánh hoàn thiện hồ sơ (chưa hợp nhất) | 23 commit ngày 25/09/2026, cả 23 mang dòng đồng tác giả Claude Opus 5.5 | `git log main..hoan-thien/ho-so-2509` |
+| Commit trên nhánh hoàn thiện hồ sơ (chưa hợp nhất) | Các commit từ ngày 25/09/2026, commit nào cũng mang dòng đồng tác giả Claude Opus 5.5 | `git log main..hoan-thien/ho-so-2509` |
 | Câu lệnh người gõ cho Claude Code | 83 (5 phiên), thêm 9 lệnh `/model` | Prompt Log, mục I.3 |
 | Lời gọi công cụ của Claude | 27.437, trong đó 3.753 lần ghi hoặc sửa tệp | Prompt Log |
 | Tác tử con do Claude sinh ra | 598 nhật ký | Prompt Log |
@@ -246,7 +246,7 @@ Các nguồn tài liệu trên do Claude tìm và đọc trong quá trình phát
 - Quy trình cấp dự án `HARNESS.md`: logic quyết định là hàm thuần, kiểm thử được không cần hạ tầng; mỗi lỗi phải có test tái hiện trước khi sửa và một dòng trong sổ sự cố.
 - Bộ kiểm thử (theo `docs/competition/FACT-SHEET.md`, 25/09/2026): 2.093 test thu thập trên nhánh hoàn thiện hồ sơ — 2.066 test nhanh, 17 test chậm (13 mô phỏng/thống kê, 1 đánh giá NLP, 3 dựng CSS), 10 test trình duyệt. Chạy trọn ngày 25/09/2026 trên nhánh đó: 2.091 đạt, 2 bỏ qua có lý do, 0 lỗi (17/17 test chậm, 10/10 test trình duyệt). Một ca bỏ qua là phần dựng .docx của bản kê khai này (cần python-docx, chỉ có trong môi trường riêng), đã chạy riêng và đạt.
 - Hiệu chuẩn thống kê (trên mô phỏng, 200 lần lặp A/A): tỷ lệ bác bỏ 3,50% (7/200), p nhị thức 0,4168; độ phủ khoảng tin cậy 95% là 96,50% (mặt kia của tỷ lệ bác bỏ, vì khoảng tin cậy lấy bằng nghịch đảo kiểm định). Thu hồi tác động biết trước, 40 lần: lệch −0,84%, độ phủ 92,50% (37/40). Đo lại ngày 25/09/2026 trên nhánh hoàn thiện hồ sơ: khớp từng chữ số.
-- Sổ sự cố `docs/incident-log.md`: 109 sự cố có nguyên nhân gốc (đếm 25/09/2026, gồm 49 dòng thêm ngày 25/09).
+- Sổ sự cố `docs/incident-log.md`: 121 sự cố có nguyên nhân gốc (đếm 25/09/2026, gồm 61 dòng thêm ngày 25/09).
 - Các ràng buộc chống nói quá nằm trong mã: thẻ dự báo từ mô hình không mang khoảng tin cậy; màn hình người dẫn không thấy lịch khối (người dẫn vẫn thấy sản phẩm đang ghim, nên ở chế độ Tự ghim có thể đoán nhánh; hồ sơ mục 5.3); phân tích VOD không mang ngôn ngữ thí nghiệm; nhãn DEMO/THẬT do máy chủ quyết định.
 - Các lỗi đã biết còn mở tại ngày kê khai được ghi trong sổ sự cố và báo cáo kiểm toán, không lược đi.
 

@@ -32,11 +32,11 @@ hoàn thành**.
 |---|---|---|
 | Bộ gán switchback 2 tầng theo văn liệu 2023–2025 (endpoint-double, rerandomization, jitter, burn-in thay washout) | ✅ | `core/assigner/` + 1000-lịch balance gate |
 | Kiểm định ngẫu nhiên hóa studentized, redraw bằng **hàm gán production trên toàn lịch** + Fisher CI | ✅ | `analysis/estimators.py` |
-| **Ước lượng viên được chứng minh hiệu chỉnh**: A/A 200 lặp → bác bỏ 3,50% (7/200, nhị thức p=0,4168), độ phủ 96,50% (đo lại 14/09/2026; số cũ 4,5%/0,872/95,5% của 30/08 không tái lập được) | ✅ | gate `test_sim_validation.py` |
+| **Ước lượng viên được chứng minh hiệu chỉnh**: A/A 200 lặp → bác bỏ 3,50% (7/200, nhị thức p=0,4168); độ phủ 96,50% là mặt kia của cùng KTC (193 = 200 − 7), không độc lập — độ phủ đo riêng bằng thu hồi tác động biết trước: lệch −0,84%, phủ 37/40 (đo lại 14/09 và 25/09/2026; số cũ 4,5%/0,872/95,5% của 30/08 không tái lập được) | ✅ | gate `test_sim_validation.py` |
 | Từ chối có kỷ luật: thiết kế không kiểm định được → `estimable=False` + lý do, **không bao giờ bịa số** | ✅ | sửa lỗi FATAL "NaN→significance" (52% dương tính giả → 6.2%) |
 | MDE gắn với **lực thống kê đo được** (margin 1.2 đo bằng sweep), within-session CV, poisson_floor | ✅ | `analysis/power.py`, gate MDE-khớp-lực |
 | Mô phỏng **hiệu chỉnh theo KuaiLive** (1.16M phòng shop thật) + đo trung thực dưới hiệu ứng lưu | ✅ | `docs/benchmarks/kuailive-calibration.md` |
-| Kiểm toán đối kháng 4 góc + 2 phản biện/phát hiện: 16/16 xử lý; đợt 2 (06/09, 13 tác tử): 5 nhóm lỗi chặn đã sửa | ✅ | `docs/incident-log.md` (109 sự cố đủ root cause, đếm 25/09/2026) |
+| Kiểm toán đối kháng 4 góc + 2 phản biện/phát hiện: 16/16 xử lý; đợt 2 (06/09, 13 tác tử): 5 nhóm lỗi chặn đã sửa | ✅ | `docs/incident-log.md` (121 sự cố đủ root cause, đếm 25/09/2026) |
 | Tiền đăng ký phân tích bản mẫu đầy đủ (quy tắc hiệp biến hợp lệ, sensitivity burn-in, 2 kịch bản lực) | ✅ chưa khóa | `PREREGISTRATION.md` — khóa tuần 6 |
 
 ### I.2 Sản phẩm
@@ -44,7 +44,7 @@ hoàn thành**.
 | Thành phần | Trạng thái |
 |---|---|
 | Vòng đời phiên trọn vẹn trên giao diện (4 bước, không cần lệnh) + cảnh báo khoa học trước phát sóng | ✅ `/chay-phien` |
-| Bàn trung control 3 vùng · màn hình host **làm mù ở cấp kiểu dữ liệu** · replay engine | ✅ |
+| Bàn trung control 3 vùng · màn hình host **không nhận lịch khối ở cấp kiểu dữ liệu** (làm mù người dẫn một phần: vẫn thấy sản phẩm đang ghim) · replay engine | ✅ |
 | Trang Kết quả: tác động + KTC + p trung thực (sàn hoán vị, "chưa kết luận được") | ✅ `/ket-qua` |
 | Phân tích VOD YouTube thật: **live-fire 14.903 bình luận thật qua API** — nhãn "quan sát", không số nhân quả | ✅ |
 | **Live-fire trên buổi live BÁN HÀNG thật** (không chỉ VOD kỹ thuật): "Mega Live: Achan Shop Hải Phòng", 117 phút, **6.586 bình luận** qua chính API → phiên `b519f75c`; lọc PII che 588 bình luận (tên 270 · địa chỉ 209 · MXH 123 · mã đơn 6 · SĐT 1) đúng thiết kế | ✅ `docs/benchmarks/live-fire-achan.md` |
@@ -63,7 +63,7 @@ hoàn thành**.
 
 **611** test (`pytest --collect-only`, 10/09; 598 chạy ở gate `not slow`) — 4 hành trình người dùng end-to-end · tích hợp ingest→API · contract WS
 envelope) · contract test web↔API sinh từ sự cố thật · hai store chung contract ·
-CI 5 job + nightly gate thống kê · **99** sự cố ghi sổ (đếm 25/09/2026) với root cause + gate chặn
+CI 5 job + nightly gate thống kê · **121** sự cố ghi sổ (đếm 25/09/2026) với root cause + gate chặn
 tái diễn · mọi benchmark sinh lại được bằng script (lệnh tái lập ghi ngay đầu
 file benchmark).
 

@@ -244,7 +244,7 @@ Không mở thêm màn hình nào. Nói thẳng:
 > đo của chính nhà bán. Đơn hàng nằm trong app của nền tảng, và ở quy mô dưới 50
 > người xem đồng thời thì cỡ mẫu cũng chưa đủ để nói gì về nó.
 >
-> Cả 109 sự cố trong sổ đều ghi nguyên nhân gốc và cổng kiểm thử chặn tái diễn.
+> Cả 121 sự cố trong sổ đều ghi nguyên nhân gốc và cổng kiểm thử chặn tái diễn.
 > Nhóm em tin một đội dám nói giới hạn của mình bằng số thì đáng tin hơn một đội
 > khẳng định mọi thứ đều tốt.
 
@@ -286,8 +286,8 @@ sức phát hiện thì báo cáo sẽ luôn nói "không có tác động", b�
 **"Sao chưa chạy phiên thật nào mà đã đi thi?"**
 Vì thứ nhóm em mang đi thi là phương pháp đo và hạ tầng thực hiện nó, cộng bằng
 chứng rằng bộ ước lượng đã hiệu chỉnh đúng: A/A 200 lần lặp cho tỷ lệ bác bỏ
-3,50% so với mức danh nghĩa 5%, độ phủ khoảng tin cậy 96,50%, thu hồi tác động
-biết trước lệch −0,84%. Chạy phiên thật trước khi bộ ước lượng hiệu chỉnh xong
+3,50% so với mức danh nghĩa 5%; với tác động biết trước, ước lượng lệch −0,84% và
+khoảng tin cậy chứa giá trị thật 37 trên 40 lần. Chạy phiên thật trước khi bộ ước lượng hiệu chỉnh xong
 thì con số đầu tiên thu được cũng không tin được.
 
 **"TikTok là nền tảng lớn nhất, sao không làm TikTok?"**

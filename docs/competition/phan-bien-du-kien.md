@@ -54,8 +54,8 @@ Mọi con số khớp `docs/competition/FACT-SHEET.md`.*
 - Và thực tế SOTA: các sản phẩm AI livestream đang có (TikTok Live Studio AI,
   LiveThinking của Taobao, Syntopia…) đều **tối ưu mà không đo nhân quả** — không
   cái nào có propensity logging + randomization inference đã hiệu chuẩn A/A. Đó là
-  moat phương pháp của nhóm: đã hiệu chuẩn trên mô phỏng (A/A bác bỏ 3,50%, độ phủ KTC
-  96,50%), **chưa chạy trên phiên thật nào**.
+  moat phương pháp của nhóm: đã hiệu chuẩn trên mô phỏng (A/A bác bỏ 3,50%; thu hồi tác
+  động biết trước lệch −0,84%, phủ 37/40), **chưa chạy trên phiên thật nào**.
 
 ## Câu 3 — "Lift đo được là bao nhiêu?" (khi kết quả có thể 'chưa kết luận được')
 

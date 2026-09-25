@@ -719,7 +719,7 @@ không có số nhân quả"*. Với phiên bạn tự chạy, nó hiện tác �
 |---|---|---|---|
 | Ai nhìn | Chủ shop / người trợ live | Người dẫn đang nói trước máy quay | Khách xem live |
 | Đặt ở đâu | Laptop ngồi cạnh, ngoài khung hình | Màn phụ / TV trước mặt người dẫn | Điện thoại của khách |
-| Thấy khối BẬT/TẮT | **Có** | **KHÔNG BAO GIỜ** | Không |
+| Thấy khối BẬT/TẮT | **Có** | **Không** hiện (nhưng đoán được qua sản phẩm ghim — xem dưới) | Không |
 | Thấy đồng hồ đếm ngược khối | Có | Không | Không |
 | Thấy thẻ gợi ý, nút Thực hiện | Có | Không | Không |
 | Thấy gì | Toàn bộ | Đúng 4 thứ: sản phẩm đang ghim · giá · tồn kho · thời gian phát | Chỉ link đo trong bình luận ghim |
@@ -735,6 +735,13 @@ Việc làm mù này được ép ở tầng kiến trúc, không phải "nhớ 
 dùng một luồng dữ liệu riêng chỉ chứa đúng 4 trường, nên **kể cả lập trình viên
 muốn cũng không hiện khối lên đó được**. Bạn kiểm chứng bằng mắt: mở `/host`,
 không có dải tím/xám ở bất kỳ đâu.
+
+**Giới hạn — làm mù chỉ một phần.** Màn host vẫn hiện *sản phẩm đang ghim*, mà
+ghim chính là thứ đang được thử. Ở chế độ Tự ghim, lệnh ghim chỉ đến trong khối
+BẬT; khối TẮT hiện "Chưa ghim sản phẩm". Người dẫn tinh ý vẫn đoán được nhánh.
+Thứ được che là **lịch** (ranh giới khối, đếm ngược, nhánh sắp tới), không phải
+chính can thiệp — nên con số đo được là tác động của chiến lược ghim *tính cả*
+phản ứng của người dẫn với sản phẩm ghim (`PREREGISTRATION.md` §1).
 
 Dòng chữ nhỏ ngay dưới dải khối trên bàn trợ live nhắc lại điều này: *"Chỉ hiện
 trên bàn trợ live — màn người dẫn không thấy khối"*.

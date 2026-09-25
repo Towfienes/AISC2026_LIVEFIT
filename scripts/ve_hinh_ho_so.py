@@ -2223,8 +2223,10 @@ def ghi_nguon(tom_tat: dict) -> None:
             f"build `{h7['ban_git']}` ngày {n[8:10]}/{n[5:7]}/{n[:4]}, lưới 2×2: (a) wizard "
             "bước 3, lịch 16 khối BẬT/TẮT bốc trước giờ phát của một phiên CHẠY THỬ; (b) feed "
             "bình luận trên bàn trợ live, câu có số điện thoại giả đã thành [SĐT]; (c) màn "
-            "người dẫn cùng phiên — không có khối, không có nhánh; (d) kết quả một phiên Demo "
-            "Vàng, nhãn DEMO | "
+            "người dẫn cùng phiên — không có lịch khối; lần chụp rơi vào khối TẮT nên hiện "
+            "“Chưa ghim sản phẩm” (khối BẬT hiện sản phẩm đang ghim, nên người dẫn vẫn đoán "
+            "được nhánh); (d) "
+            "kết quả một phiên Demo Vàng, nhãn DEMO | "
             "`python scripts/chup_giao_dien.py chup` (API + web production đang chạy) rồi "
             "`python scripts/chup_giao_dien.py ghep`; ảnh cắt và số đo: `docs/img/v2/` |"
         )

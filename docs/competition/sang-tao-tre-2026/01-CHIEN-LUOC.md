@@ -6,13 +6,15 @@
 
 > **Cập nhật 25/09/2026 — đọc trước khi trích bất kỳ số nào.** Tài liệu soạn 14/09; các bảng
 > chấm điểm là ảnh chụp ngày đó. Số hiện hành ở `docs/competition/FACT-SHEET.md`:
-> - A/A bác bỏ **3,50%** (7/200), p nhị thức 0,4168, phủ KTC **96,50%**, thu hồi lệch −0,84% (bộ
+> - A/A bác bỏ **3,50%** (7/200), p nhị thức 0,4168 (phủ KTC 96,50% là mặt kia của cùng phép đo, không
+>   độc lập), thu hồi lệch −0,84%, phủ 37/40 (bộ
 >   4,5% / 0,872 / 95,5% / −0,3% của 30/08 **không tái lập được**);
 > - ý định: 0,870 (320 câu mẫu do AI soạn) / **0,211 → 0,542 [0,478; 0,625]** trên 393 bình luận
->   thật, nhãn tham chiếu do **tác tử AI** gán — **0,271 không tái lập được, không trích**;
+>   thật (thang 11 lớp; cùng thang 6 lớp: 0,370 → 0,572), nhãn tham chiếu do **tác tử AI** gán — **0,271 không tái lập được, không trích**;
 > - MDE lượt nhấp **16,4%** ở ~59 người xem (8 phiên mô phỏng, Hình 4 hồ sơ); **20,1%** là phép
 >   quét 30/08, **chưa đo lại**; hiệu ứng lưu: độ phủ 96% / 76% / 57% (bán rã 0 / 120 / 180 s);
-> - sổ sự cố **99** hàng (25/09); "5–15 người xem" là **ước tính từ CPM, chưa đo**;
+> - sổ sự cố **121** hàng (25/09); làm mù người dẫn chỉ **một phần** (người dẫn thấy sản phẩm đang ghim);
+>   "5–15 người xem" là **ước tính từ CPM, chưa đo**;
 > - 19.126 bình luận là chat của 16 VOD YouTube công khai tải bằng **yt-dlp** (không phải API
 >   chính thức), chỉ phân tích quan sát; Xie–Sharma–Mehra (POM 2025) mô tả một **đánh đổi**, không
 >   phải chữ U ngược (đính chính 15/09).

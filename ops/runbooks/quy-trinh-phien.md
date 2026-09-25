@@ -12,7 +12,8 @@ Phải chuẩn hóa đến mức người chưa từng làm cũng chạy đượ
    lúc đang phát. Phiên không có lịch gán đã lưu trong `experiment_block` thì **không được
    bấm "Go live"** — đây là điều bảo đảm tính ngẫu nhiên hóa không bị can thiệp, và là điều
    giám khảo sẽ hỏi.
-2. **Host bị làm mù hoàn toàn với thiết kế thí nghiệm** (giao thức mục "Làm mù" bên dưới).
+2. **Host không được biết lịch khối của thí nghiệm** (giao thức mục "Làm mù" bên dưới). Làm
+   mù chỉ **một phần**: host vẫn thấy sản phẩm đang ghim — xem giới hạn ở mục 1.3.
 3. **Chỉ ba lý do được phép can thiệp thủ công:** `hết hàng`, `sai giá`, `sự cố kỹ thuật`.
    Hệ thống từ chối mọi lý do khác. Can thiệp ngoài ba lý do này làm hỏng tính tuân thủ
    của thí nghiệm.
@@ -91,7 +92,12 @@ Host hào hứng hơn trong khối BẬT là kênh nhiễu trực tiếp lên t�
 
 - **Màn hình host = route `/host` DUY NHẤT.** Màn hình này chỉ hiện: sản phẩm đang ghim,
   giá, tồn kho, tổng thời gian đã trôi của phiên. **Không** hiện: ranh giới khối, nhánh
-  BẬT/TẮT, thời-gian-còn-lại-của-khối, đếm ngược, hay bất kỳ thứ gì suy ra được trạng thái khối.
+  BẬT/TẮT, thời-gian-còn-lại-của-khối, đếm ngược.
+- **Giới hạn đã biết (hội đồng thử 25/09/2026):** sản phẩm đang ghim chính là can thiệp, và
+  ở chế độ Tự ghim lệnh ghim chỉ đến trong khối BẬT (khối TẮT hiện "Chưa ghim sản phẩm"), nên
+  host vẫn có thể suy ra nhánh. Làm mù chỉ **một phần**: che lịch, không che can thiệp. Phép so
+  là chiến lược ghim của LiveLift với cách làm thường lệ, tính cả phản ứng của host
+  (`PREREGISTRATION.md` §1). Tài liệu nào cũng không được mô tả làm mù người dẫn là trọn vẹn.
 - Host **không được nhìn** màn hình operator/bàn trung control. Bố trí máy operator ngoài
   tầm nhìn host (quay lưng hoặc phòng khác).
 - Operator **không đọc to** trạng thái khối, không đếm ngược chuyển khối, không thay đổi

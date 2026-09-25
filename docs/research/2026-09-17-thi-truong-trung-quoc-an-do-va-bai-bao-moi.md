@@ -24,6 +24,8 @@
 >
 > **Mức chắc chắn:** **[Đã kiểm]** = người kiểm chứng xác nhận · **[TBT đối chiếu]** = tổng biên tập tự đọc lại nguồn
 > gốc và khớp · **[Một phần]** · **[Chưa kiểm lại]** · **[Suy luận]** · **[Thứ cấp]** = báo, blog, diễn đàn.
+> **[Đã kiểm 25/09/2026]** = đối chiếu lại bản gốc ngày đó (tác tử Claude tải trang bài, chép câu trích; bản tải lưu
+> ngoài kho) — dùng cho số 40% (MISQ) và 37% (Momentum Works) mà slide và poster AISC'26 trích.
 
 ---
 
@@ -33,7 +35,9 @@
    phòng live khi thí nghiệm hai phía không xử lý được nhiễu; 美团 (Meituan) công bố quy trình; Swiggy (Ấn Độ) có
    *"Time Sliced Randomized"* trong nền tảng thí nghiệm. **[Đã kiểm] / [TBT đối chiếu]**
 2. **Bằng chứng có đối chứng về giá trị của số liệu thời gian thực:** thí nghiệm ngẫu nhiên thực địa cho người dẫn xem
-   số bán hàng thời gian thực làm doanh số hàng đặt trước tăng **khoảng 40%** (MIS Quarterly 2025). **[TBT đối chiếu]**
+   số bán hàng thời gian thực làm doanh số hàng đặt trước tăng **khoảng 40%** (MIS Quarterly 2025; tóm tắt bài ghi
+   *"increased by approximately 40.21%"*). **[Đã kiểm 25/09/2026]** — đối chiếu tóm tắt trên trang bài
+   (https://aisel.aisnet.org/misq/vol49/iss4/17), xem bảng mục 1.6.
 3. **Hiệu ứng của AI trong live nhỏ hơn quảng cáo:** trợ lý AI cho người mua **+3,00% doanh số, −12,55% trả hàng**
    (ISR 2025); người dẫn số **không** tăng doanh số đáng kể so với không live, trừ khi có **hỏi–đáp thời gian thực**
    (+25%, ISR 2026). Con số +30% đến +230% của nhà cung cấp không có đối chứng. **[Đã kiểm] / [Một phần]**
@@ -50,7 +54,7 @@
 8. **Với ≤ 10 cụm, khoảng tin cậy chuẩn cụm chỉ phủ khoảng 82%** thay vì 95% (Pankratev, DoorDash, 2026). Kiểm định ngẫu
    nhiên hóa — thứ LiveLift **đã dùng làm phân tích chính** — là lựa chọn đúng. **[TBT đối chiếu]**
 9. **Rất nhiều bài học đã có sẵn trong LiveLift** (rerandomization cân bằng đầu/giữa/cuối, cân bằng transition, burn-in
-   có độ nhạy, chuẩn hóa viewer-giây, màn người dẫn bị làm mù, nhật ký gán và phơi nhiễm chỉ-ghi-thêm). Việc mới đáng làm
+   có độ nhạy, chuẩn hóa viewer-giây, màn người dẫn không thấy lịch khối (làm mù một phần), nhật ký gán và phơi nhiễm chỉ-ghi-thêm). Việc mới đáng làm
    chủ yếu là **viết bằng chứng vào hồ sơ**, **giao thức phiên** và **`analysis/carryover.py`** (mục 6).
 10. **Việt Nam có hạ tầng dữ liệu chính thức tốt hơn Ấn Độ** (Shopee `update_show_item`, TikTok Shop số theo phút) và
     content commerce đã chiếm **37% GMV sàn ĐNÁ** nửa đầu 2026. Thị phần 4 sàn VN năm 2025 là **ước tính** lệch nhau giữa
@@ -141,7 +145,7 @@ kiếm (**không dùng**).
 
 | Nghiên cứu | Thiết kế | Kết quả | Điều kiện kèm theo | Mức |
 |---|---|---|---|---|
-| He, Huang, Wang, Sun — *Real-Time Sales Data, Streamer Improvisation, and Sales Performance*, **MIS Quarterly** 49(4):1567–1594, 2025 | Thí nghiệm ngẫu nhiên thực địa trên nền tảng live lớn ở châu Á (Yan Sun thuộc Alibaba Group) | Người dẫn xem số bán hàng thời gian thực: doanh số hàng đặt trước cao hơn **khoảng 40%**; cơ chế là ứng biến dựa trên số liệu | Mạnh hơn với người dẫn ứng biến giỏi và sản phẩm bất định cao | [TBT đối chiếu] https://aisel.aisnet.org/misq/vol49/iss4/17/ |
+| He, Huang, Wang, Sun — *Real-Time Sales Data, Streamer Improvisation, and Sales Performance*, **MIS Quarterly** 49(4):1567–1594, 2025 | Thí nghiệm ngẫu nhiên thực địa trên nền tảng live lớn ở châu Á (Yan Sun thuộc Alibaba Group) | Người dẫn xem số bán hàng thời gian thực: doanh số hàng đặt trước cao hơn **khoảng 40%** — tóm tắt: *"we analyzed data from a randomized field experiment … product sales of presale products in the treatment group increased by approximately 40.21% compared to those in the control group"*; cơ chế là ứng biến dựa trên số liệu | Mạnh hơn với người dẫn ứng biến giỏi và sản phẩm bất định cao | **[Đã kiểm 25/09/2026]** trang bài và tóm tắt (tác giả, 49(4):1567–1594, câu trích), https://aisel.aisnet.org/misq/vol49/iss4/17/ ; toàn văn chưa đọc |
 | He và cộng sự — *The Sales Data Sells*, **AMCIS 2021** (bản hội nghị, cùng nhóm tác giả và bối cảnh hàng đặt trước) | Gán ngẫu nhiên theo số cuối ID tài khoản; 01–03/12/2020 | β = 0,186 trên log(sales), p < 0,01 (bài tự đọc là 18,6%–20%) | Mẫu phân tích cuối 358 và 505 phiên; chỉ 3 ngày; chỉ có ý nghĩa ở người dẫn có lượng theo dõi trung bình; không có hiệu ứng ở người dẫn không mở bảng số | [Đã kiểm] https://aisel.aisnet.org/cgi/viewcontent.cgi?article=1148&context=amcis2021 |
 | Wang, Huang, He, Liu, Guo, Sun… — *AI Assistant in Online Shopping*, **ISR** 36(4):2358–2374, 2025 | Thí nghiệm ngẫu nhiên thực địa; trợ lý AI dạng chat **cho người mua** | *"increases sales by 3.00% and reduces product return rates by 12.55%"* | Mạnh hơn với sản phẩm bất định cao và người dẫn có khán giả lớn. Câu "hiệu ứng thật của AI chỉ vài phần trăm" là suy diễn — chỉ nói "trong thí nghiệm này +3,00%" | [Một phần] https://doi.org/10.1287/isre.2023.0103 |
 | Liu, Wang, Yang, Wang — *AI-Powered Digital Streamers in Online Retail*, **ISR** 37(2):824–841, 06/2026 (online 26/08/2025) | Phần 1: dữ liệu 328 sản phẩm thời trang trên Tmall (72 người dẫn số, 74 người thật, 182 không live). Phần 2: thí nghiệm với một nhà bán tạp hóa mới trên Tmall | Người dẫn số *"do not significantly improve sales over no live streaming"*; hỏi–đáp thời gian thực: **+25%** sản phẩm bán, **+86%** doanh thu; bốc thăm +17%/+70% | Các con số +25%/+86% đến từ **phần 2**, so với bản người dẫn số cơ bản, không từ dữ liệu 328 sản phẩm | [Đã kiểm] https://doi.org/10.1287/isre.2023.0024 · https://www.eurekalert.org/news-releases/1097754 |
@@ -260,7 +264,7 @@ Bài học giống Ấn Độ: nền tảng có sẵn tìm kiếm + thanh toán 
 
 | Chủ đề | Số liệu | Nguồn | Mức |
 |---|---|---|---|
-| Momentum Works — *Live Commerce in Southeast Asia 2026* | Content commerce trên Shopee, TikTok Shop, Lazada: *"$49.7 billion in 2025"*; *"$33.8 billion … in the first half of 2026"*; dự báo *"$77.9 billion"*; *"37 percent of Southeast Asia's platform ecommerce GMV"*. AI live: *"In selected cases, it costs around 20 percent to 25 percent of a comparable human operation"*, đạt *"around 80 percent of human livestream GMV per hour on average"*. Bài **không có số riêng cho Việt Nam** | TNGlobal 08/09/2026, https://technode.global/2026/09/08/southeast-asia-content-commerce-to-reach-77-9b-in-2026-as-live-goes-mainstream-momentum-works/ | [TBT đối chiếu] |
+| Momentum Works — *Live Commerce in Southeast Asia 2026* | Content commerce trên Shopee, TikTok Shop, Lazada: *"$49.7 billion in 2025"*; *"$33.8 billion … in the first half of 2026"*; dự báo *"$77.9 billion"*; *"37 percent of Southeast Asia's platform ecommerce GMV"* (nửa đầu 2026; bản gốc của Momentum Works, *The Low Down* 08/09/2026: *"now accounts for an estimated 37% of the region's platform ecommerce GMV, up from 20% just two years ago"* — số **ước tính**). AI live: *"In selected cases, it costs around 20 percent to 25 percent of a comparable human operation"*, đạt *"around 80 percent of human livestream GMV per hour on average"*. Bài **không có số riêng cho Việt Nam** | TNGlobal 08/09/2026, https://technode.global/2026/09/08/southeast-asia-content-commerce-to-reach-77-9b-in-2026-as-live-goes-mainstream-momentum-works/ · bản gốc: https://thelowdown.momentum.asia/new-report-southeast-asias-content-commerce-on-track-to-reach-us77-9b-in-2026/ | **[Đã kiểm 25/09/2026]** số 37% (hai trang trên); các số khác [TBT đối chiếu] |
 | Việt Nam 2025 — Metric | 4 sàn đạt **429.700 tỉ đồng, +34,75%**; Shopee + TikTok Shop chiếm **97%**; Shop Mall chiếm 2,12% số shop nhưng **32,6%** doanh số hai sàn | Thanh Niên 02/02/2026, https://thanhnien.vn/4-san-thuong-mai-dien-tu-bo-tui-gan-430000-ti-dong-trong-nam-2025-185260202085014664.htm | [TBT đối chiếu] |
 | Việt Nam 2025 — YouNet ECI (công bố 12/03/2026) | 4 sàn **458,16 nghìn tỷ đồng, +26%**; Shopee **57,5%**, TikTok Shop **39,6%**; TikTok Shop doanh thu +93% | VietnamPlus 12/03/2026, https://www.vietnamplus.vn/so-ke-thi-phan-voi-shopee-tiktok-shop-tang-truong-doanh-thu-den-93-nam-post1098486.vnp | [TBT đối chiếu] |
 | Shopee Live 11/11/2025 | *"hơn 45 triệu sản phẩm"* bán qua livestream và video cả chiến dịch (thông cáo) | https://dantri.com.vn/kinh-doanh/hon-45-trieu-san-pham-ban-ra-qua-livestream-va-video-tai-shopee-1111-20251114173947860.htm | [Chưa kiểm lại] |
@@ -390,7 +394,7 @@ liệu chưa có; **Đ** = **đã có trong kho**, chỉ cần trích bằng ch�
 | Đ2 | Burn-in khai báo trước + độ nhạy | Hu–Wager, Statsig, 美团 | Cao | **Đã có** (b = 1, {0, 2, 3}) | — | — | — |
 | Đ3 | Ngẫu nhiên hóa có cân bằng đầu/giữa/cuối + cân bằng transition | 美团 (ngẫu nhiên hoàn toàn, phân tầng), Zeng 2026 | Cao | **Đã có** (`core/assigner/outer.py`) | — | Trích 美团 làm bằng chứng công nghiệp | 29 |
 | Đ4 | Chuẩn hóa theo viewer-giây | Pankratev 2026, POM 2025 | Cao | **Đã có** (`y_b` / 1.000 viewer-giây) | P1 (kiểm) | Kiểm lại tử số gồm **mọi** mã `/r/` trong khối, không chỉ sản phẩm được ghim | 31 |
-| Đ5 | Làm mù người dẫn với số theo khối | MISQ 2025 (người dẫn ứng biến theo số) | Cao | **Đã có** (màn `/host` làm mù, quy tắc L6) | P0 (trích) | Trích MISQ 2025 làm lý do trong hồ sơ | 29 |
+| Đ5 | Làm mù người dẫn với số theo khối | MISQ 2025 (người dẫn ứng biến theo số) | Cao | **Đã có một phần** (màn `/host` che lịch khối, quy tắc L6; người dẫn vẫn thấy sản phẩm đang ghim — làm mù một phần, hội đồng thử 25/09/2026) | P0 (trích) | Trích MISQ 2025 làm lý do trong hồ sơ | 29 |
 | Đ6 | Nhật ký ghim/bỏ ghim có dấu thời gian, tuân thủ dẫn xuất, ITT + LATE | 千川 `explain_status` | Cao | **Đã có** (`assignment_event`, `exposure_event`, `derive_compliance`) | — | — | — |
 | B1 | **`analysis/carryover.py`**: `ht_lag1`, cổng "gắn cờ, không loại"; chẩn đoán m = 0 so với m = 1 | Liu–Zhong 2026, Missault–Masoero 2025, 快手 | Cao | 2–3 ngày | P2 | Hiện mô-đun **chỉ là kế hoạch, chưa có mã** | 34 |
 | B2 | Trường **`data_status` (provisional/settled)**; kết luận nhân quả chỉ dùng số đã chốt | FAQ 罗盘 (chưa kiểm lại), TikTok số theo phút sau phiên | Cao | 0,5–1 ngày | P1 | Áp cho mọi số nền tảng kéo về (TikTok Shop, Shopee) | 32 |

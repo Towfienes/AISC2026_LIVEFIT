@@ -115,6 +115,11 @@ def test_ban_ke_khai_that_sach_va_du_muc():
     kv = {khoa: cac_so[0] for khoa, cac_so in trich.items()}
     van_ban = [("05-BAN-KE-KHAI.md", md), ("noi-dung.md", ho_so)]
     assert goi.lech_so_prompt_log(kv, van_ban) == []
+    # Phần việc 2 (wf6): 06-KHO-MA-VA-MINH-CHUNG.md còn 78 / 567 khi hai tệp kia đã là 83 / 598 —
+    # cổng của dung_goi_drive.py phải quét cả 06, và 06 phải khớp hai tệp kia.
+    assert DAY.parent / "06-KHO-MA-VA-MINH-CHUNG.md" in goi.TEP_SO_PROMPT_LOG
+    tat_ca = [(p.name, p.read_text(encoding="utf-8")) for p in goi.TEP_SO_PROMPT_LOG]
+    assert goi.lech_so_prompt_log(kv, tat_ca) == []
     # Khoá của bộ trích và của SO-DEM.json phải là một: SO-DEM tối thiểu dựng từ chính bảng I.3.
     so_dem = {
         "tong": {
@@ -153,6 +158,12 @@ def test_bang_ky_co_du_ba_thanh_vien():
 
 def test_khang_dinh_sai_cu_chi_con_trong_muc_dinh_chinh():
     md = _nguon()
+    # Phần việc 2 (wf6): câu "N commit ngày 25/09, commit cuối là commit dựng bản kê khai này"
+    # sai ngay khi nhánh có thêm commit (9 → 22 → 23 → 24; một lần phải amend để giữ câu đúng).
+    # Bản kê khai không được ghi số commit của nhánh đang sống; chỉ trỏ lệnh git log.
+    phang = re.sub(r"\s+", " ", md)
+    for mau in (r"\d+ commit ngày 25/09", r"\d+/\d+ commit của nhánh", r"cả \d+ mang dòng"):
+        assert not re.search(mau, phang), f"05 còn ghi số commit của nhánh hoàn thiện: {mau}"
     dau = md.index("## Đính chính")
     cuoi = md.index("## I.")
     for cum in ("1.297", "0,271", "4,5%", "tự viết", "gán tay", "lợi ích chính đáng"):

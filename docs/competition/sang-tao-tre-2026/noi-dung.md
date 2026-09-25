@@ -33,7 +33,7 @@ Tài liệu tham khảo đánh [n] thủ công theo danh mục cuối tệp.
 > - Mô phỏng có đáp án: A/A bác bỏ **3,50%** (7/200, danh nghĩa 5%); thu hồi tác động biết trước lệch **−0,84%**, KTC 95% phủ **92,50%** (37/40) (đo lại 25/09/2026, Bảng 4).
 > - Ý định trên chat thật: macro-F1 **0,211** (v1, mặc định) → **0,542** (v2, bật bằng biến môi trường) trên 393 bình luận, thang 11 lớp (cùng thang 6 lớp: 0,370 → 0,572); nhãn tham chiếu do tác tử AI gán, chưa có nhãn người.
 > - **19.126** bình luận quan sát từ 16 buổi phát lại trên YouTube, tải bằng yt-dlp, không qua API chính thức và chưa có đồng ý của người bình luận; đã dừng thu từ 17/09/2026 (mục 3.3).
-> - **2.093** kiểm thử tự động, chạy lại ngày 25/09/2026: 2.091 đạt, 2 bỏ qua có lý do; **109** sự cố có phân tích nguyên nhân gốc (`docs/incident-log.md`).
+> - **2.093** kiểm thử tự động, chạy lại ngày 25/09/2026: 2.091 đạt, 2 bỏ qua có lý do; **121** sự cố có phân tích nguyên nhân gốc (`docs/incident-log.md`).
 > **Chưa có:** phiên thí nghiệm ngẫu nhiên thật nào, khóa API nền tảng nào, nhà bán nào ngoài nhóm dùng thử.
 
 **Viết tắt:** A/A – thí nghiệm giả, không tác động; burn-in – phần đầu khối bị bỏ khi phân tích; CUPED – giảm phương sai bằng hiệp biến; CV – hệ số biến thiên; KTC – khoảng tin cậy; LATE – tác động trên nhóm tuân thủ; LLM – mô hình ngôn ngữ lớn; LOSO – giữ riêng từng buổi làm tập kiểm tra; macro-F1 – F1 trung bình đều các lớp; MDE – tác động nhỏ nhất phát hiện được; NLP – xử lý ngôn ngữ tự nhiên; OLS FE – hồi quy hiệu ứng cố định theo phiên; PII – thông tin nhận dạng cá nhân; RI – kiểm định ngẫu nhiên hóa; VOD – bản phát lại; κ – độ đồng thuận giữa hai người gán nhãn.
@@ -218,7 +218,7 @@ Hình 3 là kết quả bất lợi: khi tác động kéo sang khối sau (th�
 | Chỉ số | Kết quả | Nguồn |
 |---|---|---|
 | Kiểm thử tự động | 2.093 = 2.066 nhanh + 17 cổng chậm + 10 trình duyệt; chạy 25/09: 2.091 đạt, 2 bỏ qua, 0 lỗi | `dong_bo_so_test.py` |
-| Sự cố có phân tích nguyên nhân gốc | 109 | `docs/incident-log.md` |
+| Sự cố có phân tích nguyên nhân gốc | 121 | `docs/incident-log.md` |
 | Tốc độ nạp | 835–923 bình luận/giây (một tiến trình, kho bộ nhớ, không tính thời gian tải về) | chạy toàn tuyến 10/09 (mục 8.1) |
 
 # 8. Kết quả thử nghiệm, phân tích ưu điểm, hạn chế và khả năng mở rộng

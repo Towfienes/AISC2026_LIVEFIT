@@ -7,10 +7,12 @@ Prompt Log + minh chứng phát triển + tài liệu kỹ thuật)
 
 > **Cập nhật 25/09/2026 (đồng bộ số).** Tài liệu này là ảnh chụp ngày 14/09. Đã sửa ba chỗ:
 > (1) Prompt Log đếm lại bằng `scripts/xuat_prompt_log.py` (phân vai theo `origin.kind`):
-> **78 câu lệnh người gõ trong 5 phiên** (+9 lệnh `/model`) và 567 nhật ký tác tử con — số
+> **83 câu lệnh người gõ trong 5 phiên** (+9 lệnh `/model`) và 598 nhật ký tác tử con (lần xuất
+> 25/09/2026 18:37, `SO-DEM.json` của gói Drive; số còn đổi ở lần xuất cuối — `dung_goi_drive.py`
+> so tệp này với SO-DEM và báo LỆCH) — số
 > 1.297 cũ tính nhầm kết quả công cụ là câu lệnh của đội (sổ sự cố 25/09); (2) nhật ký Claude
 > Code từ bản 2.1.270 CÓ ảnh chụp system prompt (`prompt_snapshot`), có ở 3/5 phiên — mục B.3
-> sửa theo; (3) sổ sự cố nay có 109 hàng. Gói Drive thật dựng bằng
+> sửa theo; (3) sổ sự cố nay có 121 hàng. Gói Drive thật dựng bằng
 > `docs/competition/sang-tao-tre-2026/ke_khai/dung_goi_drive.py`; cây thư mục ở B.4 là đề xuất
 > ngày 14/09. Số test: xem `docs/competition/FACT-SHEET.md`.
 
@@ -287,7 +289,7 @@ docker compose up -d
 
 | Nguyên liệu | Có? | Ở đâu | Quy mô |
 |---|---|---|---|
-| Prompt Log | ✅ | `C:\Users\Admin\.claude\projects\d--AISC2026\` | **5 phiên chính · 78 câu lệnh người gõ** (+9 lệnh `/model`) + 567 nhật ký tác tử con — đếm 25/09/2026 bằng `scripts/xuat_prompt_log.py` (`SO-DEM.json`). Số "≈1.297 câu lệnh" ghi ngày 14/09 tính nhầm kết quả công cụ là câu lệnh — đã đính chính |
+| Prompt Log | ✅ | `C:\Users\Admin\.claude\projects\d--AISC2026\` | **5 phiên chính · 83 câu lệnh người gõ** (+9 lệnh `/model`) + 598 nhật ký tác tử con — đếm 25/09/2026 bằng `scripts/xuat_prompt_log.py` (`SO-DEM.json`, lần xuất 18:37). Số "≈1.297 câu lệnh" ghi ngày 14/09 tính nhầm kết quả công cụ là câu lệnh — đã đính chính |
 | Ảnh phát triển | ✅ Một phần | `docs/img/` | 27 ảnh, 2,5 MB — nhưng là ảnh **bản hoàn thiện**, thiếu "bản nháp" |
 | Tài liệu kỹ thuật | ✅ Rất đầy đủ | `docs/` | **74 file** — 13 benchmark, 12 nghiên cứu, 6 hồ sơ thi, 4 runbook/template |
 | Mã nguồn | ✅ | Repo | 322 file, 6,2 MB |
@@ -312,7 +314,7 @@ Prompt Log" mà Điều 5 §7 cấm, và là rủi ro loại đội. Thay vào �
 > *System prompt của nhà cung cấp Claude Code không được lưu trong nhật ký phiên và đội không có
 > quyền truy cập — chúng tôi không nộp thứ mình không có và không dựng bản thay thế. Thay vào đó,
 > chỉ dẫn cấp dự án mà mọi phiên làm việc đều được trỏ vào là `HARNESS.md` (đính kèm), cùng toàn bộ
-> 78 câu lệnh người gõ nguyên văn của đội.*
+> 83 câu lệnh người gõ nguyên văn của đội.*
 >
 > *(Đính chính 25/09/2026: câu mẫu trên viết ngày 14/09 khi chưa biết có ảnh chụp system
 > prompt. Nay phải nộp system prompt của 3 phiên có ảnh chụp và chỉ ghi "không có" cho 2 phiên
@@ -357,7 +359,7 @@ LiveLift — AISC'26 Sáng tạo trẻ Quốc gia/
 │      │     ├── 01-ban-nhap/                    ⚠️ CẦN DỰNG — xem B.6
 │      │     └── 02-ban-hoan-thien/              27 ảnh từ docs/img/
 │      ├── c-so-su-co/
-│      │     ├── incident-log.md                109 sự cố: root cause + gate
+│      │     ├── incident-log.md                121 sự cố: root cause + gate
 │      │     └── audit_findings.txt              16 phát hiện kiểm toán đối kháng
 │      └── d-tien-hoa-tai-lieu/
 │            └── FACT-SHEET.md                   Bộ số chuẩn duy nhất

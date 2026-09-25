@@ -280,6 +280,12 @@ SEED_LICH = 42
 
 # ---------------------------------------------------------------- tiện ích git
 def ban_git_hien_tai(mod_do_lai) -> str:
+    """Bản git của mã, đọc MỘT lần ở đầu ``main`` trước khi script ghi bất cứ tệp nào.
+
+    Đọc lại sau mỗi lần ghi thì chính đầu ra của hình trước (h1, h2, ``hieu-chuan.json``,
+    ``h3-hieu-chuan-aa.png``) làm ``git status`` thấy cây bẩn, và hình 5 bị đóng dấu
+    "+ban-lam-viec-co-thay-doi" dù chạy ``--tinh-lai`` trên cây sạch (25/09/2026).
+    """
     return mod_do_lai.ban_git()
 
 
@@ -351,7 +357,7 @@ def _bo_thoi_gian(x):
     return x
 
 
-def doc_hoac_tinh(ten: str, ham_tinh, tham_so_mong_doi: dict, che_do: str, mod_do_lai) -> dict:
+def doc_hoac_tinh(ten: str, ham_tinh, tham_so_mong_doi: dict, che_do: str, ban_git: str) -> dict:
     """``che_do``: "doc" (đọc tệp đã lưu, tính nếu chưa có) · "tinh_lai" · "kiem".
 
     "kiem" chạy lại Monte-Carlo và đối chiếu TỪNG lần lặp với tệp đã lưu, không
@@ -389,7 +395,7 @@ def doc_hoac_tinh(ten: str, ham_tinh, tham_so_mong_doi: dict, che_do: str, mod_d
     ket_qua = ham_tinh()
     du_lieu = {
         "ngay_do": date.today().isoformat(),
-        "ban_git": ban_git_hien_tai(mod_do_lai),
+        "ban_git": ban_git,
         "lenh": f"{LENH} --tinh-lai",
         "tham_so_mong_doi": tham_so_mong_doi,
         "ghi_chu": "Sinh bằng scripts/ve_hinh_ho_so.py. Dữ liệu MÔ PHỎNG Monte-Carlo, "
@@ -2306,6 +2312,7 @@ def main() -> int:
 
     plt = nap_matplotlib() if chon & {"h1", "h3", "h4", "h5", "h6"} else None
     mod_do_lai = nap_do_lai_so_hieu_chuan()
+    ban_git = ban_git_hien_tai(mod_do_lai)  # TRƯỚC mọi lần ghi — xem docstring của hàm
 
     if "h1" in chon:
         print("Hình 1 — lịch switchback")
@@ -2321,7 +2328,7 @@ def main() -> int:
             for ten, ch in mod_do_lai.NGHIEN_CUU.items()
         }
         du_lieu = doc_hoac_tinh(
-            "hieu-chuan", lambda: tinh_hieu_chuan(mod_do_lai), mong_doi, che_do, mod_do_lai
+            "hieu-chuan", lambda: tinh_hieu_chuan(mod_do_lai), mong_doi, che_do, ban_git
         )
         dem = kiem_khop_so_hieu_chuan(du_lieu)
         tom_tat["h3"] = ve_h3(plt, du_lieu, dem)
@@ -2335,7 +2342,7 @@ def main() -> int:
             "ban_ra_s": list(BAN_RA_S),
             "seed_them": list(SEED_THEM),
         }
-        du_lieu = doc_hoac_tinh("hieu-ung-luu", tinh_hieu_ung_luu, mong_doi, che_do, mod_do_lai)
+        du_lieu = doc_hoac_tinh("hieu-ung-luu", tinh_hieu_ung_luu, mong_doi, che_do, ban_git)
         tom_tat["h5"] = ve_h5(plt, du_lieu)
     if "h6" in chon:
         print("Hình 6 — phân loại ý định trên chat thật")

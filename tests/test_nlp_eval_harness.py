@@ -262,6 +262,13 @@ def test_evaluate_system_reports_the_random_stratum_separately():
 
 
 def test_collapse_to_six_maps_every_new_class_back_to_khac():
+    """Và bảng ablation phải chấm cả bản đang chạy (v1, B2) trên thang 6 lớp gộp.
+
+    Hội đồng thử 25/09: con số tiêu đề 0,211 → 0,542 chấm trên thang 11 lớp, trong
+    đó v1 không thể đoán năm lớp mới (bốn lớp có trong tập kiểm tra, 171/393 dòng).
+    Không có dòng B2 cùng thang 6 lớp thì hồ sơ không tách được phần "mở rộng bộ
+    nhãn" khỏi phần "mô hình tốt hơn".
+    """
     assert set(ev.COLLAPSE_TO_6) == {
         "chao_hoi",
         "cam_on_khen",
@@ -270,6 +277,16 @@ def test_collapse_to_six_maps_every_new_class_back_to_khac():
         "bao_gia_shop",
     }
     assert set(ev.COLLAPSE_TO_6.values()) == {"khac"}
+
+    specs = ev.ablation_specs()
+    thang_6 = [(ten, he) for ten, he, kw in specs if kw.get("collapse_gold_to_6")]
+    assert any(he is ev.system_shipped for _, he in thang_6), (
+        "bảng ablation thiếu dòng v1 đang chạy (B2) chấm trên thang 6 lớp gộp"
+    )
+    for ten, _ in thang_6:
+        assert "6" in ten, f"dòng chấm trên thang 6 lớp phải ghi rõ thang trong tên: {ten!r}"
+    ma = [ten.split(" · ")[0] for ten, _, _ in specs]
+    assert len(ma) == len(set(ma)), f"trùng mã dòng ablation: {ma}"
 
 
 def test_action_labels_exclude_the_social_classes():

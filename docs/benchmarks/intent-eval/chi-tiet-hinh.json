@@ -1,7 +1,7 @@
 {
   "mo_ta": "Số liệu cho hình minh hoạ bộ phân loại ý định. Sinh tự động cùng results.json; không chứa văn bản bình luận.",
   "lenh_tai_lap": "python -m livelift.nlp.eval_intent --ablation --coverage",
-  "generated_at": "2026-09-25T16:09:53+07:00",
+  "generated_at": "2026-09-25T21:10:16+07:00",
   "seed": 2026,
   "n_bootstrap": 2000,
   "nguon_nhan": {
@@ -26,7 +26,7 @@
   },
   "ma_tran_nham_lan": {
     "he_thong": "C2 · C1 + nhãn LLM trên buổi thứ tư",
-    "quy_tac_chon": "Chọn TRƯỚC, không chọn theo điểm trên tập test: mục này trình bày C2 — đúng cấu hình được đóng gói thành `intent_clf_v2.joblib`. Dòng ablation nào có điểm cao hơn thì đọc kèm khoảng tin cậy ở mục 4; lấy nó làm \"tốt nhất\" là chọn trên chính tập test. A7/A8 chấm trên thang 6 lớp gộp, không so được với thang 11 lớp.",
+    "quy_tac_chon": "Chọn TRƯỚC, không chọn theo điểm trên tập test: mục này trình bày C2 — đúng cấu hình được đóng gói thành `intent_clf_v2.joblib`. Dòng ablation nào có điểm cao hơn thì đọc kèm khoảng tin cậy ở mục 4; lấy nó làm \"tốt nhất\" là chọn trên chính tập test. A7–A9 chấm trên thang 6 lớp gộp, không so được với thang 11 lớp.",
     "hang": "nhãn tham chiếu (tác tử AI gán)",
     "cot": "nhãn mô hình đoán",
     "nhan": [
@@ -645,6 +645,33 @@
         "1NMt8BChQrI": 0.2394,
         "47oGShxf80A": 0.7288,
         "gT0LDiBta2k": 0.5563
+      }
+    },
+    {
+      "ma": "A9",
+      "ten": "A9 · v1 đang chạy (B2), chấm trên thang 6 lớp gộp (cùng thang với A7, A8)",
+      "bang": "4. Ablation",
+      "thang": "6_lop_gop",
+      "n_test": 393,
+      "macro_f1": 0.3701,
+      "macro_f1_ktc95_bootstrap": [
+        0.3064,
+        0.4324
+      ],
+      "macro_f1_chi_lop_co_trong_nhan_tham_chieu": 0.3701,
+      "accuracy": 0.514,
+      "tang_ngau_nhien": {
+        "n": 200,
+        "macro_f1": 0.3865,
+        "macro_f1_ktc95_bootstrap": [
+          0.2015,
+          0.53
+        ]
+      },
+      "macro_f1_theo_buoi": {
+        "1NMt8BChQrI": 0.1168,
+        "47oGShxf80A": 0.6833,
+        "gT0LDiBta2k": 0.2574
       }
     }
   ],
@@ -1308,6 +1335,48 @@
           "ci95": [
             0.1536,
             0.5399
+          ]
+        }
+      }
+    },
+    {
+      "ma": "A9",
+      "thang": "6_lop_gop",
+      "precision": {
+        "k": 54,
+        "n": 235,
+        "precision": 0.2298,
+        "ci95": [
+          0.1806,
+          0.2877
+        ]
+      },
+      "recall": {
+        "k": 54,
+        "n": 69,
+        "recall": 0.7826,
+        "ci95": [
+          0.6718,
+          0.8636
+        ]
+      },
+      "tang_ngau_nhien": {
+        "precision": {
+          "k": 9,
+          "n": 42,
+          "precision": 0.2143,
+          "ci95": [
+            0.1171,
+            0.3594
+          ]
+        },
+        "recall": {
+          "k": 9,
+          "n": 19,
+          "recall": 0.4737,
+          "ci95": [
+            0.2733,
+            0.6829
           ]
         }
       }

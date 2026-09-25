@@ -1031,7 +1031,7 @@ BEST_RULE = (
     "Chọn TRƯỚC, không chọn theo điểm trên tập test: mục này trình bày C2 — đúng cấu "
     "hình được đóng gói thành `intent_clf_v2.joblib`. Dòng ablation nào có điểm cao "
     'hơn thì đọc kèm khoảng tin cậy ở mục 4; lấy nó làm "tốt nhất" là chọn trên '
-    "chính tập test. A7/A8 chấm trên thang 6 lớp gộp, không so được với thang 11 lớp."
+    "chính tập test. A7–A9 chấm trên thang 6 lớp gộp, không so được với thang 11 lớp."
 )
 
 
@@ -1098,7 +1098,7 @@ def figure_details(report: dict[str, Any]) -> dict[str, Any]:
     """Số liệu cho hình minh hoạ — KHÔNG chứa văn bản bình luận nào.
 
     Gồm: ma trận nhầm lẫn 11×11 của hệ thống được trình bày (C2/v2) theo nhãn
-    tham chiếu; macro-F1 + KTC bootstrap của mọi dòng (B0…C3, A0…A8); precision
+    tham chiếu; macro-F1 + KTC bootstrap của mọi dòng (B0…C3, A0…A9); precision
     VÀ recall nhãn hành động; precision theo từng buổi so với tỷ lệ nền nhãn
     hành động của buổi. Mọi số đọc lại từ ``report`` — cùng một lần chạy.
     """
@@ -1413,15 +1413,14 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def run_ablation(gold: list[GoldRow], extra: list[TrainRow]) -> list[dict[str, Any]]:
-    """Bảng đóng góp từng thành phần — MẪU 3 mục 9 bắt buộc có bảng này.
+def ablation_specs() -> list[tuple[str, SystemFactory, dict[str, Any]]]:
+    """Các dòng của bảng ablation: (tên, hệ thống, tham số chấm) — chưa chạy gì.
 
-    Mỗi dòng tắt ĐÚNG MỘT thành phần so với cấu hình đầy đủ, trừ hai dòng bộ
-    nhãn (chúng đổi cả không gian nhãn nên phải chấm trên nhãn tham chiếu đã gộp về
-    6 lớp — ghi rõ trong tên dòng).
+    Tách khỏi :func:`run_ablation` để test kiểm được bảng có những dòng nào mà
+    không cần lô nhãn ngoài git.
     """
     full = TfidfSystem()
-    variants: list[tuple[str, SystemFactory, dict[str, Any]]] = [
+    return [
         ("A0 · đầy đủ (chuẩn hoá + phong cách + 11 lớp + mọi nguồn)", full, {}),
         ("A1 · − chuẩn hoá văn bản (NFKC/teencode/emoji)", TfidfSystem(use_normalize=False), {}),
         (
@@ -1437,29 +1436,37 @@ def run_ablation(gold: list[GoldRow], extra: list[TrainRow]) -> list[dict[str, A
             TfidfSystem(abstain_threshold="auto"),
             {},
         ),
-    ]
-    rows = [evaluate_system(n, f, gold, extra, **kw) for n, f, kw in variants]
-    # Bộ nhãn 6 vs 11: chấm trên cùng KHÔNG GIAN NHÃN 6 lớp, nếu không thì so
-    # một macro-F1 trên 6 lớp với một macro-F1 trên 10 lớp — hai thang khác nhau.
-    rows.append(
-        evaluate_system(
+        # Bộ nhãn 6 vs 11: chấm trên cùng KHÔNG GIAN NHÃN 6 lớp, nếu không thì so
+        # một macro-F1 trên 6 lớp với một macro-F1 trên 11 lớp — hai thang khác nhau.
+        (
             "A7 · bộ nhãn 6 lớp (chấm trên không gian 6 lớp)",
             TfidfSystem(collapse_to_6=True),
-            gold,
-            extra,
-            collapse_gold_to_6=True,
-        )
-    )
-    rows.append(
-        evaluate_system(
+            {"collapse_gold_to_6": True},
+        ),
+        (
             "A8 · bộ nhãn 11 lớp, gộp về 6 khi chấm (cùng thang với A7)",
             TfidfSystem(),
-            gold,
-            extra,
-            collapse_gold_to_6=True,
-        )
-    )
-    return rows
+            {"collapse_gold_to_6": True},
+        ),
+        # Bản đang chạy (v1, = B2) chỉ có 6 lớp: trên thang 11 lớp nó không thể đoán
+        # năm lớp mới, nên "0,211 → 0,542" trộn phần mở rộng bộ nhãn với phần mô
+        # hình tốt hơn. Dòng này cho phép so B2 với A8 trên CÙNG thang 6 lớp.
+        (
+            "A9 · v1 đang chạy (B2), chấm trên thang 6 lớp gộp (cùng thang với A7, A8)",
+            system_shipped,
+            {"collapse_gold_to_6": True},
+        ),
+    ]
+
+
+def run_ablation(gold: list[GoldRow], extra: list[TrainRow]) -> list[dict[str, Any]]:
+    """Bảng đóng góp từng thành phần — MẪU 3 mục 9 bắt buộc có bảng này.
+
+    Mỗi dòng tắt ĐÚNG MỘT thành phần so với cấu hình đầy đủ, trừ các dòng bộ
+    nhãn (chúng đổi cả không gian nhãn nên phải chấm trên nhãn tham chiếu đã gộp về
+    6 lớp — ghi rõ trong tên dòng).
+    """
+    return [evaluate_system(n, f, gold, extra, **kw) for n, f, kw in ablation_specs()]
 
 
 def rows_for_packaging(gold: list[GoldRow], extra: list[TrainRow]) -> list[TrainRow]:

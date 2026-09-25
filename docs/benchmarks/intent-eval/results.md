@@ -1,6 +1,6 @@
 # Kết quả đánh giá bộ phân loại ý định — sinh tự động
 
-*Sinh bởi `python -m livelift.nlp.eval_intent` · 2026-09-25T16:09:53+07:00*
+*Sinh bởi `python -m livelift.nlp.eval_intent` · 2026-09-25T21:10:16+07:00*
 
 > **Nguồn nhãn.** Nhãn tham chiếu của 393 dòng test do một tác tử AI (Claude) gán ngày 09/09/2026 trên bảng xáo trộn — chưa có nhãn người. Vì vậy mọi con số là mức đồng thuận với nhãn tham chiếu do AI gán, chưa phải độ chính xác so với con người.
 > Nhãn train bổ sung kê khai riêng ở mục 1: 320 câu mẫu do AI (Claude) soạn ngày 01/09/2026; 1.800 nhãn train buổi thứ tư do LLM (Claude) gán, không có người duyệt.
@@ -92,6 +92,7 @@ macro-F1 từng buổi live (bất định thật nằm ở đây, không ở KT
 | A6 · + từ chối trả lời (ngưỡng chọn trong train) | **0,493** | [0,441; 0,562] | 0,542 | 0,707 | 0,667 (30/45) | 0,538 [0,382; 0,679] |
 | A7 · bộ nhãn 6 lớp (chấm trên không gian 6 lớp) | **0,579** | [0,465; 0,669] | 0,579 | 0,852 | 0,554 (41/74) | 0,455 [0,246; 0,730] |
 | A8 · bộ nhãn 11 lớp, gộp về 6 khi chấm (cùng thang với A7) | **0,572** | [0,471; 0,667] | 0,572 | 0,875 | 0,655 (38/58) | 0,626 [0,317; 0,823] |
+| A9 · v1 đang chạy (B2), chấm trên thang 6 lớp gộp (cùng thang với A7, A8) | **0,370** | [0,306; 0,432] | 0,370 | 0,514 | 0,230 (54/235) | 0,387 [0,202; 0,530] |
 
 macro-F1 từng buổi live (bất định thật nằm ở đây, không ở KTC bootstrap):
 
@@ -106,6 +107,7 @@ macro-F1 từng buổi live (bất định thật nằm ở đây, không ở KT
 | A6 · + từ chối trả lời (ngưỡng chọn trong train) | 0,368 | 0,449 | 0,525 |
 | A7 · bộ nhãn 6 lớp (chấm trên không gian 6 lớp) | 0,190 | 0,716 | 0,508 |
 | A8 · bộ nhãn 11 lớp, gộp về 6 khi chấm (cùng thang với A7) | 0,239 | 0,729 | 0,556 |
+| A9 · v1 đang chạy (B2), chấm trên thang 6 lớp gộp (cùng thang với A7, A8) | 0,117 | 0,683 | 0,257 |
 
 ## Đường đánh đổi độ phủ ↔ độ chính xác (tuỳ chọn từ chối trả lời)
 
@@ -138,7 +140,7 @@ Nhãn hành động = `hoi_gia`, `hoi_size`, `che_dat`, `chot_don`, `van_chuyen`
 
 Hệ thống: **C2 · C1 + nhãn LLM trên buổi thứ tư**
 
-Chọn TRƯỚC, không chọn theo điểm trên tập test: mục này trình bày C2 — đúng cấu hình được đóng gói thành `intent_clf_v2.joblib`. Dòng ablation nào có điểm cao hơn thì đọc kèm khoảng tin cậy ở mục 4; lấy nó làm "tốt nhất" là chọn trên chính tập test. A7/A8 chấm trên thang 6 lớp gộp, không so được với thang 11 lớp.
+Chọn TRƯỚC, không chọn theo điểm trên tập test: mục này trình bày C2 — đúng cấu hình được đóng gói thành `intent_clf_v2.joblib`. Dòng ablation nào có điểm cao hơn thì đọc kèm khoảng tin cậy ở mục 4; lấy nó làm "tốt nhất" là chọn trên chính tập test. A7–A9 chấm trên thang 6 lớp gộp, không so được với thang 11 lớp.
 
 | Lớp | P | R | F1 | Nhãn tham chiếu | Lần dự đoán |
 |---|---:|---:|---:|---:|---:|

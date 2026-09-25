@@ -2,10 +2,10 @@
 
 *Sinh bằng* `python scripts/chup_giao_dien.py chup` *— không sửa tay; chụp lại bằng lệnh.* Số đo đầy đủ: `chup.json`.
 
-- Bản build: nhánh `hoan-thien/ho-so-2509`, HEAD `17c3ee1`; tệp chưa commit lúc chụp: `README.md`, `docs/benchmarks/so-hieu-chuan.json`, `docs/competition/FACT-SHEET.md`, `web/src/app/page.tsx`.
-- Chụp lúc 2026-09-25 13:46:38 +0700 → 2026-09-25 13:50:35 +0700; Chromium headless (Playwright), khung 1366×768, device scale 2 (ảnh cắt `h7-*` ghi khung riêng ở cột Nội dung); ảnh > 400 KB được ép bằng bảng màu Pillow (không dither).
+- Bản build: nhánh `hoan-thien/ho-so-2509`, HEAD `fa64589`; tệp chưa commit lúc chụp: không có.
+- Chụp lúc 2026-09-25 19:27:22 +0700 → 2026-09-25 19:30:52 +0700; Chromium headless (Playwright), khung 1366×768, device scale 2 (ảnh cắt `h7-*` ghi khung riêng ở cột Nội dung); ảnh > 400 KB được ép bằng bảng màu Pillow (không dither).
 - Kho API: `memory+snapshot` (bộ nhớ, không bền) — dữ liệu chỉ gồm bộ Demo Vàng (`is_demo`, dữ liệu MẪU) và một phiên CHẠY THỬ (`dry_run`) tạo qua wizard; bình luận là kịch bản Mô phỏng tổng hợp ×10 (số điện thoại, địa chỉ, email đều GIẢ), bật SAU khi bấm "Bắt đầu phát sóng".
-- Feed bình luận trên desk (1366×768): `clientHeight` 279 px, thấy trọn 7 dòng (ngưỡng 8).
+- Feed bình luận trên desk (1366×768): `clientHeight` 295 px, thấy trọn 8 dòng (ngưỡng 8).
 - Chuỗi PII giả còn nguyên trên desk: 0; trong `GET /sessions/{id}/comments`: 0. Payload `state?role=host` chỉ có khoá elapsed_s, pinned_product, price, stock.
 - `/experiment/summary?env=real` sau phiên chạy thử: `n_sessions=0` — dự án có 0 phiên thí nghiệm ngẫu nhiên thật.
 

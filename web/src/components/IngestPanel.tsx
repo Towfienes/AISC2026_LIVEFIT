@@ -291,6 +291,15 @@ function BoThuPhien({
     status?.seconds_since_last_event != null &&
     status.seconds_since_last_event > STALE_S;
   const nguon = status && state !== "chua_bat" ? nhanNguon(status.platform, platforms) : null;
+  /**
+   * Kiểm toán 25/09/2026: máy chủ nói thật khi bộ thu đã bật mà phiên CHƯA lên
+   * sóng (`ghi_chu_truoc_len_song`, null khi đã lên sóng). In NGUYÊN VĂN, ở cả
+   * bước 4 lẫn bàn trợ live, kể cả khi đang thu (form bật đã ẩn) — đó đúng là
+   * lúc bình luận đang rơi ra ngoài mọi khối. Nguồn Mô phỏng thì là cảnh báo:
+   * kịch bản đang bị dùng hết trước giờ phát.
+   */
+  const ghiChuTruocLenSong = status?.ghi_chu_truoc_len_song ?? null;
+  const ghiChuLaCanhBao = status?.platform === NEN_TANG_MO_PHONG;
 
   const dongTrangThai = (
     <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1" aria-live="polite">
@@ -358,6 +367,17 @@ function BoThuPhien({
           ⚠ Hai phút không có bình luận mới — kiểm tra buổi live còn phát và còn người bình luận.
         </p>
       )}
+      {ghiChuTruocLenSong ? (
+        <p
+          className={cx(
+            "mt-1 text-meta leading-snug",
+            ghiChuLaCanhBao ? "text-warn-ink" : "text-sec",
+          )}
+        >
+          <span aria-hidden>{ghiChuLaCanhBao ? "⚠ " : "ⓘ "}</span>
+          {ghiChuTruocLenSong}
+        </p>
+      ) : null}
       {status?.last_error && state !== "dang_thu" && (
         <p className="mt-1 text-meta text-sec">{status.last_error}</p>
       )}

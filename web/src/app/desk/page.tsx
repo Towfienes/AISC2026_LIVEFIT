@@ -314,7 +314,28 @@ function useIsOverflowing(key: unknown) {
 }
 
 /**
- * Mirror of the layout while the first connection is racing.
+ * Màn nào của bàn được vẽ (kiểm toán 25/09/2026).
+ *
+ * Khung xương KHÔNG chỉ trong lúc hỏi danh sách phiên: bàn chưa có trạng thái
+ * đầu tiên của phiên đang xem thì mọi ô là số mặc định (lịch rỗng, đồng hồ 0,
+ * chưa ghim gì) — hero in "NGOÀI KHỐI · 00:00:00 · Chưa nhận được lịch khối"
+ * trên một phiên đang BẬT. Trạng thái rỗng ("chưa có phiên nào đang chạy") đi
+ * trước: nó chỉ dựa vào danh sách phiên, đã có rồi. Khi trạng thái đã về mà
+ * phiên THẬT SỰ ngoài khối thì hero vẫn in "NGOÀI KHỐI" như cũ.
+ */
+function deskScreen(
+  connection: ConnectionKind,
+  showEmpty: boolean,
+  stateReady: boolean,
+): "khung-xuong" | "trong" | "ban" {
+  if (connection === "connecting") return "khung-xuong";
+  if (showEmpty) return "trong";
+  return stateReady ? "ban" : "khung-xuong";
+}
+
+/**
+ * Mirror of the layout while the first connection is racing — and, since
+ * 25/09/2026, until the first state of the viewed session has landed.
  *
  * Khung xám không nói được là đang TẢI hay đã HỎNG, nên có thêm một dòng
  * `role="status"`: nó cũng là chỗ trình đọc màn hình biết bàn đang bận.
@@ -350,7 +371,7 @@ function DeskSkeleton() {
         <Card padding="sm" className="flex min-h-[14rem] flex-col gap-2 xl:col-start-2 xl:row-start-2">
           <Skeleton className="h-4 w-40" />
           <Skeleton className="min-h-[6rem] flex-[2]" />
-          <div className="flex min-h-[20rem] flex-[3] flex-col gap-1.5 border-t border-hairline pt-2">
+          <div className="flex min-h-[21rem] flex-[3] flex-col gap-1.5 border-t border-hairline pt-2">
             <Skeleton className="h-5 w-3/4" />
             <Skeleton className="h-5 w-2/3" />
             <Skeleton className="h-5 w-4/5" />
@@ -730,15 +751,17 @@ export default function DeskPage() {
     if (!nothingToShow && desk.sessionId != null) setDeskShown(true);
   }, [nothingToShow, desk.sessionId]);
   const showEmpty = nothingToShow && !(deskShown && desk.sessionId != null);
+  /** Kiểm toán 25/09/2026: khung xương tới khi có trạng thái đầu tiên của phiên. */
+  const screen = deskScreen(desk.connection, showEmpty, desk.stateReady);
 
   const autopilot = desk.autopilot;
 
   return (
     <div className="flex min-h-screen flex-col bg-page">
       <TopNav />
-      {desk.connection === "connecting" ? (
+      {screen === "khung-xuong" ? (
         <DeskSkeleton />
-      ) : showEmpty ? (
+      ) : screen === "trong" ? (
         <EmptyDesk
           hasEndedSessions={desk.sessions.length > 0}
           onDemo={() => setDemoMode(true)}
@@ -1052,10 +1075,11 @@ export default function DeskPage() {
               </div>
               {/* Kiểm toán 25/09/2026 (runtime.md §3.1): feed định vị tuyệt đối
                   nên co ĐÚNG về sàn này. Sàn 6rem để lại 55px — 1,7 dòng — ở cả
-                  1366×768 lẫn 1920×1080. 20rem = 320px, trừ 41px tiêu đề còn
-                  ~279px ≈ 8,7 dòng 32px — số TÍNH từ hai số đo DOM cùng đợt
-                  (41px, 32px), chưa đo lại trên trình duyệt sau khi sửa. */}
-              <div className="mt-2 flex min-h-[20rem] flex-[3] flex-col border-t border-hairline pt-2">
+                  1366×768 lẫn 1920×1080. Sàn 20rem đo lại (làn F): vùng cuộn
+                  279px nhưng chỉ thấy trọn 7 dòng, vì bước dòng là 32px + gap
+                  4px (CommentFeed `gap-1`) = 36px. 8 dòng cần 41 + 8×36 = 329px
+                  ⇒ 21rem = 336px, vùng cuộn ~295px ≈ 8,2 dòng. */}
+              <div className="mt-2 flex min-h-[21rem] flex-[3] flex-col border-t border-hairline pt-2">
                 <CommentFeed
                   comments={desk.comments}
                   emptyHint={

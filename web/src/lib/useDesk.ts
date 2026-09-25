@@ -43,6 +43,31 @@ import { useLiveSocket, type SocketStatus } from "./useLiveSocket";
 const MOCK_FORCED = process.env.NEXT_PUBLIC_MOCK === "1";
 const POLL_MS = 5000;
 
+/**
+ * Bàn đã có TRẠNG THÁI ĐẦU TIÊN của phiên đang xem chưa (kiểm toán 25/09/2026).
+ *
+ * Video demo thô 25/09: tải lại /desk thì khoảng 1 giây bàn in "NGOÀI KHỐI ·
+ * 00:00:00 · Chưa nhận được lịch khối" trên một phiên đang ở khối BẬT. Bàn
+ * hiện ngay khi danh sách phiên về (`connection = "live"`), trước lần hỏi
+ * trạng thái đầu tiên — lịch còn rỗng, đồng hồ còn 0. Đó là ba câu SAI, không
+ * phải câu "đang tải".
+ *
+ * `polledFor` là mã phiên mà lần hỏi đầu tiên (allSettled — kể cả khi một
+ * nguồn hỏng) đã XONG. Vừa đổi sang phiên khác thì cờ tự về `false` cho tới
+ * lần hỏi của phiên mới: số của phiên cũ không đứng trên phiên mới. Bản xem
+ * thử (mock) dựng số liệu ngay nên luôn có; không có phiên nào thì trạng thái
+ * rỗng của trang lo, không giữ khung xương mãi.
+ */
+export function firstStateReady(
+  connection: ConnectionKind,
+  sessionId: string | null,
+  polledFor: string | null,
+): boolean {
+  if (connection === "mock") return true;
+  if (connection !== "live") return false;
+  return sessionId == null || polledFor === sessionId;
+}
+
 // ---------------------------------------------------------------------------
 // Lỗi lệnh vận hành (gói C1 — giới hạn #6)
 // ---------------------------------------------------------------------------
@@ -184,6 +209,11 @@ export function executeNotice(o: ExecuteOutcome | null): string | null {
 
 export interface DeskState {
   connection: ConnectionKind;
+  /**
+   * Đã có trạng thái đầu tiên của phiên đang xem (xem `firstStateReady`). Chưa
+   * có thì bàn vẽ khung xương — không vẽ "NGOÀI KHỐI · 00:00:00".
+   */
+  stateReady: boolean;
   wsStatus: SocketStatus;
   sessions: SessionSummary[];
   sessionId: string | null;
@@ -276,6 +306,8 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
   const [cardsNote, setCardsNote] = useState<string | null>(null);
   /** Vietnamese warning when one data source is failing (see the poll loop). */
   const [degraded, setDegraded] = useState<string | null>(null);
+  /** Mã phiên mà lần hỏi trạng thái ĐẦU TIÊN đã xong — xem `firstStateReady`. */
+  const [polledFor, setPolledFor] = useState<string | null>(null);
   /** Session start, used to turn API timestamps into seconds-since-start. */
   const sessionStartIso = useRef<string | null>(null);
   /**
@@ -352,6 +384,9 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
     // Sản phẩm đang ghim cũng thuộc về đúng một phiên: sản phẩm của phiên cũ
     // không được đứng trên hero phiên mới trong lúc chờ poll đầu tiên.
     setPinned(null);
+    // Mọi thứ trên vừa bị xoá ⇒ phiên này CHƯA có trạng thái, kể cả khi quay
+    // lại một phiên đã hỏi trước đó (A → B → A trước khi B kịp trả lời).
+    setPolledFor(null);
   }, [sessionId]);
 
   // -------------------------------------------------------------------------
@@ -466,6 +501,9 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
         schR.status === "rejected" ? "lịch khối" : null,
       ].filter(Boolean) as string[];
       setDegraded(failed.length ? `Không tải được: ${failed.join(", ")}` : null);
+      // Sau `if (cancelled) return` ở trên: câu trả lời về muộn của phiên cũ
+      // (đã đổi phiên) không đánh dấu phiên mới là đã có trạng thái.
+      setPolledFor(sessionId);
     };
     pull();
     const timer = setInterval(pull, POLL_MS);
@@ -742,6 +780,7 @@ export function useDesk(opts?: UseDeskOptions): DeskState {
 
   return {
     connection,
+    stateReady: firstStateReady(connection, sessionId, polledFor),
     wsStatus,
     sessions,
     sessionId,

@@ -210,11 +210,23 @@ const NO_PIN_FOR_YOU = {
     "Đây là giới hạn không phần mềm nào vượt được.",
 };
 
-const COLLECTOR_IS_CLI = {
-  label: "Bộ thu bình luận tự khởi động",
+/**
+ * Kiểm toán 25/09/2026: câu cũ ("bộ thu là một lệnh chạy trong terminal … chưa
+ * có nút trên giao diện") sai từ 17/09 — bộ thu chạy NỀN trong máy chủ
+ * (`POST /sessions/{id}/ingest`), bật bằng nút của IngestPanel ở bước 4 và
+ * trên Bàn trợ live. Điều VẪN chưa làm được: nó không tự bật, cần khoá trên
+ * máy chủ, và lệnh bật từ trình duyệt bị chặn khi máy chủ đặt INGEST_TOKEN
+ * (routes/ingest.py `@chi_token`; web chưa gửi token).
+ */
+const COLLECTOR_NOT_AUTOMATIC = {
+  label: "Bộ thu bình luận tự bật theo buổi live",
   why:
-    "Hôm nay bộ thu là một lệnh chạy trong terminal và cần video id của buổi live; chưa có " +
-    "nút trên giao diện. Cần một kỹ sư ngồi cạnh trong phiên đầu tiên.",
+    "Bộ thu chạy nền trong máy chủ nhưng không tự bật: mỗi phiên bạn dán link video ĐANG " +
+    "live (link kênh chưa được hỗ trợ) rồi bấm “Bật bộ thu” — ở bước 4 “Lên sóng” của " +
+    "Chuẩn bị phiên, hoặc ở khung “Bộ thu bình luận” trên Bàn trợ live. Máy chủ thiếu " +
+    "YOUTUBE_API_KEY thì nút bị khoá và ghi rõ tên biến còn thiếu. Bản đưa lên Internet có " +
+    "đặt INGEST_TOKEN thì trình duyệt chưa gửi được token nên máy chủ từ chối lệnh bật — " +
+    "khi đó người kỹ thuật vẫn phải chạy bộ thu bằng lệnh.",
 };
 
 const FB_NO_TOKEN_EVIDENCE = [
@@ -289,7 +301,7 @@ const MATRIX: Record<ComboKey, Outcome> = {
         "chạy ngay hôm nay. Bạn thấy thẻ gợi ý “nên ghim cái này bây giờ”, và mọi quyết " +
         "định được ghi lại kèm xác suất đã bốc.",
       bullets: [
-        "Bình luận chảy vào được ngay hôm nay qua yt-dlp — nhưng đó là đường TRÁI Điều khoản YouTube, chỉ nên dùng để kiểm thử kỹ thuật.",
+        "Bình luận chảy vào được ngay hôm nay bằng nút “Bật bộ thu” nếu người kỹ thuật bật đường dự phòng yt-dlp (INGEST_YOUTUBE_BACKEND=ytdlp) — nhưng đó là đường TRÁI Điều khoản YouTube, chỉ nên dùng để kiểm thử kỹ thuật.",
         "Không có lịch gán thì API chặn phát sóng bằng lỗi 409. Đây là quy tắc bất biến duy nhất được cưỡng chế ở tầng API — và nó chính là thứ làm phép bốc thăm kiểm toán được.",
       ],
       action: RUN_ACTION,
@@ -314,7 +326,7 @@ const MATRIX: Record<ComboKey, Outcome> = {
           "đo hoạt động đúng bản chất ở đây.",
       },
       NO_PIN_FOR_YOU,
-      COLLECTOR_IS_CLI,
+      COLLECTOR_NOT_AUTOMATIC,
     ],
   },
 
@@ -361,21 +373,22 @@ const MATRIX: Record<ComboKey, Outcome> = {
     headline: "Chưa — sản phẩm cố ý không mở đường nạp buổi live ĐANG PHÁT của người khác.",
     now: {
       body:
-        "Không có nút nào trong sản phẩm làm việc này. Đường gần nhất và hợp lệ: đợi buổi " +
-        "live kết thúc rồi dán link vào ô dưới — nếu buổi đó còn chat replay thì bạn đọc " +
-        "được toàn bộ, và chỉ mất 1–2 phút.",
+        "Sản phẩm không dựng luồng nào cho việc này — nút “Bật bộ thu” dành cho buổi live của " +
+        "chính bạn (máy chủ không kiểm tra ai là chủ kênh: đó là quy ước dùng, không phải rào " +
+        "chặn kỹ thuật). Đường gần nhất và hợp lệ: đợi buổi live kết thúc rồi dán link vào ô dưới " +
+        "— nếu buổi đó còn chat replay thì bạn đọc được toàn bộ, và chỉ mất 1–2 phút.",
       action: VOD_ACTION,
     },
     upgrade: {
       time: null,
       body:
         "Về kỹ thuật thì yt-dlp ĐỌC ĐƯỢC chat của luồng đang phát — hôm 11/09 tìm thấy 6/6 " +
-        "luồng đang phát có số người xem thật. Nhưng sản phẩm không mở đường đó, vì ba lý " +
-        "do đều thật:",
+        "luồng đang phát có số người xem thật. Nhưng sản phẩm không mở đường đó cho buổi của " +
+        "người khác, vì ba lý do đều thật:",
       bullets: [
         "Trái Điều khoản YouTube: robots.txt chặn đúng hai đường yt-dlp gọi (/live_chat và /youtubei/).",
         "Trễ giao tin ~24 giây (p50) và 37 giây (p90) — đo thật. Ở nhịp live đó là quá chậm để ra quyết định.",
-        "Là một lệnh chạy trong terminal, không có nút bấm nào.",
+        "Trong sản phẩm, yt-dlp chỉ là đường DỰ PHÒNG phía sau nút “Bật bộ thu”, tắt sẵn (mặc định INGEST_YOUTUBE_BACKEND=api): người kỹ thuật phải bật riêng (INGEST_YOUTUBE_BACKEND=ytdlp), và máy chủ chỉ ghi lời dặn “chỉ dùng cho kênh của chính mình” — không kiểm tra ai là chủ kênh.",
       ],
     },
     blocked: [

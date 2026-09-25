@@ -2043,10 +2043,15 @@ export default function ChayPhienPage() {
 
                   {/* 3. Nguồn bình luận — bật Bộ thu bình luận ngay tại đây. */}
                   <CheckRow state={dongNguon.state} title={dongNguon.title}>
+                    {/* Kiểm toán 25/09/2026: câu cũ "Bật trước giờ phát cũng được — bộ
+                        thu sẽ chờ buổi live bắt đầu" sai với máy chủ. YouTube/Facebook
+                        chờ NỀN TẢNG báo đang phát (CHO_NEN_TANG, ingest_jobs.py), không
+                        chờ nút của LiveLift; nguồn Mô phỏng phát NGAY khi bật. */}
                     <p className="mt-0.5 text-meta leading-snug text-sec">
                       Dán link buổi live để Bộ thu bình luận đọc bình luận (và số người xem, nếu
-                      nền tảng cho đọc). Bật trước giờ phát cũng được — bộ thu sẽ chờ buổi live bắt
-                      đầu.
+                      nền tảng cho đọc). YouTube/Facebook: bật trước giờ phát được — bộ thu chờ nền
+                      tảng báo buổi live đang phát (không chờ nút “Bắt đầu phát sóng”); bình luận
+                      ghi trước lúc phiên lên sóng không thuộc khối nào.
                     </p>
                     {session ? (
                       <p className="mt-0.5 text-meta leading-snug text-dim">
@@ -2054,7 +2059,9 @@ export default function ChayPhienPage() {
                           <>
                             <span aria-hidden>◐</span> Phiên{" "}
                             {session.is_demo ? "dữ liệu mẫu" : "chạy thử"} nên có thêm nguồn Mô
-                            phỏng — bình luận tổng hợp do máy soạn, không phải khách thật.
+                            phỏng — bình luận tổng hợp do máy soạn, không phải khách thật. Nguồn Mô
+                            phỏng phát ngay khi bật: hãy bật SAU khi bấm “Bắt đầu phát sóng” (khung
+                            Bộ thu bình luận trên Bàn trợ live).
                           </>
                         ) : (
                           <>

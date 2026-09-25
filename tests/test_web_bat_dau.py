@@ -437,3 +437,93 @@ def test_the_vod_box_reuses_the_existing_api_contract():
     for fn in ("submitYoutubeReplay", "getReplayJob"):
         assert fn in src, f"ô dán link phải dùng lại {fn}() của api.ts"
     assert "mode=analysis" in src, "phiên nạp từ VOD là phiên QUAN SÁT — phải mở ở chế độ phân tích"
+
+
+# ---------------------------------------------------------------------------
+# 6. kiểm toán thử thật 25/09/2026 — bộ thu là NÚT BẤM, không phải lệnh terminal
+# ---------------------------------------------------------------------------
+INGEST_PANEL = SRC / "components" / "IngestPanel.tsx"
+WIZARD = SRC / "app" / "chay-phien" / "page.tsx"
+DESK = SRC / "app" / "desk" / "page.tsx"
+
+
+def test_bo_thu_la_nut_bam_tren_giao_dien_khong_phai_lenh_terminal():
+    """Ảnh ``02-bat-dau-ket-qua.png`` (25/09) in "Hôm nay bộ thu là một lệnh chạy
+    trong terminal … chưa có nút trên giao diện" — sai từ 17/09: bộ thu chạy NỀN
+    trong máy chủ (``POST /sessions/{id}/ingest``), bật bằng nút ở bước 4 “Lên
+    sóng” và ở khung “Bộ thu bình luận” trên Bàn trợ live.
+
+    Trang này tồn tại để KHÔNG HỨA HÃO, nên chiều ngược lại cũng là lỗi: nói
+    thiếu một khả năng đang có. Câu mới phải gọi đúng tên nút và hai chỗ đặt nút
+    — ĐÚNG chữ trên giao diện thật — và vẫn nói điều chưa làm được (không tự bật,
+    cần khoá trên máy chủ, INGEST_TOKEN chặn lệnh bật từ trình duyệt)."""
+    src = _gom(code(DATA.read_text(encoding="utf-8")))
+    for sai in ("terminal", "chưa có nút", "không có nút bấm nào"):
+        assert sai not in src.lower(), f"batdau.ts còn câu sai hiện trạng: {sai!r}"
+
+    # Tên nút và hai chỗ đặt nút — đối chiếu với chữ trên giao diện thật.
+    assert '"Bật bộ thu"' in code(INGEST_PANEL.read_text(encoding="utf-8"))
+    assert "“Bật bộ thu”" in src
+    assert '{ n: 4, label: "Lên sóng"' in WIZARD.read_text(encoding="utf-8")
+    assert "bước 4 “Lên sóng”" in src
+    assert re.search(r">\s*Bộ thu bình luận\s*</SectionTitle>", DESK.read_text(encoding="utf-8"))
+    assert "khung “Bộ thu bình luận”" in src
+
+    # Điều VẪN chưa làm được, nằm trong "Không làm được gì" của YouTube/của tôi/đang phát.
+    hang = {
+        m.group(1): m.group(3)
+        for m in re.finditer(r"const (\w+) = \{\s*label: \"([^\"]+)\",\s*why:(.*?)\};", src, re.S)
+        if "Bật bộ thu" in m.group(3)
+    }
+    assert len(hang) == 1, f"cần đúng một mục 'không làm được' nói về bộ thu, có {list(hang)}"
+    ten, why = next(iter(hang.items()))
+    assert ten in outcomes()["youtube|toi|dang-phat"], "mục bộ thu phải nằm trong ô YouTube/của tôi"
+    assert "YOUTUBE_API_KEY" in why, "phải nói máy chủ cần khoá (nút khoá khi thiếu)"
+    assert "INGEST_TOKEN" in why, "phải nói bản công khai đặt INGEST_TOKEN thì nút bị từ chối"
+    # Neo câu INGEST_TOKEN vào HAI phía. Phản biện 25/09: bản trước tìm "@chi_token"
+    # trong đoạn từ ``def ingest_start`` tới HẾT tệp, nên ``@chi_token`` của
+    # ``ingest_stop`` bên dưới giữ test xanh dù lệnh bật có đổi mức bảo vệ.
+    # Máy chủ: mức THẬT của hàm bật (khai báo, hoặc mặc định khi quên khai báo).
+    from livelift.api.auth import MUC_MAC_DINH, MUC_TOKEN, muc_bao_ve_cua
+    from livelift.api.routes.ingest import ingest_start
+
+    assert (muc_bao_ve_cua(ingest_start) or MUC_MAC_DINH) == MUC_TOKEN, (
+        "máy chủ thôi đòi token cho lệnh bật — sửa lại câu INGEST_TOKEN trên /bat-dau"
+    )
+    # Web: chưa gửi token. Web gửi được token thì câu "trình duyệt chưa gửi được" sai.
+    for tep in sorted(SRC.rglob("*.ts*")):
+        assert not re.search(r"Authorization|Bearer", code(tep.read_text(encoding="utf-8"))), (
+            f"{tep.name} gửi token ghi — sửa lại câu INGEST_TOKEN trên /bat-dau"
+        )
+
+
+def test_live_nguoi_khac_khong_noi_qua_rao_chan_cua_may_chu():
+    """Phản biện 25/09: ô YouTube / người khác / đang phát nói "Sản phẩm không có
+    luồng nào cho việc này" và "sản phẩm không mở đường đó". Máy chủ KHÔNG kiểm tra
+    ai là chủ kênh (``chuan_hoa_nguon`` chỉ rút id video, không có cấu hình kênh
+    nào): bật ``INGEST_YOUTUBE_BACKEND=ytdlp`` thì nút “Bật bộ thu” nhận cả link
+    buổi của người khác. Lời dặn "chỉ dùng cho kênh của chính mình" là QUY ƯỚC —
+    trang tồn tại để không hứa hão thì cũng không được tả một rào chắn không có."""
+    from livelift.api.ingest_jobs import muc_san_sang_nen_tang
+    from livelift.config import Settings, get_settings
+
+    assert not any("channel" in f or "kenh" in f for f in Settings.model_fields), (
+        "máy chủ đã có cấu hình kênh (có thể đã kiểm tra chủ kênh) — xem lại câu ô người khác"
+    )
+    o = _gom(outcomes()["youtube|nguoi-khac|dang-phat"])
+    assert "không có luồng nào" not in o, "nút “Bật bộ thu” vẫn nhận link — không phải 'không có'"
+    assert "không kiểm tra ai là chủ kênh" in o, "phải nói rõ đó là quy ước, không phải rào chắn"
+
+    # Trích lời dặn của máy chủ phải khớp nguyên văn với ghi chú đường yt-dlp.
+    ytdlp = get_settings().model_copy(update={"ingest_youtube_backend": "ytdlp"})
+    note = {r["platform"]: r for r in muc_san_sang_nen_tang(ytdlp)}["youtube"]["note"]
+    trich = re.search(r"“(chỉ dùng cho kênh của chính mình)”", o)
+    assert trich, "ô người khác phải trích nguyên văn lời dặn “chỉ dùng cho kênh của chính mình”"
+    assert trich.group(1).lower() in note.lower(), (
+        "lời dặn trích không khớp ghi chú yt-dlp của máy chủ"
+    )
+
+
+def _gom(s: str) -> str:
+    """Nối các mảnh chuỗi `"…" +` xuống dòng thành một câu liền để tìm cụm từ."""
+    return re.sub(r'"\s*\+\s*"', "", s)

@@ -626,6 +626,13 @@ export interface IngestStatus {
   pending_writes?: number;
   /** Bản ghi đã MẤT vì hàng đợi chờ ghi lại bị đầy. */
   dropped_writes?: number;
+  /**
+   * Kiểm toán 25/09/2026 (routes/ingest.py): câu tiếng Việt khi bộ thu đã bật mà
+   * phiên CHƯA lên sóng — bình luận ghi lúc đó không thuộc khối nào; nguồn Mô
+   * phỏng phát ngay chứ không chờ nút Bắt đầu phát sóng. `null` khi phiên đã
+   * lên sóng/đã đóng hoặc chưa bật bộ thu; thiếu hẳn ở máy chủ cũ.
+   */
+  ghi_chu_truoc_len_song?: string | null;
 }
 
 /** Một đơn hàng (`OrderOut`). Không có trường người mua nào (quy tắc cứng 1). */

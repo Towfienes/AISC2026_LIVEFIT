@@ -1,0 +1,261 @@
+{
+ "lenh": "python scripts/chup_giao_dien.py chup",
+ "bat_dau": "2026-09-25 13:46:38 +0700",
+ "xong": "2026-09-25 13:50:35 +0700",
+ "git": {
+  "head": "17c3ee1",
+  "nhanh": "hoan-thien/ho-so-2509",
+  "chua_commit": [
+   "README.md",
+   "docs/benchmarks/so-hieu-chuan.json",
+   "docs/competition/FACT-SHEET.md",
+   "web/src/app/page.tsx"
+  ]
+ },
+ "api": "http://127.0.0.1:8765",
+ "web": "http://127.0.0.1:3765",
+ "kho": {
+  "storage_mode": "memory+snapshot",
+  "durable": false
+ },
+ "khung": {
+  "chinh": {
+   "width": 1366,
+   "height": 768
+  },
+  "hep": {
+   "width": 640,
+   "height": 900
+  },
+  "host_h7": {
+   "width": 1100,
+   "height": 560
+  },
+  "device_scale_factor": 2
+ },
+ "demo_vang": {
+  "duong_1": "c6d14be2-42b0-4d4f-b315-2b47555252b6",
+  "null_1": "1422f024-1213-4fc2-aaea-b060df0091df",
+  "chua_du": "9d7bb77b-3aa9-4b61-a8a2-0f469497faa5"
+ },
+ "phien_chay_thu": "7395b68a-c37a-4259-95e3-57580f3dcdc2",
+ "anh": [
+  {
+   "tep": "01-trang-chu.png",
+   "mo_ta": "Trang chủ: ba lối vào và chip KHO nói rõ dữ liệu mẫu hay thật",
+   "url": "http://127.0.0.1:3765/",
+   "byte": 275605,
+   "byte_goc": 797952,
+   "cach": "bảng 256 màu",
+   "kich_thuoc": [
+    2732,
+    1536
+   ]
+  },
+  {
+   "tep": "02-bat-dau-ket-qua.png",
+   "mo_ta": "/bat-dau sau 3 câu (Của tôi · YouTube · Đang phát): làm được gì ngay, thiếu khoá gì",
+   "url": "http://127.0.0.1:3765/bat-dau?cua=toi&nen=youtube&khi=dang-phat",
+   "byte": 409058,
+   "byte_goc": 1095345,
+   "cach": "bảng 256 màu",
+   "kich_thuoc": [
+    2732,
+    5600
+   ],
+   "cat_cao_css": 2800
+  },
+  {
+   "tep": "03-chay-phien-buoc3-lich-khoi.png",
+   "mo_ta": "Wizard bước 3: lịch 16 khối BẬT/TẮT đã bốc",
+   "url": "http://127.0.0.1:3765/chay-phien?buoc=3&phien=7395b68a-c37a-4259-95e3-57580f3dcdc2",
+   "byte": 199674,
+   "cach": "giữ nguyên"
+  },
+  {
+   "tep": "h7-a-lich-khoi.png",
+   "mo_ta": "Hình 7a: lịch khối của phiên chạy thử (khung hẹp 640 px)",
+   "url": "http://127.0.0.1:3765/chay-phien?buoc=3&phien=7395b68a-c37a-4259-95e3-57580f3dcdc2",
+   "byte": 76871,
+   "cach": "giữ nguyên"
+  },
+  {
+   "tep": "04-chay-phien-buoc4-checklist.png",
+   "mo_ta": "Wizard bước 4: checklist trước giờ G",
+   "url": "http://127.0.0.1:3765/chay-phien?buoc=4&phien=7395b68a-c37a-4259-95e3-57580f3dcdc2",
+   "byte": 190792,
+   "byte_goc": 513593,
+   "cach": "bảng 256 màu",
+   "kich_thuoc": [
+    2732,
+    3024
+   ]
+  },
+  {
+   "tep": "05-desk-dang-live.png",
+   "mo_ta": "Bàn trợ live đang phát: khối hiện tại, đồng hồ khối, lịch",
+   "url": "http://127.0.0.1:3765/desk?session=7395b68a-c37a-4259-95e3-57580f3dcdc2",
+   "byte": 390150,
+   "cach": "giữ nguyên"
+  },
+  {
+   "tep": "06-host-lam-mu.png",
+   "mo_ta": "Màn người dẫn cùng phiên: chỉ thời gian, sản phẩm, giá, tồn kho",
+   "url": "http://127.0.0.1:3765/host?session=7395b68a-c37a-4259-95e3-57580f3dcdc2",
+   "byte": 256519,
+   "cach": "giữ nguyên"
+  },
+  {
+   "tep": "05b-desk-binh-luan-da-che.png",
+   "mo_ta": "Feed bình luận trên desk: câu có SĐT giả đã thành [SĐT]",
+   "url": "http://127.0.0.1:3765/desk?session=7395b68a-c37a-4259-95e3-57580f3dcdc2",
+   "byte": 378372,
+   "cach": "giữ nguyên"
+  },
+  {
+   "tep": "h7-b-desk-pii-da-che.png",
+   "mo_ta": "Hình 7b: feed bình luận desk (1366×768), dòng có dữ liệu cá nhân giả đã che",
+   "url": "http://127.0.0.1:3765/desk?session=7395b68a-c37a-4259-95e3-57580f3dcdc2",
+   "byte": 111129,
+   "cach": "giữ nguyên"
+  },
+  {
+   "tep": "h7-c-host-lam-mu.png",
+   "mo_ta": "Hình 7c: màn người dẫn cùng phiên (khung 1100×560)",
+   "url": "http://127.0.0.1:3765/host?session=7395b68a-c37a-4259-95e3-57580f3dcdc2",
+   "byte": 249750,
+   "cach": "giữ nguyên"
+  },
+  {
+   "tep": "10-bao-cao-chay-thu.png",
+   "mo_ta": "Báo cáo sau phiên chạy thử: nhãn CHẠY THỬ, THIẾU trung thực",
+   "url": "http://127.0.0.1:3765/bao-cao/7395b68a-c37a-4259-95e3-57580f3dcdc2",
+   "byte": 360262,
+   "byte_goc": 950022,
+   "cach": "bảng 256 màu",
+   "kich_thuoc": [
+    2732,
+    5846
+   ]
+  },
+  {
+   "tep": "07-ket-qua-mac-dinh-that-chua-du.png",
+   "mo_ta": "/ket-qua mặc định = dữ liệu thật: 0 phiên thật, CHƯA ĐỦ ĐIỀU KIỆN",
+   "url": "http://127.0.0.1:3765/ket-qua",
+   "byte": 167492,
+   "byte_goc": 480524,
+   "cach": "bảng 256 màu",
+   "kich_thuoc": [
+    2732,
+    2406
+   ]
+  },
+  {
+   "tep": "08-ket-qua-demo-vang-duong.png",
+   "mo_ta": "Kết quả một phiên Demo Vàng DƯƠNG (dữ liệu mẫu)",
+   "url": "http://127.0.0.1:3765/ket-qua?phien=c6d14be2-42b0-4d4f-b315-2b47555252b6",
+   "byte": 313968,
+   "cach": "giữ nguyên"
+  },
+  {
+   "tep": "08b-ket-qua-demo-vang-null.png",
+   "mo_ta": "Demo Vàng NULL: KTC chứa 0, hệ thống nói không rõ",
+   "url": "http://127.0.0.1:3765/ket-qua?phien=1422f024-1213-4fc2-aaea-b060df0091df",
+   "byte": 310482,
+   "cach": "giữ nguyên"
+  },
+  {
+   "tep": "08c-ket-qua-demo-vang-chua-du.png",
+   "mo_ta": "Demo Vàng CHƯA ĐỦ: 3 khối, không trả số",
+   "url": "http://127.0.0.1:3765/ket-qua?phien=9d7bb77b-3aa9-4b61-a8a2-0f469497faa5",
+   "byte": 280499,
+   "cach": "giữ nguyên"
+  },
+  {
+   "tep": "h7-d-ket-qua-demo-vang.png",
+   "mo_ta": "Hình 7d: kết quả phiên Demo Vàng DƯƠNG #1 (khung hẹp 640 px)",
+   "url": "http://127.0.0.1:3765/ket-qua?phien=c6d14be2-42b0-4d4f-b315-2b47555252b6",
+   "byte": 91890,
+   "cach": "giữ nguyên"
+  },
+  {
+   "tep": "09-replay.png",
+   "mo_ta": "Xem lại phiên Demo Vàng: tua, radar theo vị trí phát (DỮ LIỆU MẪU)",
+   "url": "http://127.0.0.1:3765/replay?session=c6d14be2-42b0-4d4f-b315-2b47555252b6",
+   "byte": 272716,
+   "cach": "giữ nguyên"
+  }
+ ],
+ "kiem": {
+  "phien_chay_thu": {
+   "session_id": "7395b68a-c37a-4259-95e3-57580f3dcdc2",
+   "status": "scheduled",
+   "dry_run": true,
+   "is_demo": false,
+   "platform": "youtube",
+   "planned_duration_min": 90,
+   "title": "Live 25/09 13:47 · YouTube · 90 phút"
+  },
+  "so_link_do": 4,
+  "bo_thu_da_ghi": 200,
+  "feed_1366x768": {
+   "buoc_dong_trung_vi": 36,
+   "client_height": 279,
+   "scroll_height": 7328,
+   "so_dong": 200,
+   "dong_thay_tron": 7,
+   "cao_dong_trung_vi": 32,
+   "chu_thay": [
+    "00:17 chốt 1 áo trắng size M Hỏi size",
+    "00:17 chốt đơn, sđt [SĐT] nha shopPII đã ẩn Chốt đơn",
+    "00:18 vải cotton 100% hả shop Khác",
+    "00:18 áo có bị co sau khi giặt không Khác",
+    "00:19 em 48kg cao 1m55 mặc size gì ạ Hỏi size",
+    "00:20 còn size L không shop Hỏi size",
+    "00:20 159k hơi mắc á Chê đắt"
+   ],
+   "cuon": {
+    "dong_dau": 22,
+    "so_dong_che_trong_khung": 2,
+    "vua_khung": 8
+   }
+  },
+  "pii_goc_tren_desk": [],
+  "nhan_che_tren_desk": [
+   "[EMAIL]",
+   "[SĐT]",
+   "[TÊN]",
+   "[ĐỊA CHỈ]"
+  ],
+  "pii_goc_trong_api": [],
+  "vi_du_da_che": [
+   "chốt đơn, sđt [SĐT] nha shop",
+   "ship về [ĐỊA CHỈ] mấy ngày shop",
+   "sđt [SĐT], lấy 1 áo đen nha",
+   "em lấy 1 váy vàng, gửi về [ĐỊA CHỈ], [ĐỊA CHỈ]",
+   "zalo em [SĐT] shop nhắn giúp nha",
+   "gọi em số [SĐT] để xác nhận nha",
+   "[ĐỊA CHỈ], [ĐỊA CHỈ]",
+   "chốt combo nha, sdt [SĐT]",
+   "email [EMAIL], gửi bảng giá sỉ giúp em",
+   "ship ra [TÊN] 2 ngày có nhận không"
+  ],
+  "so_binh_luan_api": 200,
+  "khoa_payload_host": [
+   "elapsed_s",
+   "pinned_product",
+   "price",
+   "stock"
+  ],
+  "host_co_chu_khoi": false,
+  "trang_thai_sau_ket_thuc": "ended",
+  "ket_qua_that": {
+   "n_sessions": 0,
+   "estimable": false
+  }
+ },
+ "loi_console": [],
+ "loi": [
+  "feed bình luận chỉ thấy trọn 7 dòng (clientHeight 279 px) — dưới 8"
+ ]
+}

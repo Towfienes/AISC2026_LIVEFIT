@@ -1876,9 +1876,6 @@ def ghi_readme_video(ra: Path, kq: dict, co_phu_de: bool) -> None:
         "",
         "## Khác kịch bản ở đâu (và vì sao)",
         "",
-        '- Bộ thu Mô phỏng ×10 bật **trên /desk, SAU khi bấm "Bắt đầu phát sóng"** — nguồn '
-        "Mô phỏng phát kịch bản ngay khi bật, bật ở bước 4 thì bình luận bị ghi trước giờ phát "
-        "(kiểm toán 25/09, mục 3.5). Kịch bản ghi bật ở bước 4.",
         "- Cảnh cổng chặn 409 dùng một **phiên nháp tạo sẵn qua `POST /sessions`** "
         f"(`{k.get('phien_nhap_409', '')[:8]}…`, chạy thử, chưa bốc lịch) trong Swagger `/docs`; "
         f"mã trả về đo được: {k.get('cong_chan_ma_http')}.",
@@ -1894,6 +1891,11 @@ def ghi_readme_video(ra: Path, kq: dict, co_phu_de: bool) -> None:
         "",
         f"- Bản build: HEAD `{kq['git']['head']}` (nhánh `{kq['git']['nhanh']}`), tệp chưa "
         f"commit: {', '.join(kq['git']['chua_commit']) or 'không'}.",
+        # Kịch bản 07 đã theo thứ tự này (cảnh "Vận hành (3)"); câu cũ "Kịch bản ghi bật ở
+        # bước 4" sai sau khi kịch bản được sửa 25/09 — ghi số đo thay vì nói hộ kịch bản.
+        f"- Bộ thu Mô phỏng ×10 bật ở giây {k.get('bo_thu_bat_luc_giay')}, trên /desk SAU khi "
+        'bấm "Bắt đầu phát sóng" — nguồn Mô phỏng phát ngay khi bật, bật ở bước 4 thì bình '
+        "luận bị ghi trước giờ phát (kiểm toán 25/09, mục 3.5).",
         f"- Feed bình luận trên /desk 1920×1080: `clientHeight` {feed.get('client_height')} px, "
         f"thấy trọn {feed.get('dong_thay_tron')} dòng.",
         f"- Chuỗi PII giả còn nguyên trên /desk: {len(k.get('pii_goc_tren_desk') or [])}.",

@@ -4,7 +4,8 @@
 
 > **Kết luận một dòng:** macro-F1 **0,870** đo trên bộ biên soạn **KHÔNG chuyển
 > giao** sang chat bán hàng thật. Trên 200 bình luận thật lấy ngẫu nhiên, cùng
-> mô hình đó đạt **macro-F1 0,271** và **accuracy 0,920 — THẤP HƠN** baseline
+> mô hình đó đạt **macro-F1 0,271** (không tái lập được — xem ghi chú nguồn nhãn
+> 25/09 ở phần phương pháp) và **accuracy 0,920 — THẤP HƠN** baseline
 > tầm thường "luôn đoán `khac`" (0,995). Trong 932 bình luận được gắn nhãn ý
 > định hành động, ước tính chỉ **~7%** là đúng.
 
@@ -123,7 +124,7 @@ không phải sửa gì.
 
 | Chỉ số | Bộ biên soạn (5-fold CV) | **Chat thật** |
 |---|---:|---:|
-| macro-F1 | 0,870 | **0,271** |
+| macro-F1 | 0,870 | **0,271** (không tái lập được) |
 | Accuracy | 0,866 | **0,920** |
 | Accuracy của baseline "luôn đoán `khac`" | — | **0,995** |
 
@@ -275,7 +276,8 @@ cho trung control + biến khám phá**, không nằm trong bất kỳ ước l�
 - Radar ý định trên giao diện hiện tại, với chat kiểu này, **gần như là nhiễu**.
   Trung control tin vào nó sẽ bị dẫn sai.
 - Con số **0,870** chỉ được nêu kèm đúng ngữ cảnh của nó ("trên bộ biên soạn,
-  cùng phân phối") và **luôn đi kèm 0,271 của chat thật**. Nêu một mình là
+  cùng phân phối") và **luôn đi kèm số chat thật chính thức 0,211** (0,271 của lần đo
+  này không tái lập được). Nêu một mình là
   overclaim.
 
 ## 8. Việc tiếp theo (theo thứ tự)

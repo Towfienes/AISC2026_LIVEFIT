@@ -4,7 +4,7 @@
 lại; không bước nào là dự định.*
 
 *Cập nhật 25/09/2026 sau kiểm toán thử thật: số liệu theo `docs/competition/FACT-SHEET.md`
-(bỏ 993, 0,271, 41 sự cố, "thực đo 5–15"); gieo phiên đang phát 90 phút; câu trả lời
+(bỏ 993, 0,271 — không tái lập được, 41 sự cố, "thực đo 5–15" — thật ra là ước tính CPM); gieo phiên đang phát 90 phút; câu trả lời
 TikTok theo đường API chính thức cho người bán. Các bước bấm chưa diễn tập lại sau lần
 cập nhật này — diễn tập một lần trước hôm thi.*
 
@@ -244,7 +244,7 @@ Không mở thêm màn hình nào. Nói thẳng:
 > đo của chính nhà bán. Đơn hàng nằm trong app của nền tảng, và ở quy mô dưới 50
 > người xem đồng thời thì cỡ mẫu cũng chưa đủ để nói gì về nó.
 >
-> Cả 60 sự cố trong sổ đều ghi nguyên nhân gốc và cổng kiểm thử chặn tái diễn.
+> Cả 99 sự cố trong sổ đều ghi nguyên nhân gốc và cổng kiểm thử chặn tái diễn.
 > Nhóm em tin một đội dám nói giới hạn của mình bằng số thì đáng tin hơn một đội
 > khẳng định mọi thứ đều tốt.
 
@@ -279,7 +279,8 @@ giải quyết được, vì cái thiếu không phải tiền mà là quyền c
 **"Đo lượt nhấp thì có ý nghĩa gì với nhà bán? Họ cần doanh thu."**
 Đúng, và nhóm em nói thẳng là chưa đo tới đó. Lý do là cỡ mẫu: ở quy mô không
 quá 50 người xem đồng thời, hiệu ứng nhỏ nhất mà thiết kế đủ sức phát hiện với
-biến đơn hàng vẫn khoảng 79%, còn với biến nhấp là 20,1%. Đo một thứ không đủ
+biến đơn hàng vẫn khoảng 79%, còn với biến nhấp, điểm mô phỏng gần nhất (khoảng 59
+người xem) là 16,4% — số tính từ mô phỏng, chưa phải đo thật. Đo một thứ không đủ
 sức phát hiện thì báo cáo sẽ luôn nói "không có tác động", bất kể sự thật.
 
 **"Sao chưa chạy phiên thật nào mà đã đi thi?"**

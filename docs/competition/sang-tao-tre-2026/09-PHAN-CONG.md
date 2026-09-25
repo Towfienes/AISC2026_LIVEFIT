@@ -50,7 +50,7 @@ Mỗi tệp có **một người được sửa** và **ít nhất một ngườ
 - **Sở hữu:** `src/livelift/ingest/` (gồm `pii/`), `src/livelift/nlp/` (mã; mô hình chỉ sinh lại trên máy Minh trước 30/09), `src/livelift/api/routes/replays.py`, `collectors/`, khối nền tảng trong `config.py` và mục `# --- Platform APIs` của `.env.example`, extras ml/nlp trong `pyproject.toml`, `scripts/{xuat_prompt_log, gan_lai_nhan_11, live_fire_da_nguon, kiem_tra_facebook, kiem_tra_shopee}.py`, test `test_ingest_*`, `test_pii_filter`, `test_intent_classifier`, `test_nlp_eval_harness`, `docs/benchmarks/{intent-classifier.md, intent-eval/, live-fire-*.md}`, `docs/nen-tang-ho-tro.md`, `03-NLP-NANG-CAP.md`.
 - **Chỉ đọc:** `api/` (trừ replays), `core/`, `analysis/`, `web/src/lib/types.ts`, tài liệu nộp (góp câu qua GitHub suggestion).
 - **Vùng tự do:** kiến trúc bộ xuất Prompt Log, thiết kế script κ và bootstrap; **sau 30/09 toàn quyền** thiết kế client YouTube Data API, bộ đồ nghề hackathon, backend trợ lý LLM.
-- **Tự bảo vệ trước hội đồng:** nguồn dữ liệu (yt-dlp, không phải API chính thức) và lộ trình sang YouTube Data API v3; cổng PII với handle có dấu; đánh giá NLP leave-one-session-out và vì sao 0,565 đo trên nhãn AI; κ người–người.
+- **Tự bảo vệ trước hội đồng:** nguồn dữ liệu (yt-dlp, không phải API chính thức) và lộ trình sang YouTube Data API v3; cổng PII với handle có dấu; đánh giá NLP leave-one-session-out và vì sao 0,542 (đo lại 25/09; bản 14/09 trước khi lọc lại PII là 0,565) đo trên nhãn AI; κ người–người.
 
 ### Ngô Lâm Tiến — tầng giao diện, kiểm thử đầu-cuối, minh chứng nhìn thấy được
 
@@ -71,10 +71,10 @@ Mỗi việc có **tiêu chí nghiệm thu kiểm được bằng lệnh**. Vi�
 | Mã | Việc | Hạn | Nghiệm thu chính |
 |---|---|---|---|
 | M-01 | Chặn mất log AI, liên hệ trường (hạn nội bộ, người giữ tài khoản nộp), thư BTC gộp câu hỏi, giấy xác nhận SV | 15–16/09 | `cleanupPeriodDays` = 365; bản sao log + manifest SHA-256 lên Drive riêng tư; ảnh thư đã gửi |
-| M-02 | Hoàn tất đính chính (đã làm một phần ở `af0f00e`) ở các tệp còn lại; gỡ yêu cầu 0,271 trong `test_so_cong_bo.py` | 17/09 | `git grep` các cụm "người gán / gán mù / tự viết / API chính chủ" chỉ còn trong đoạn đính chính |
+| M-02 | Hoàn tất đính chính (đã làm một phần ở `af0f00e`) ở các tệp còn lại; gỡ yêu cầu 0,271 (số không tái lập được) trong `test_so_cong_bo.py` | 17/09 | `git grep` các cụm "người gán / gán mù / tự viết / API chính chủ" chỉ còn trong đoạn đính chính |
 | M-03 | Quy trình GitHub: ruleset `main`, mời Khánh/Tiến, tag `moc-truoc-phan-cong`, nhãn, issue ghim, gỡ khoá Actions | 16/09 | Có ≥1 lần CI chạy có bước thật, hoặc ghi phương án B |
 | M-04 | Bài kiểm tra kỹ năng; sinh bảng gán mù (uid ngẫu nhiên, xáo trộn); quyết định public/private | 17–18/09 | Băm bảng + key được commit **trước** khi phát bảng |
-| M-05 | Lọc lại PII dữ liệu thật; huấn luyện và đo lại; công bố key; đo trên nhãn người | 17–22/09 | 0 handle có dấu trong `data/labeling`; `results.json` sinh lại, công bố cả khi lệch 0,565 |
+| M-05 | Lọc lại PII dữ liệu thật; huấn luyện và đo lại; công bố key; đo trên nhãn người | 17–22/09 | 0 handle có dấu trong `data/labeling`; `results.json` sinh lại, công bố cả khi lệch số 14/09 (0,565). Đã làm 25/09: 57 → 0 tên tài khoản, C2 = 0,542 [0,478; 0,625]; phần "đo trên nhãn người" còn chờ gán mù |
 | M-06 | `/health` thêm khoá quyền ghi và mô hình; token sai trả 401 | 19–21/09 | `pytest tests/test_health_su_that.py tests/test_bao_ve_ghi.py` xanh |
 | M-07 | Sửa lỗi hoà số p-value; `/demo/seed` mặc định 90 phút | 23/09 | Test tái hiện lỗi hoà số; A/A 1 phiên 60' không còn p < 0,05 giả |
 | M-08 | `noi-dung.md` khớp mã; khoá kết quả trên `/sessions/{id}/report` | 22/09 | Không còn câu nói mạnh hơn mã; PDF ≤ 20 trang |

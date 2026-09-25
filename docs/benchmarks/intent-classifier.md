@@ -110,7 +110,8 @@ tiếng Anh về `khac` tăng 62% → 81%. Test hồi quy:
 ### Live-fire chat BÁN HÀNG thật (08/09) — câu hỏi "bao nhiêu" đã có đáp án
 
 Câu "trên chat thật giảm bao nhiêu thì chỉ dữ liệu thật trả lời được" ở mục trên
-nay đã đo được: **macro-F1 0.870 → 0.271**, precision gộp của 5 lớp hành động
+nay đã đo được: **macro-F1 0.870 → 0.271** (số 08/09 **không tái lập được** — tệp nhãn
+không được lưu; số chính thức hiện là 0,211, xem khối 🆕 ở đầu trang), precision gộp của 5 lớp hành động
 **11.0%** (KTC95 6.8–17.4%), riêng `hoi_size` sai **100%** (0/16). Toàn bộ phương
 pháp, mẫu, ví dụ sai và kết luận: [live-fire-achan.md](live-fire-achan.md).
 
@@ -187,7 +188,8 @@ hai dòng); nó chỉ nhỉnh hơn về accuracy (+0,025) và precision nhãn h�
 ### Giới hạn phải nói khi trình bày
 
 - Con số 0.87 đo trên **cùng phân phối** với dữ liệu huấn luyện (biên soạn).
-  Trên chat thật **đã đo**: 0.271. Nêu 0.87 một mình là overclaim.
+  Trên chat thật: **0,211** (KTC95 0,172–0,247; 393 dòng, nhãn tham chiếu do tác tử AI
+  gán); số 0.271 ngày 08/09 không tái lập được. Nêu 0.87 một mình là overclaim.
 - Lớp `khac` (F1 0.78) là lớp mở nên luôn khó nhất; nhầm lẫn chủ yếu rơi vào
   `hoi_gia`/`khac`.
 - Radar ý định là **công cụ hiển thị + biến khám phá**, KHÔNG nằm trong ước

@@ -339,7 +339,7 @@ dòng ngẫu nhiên là ý định mua thật.
 
 | Chỉ số | Bộ biên soạn (5-fold CV) | Chat thật 08/09 (1 buổi) | **Chat thật 10/09 (3 buổi)** |
 |---|---:|---:|---:|
-| macro-F1 (6 lớp đã huấn luyện) | 0,870 | 0,271 | **0,386** |
+| macro-F1 (6 lớp đã huấn luyện) | 0,870 | 0,271 (không tái lập được) | **0,386** |
 | Accuracy | 0,866 | 0,920 | **0,785** |
 | Accuracy của baseline `return "khac"` | — | 0,995 | **0,905** |
 
@@ -348,7 +348,7 @@ F1 từng lớp: `khac` 0,873 · `hoi_gia` 0,667 · `van_chuyen` 0,500 ·
 
 **Model vẫn thua một dòng `return "khac"`** (0,785 so với 0,905), lặp lại kết
 luận 08/09 trên tập dữ liệu rộng gấp ba và đa dạng hơn hẳn. macro-F1 cao hơn
-0,271 chỉ vì tập gộp này có nhiều `chot_don` thật hơn (nhờ buổi `47oGShxf80A`),
+0,271 (số 08/09, không tái lập được) chỉ vì tập gộp này có nhiều `chot_don` thật hơn (nhờ buổi `47oGShxf80A`),
 không phải vì model tốt lên.
 
 ### 4.5 Bộ 6 lớp bỏ sót cái gì — đo lại trên nguồn khác

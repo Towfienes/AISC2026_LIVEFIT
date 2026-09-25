@@ -64,7 +64,11 @@ Mọi con số khớp `docs/competition/FACT-SHEET.md`.*
 - Hiện có **0 phiên thí nghiệm ngẫu nhiên thật** — chưa có con số lift thật nào.
 - Theo **ước tính trên giấy (chưa đo)**, 300.000đ quảng cáo chỉ kéo được khoảng 5–15 người
   xem đồng thời (tính từ CPM ngày 24/08, `docs/research/2026-08-24-phan-bien-tai-lieu.md`
-  mục R1); MDE 20,1% của nhóm là đo trong mô phỏng 45–62 người xem. Nên xác suất các phiên
+  mục R1). Điểm MDE mô phỏng gần nhất của nhóm là 16,4% ở khoảng 59 người xem đồng thời
+  (8 phiên mô phỏng, Hình 4 hồ sơ); ở 5–15 người xem và 18 phiên, riêng sàn Poisson đã là
+  21–37% (tỷ lệ nhấp 1,00) hoặc 39–67% (tỷ lệ nhấp 0,30) — cận dưới, nguồn
+  `docs/competition/sang-tao-tre-2026/hinh/du-lieu/tom-tat.json`. Con số 20,1% của phép quét
+  30/08 chưa đo lại, không trích. Nên xác suất các phiên
   đầu cho khoảng tin cậy rộng là **cao — và nhóm nói điều đó trước**.
 - Định vị đúng: **nhóm không bán một con số đẹp; nhóm bán hạ tầng đo lường tự chứng minh
   được.** Kết quả "chưa kết luận được" + MDE trung thực + đường tăng lực đã tính sẵn (nhiều

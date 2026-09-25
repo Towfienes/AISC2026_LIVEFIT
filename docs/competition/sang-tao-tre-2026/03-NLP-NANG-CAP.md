@@ -71,7 +71,7 @@ những gì tài liệu cũ mô tả, và chỗ không khớp được ghi ra đ
 | *"200 bình luận chat thật gán nhãn tay"* (nguồn của con số 0,271) | Tồn tại như **quy trình** (`random.Random(20260908).sample(comments, 200)` + nhãn khai là "gán tay" — **chưa kiểm chứng được** ai gán, vì tệp nhãn không được lưu; đính chính 15/09 đã xác định hai bộ dữ liệu khác từng khai "người gán"/"tự viết" thực ra do Claude tạo), nhưng **file nhãn của 200 dòng ấy không được lưu**. Chỉ lô 2 (393 dòng, 10/09) còn đủ ba file ghép được | **Con số 0,271 không tái lập được từng dòng.** Vì vậy tài liệu này **đo lại từ đầu** trên lô 2 và công bố **0,211** làm số "TRƯỚC" chính thức |
 
 > Điểm cuối cùng là điểm quan trọng nhất và nó bất lợi cho đội: **0,271 là một con số
-> không còn kiểm chứng được đến từng dòng**. Đội không xoá nó khỏi tài liệu (nó phản ánh
+> không tái lập được — không còn kiểm chứng được đến từng dòng**. Đội không xoá nó khỏi tài liệu (nó phản ánh
 > đúng một phép đo đã làm), nhưng từ nay mọi bảng dùng **0,211 ± KTC** — con số chạy lại
 > được bằng lệnh trên dữ liệu còn nguyên vẹn.
 
@@ -86,7 +86,7 @@ những gì tài liệu cũ mô tả, và chỗ không khớp được ghi ra đ
 | `bao_gia_shop` | 32 | 8,1% | | `hoi_size` | 3 | 0,8% |
 | | | | | **`hoi_daily`** | **0** | **0,0%** |
 
-**Đọc bảng này là đã thấy nguyên nhân của 0,271:** hai lớp xã giao (`chao_hoi` +
+**Đọc bảng này là đã thấy nguyên nhân của 0,271 (số 08/09, không tái lập được):** hai lớp xã giao (`chao_hoi` +
 `cam_on_khen`) chiếm **32,6%** chat thật và **không hề có trong bộ 6 lớp cũ**; `bao_gia_shop`
 (shop tự dán bảng giá) chiếm thêm **8,1%**. Tức **hơn 40% chat thật** rơi vào những lớp mà
 mô hình cũ *không có chỗ để đặt*, nên nó ép chúng vào 6 lớp ý định mua.
@@ -138,7 +138,7 @@ so với con người. Bảng gán mù cho hai người đã chuẩn bị 25/09
 
 **(d) macro-F1 lấy trung bình trên HỢP của nhãn tham chiếu và nhãn dự đoán.**
 Đây là mặc định của `sklearn.f1_score(average="macro")` và là đúng quy ước đã sinh ra con
-số 0,271: lớp mà mô hình **bịa ra** nhưng không tồn tại trong nhãn tham chiếu vẫn nhận F1 = 0
+số 0,271 (không tái lập được): lớp mà mô hình **bịa ra** nhưng không tồn tại trong nhãn tham chiếu vẫn nhận F1 = 0
 và được tính vào trung bình. Bịa lớp phải bị phạt. Cột `macro-F1 (chỉ lớp có trong nhãn tham chiếu)` in
 kèm để thấy khoảng cách giữa hai quy ước. Test `test_macro_f1_matches_sklearn_default_convention`
 khoá công thức này lại.
@@ -193,7 +193,8 @@ một mô hình phân loại ý định — đó là một mô hình đoán rằ
 
 **Đọc bảng:**
 
-1. **"0,271 ± bao nhiêu?"** — câu hỏi giám khảo chắc chắn hỏi — nay có đáp án:
+1. **"0,271 ± bao nhiêu?"** — câu hỏi giám khảo chắc chắn hỏi. 0,271 không tái lập được,
+   nên đáp án là con số chạy lại được:
    trên tập test còn kiểm chứng được, mô hình đang chạy đạt **0,211, KTC95 [0,172; 0,247]**.
    Trên riêng tầng ngẫu nhiên 200 dòng: **0,208, KTC95 [0,095; 0,286]** — khoảng rộng gấp
    đôi, đúng như cỡ mẫu 200 cho phép nói.

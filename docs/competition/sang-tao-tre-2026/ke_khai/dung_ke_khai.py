@@ -374,6 +374,37 @@ def kiem_md(khoi: list[Khoi]) -> list[str]:
     return loi
 
 
+HO_SO = DAY.parent / "noi-dung.md"
+_MA_COMMIT_MUC_13 = re.compile(r"nhánh `main` tại commit `([0-9a-f]{7,40})`")
+# Câu tả kho TRƯỚC khi hợp nhất nhánh hoàn thiện hồ sơ vào `main` (kiểm độc lập 25/09/2026).
+_CAU_TRUOC_HOP_NHAT: tuple[tuple[str, str], ...] = (
+    (r"`main` tại commit `390027b`", "trạng thái mã nguồn còn ghi main = 390027b"),
+    (r"\b56/56\b", "còn ghi 56/56 commit trên main (I.1, VII.1)"),
+    (r"0 trên `main`", "I.2 còn ghi Opus 5.5 có 0 commit trên main"),
+    (r"Chờ trưởng nhóm hợp nhất", "II còn ghi chờ hợp nhất"),
+    (r"Trên nhánh hoàn thiện hồ sơ", "II còn tả thay đổi là của nhánh chưa hợp nhất"),
+    (r"nhánh hoàn thiện hồ sơ[^|\n]{0,40}chưa hợp nhất", "còn ghi nhánh hoàn thiện chưa hợp nhất"),
+    (r"Commit trên `main` \| 56 commit", "VII.1 còn ghi 56 commit trên main"),
+)
+
+
+def lech_trang_thai_kho(ho_so: str, ke_khai: str) -> list[str]:
+    """Hồ sơ mục 13 đã ghi mã commit `main` (tức đã hợp nhất và đẩy lên) thì bản kê khai không
+    được còn tả kho như trước khi hợp nhất, và phải ghi đúng mã commit đó. Mục 13 còn ô ⬜ thì
+    không kiểm (trả rỗng). Trả danh sách lỗi, rỗng là khớp."""
+    m = _MA_COMMIT_MUC_13.search(ho_so)
+    if not m:
+        return []
+    loi = [
+        f"hồ sơ mục 13 trỏ main {m.group(1)} nhưng bản kê khai {ly_do} ({len(thay)} chỗ)"
+        for mau, ly_do in _CAU_TRUOC_HOP_NHAT
+        if (thay := re.findall(mau, ke_khai))
+    ]
+    if m.group(1)[:7] not in ke_khai:
+        loi.append(f"bản kê khai không ghi mã commit main {m.group(1)[:7]} của hồ sơ mục 13")
+    return loi
+
+
 def kiem_docx(tep: Path) -> list[str]:
     from docx import Document
     from docx.oxml.ns import qn
@@ -431,8 +462,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--chi-kiem", action="store_true", help="chỉ kiểm tệp .md, không dựng")
     a = ap.parse_args(argv)
 
-    khoi = phan_tich(a.nguon.read_text(encoding="utf-8"))
+    nguon = a.nguon.read_text(encoding="utf-8")
+    khoi = phan_tich(nguon)
     loi = kiem_md(khoi)
+    if HO_SO.exists():
+        loi += lech_trang_thai_kho(HO_SO.read_text(encoding="utf-8"), nguon)
     if loi:
         print("CHƯA DỰNG — nguồn còn lỗi:")
         for x in loi:

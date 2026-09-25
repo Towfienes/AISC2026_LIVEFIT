@@ -563,7 +563,7 @@ def ve_h1(plt) -> dict:
             linespacing=1.15,
         )
 
-    # mốc lên sóng + kết thúc (hàng T2) và mốc khoá lịch (hàng T1)
+    # mốc lên sóng + kết thúc (hàng T2) và mốc khóa lịch (hàng T1)
     y_t2, y_t1 = 3.0, 3.52
     for xm in (0, PHIEN_PHUT):
         ax.plot([xm, xm], [y0 - 0.03, y_t2 - 0.02], color=MUC, lw=1.1, zorder=7)
@@ -591,7 +591,7 @@ def ve_h1(plt) -> dict:
     ax.text(
         xk + 0.8,
         y_t1,
-        f"Khoá lịch TRƯỚC giờ phát — POST /schedule lưu lịch + design_hash {ma_bam[:16]}…",
+        f"Khóa lịch TRƯỚC giờ phát — POST /schedule lưu lịch + design_hash {ma_bam[:16]}…",
         fontsize=8,
         ha="left",
         va="center",
@@ -661,7 +661,7 @@ def ve_h1(plt) -> dict:
         Patch(facecolor=XAM_TAT, edgecolor="none", label="TẮT — khối đối chứng"),
         Patch(facecolor=MUC, alpha=0.6, edgecolor="none", label=f"burn-in {BURN_IN_S} s"),
         plt.Line2D(
-            [], [], ls="none", marker="D", ms=5, color=DO_CONG, mec="white", label="khoá lịch"
+            [], [], ls="none", marker="D", ms=5, color=DO_CONG, mec="white", label="khóa lịch"
         ),
     ]
     fig.legend(
@@ -784,22 +784,22 @@ def html_h2() -> str:
    <div class="cot">
     <div class="hop" id="thu"><b>Bộ thu</b>chạy nền trong API hoặc CLI; nạp lại VOD</div>
     <div class="hop cong" id="cong1"><span class="the">CỔNG 1 · LỌC PII</span><br>
-      che {len(ten_pii)} loại PII ({", ".join(ten_pii[:3])}…) TRƯỚC khi ghi đĩa/log;
-      API lọc lại lần 2</div>
+      che {len(ten_pii)} loại PII ({", ".join(ten_pii[:2])}…) TRƯỚC khi ghi kho/log
+      (yt-dlp: tệp tạm, mục 3.2); API lọc lại lần 2</div>
     <div class="hop" id="nlp"><b>Phân loại ý định</b>sau lọc PII; v1 mặc định, v2 chỉ bật bằng
       {INTENT_MODEL_ENV.replace("_", "_<wbr>")}=v2</div>
    </div>
    <div class="cot">
     <div class="hop kho" id="kho"><b>Kho dữ liệu</b>PostgreSQL (chạy thử: bộ nhớ)
       <div style="margin-top:0.1cm">• bình luận đã lọc + nhãn ý định</div>
-      <div style="margin-top:0.06cm">• lượt nhấp: gắn cờ, không xoá</div>
+      <div style="margin-top:0.06cm">• lượt nhấp: gắn cờ, không xóa</div>
       <div style="margin-top:0.06cm">• bảng gán chỉ ghi thêm, kèm <i>design_hash</i></div></div>
    </div>
    <div class="cot">
     <div class="hop" id="khung"><b>Gắn khối + burn-in</b>
       theo lịch đã khóa; bỏ {BURN_IN_S} s đầu mỗi khối</div>
     <div class="hop" id="ri"><b>Suy luận nhân quả</b>
-      kiểm định ngẫu nhiên hoá, bốc lại bằng CHÍNH hàm gán; KTC Fisher</div>
+      kiểm định ngẫu nhiên hóa, bốc lại bằng CHÍNH hàm gán; KTC Fisher</div>
     <div class="ghi-chu">Nhãn ý định chỉ để mô tả (bàn trợ live, phân bố trong
       /bao-cao), không vào phân tích nhân quả.</div>
    </div>
@@ -2110,7 +2110,7 @@ def ghi_nguon(tom_tat: dict) -> None:
             f"BẬT/{h['n_tat']} TẮT, khối đầu "
             f"{so(h['khoi_dau_phut'], 1)} phút và khối cuối {so(h['khoi_cuoi_phut'], 1)} phút "
             "(nhân đôi), "
-            f"burn-in {h['burn_in_s']} s đầu mỗi khối, mốc khoá lịch + `design_hash` "
+            f"burn-in {h['burn_in_s']} s đầu mỗi khối, mốc khóa lịch + `design_hash` "
             f"`{h['design_hash'][:12]}…` trước giờ phát, mốc lên sóng (409 nếu chưa có lịch) và "
             "kết thúc | "
             f"`generate_schedule({PHIEN_PHUT}, DesignParams(), seed={h['seed']})`, `design_hash`, "
@@ -2247,9 +2247,9 @@ def ghi_nguon(tom_tat: dict) -> None:
         "định); vùng 5–15 người xem là ước tính từ chi phí quảng cáo (CPM), **chưa đo**.",
         "- Hình 2: nguồn VOD là dữ liệu quan sát lấy bằng yt-dlp, **không** qua API chính thức; "
         "các bộ nối API "
-        "chính thức đã viết nhưng chưa chạy với khoá thật. `RESULTS_FREEZE_UNTIL` hiện để trống "
+        "chính thức đã viết nhưng chưa chạy với khóa thật. `RESULTS_FREEZE_UNTIL` hiện để trống "
         "(tắt) trong "
-        "`.env.example`; khi đặt, `/ket-qua` và `/bao-cao` bị khoá nhưng "
+        "`.env.example`; khi đặt, `/ket-qua` và `/bao-cao` bị khóa nhưng "
         "`GET /sessions/{id}/report` vẫn trả chênh lệch trung bình (đường lọt đã biết, kiểm "
         "toán 25/09) — hộp CỔNG 3 ghi rõ; vá xong thì sửa `html_h2()` và chạy lại `--chi h2`.",
         *_luu_y_h6(tom_tat.get("h6")),

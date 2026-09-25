@@ -2,7 +2,7 @@
 
 Sự cố 25/09/2026 (P0). ``intent_clf_v2.joblib`` đóng gói 14/09 trên dữ liệu CHƯA
 lọc lại tên tài khoản, nên từ vựng TF-IDF của nó chứa 1 token sinh từ tên tài
-khoản của một người bình luận (sha256[:12] = ``66bb97b5d495``) cùng các mảnh
+khoản của một người bình luận (băm ghi ngoài kho, xem ``TEP_BAM_MAC_DINH``) cùng các mảnh
 ``char_wb`` chứa ``@``. Pickle giữ nguyên văn từng chuỗi của từ vựng: artifact
 commit vào git là một bản sao dữ liệu người dùng, dù dữ liệu gốc đã lọc sạch.
 Không cổng nào bắt được, vì mọi cổng PII chỉ quét tệp văn bản.
@@ -41,8 +41,11 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import os
 import re
+import subprocess
 from collections.abc import Iterable, Iterator
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -58,8 +61,63 @@ AT_WORD_RE = re.compile(r"@\w")
 """Mẫu ``@`` + ký tự chữ: dấu vết của handle (``@ten_tai_khoan``) trong bất kỳ
 mảnh n-gram nào, kể cả mảnh quá ngắn để ``SOCIAL_HANDLE_RE`` (≥ 3 ký tự) khớp."""
 
-KNOWN_LEAKED_SHA12: frozenset[str] = frozenset({"66bb97b5d495"})
-"""Băm sha256[:12] của token đã lộ (sự cố 25/09/2026). Chỉ lưu băm."""
+GOC = Path(__file__).resolve().parents[1]
+BIEN_TEP_BAM = "LIVELIFT_DINH_DANH_BAM"
+TEP_BAM_MAC_DINH = GOC.parent / "dinh-danh-da-biet.sha256"
+"""Tệp băm SHA-256 tên tài khoản thật đã biết (``xuat_prompt_log.py --lap-doi-chieu``), lưu
+NGOÀI kho: đặt đường dẫn qua ``LIVELIFT_DINH_DANH_BAM``; không đặt thì thử tệp cạnh thư mục
+kho (``D:/AISC2026/dinh-danh-da-biet.sha256`` trên máy đội trưởng); không có thì lớp 2 và
+phép quét tiền tố bên dưới không chạy — ba lớp còn lại vẫn chạy."""
+TIEN_TO_TOI_THIEU = 10
+"""Tiền tố ≥ 10 ký tự hex (40 bit) của một băm đã biết cũng là định danh: đủ để xác nhận một
+tên đoán thử. Cùng ngưỡng với ``TIEN_TO_BAM_TOI_THIEU`` của ``scripts/xuat_prompt_log.py``."""
+
+
+def _doc_bam_dinh_danh() -> frozenset[str]:
+    duong = os.environ.get(BIEN_TEP_BAM)
+    if not duong:
+        if not TEP_BAM_MAC_DINH.exists():
+            return frozenset()
+        duong = str(TEP_BAM_MAC_DINH)
+    tap = set()
+    for dong in Path(duong).read_text(encoding="utf-8").splitlines():
+        dong = dong.strip()
+        if dong and not dong.startswith("#"):
+            bam = dong.split()[0].lower()
+            assert re.fullmatch(r"[0-9a-f]{64}", bam), f"{BIEN_TEP_BAM}: dòng không phải SHA-256"
+            tap.add(bam)
+    assert tap, f"{duong}: tập băm rỗng"
+    return frozenset(tap)
+
+
+BAM_DINH_DANH: frozenset[str] = _doc_bam_dinh_danh()
+
+KNOWN_LEAKED_SHA12: frozenset[str] = frozenset(b[:12] for b in BAM_DINH_DANH)
+"""sha256[:12] của các tên tài khoản thật đã biết — gồm token đã lộ của sự cố 25/09/2026 —
+đọc từ tệp băm ngoài kho (rỗng khi không có tệp). Không ghi băm nào vào kho."""
+
+
+def tien_to_bam_trong_kho(tap: frozenset[str]) -> list[str]:
+    """``tệp:dòng`` của mỗi đoạn hex trong tệp văn bản ĐÃ THEO DÕI của kho chứa tiền tố
+    (≥ ``TIEN_TO_TOI_THIEU`` ký tự) của một băm trong ``tap``. Không trả chính đoạn hex."""
+    tien_to = {b[:TIEN_TO_TOI_THIEU] for b in tap}
+    tep = subprocess.run(
+        ["git", "ls-files", "-z"], cwd=GOC, capture_output=True, check=True
+    ).stdout.decode("utf-8")
+    kq = []
+    n = TIEN_TO_TOI_THIEU
+    for ten in filter(None, tep.split("\0")):
+        p = GOC / ten
+        if p.suffix.lower() in {".png", ".joblib", ".ico", ".jpg", ".pdf"} or not p.is_file():
+            continue
+        for so, dong in enumerate(p.read_text(encoding="utf-8", errors="ignore").splitlines(), 1):
+            for m in re.finditer(rf"[0-9a-fA-F]{{{n},}}", dong):
+                s = m.group(0).lower()
+                if any(s[i : i + n] in tien_to for i in range(len(s) - n + 1)):
+                    kq.append(f"{ten}:{so}")
+                    break
+    return kq
+
 
 HANDLE_SPAN_RE = re.compile(r"@\w[\w.\-]*")
 """Đoạn ``@tên`` bất kể chữ đứng trước — rộng hơn ``SOCIAL_HANDLE_RE`` của sản phẩm,
@@ -369,6 +427,17 @@ def test_doi_chung_am_bam_da_lo_bi_bat_ma_khong_can_luu_chu():
     known = KNOWN_LEAKED_SHA12 | {sha12(gia)}
     assert ly_do_vi_pham(gia, known) == "băm-đã-lộ"
     assert quet(["chào shop", gia], known) == [(sha12(gia), "băm-đã-lộ")]
+    # Kiểm độc lập 25/09/2026 (wf6-5): chính hằng số băm đã lộ từng nằm trong kho (test này và
+    # sổ sự cố) — 12 ký tự đầu của SHA-256 KHÔNG muối của một tên tài khoản thật, băm ngược
+    # được bằng cách đoán tên từ bản phát lại công khai; trái hồ sơ 3.2 "kể cả dạng băm". Băm
+    # nay chỉ nằm trong tệp ngoài kho; không tệp nào của kho được mang tiền tố của chúng.
+    # Đối chứng dương: một băm SHA-256 ghi sẵn trong kho (không phải định danh) phải bị thấy.
+    mau = "docs/benchmarks/intent-eval/gan-mu/khoa-gan-mu.csv.sha256"
+    bam_mau = (GOC / mau).read_text(encoding="utf-8").split()[0].lower()
+    assert f"{mau}:1" in tien_to_bam_trong_kho(frozenset({bam_mau}))
+    if BAM_DINH_DANH:
+        cho = tien_to_bam_trong_kho(BAM_DINH_DANH)
+        assert cho == [], f"tiền tố băm tên tài khoản thật còn trong kho (tệp:dòng): {cho}"
 
 
 def test_placeholder_cua_bo_chuan_hoa_khong_bi_coi_la_pii():

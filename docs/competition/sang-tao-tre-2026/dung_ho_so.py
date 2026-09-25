@@ -90,7 +90,8 @@ RONG_CHU_CM = 16.0  # A4 11907 twip − lề trái 1701 − lề phải 1134 = 9
 
 TAC_GIA = "Đội LiveLift"
 TIEU_DE_TEP = (
-    "LiveLift — Hồ sơ dự án Bảng C, Cuộc thi Sáng tạo trẻ Quốc gia về Trí tuệ nhân tạo 2026"
+    "LiveLift — Hồ sơ dự án Bảng C, Cuộc thi Sáng tạo trẻ Quốc gia trong lĩnh vực "
+    "Trí tuệ nhân tạo năm 2026"
 )
 
 # MẪU 3 hỏi "Lớp hành chính, ngành, khoa, trường" — KHÔNG hỏi MSSV. Bản PDF còn

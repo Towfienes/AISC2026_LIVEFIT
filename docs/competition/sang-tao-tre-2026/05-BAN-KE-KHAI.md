@@ -5,7 +5,7 @@
 | Hạng mục | Nội dung |
 |---|---|
 | Cuộc thi | Cuộc thi Sáng tạo trẻ Quốc gia trong lĩnh vực Trí tuệ nhân tạo năm 2026 — Bảng C, đường trường cử |
-| Sản phẩm | LiveLift — nền tảng thí nghiệm vận hành cho livestream bán hàng |
+| Sản phẩm | LiveLift — hạ tầng đo lường nhân quả cho phiên livestream bán hàng |
 | Đội thi | Ngô Bình Minh (đội trưởng) · Lê Xuân Khánh · Ngô Lâm Tiến — Khoa Công nghệ thông tin, Trường Đại học Tôn Đức Thắng |
 | Kho mã nguồn (công khai) | https://github.com/bminhnemhoi/AISC2026_LIVEFIT |
 | Trạng thái mã nguồn khi kê khai | Nhánh `main` tại commit `390027b` (56 commit, 24/08 → 18/09/2026). Nhánh hoàn thiện hồ sơ `hoan-thien/ho-so-2509` (các commit từ ngày 25/09/2026, liệt kê bằng `git log main..hoan-thien/ho-so-2509` và trong `02-Minh-chung-tien-trinh/tien-trinh.md` của gói Drive) và nhánh `tien/aisc-round2` (PR số 1, 2 commit ngày 21/09/2026) đang chờ trưởng nhóm duyệt, chưa hợp nhất |
@@ -16,7 +16,7 @@ Các con số đếm bằng máy có lệnh tái lập ở Phụ lục; con số
 
 ## Căn cứ
 
-- **Điều 5 Thể lệ Cuộc thi** (ban hành kèm Kế hoạch số 01-KH/TWĐTN-KHCN ngày 03/7/2026): được dùng LLM, thư viện mở, mô hình huấn luyện sẵn, dữ liệu công khai và API nếu kê khai trung thực, nêu rõ phần đội tự xây dựng, phần do AI tạo ra và phần kế thừa nguồn mở; nghiêm cấm che giấu nguồn mã, dữ liệu, API và giả mạo Prompt Log, lịch sử commit, dữ liệu thử nghiệm, video demo.
+- **Điều 5 Thể lệ Cuộc thi** (ban hành kèm Kế hoạch số 01-KH/TWĐTN-KHCN ngày 03/7/2026 — số ghi ở tiêu đề Thể lệ; bìa Kế hoạch để trống): được dùng LLM, thư viện mở, mô hình huấn luyện sẵn, dữ liệu công khai và API nếu kê khai trung thực, nêu rõ phần đội tự xây dựng, phần do AI tạo ra và phần kế thừa nguồn mở; nghiêm cấm che giấu nguồn mã, dữ liệu, API và giả mạo Prompt Log, lịch sử commit, dữ liệu thử nghiệm, video demo.
 - **Luật Bảo vệ dữ liệu cá nhân số 91/2025/QH15** (hiệu lực 01/01/2026) và **Nghị định 356/2025/NĐ-CP** ngày 31/12/2025 quy định chi tiết Luật (thay thế Nghị định 13/2023/NĐ-CP).
 - **Luật Trí tuệ nhân tạo số 134/2025/QH15** (thông qua 10/12/2025, hiệu lực 01/3/2026) và Nghị định 142/2026/NĐ-CP hướng dẫn thi hành (theo tra cứu ngày 25/09/2026; đội chưa có ý kiến của người có chuyên môn pháp lý).
 
@@ -130,11 +130,11 @@ Những điều đội **không** tuyên bố:
 | Facebook Graph API v25.0 | Đọc bình luận live trên Page của chính nhà bán | Mã có (`src/livelift/ingest/facebook.py`). Chưa có token; 0 cuộc gọi thật |
 | Shopee Open Platform v2 (API loại User, sửa 17/09/2026) | Bình luận và số liệu phiên Shopee Live | Mã có (`src/livelift/ingest/shopee.py`). Chưa có mã đối tác; ngày 11/09 chỉ kiểm endpoint tồn tại qua mã lỗi; 0 cuộc gọi thành công |
 | TikTok Shop Open API | Số liệu LIVE theo phút, chỉ có sau phiên | Mã có (`src/livelift/ingest/tiktok_shop.py`, `scripts/kiem_tra_tiktok_shop.py`). Chưa có khóa; 0 cuộc gọi thật |
-| YouTube qua yt-dlp (không chính thức) | Tải chat replay VOD; thử đọc live | Nguồn của 100% dữ liệu thật (mục III, dòng 1); đường live thử 1 phiên 104 bình luận ngày 09/09. Đường chạy mặc định của sản phẩm là API chính thức |
+| YouTube qua yt-dlp (không chính thức) | Tải chat replay VOD; thử đọc live | Nguồn của 100% dữ liệu thật (mục III, dòng 1); đường live thử 1 phiên ngày 09/09: 104 bình luận chỉ đi qua bộ nhận giả trong bộ nhớ, không ghi vào kho (`docs/research/2026-09-09-youtube-ytdlp-live.md`); tìm trên máy ngày 25/09 không còn tệp chat thô của buổi đó. Đường chạy mặc định của sản phẩm là API chính thức |
 | TikTok Webcast qua `TikTokLive` (không chính thức) | Thử đọc phòng live công khai | Thất bại 10/10 lần; không được cài trong môi trường chạy |
 | API mô hình ngôn ngữ | — | Không có trong mã sản phẩm |
 
-Khóa và token chỉ đọc từ biến môi trường; `.env` bị `.gitignore`. Tại ngày kê khai, `.env` của đội không có khóa nền tảng nào: các trường YouTube, Facebook để trống; chưa có trường Shopee, TikTok Shop. Quét 79 commit trên mọi nhánh tối 25/09/2026: 0 khóa thật bị commit (chỉ có 2 chuỗi giả dùng trong test).
+Khóa và token chỉ đọc từ biến môi trường; `.env` bị `.gitignore`. Tại ngày kê khai, `.env` của đội không có khóa nền tảng nào: các trường YouTube, Facebook để trống; chưa có trường Shopee, TikTok Shop. Quét 84 commit trên mọi nhánh tối 25/09/2026: 0 khóa thật bị commit (chỉ có 2 chuỗi giả dùng trong test).
 
 ## V. Thư viện và mã nguồn mở
 
@@ -254,7 +254,7 @@ Các nguồn tài liệu trên do Claude tìm và đọc trong quá trình phát
 
 <!-- DUYỆT: câu lưu/xoá dưới đây theo PHƯƠNG ÁN A của hồ sơ mục 3.3; chọn B thì sửa theo scratchpad wf3/phuong-an-3-3.md. -->
 - Đội **không** tuyên bố đã có sự đồng ý của người bình luận trong 19.126 bình luận và **không** viện dẫn căn cứ xử lý dữ liệu không cần sự đồng ý. Dữ liệu này chỉ dùng offline để đánh giá mô hình, đã lọc định danh tại điểm nạp (không lưu tên hay mã kênh người bình luận), không phát hành lại, không nằm trong kho mã. Bản đầy đủ không được lưu thành tệp; phần còn giữ (6.586 bình luận của 1 buổi, 393 bình luận của 3 buổi, đã lọc định danh) chưa được coi là đã khử nhận dạng theo Luật 91/2025/QH15 Điều 2 khoản 11, vì câu nguyên văn vẫn tra ngược được người viết, nên được bảo vệ như dữ liệu cá nhân và bị xóa khi có tập thay thế qua API chính thức, chậm nhất 22/11/2026, hoặc ngay khi Ban Tổ chức hay cơ quan có thẩm quyền yêu cầu. Các bản còn định danh (bản sao lưu trước khi lọc lại, bình luận còn tên tài khoản trong bản lưu nhật ký gốc của công cụ AI) được xóa hoặc che trước ngày nộp; Prompt Log đã được xuất lại ngày 25/09 sau khi bộ lọc bắt được tên tài khoản dính liền (mục I.3) — chi tiết ở hồ sơ dự án, mục 3.3.
-- Kiểm tra ngày 14/09/2026 từng phát hiện handle mạng xã hội còn sót trong dữ liệu gán nhãn cục bộ do bộ lọc cũ chỉ nhận ký tự ASCII. Bộ lọc đã sửa ngày 15/09; ngày 25/09 quét lại còn 57 handle và đã lọc lại tại chỗ bằng đúng hàm của sản phẩm, quét lại ra 0 (`data/labeling/README.md`). Tệp mô hình v2 đóng gói 14/09 mang trong từ vựng một từ sinh từ tên tài khoản của một người bình luận; đã đóng gói lại ngày 25/09 trên dữ liệu đã lọc, thêm cổng `tests/test_artifact_khong_pii.py`; bản cũ vẫn còn trong lịch sử git của kho công khai. Tên tài khoản viết dính liền (`chữ@tên`, `@@tên`) từng lọt bộ lọc; ngày 25/09 đã vá (commit `b331076`), lọc thêm 16 dòng (8 tên, trong đó 4 dòng dữ liệu huấn luyện), đóng gói lại v2; macro-F1 của C2 không đổi.
+- Kiểm tra ngày 14/09/2026 từng phát hiện handle mạng xã hội còn sót trong dữ liệu gán nhãn cục bộ do bộ lọc cũ chỉ nhận ký tự ASCII. Bộ lọc đã sửa ngày 15/09; ngày 25/09 quét lại còn 57 lượt tên tài khoản và đã lọc lại tại chỗ bằng đúng hàm của sản phẩm, quét lại ra 0 (`data/labeling/README.md`). Tệp mô hình v2 đóng gói 14/09 mang trong từ vựng một từ sinh từ tên tài khoản của một người bình luận; đã đóng gói lại ngày 25/09 trên dữ liệu đã lọc, thêm cổng `tests/test_artifact_khong_pii.py`; bản cũ vẫn còn trong lịch sử git của kho công khai. Tên tài khoản viết dính liền (`chữ@tên`, `@@tên`) từng lọt bộ lọc; ngày 25/09 đã vá (commit `b331076`), lọc thêm 16 dòng (8 tên, trong đó 4 dòng dữ liệu huấn luyện), đóng gói lại v2; macro-F1 của C2 không đổi.
 - Khi gán nhãn và rà dữ liệu (09–15/09/2026), bình luận được đưa vào Claude (Anthropic, dịch vụ đặt ngoài Việt Nam) khi bộ lọc chưa bắt được tên tài khoản có dấu: đó là xử lý dữ liệu cá nhân thu tại Việt Nam trên nền tảng ở nước ngoài (Luật 91/2025/QH15 Điều 20 khoản 1 điểm c); đội chưa lập hồ sơ đánh giá tác động chuyển dữ liệu theo khoản 2 của điều này.
 - Trên sản phẩm, bộ thu mặc định đọc phiên của chính nhà bán qua API chính thức; hai đường yt-dlp (kể cả tùy chọn đọc cookie trình duyệt) còn trong mã, chỉ giữ tạm tới khi có khóa chính thức. Phiên thí điểm có khán giả chỉ chạy khi đã có văn bản đồng ý và thỏa thuận xử lý dữ liệu với shop đối tác.
 - Prompt Log nộp kèm che email, số điện thoại, mã số sinh viên của thành viên và handle của người xem (bản xuất lại ngày 25/09: quét bộ lọc 0, đối chiếu băm 0 — mục I.3); nhật ký gốc không tải lên.

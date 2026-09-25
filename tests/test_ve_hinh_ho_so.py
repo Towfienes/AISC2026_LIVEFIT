@@ -24,6 +24,7 @@ from __future__ import annotations
 import copy
 import dataclasses
 import importlib.util
+import inspect
 import json
 import re
 import struct
@@ -428,6 +429,26 @@ def test_nguon_md_sinh_tu_tom_tat_khong_sua_tay(vh, monkeypatch, tmp_path):
         for i, d in enumerate(tai_lieu[p].splitlines(), 1):
             if "làm mù" in d:
                 assert "một phần" in d, f"{p}:{i} nói làm mù mà không nói 'một phần'"
+    # Kiểm độc lập 25/09/2026 (wf6-5): hồ sơ đã đổi sang "lọc định danh" (Luật 91 Điều 2 khoản
+    # 11: khử nhận dạng là việc CHƯA làm) nhưng §10, 8.1, Bảng 9 còn "khử PII"; CỔNG 1 của
+    # Hình 6 ghi lọc "TRƯỚC khi ghi đĩa" trái ngoại lệ 3.2 (yt-dlp để tệp chat thô trên đĩa);
+    # chữ trong hình còn chính tả cũ (khoá, hoá, xoá) lệch thân bài; hướng dẫn sử dụng nói
+    # Tự ghim chọn "sản phẩm tốt nhất", người dùng "chỉ theo dõi".
+    ho_so = (GOC / "docs/competition/sang-tao-tre-2026/noi-dung.md").read_text(encoding="utf-8")
+    assert "khử PII" not in ho_so, "hồ sơ còn 'khử PII' — dùng 'lọc PII' (mục 3.2, 3.3)"
+    for ten, chu in (
+        ("html_h2()", vh.html_h2()),
+        ("h2-kien-truc.html", (HINH / "h2-kien-truc.html").read_text(encoding="utf-8")),
+    ):
+        assert "ghi đĩa" not in chu, f"{ten}: CỔNG 1 nói lọc trước khi ghi đĩa (sai với 3.2)"
+        assert "tệp tạm" in chu, f"{ten}: CỔNG 1 phải nêu ngoại lệ tệp tạm của yt-dlp"
+        for cu in ("khoá", "hoá", "xoá"):
+            assert cu not in chu, f"{ten} còn chính tả cũ {cu!r}"
+    nguon_h1 = inspect.getsource(vh.ve_h1)
+    assert "khoá lịch" not in nguon_h1.lower(), "Hình 1 còn 'Khoá lịch' — hồ sơ viết 'khóa'"
+    hd = re.sub(r"\s+", " ", tai_lieu["docs/HUONG-DAN-SU-DUNG.md"])
+    for cum in ("sản phẩm tốt nhất", "bạn chỉ theo dõi"):
+        assert cum not in hd, f"HUONG-DAN-SU-DUNG còn nói quá về Tự ghim: {cum!r}"
 
 
 # ------------------------------------------------------------------ khổ in PNG

@@ -399,9 +399,11 @@ xong bấm **"Tạo phiên"**:
 | Chế độ | thẻ **Tự ghim** (khuyên dùng) hoặc **Chỉ gợi ý** |
 
 > **Hai chế độ nghĩa là gì (giải thích ngay trên thẻ):**
-> - **Tự ghim** — hệ thống tự ghim sản phẩm tốt nhất khi đến lượt khối BẬT
->   (bộ thực thi tự động phía máy chủ, có từ 12/09); bạn chỉ theo dõi. Ở chế độ
->   này nút *Thực hiện* trên thẻ gợi ý bị khoá — vì máy đã bấm thay bạn:
+> - **Tự ghim** — hệ thống tự chọn sản phẩm và ra lệnh ghim trong khối BẬT
+>   (bộ thực thi tự động phía máy chủ, có từ 12/09); người trợ live vẫn bấm ghim
+>   trên ứng dụng của nền tảng. Khi khoảng tin cậy của các sản phẩm chồng lấn, hệ
+>   thống bốc đều chứ không chọn "tốt nhất". Ở chế độ này nút *Thực hiện* trên thẻ
+>   gợi ý bị khoá — vì máy đã ra lệnh thay bạn:
 >
 > ![Chế độ Tự động — nút Thực hiện bị mờ, không bấm được](img/l3-08b-che-do-tu-dong-nut-mo.png)
 >

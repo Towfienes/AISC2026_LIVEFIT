@@ -178,7 +178,7 @@ def tien_trinh(
 def doc_truoc() -> str:
     return f"""# ĐỌC TRƯỚC — Minh chứng quá trình phát triển LiveLift
 
-Đội LiveLift · Cuộc thi Sáng tạo trẻ Quốc gia về Trí tuệ nhân tạo 2026 · Bảng C.
+Đội LiveLift · Cuộc thi Sáng tạo trẻ Quốc gia trong lĩnh vực Trí tuệ nhân tạo năm 2026 · Bảng C.
 Kho mã nguồn công khai: {KHO}
 
 | Thư mục | Nội dung |

@@ -1631,7 +1631,7 @@ export default function ChayPhienPage() {
                             khuyên dùng
                           </span>
                         }
-                        note="Hệ thống tự ghim sản phẩm tốt nhất khi đến lượt; bạn chỉ theo dõi trên bàn trợ live."
+                        note="Hệ thống tự chọn sản phẩm và ra lệnh ghim trong khối BẬT; người trợ live vẫn bấm ghim trên ứng dụng của nền tảng."
                       />
                       <ChoiceCard
                         selected={form.mode === "suggest"}

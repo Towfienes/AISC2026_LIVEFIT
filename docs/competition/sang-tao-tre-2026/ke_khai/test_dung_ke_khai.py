@@ -172,6 +172,24 @@ def test_khang_dinh_sai_cu_chi_con_trong_muc_dinh_chinh():
     can_cu = md.index("## Căn cứ")
     for m in re.finditer("13/2023", md):
         assert can_cu <= m.start() < cuoi, "Nghị định 13/2023 chỉ được nhắc là đã bị thay"
+    # Kiểm độc lập 25/09/2026 (wf6-5, P0): hồ sơ mục 13 sẽ trỏ `main` SAU khi hợp nhất, còn
+    # 05 tả `main` = 390027b, 56/56 commit, nhánh hoàn thiện "chưa hợp nhất". Điền mã commit ở
+    # mục 13 mà không sửa 05 thì hai văn bản nộp cùng nhau mâu thuẫn — bộ dựng phải chặn.
+    ho_so = (DAY.parent / "noi-dung.md").read_text(encoding="utf-8")
+    assert dung_ke_khai.lech_trang_thai_kho(ho_so, md) == [], "mục 13 chưa điền mã commit"
+    sau_hop_nhat = ho_so.replace("commit ⬜ *điền sau khi hợp nhất và đẩy lên*", "commit `a1b2c3d`")
+    assert sau_hop_nhat != ho_so, "câu mục 13 đổi chữ — sửa mẫu dò _MA_COMMIT_MUC_13"
+    lech = dung_ke_khai.lech_trang_thai_kho(sau_hop_nhat, md)
+    assert any("390027b" in x for x in lech), lech
+    assert any("a1b2c3d" in x for x in lech), lech
+    assert len(lech) >= 5, lech  # dòng 11, I.1, I.2, II, VII.1
+    # 05 đã viết lại theo trạng thái sau hợp nhất thì sạch — kể cả câu PR số 1 "chưa hợp nhất".
+    da_sua = (
+        "| Trạng thái mã nguồn khi kê khai | Nhánh `main` tại commit `a1b2c3d` (đã hợp nhất "
+        "`hoan-thien/ho-so-2509`; trước đó `main` ở 390027b, 56 commit). Nhánh "
+        "`tien/aisc-round2` (PR số 1) chưa hợp nhất |"
+    )
+    assert dung_ke_khai.lech_trang_thai_kho(sau_hop_nhat, da_sua) == []
 
 
 def test_dung_docx_khong_lot_ky_hieu(tmp_path):

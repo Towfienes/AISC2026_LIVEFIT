@@ -12,6 +12,12 @@ ghi con số vào:
   - README.md                       badge Tests, dòng lệnh mẫu, "Quality gates"
   - web/src/app/page.tsx            hằng PROOF của trang chủ
   - docs/competition/FACT-SHEET.md  dòng "Bộ kiểm thử" (kèm ngày đếm)
+  - docs/competition/sang-tao-tre-2026/  noi-dung.md (Tóm tắt, Bảng 5), 05-BAN-KE-KHAI.md
+                                    (mục VIII), 07-KICH-BAN-2-VIDEO.md (lời thoại, bảng số)
+
+Ba tệp nộp cuối (thêm tối 25/09/2026) còn chép KẾT QUẢ một lần chạy ("2.091 đạt, 2 bỏ
+qua"). Script không tự sửa số đó; nếu số đạt + bỏ qua không còn cộng ra tổng thu thập thì
+báo LỖI, thoát mã 1 — phải chạy lại bộ test rồi sửa tay.
 
 Kiểm toán 25/09/2026 sửa ba lỗ của bản trước:
 
@@ -151,6 +157,8 @@ def _badge(m: re.Match[str], so: SoTest, _ngay: str) -> str:
     return f"badge/tests-{chu}-{m.group(1)}"
 
 
+HO_SO = "docs/competition/sang-tao-tre-2026/"
+
 CUM_CHAM_RE = r"\d+ cổng chậm \(\d+ mô phỏng/thống kê · \d+ đánh giá NLP · \d+ cổng build CSS\)"
 
 LUAT: dict[str, list[Luat]] = {
@@ -207,7 +215,75 @@ LUAT: dict[str, list[Luat]] = {
             la_ngay=True,
         ),
     ],
+    # Ba tệp nộp chép lại dòng "Bộ kiểm thử" của FACT-SHEET (phần việc 3, tối 25/09/2026).
+    HO_SO + "noi-dung.md": [
+        Luat(
+            "Tóm tắt: tổng kiểm thử",
+            re.compile(r"\*\*[\d.]+\*\*( kiểm thử tự động)"),
+            lambda m, so, _: f"**{vi(so.tong)}**{m.group(1)}",
+        ),
+        Luat(
+            "Bảng 5: dòng Kiểm thử tự động",
+            re.compile(
+                r"(\| Kiểm thử tự động \| )[\d.]+ = [\d.]+ nhanh \+ \d+ cổng chậm"
+                r" \+ \d+ trình duyệt"
+            ),
+            lambda m, so, _: (
+                f"{m.group(1)}{vi(so.tong)} = {vi(so.nhanh)} nhanh + {so.cham} cổng chậm"
+                f" + {so.trinh_duyet} trình duyệt"
+            ),
+        ),
+    ],
+    HO_SO + "05-BAN-KE-KHAI.md": [
+        Luat(
+            "mục VIII: bộ kiểm thử",
+            re.compile(
+                r"[\d.]+ test thu thập( trên nhánh [^—\n]*— )[\d.]+ test nhanh, \d+ test chậm"
+                r" \(\d+ mô phỏng/thống kê, \d+ đánh giá NLP, \d+ dựng CSS\), \d+ test trình duyệt"
+            ),
+            lambda m, so, _: (
+                f"{vi(so.tong)} test thu thập{m.group(1)}{vi(so.nhanh)} test nhanh, {so.cham}"
+                f" test chậm ({so.thong_ke} mô phỏng/thống kê, {so.nlp} đánh giá NLP,"
+                f" {so.css} dựng CSS), {so.trinh_duyet} test trình duyệt"
+            ),
+        ),
+    ],
+    HO_SO + "07-KICH-BAN-2-VIDEO.md": [
+        Luat(
+            "lời thoại phần Kết quả",
+            re.compile(r"\b\d[\d.]*( kiểm thử tự động, \d+ sự cố)"),
+            lambda m, so, _: f"{vi(so.tong)}{m.group(1)}",
+        ),
+        Luat(
+            "bảng Số được phép nói",
+            re.compile(r"(\| Kiểm thử \| )[\d.]+ \([\d.]+ nhanh \+ \d+ chậm \+ \d+ trình duyệt"),
+            lambda m, so, _: (
+                f"{m.group(1)}{vi(so.tong)} ({vi(so.nhanh)} nhanh + {so.cham} chậm"
+                f" + {so.trinh_duyet} trình duyệt"
+            ),
+        ),
+    ],
 }
+
+#: Tệp chép cả KẾT QUẢ một lần chạy — kiểm bằng ``lech_ket_qua_chay``, không tự sửa.
+TEP_KET_QUA_CHAY = tuple(k for k in LUAT if k.startswith(HO_SO))
+
+KET_QUA_CHAY_RE = re.compile(r"(\d[\d.]*) đạt, (\d[\d.]*) bỏ qua")
+
+
+def lech_ket_qua_chay(t: str, so: SoTest) -> list[str]:
+    """Các câu "X đạt, Y bỏ qua" mà X + Y khác tổng số test thu thập.
+
+    Số thu thập đổi (thêm test) thì câu kết quả chạy cũ thành sai mà không mẫu nào bắt:
+    tệp ghi "2.094 kiểm thử… chạy lại: 2.091 đạt, 2 bỏ qua". Số đạt là kết quả CHẠY, không
+    suy ra được từ ``--collect-only`` — chỉ báo, không sửa.
+    """
+    lech = []
+    for m in KET_QUA_CHAY_RE.finditer(t):
+        dat, bo = (int(g.replace(".", "")) for g in m.groups())
+        if dat + bo != so.tong:
+            lech.append(f"“{m.group(0)}” cộng ra {vi(dat + bo)}, bộ test thu thập có {vi(so.tong)}")
+    return lech
 
 
 def ap_dung(t: str, luat: list[Luat], so: SoTest, ngay: str) -> tuple[str, list[str]]:
@@ -255,6 +331,11 @@ def main() -> int:
         cu = f.read_text(encoding="utf-8")
         moi, thieu = ap_dung(cu, luat, so, ngay)
         loi += [f"{rel}: không tìm thấy mẫu “{ten}” — chỗ này KHÔNG được đồng bộ" for ten in thieu]
+        if rel in TEP_KET_QUA_CHAY:
+            loi += [
+                f"{rel}: kết quả chạy {x} — chạy lại bộ test rồi sửa tay câu này"
+                for x in lech_ket_qua_chay(moi, so)
+            ]
         if moi != cu:
             sua.append((f, cu, moi))
 

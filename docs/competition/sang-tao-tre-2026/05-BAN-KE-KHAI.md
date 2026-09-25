@@ -8,7 +8,7 @@
 | Sản phẩm | LiveLift — nền tảng thí nghiệm vận hành cho livestream bán hàng |
 | Đội thi | Ngô Bình Minh (đội trưởng) · Lê Xuân Khánh · Ngô Lâm Tiến — Khoa Công nghệ thông tin, Trường Đại học Tôn Đức Thắng |
 | Kho mã nguồn (công khai) | https://github.com/bminhnemhoi/AISC2026_LIVEFIT |
-| Trạng thái mã nguồn khi kê khai | Nhánh `main` tại commit `390027b` (56 commit, 24/08 → 18/09/2026). Nhánh hoàn thiện hồ sơ `hoan-thien/ho-so-2509` (9 commit ngày 25/09/2026, tới `17c3ee1`) và nhánh `tien/aisc-round2` (PR số 1, 2 commit ngày 21/09/2026) đang chờ trưởng nhóm duyệt, chưa hợp nhất |
+| Trạng thái mã nguồn khi kê khai | Nhánh `main` tại commit `390027b` (56 commit, 24/08 → 18/09/2026). Nhánh hoàn thiện hồ sơ `hoan-thien/ho-so-2509` (22 commit ngày 25/09/2026, commit cuối là commit dựng bản kê khai này) và nhánh `tien/aisc-round2` (PR số 1, 2 commit ngày 21/09/2026) đang chờ trưởng nhóm duyệt, chưa hợp nhất |
 | Ngày lập | 25/09/2026 |
 | Người soạn | Bản này do tác tử AI (Claude, qua Claude Code) soạn nháp theo yêu cầu của đội trưởng, từ số đếm máy trên kho mã và nhật ký phiên. Ba thành viên đọc, sửa và ký ở mục X |
 
@@ -30,7 +30,7 @@ Bản lập ngày 14/09/2026 có những khẳng định mà chính đội đã 
 | 393 bình luận tập kiểm tra "do người gán tay, gán mù" | Nhãn do tác tử AI (Claude) gán ngày 09/09/2026; chưa có nhãn người |
 | macro-F1 0,271 trên 200 bình luận thật | Không tái lập được (tệp nhãn không được lưu) — rút lại. Số chính thức: 0,211 → 0,542, đo lại 25/09 (mục II) |
 | A/A bác bỏ 4,5%, độ phủ 95,5% | Không tái lập được. Đo lại 14/09 và 25/09: bác bỏ 3,50% (7/200), độ phủ 96,50% |
-| "1.297 câu lệnh của đội" | Bộ xuất cũ tính cả kết quả công cụ là câu lệnh người. Đếm lại: 78 câu lệnh người gõ (mục I.3) |
+| "1.297 câu lệnh của đội" | Bộ xuất cũ tính cả kết quả công cụ là câu lệnh người. Đếm lại: 83 câu lệnh người gõ (mục I.3) |
 | Kiểm toán đối kháng và gán nhãn "hoàn toàn của đội" | Các đợt kiểm toán 14, 15, 17 và 25/09 do tác tử AI chạy theo yêu cầu của đội; nhãn do AI gán |
 | Căn cứ thu thập dữ liệu: Nghị định 13/2023/NĐ-CP và "lợi ích chính đáng cho nghiên cứu" | Nghị định 13/2023 đã được thay thế trước khi thu dữ liệu; đội không viện dẫn căn cứ xử lý không cần đồng ý (mục IX) |
 | Chỉ dùng Claude Code | Thành viên Tiến còn dùng Google Antigravity và OpenAI Codex ngày 21/09/2026 (mục I.1) |
@@ -61,12 +61,12 @@ Ghi chú:
 |---|---:|---:|
 | Claude Opus 5 (`claude-opus-5`) | 30.050 | 26 (Opus 5, 1M context) + 1 (Opus 5) |
 | Claude Fable 5 (`claude-fable-5`) | 6.296 | 29 |
-| Claude Opus 5.5 (`claude-opus-5-5`) | 5.292 | 0 trên `main`; 9/9 commit của nhánh hoàn thiện hồ sơ (25/09, chưa hợp nhất) |
+| Claude Opus 5.5 (`claude-opus-5-5`) | 9.676 | 0 trên `main`; 22/22 commit của nhánh hoàn thiện hồ sơ (25/09, chưa hợp nhất) |
 | Claude Fable 5.1 (`claude-fable-5-1`) | 372 | 0 |
 
 Số bản ghi trả lời đếm trên mọi nhật ký (phiên chính và tác tử con), không tính tin nhắn lỗi tổng hợp. Claude Code ghi mỗi khối văn bản, khối suy luận hay lời gọi công cụ thành một bản ghi riêng, nên đây không phải số lần gọi mô hình (một lần gọi thường sinh nhiều bản ghi). Truy cập qua thuê bao Claude Code của đội trưởng.
 
-### I.3. Prompt Log — số đếm lại ngày 25/09/2026
+### I.3. Prompt Log — số đếm của lần xuất 18:37 ngày 25/09/2026
 
 | Phiên | Thời gian (giờ Việt Nam) | Câu lệnh người gõ | Lệnh `/model` | Lời gọi công cụ của Claude | Nhật ký tác tử con |
 |---|---|---:|---:|---:|---:|
@@ -74,13 +74,14 @@ Số bản ghi trả lời đếm trên mọi nhật ký (phiên chính và tác
 | `3c773cb8` | 06/09 → 14/09/2026 | 41 | 5 | 578 | 179 |
 | `3b0c8ccf` | 14/09 → 15/09/2026 | 4 | 0 | 308 | 74 |
 | `9b100e02` | 17/09 → 19/09/2026 | 11 | 1 | 306 | 190 |
-| `22b800c6` | 25/09/2026 (đang chạy khi đếm) | 1 | 0 | 59 | 25 |
-| **Tổng** | | **78** | **9** | **1.778** | **567** |
+| `22b800c6` | 25/09/2026 (đang chạy khi đếm) | 6 | 0 | 102 | 56 |
+| **Tổng** | | **83** | **9** | **1.821** | **598** |
 
 - "Câu lệnh người gõ" là bản ghi Claude Code đánh dấu do người nhập (`origin.kind = human`), kiểm chéo bằng mã câu lệnh (`promptId`) và bản ghi `last-prompt` trong cùng nhật ký. Nhật ký không ghi thành viên nào ngồi gõ.
-- Tính cả tác tử con, Claude đã gọi công cụ **24.957** lần, trong đó 3.376 lần ghi hoặc sửa tệp (Write, Edit). 20 kịch bản điều phối nhiều tác tử cũng do Claude viết.
+- Phiên `22b800c6` còn ghi tiếp tới lần xuất cuối trước khi tải lên, nên số chính thức là tệp `01-Prompt-Log/SO-DEM.json` trong bản tải lên; bộ dựng gói Drive so mọi con số của mục này với tệp đó và báo lệch.
+- Tính cả tác tử con, Claude đã gọi công cụ **27.437** lần, trong đó 3.753 lần ghi hoặc sửa tệp (Write, Edit). 23 kịch bản điều phối nhiều tác tử cũng do Claude viết.
 - System prompt: Claude Code chỉ ghi ảnh chụp system prompt vào nhật ký từ bản 2.1.270 — có ở 3/5 phiên (`3b0c8ccf`, `9b100e02`, `22b800c6`) và được xuất nguyên văn. Hai phiên đầu không có; đội không dựng bản thay thế. Tệp chỉ dẫn quy trình cấp dự án `HARNESS.md` nằm trong kho mã.
-- Bản xuất đã che dữ liệu cá nhân và bí mật bằng chính bộ lọc của sản phẩm; quét lại toàn bộ bản xuất bằng cùng bộ lọc: 0 chỗ còn khớp. Bộ lọc dựa trên biểu thức chính quy nên không bảo đảm bắt hết mọi dữ liệu cá nhân. Đối chiếu ngày 25/09/2026 với danh sách tên tài khoản thật đã biết thấy 2 tên dạng dính liền chữ đứng trước còn lọt trong 2 tệp tác tử con; bản xuất phải làm lại sau khi sửa bộ lọc, trước khi tải lên. Khối suy luận nội bộ của mô hình và ảnh không xuất; kết quả công cụ cắt bớt có ghi số ký tự.
+- Bản xuất đã che dữ liệu cá nhân và bí mật bằng chính bộ lọc của sản phẩm; quét lại toàn bộ bản xuất bằng cùng bộ lọc: 0 chỗ còn khớp. Vì bộ quét dùng chung bộ lọc nên không thấy được chỗ bộ lọc bỏ sót: đối chiếu độc lập ngày 25/09/2026 bằng băm SHA-256 với 33 tên tài khoản thật đã biết (danh sách băm lưu ngoài kho) từng thấy 2 tên viết dính liền (`chữ@tên`) lọt trong 2 tệp tác tử con. Bộ lọc đã vá (commit `b331076`) và Prompt Log đã xuất lại; lần xuất 18:37 cho quét bộ lọc 0, đối chiếu băm 0, và 0 tiền tố băm tên tài khoản do nhật ký kiểm toán in ra (đã thay bằng nhãn). Bộ lọc dựa trên biểu thức chính quy nên không bảo đảm bắt hết mọi dữ liệu cá nhân. Khối suy luận nội bộ của mô hình và ảnh không xuất; kết quả công cụ cắt bớt có ghi số ký tự.
 
 ### I.4. Không dùng
 
@@ -98,7 +99,7 @@ Số bản ghi trả lời đếm trên mọi nhật ký (phiên chính và tác
 | Dữ liệu huấn luyện | v1: 320 câu mẫu do Claude soạn. v2: thêm nhãn 11 lớp do AI gán cho bình luận thật (mục III) |
 | Hiệu năng | macro-F1 0,870 chỉ là kiểm định chéo trên 320 câu do AI soạn. Trên 393 bình luận thật của 3 buổi live (chia theo buổi, KTC bootstrap): v1 0,211 [0,172; 0,247] → v2 0,542 [0,478; 0,625], đo lại ngày 25/09/2026 sau khi lọc lại handle trong dữ liệu (số ngày 14/09 trên dữ liệu trước khi lọc là 0,565 [0,491; 0,649]; nguồn: `docs/competition/FACT-SHEET.md`). Nhãn tham chiếu do AI gán, nên đây là mức đồng thuận với nhãn AI, chưa phải độ chính xác so với con người |
 | Vai trò | Phụ trợ: "radar ý định" trên bàn trợ live. Không tham gia ước lượng nhân quả |
-| Phiên bản và đóng gói | Tại `main` 390027b, `pyproject.toml` ghim scikit-learn `<1.8` trong khi tệp mô hình đóng gói bằng 1.9.0, nên cài sạch thì 5 test NLP đỏ và API lùi về bộ phân loại từ khóa (Tiến phát hiện 21/09, tái hiện 25/09). Trên nhánh hoàn thiện hồ sơ: `pyproject.toml` ghim `scikit-learn==1.9.0` (commit `ba96b73`); tệp `intent_clf_v2.joblib` đóng gói lại ngày 25/09 bằng scikit-learn 1.9.0 trên dữ liệu đã lọc lại tên tài khoản, siêu dữ liệu ghi nguồn nhãn "tác tử AI gán, chưa có nhãn người" và băm dữ liệu huấn luyện (commit `47e5320`); số LOSO không đổi. Chờ trưởng nhóm hợp nhất |
+| Phiên bản và đóng gói | Tại `main` 390027b, `pyproject.toml` ghim scikit-learn `<1.8` trong khi tệp mô hình đóng gói bằng 1.9.0, nên cài sạch thì 5 test NLP đỏ và API lùi về bộ phân loại từ khóa (Tiến phát hiện 21/09, tái hiện 25/09). Trên nhánh hoàn thiện hồ sơ: `pyproject.toml` ghim `scikit-learn==1.9.0` (commit `ba96b73`); tệp `intent_clf_v2.joblib` đóng gói lại ngày 25/09 bằng scikit-learn 1.9.0 trên dữ liệu đã lọc lại tên tài khoản, siêu dữ liệu ghi nguồn nhãn "tác tử AI gán, chưa có nhãn người" và băm dữ liệu huấn luyện (commit `47e5320`; đóng gói lại lần nữa ở `b331076` sau khi lọc thêm 16 dòng có tên tài khoản dính liền); số LOSO của C2 không đổi. Chờ trưởng nhóm hợp nhất |
 
 ## III. Bộ dữ liệu
 
@@ -133,7 +134,7 @@ Những điều đội **không** tuyên bố:
 | TikTok Webcast qua `TikTokLive` (không chính thức) | Thử đọc phòng live công khai | Thất bại 10/10 lần; không được cài trong môi trường chạy |
 | API mô hình ngôn ngữ | — | Không có trong mã sản phẩm |
 
-Khóa và token chỉ đọc từ biến môi trường; `.env` bị `.gitignore`. Tại ngày kê khai, `.env` của đội không có khóa nền tảng nào: các trường YouTube, Facebook để trống; chưa có trường Shopee, TikTok Shop. Quét 58 commit trên mọi nhánh ngày 25/09/2026: 0 khóa thật bị commit.
+Khóa và token chỉ đọc từ biến môi trường; `.env` bị `.gitignore`. Tại ngày kê khai, `.env` của đội không có khóa nền tảng nào: các trường YouTube, Facebook để trống; chưa có trường Shopee, TikTok Shop. Quét 79 commit trên mọi nhánh tối 25/09/2026: 0 khóa thật bị commit (chỉ có 2 chuỗi giả dùng trong test).
 
 ## V. Thư viện và mã nguồn mở
 
@@ -221,16 +222,16 @@ Các nguồn tài liệu trên do Claude tìm và đọc trong quá trình phát
 | Commit mang dòng đồng tác giả Claude | **56/56** | `git log --format=%(trailers)` |
 | Danh tính tác giả git | Cả 56 commit dùng một danh tính chung "LiveLift Team" | `git log --format=%an` |
 | Commit trên nhánh PR số 1 (chưa hợp nhất) | 2 commit của Tiến, 0 dòng khai báo AI; tài liệu trong commit ghi do Antigravity và Codex tạo | `git log origin/tien/aisc-round2` |
-| Commit trên nhánh hoàn thiện hồ sơ (chưa hợp nhất) | 9 commit ngày 25/09/2026, cả 9 mang dòng đồng tác giả Claude Opus 5.5 | `git log main..hoan-thien/ho-so-2509` |
-| Câu lệnh người gõ cho Claude Code | 78 (5 phiên), thêm 9 lệnh `/model` | Prompt Log, mục I.3 |
-| Lời gọi công cụ của Claude | 24.957, trong đó 3.376 lần ghi hoặc sửa tệp | Prompt Log |
-| Tác tử con do Claude sinh ra | 567 nhật ký | Prompt Log |
+| Commit trên nhánh hoàn thiện hồ sơ (chưa hợp nhất) | 22 commit ngày 25/09/2026, cả 22 mang dòng đồng tác giả Claude Opus 5.5 | `git log main..hoan-thien/ho-so-2509` |
+| Câu lệnh người gõ cho Claude Code | 83 (5 phiên), thêm 9 lệnh `/model` | Prompt Log, mục I.3 |
+| Lời gọi công cụ của Claude | 27.437, trong đó 3.753 lần ghi hoặc sửa tệp | Prompt Log |
+| Tác tử con do Claude sinh ra | 598 nhật ký | Prompt Log |
 
 ### VII.2. Phân định theo thành phần
 
 | Thành phần | Đội tự làm | AI tạo ra | Kế thừa |
 |---|---|---|---|
-| Ý tưởng, bài toán, mục tiêu dự thi | Đưa ra ý tưởng và hai tệp mô tả, kế hoạch ban đầu (nguồn gốc khai ở mục X); đặt mục tiêu và yêu cầu qua 78 câu lệnh | Phân tích, góp ý, đề xuất phương pháp, lập kế hoạch chi tiết | Thiết kế switchback từ bài báo (mục VI) |
+| Ý tưởng, bài toán, mục tiêu dự thi | Đưa ra ý tưởng và hai tệp mô tả, kế hoạch ban đầu (nguồn gốc khai ở mục X); đặt mục tiêu và yêu cầu qua 83 câu lệnh | Phân tích, góp ý, đề xuất phương pháp, lập kế hoạch chi tiết | Thiết kế switchback từ bài báo (mục VI) |
 | Mã nguồn: lõi thống kê, API, cơ sở dữ liệu, web, nạp dữ liệu, bộ lọc dữ liệu cá nhân, NLP | Yêu cầu, chọn hướng khi Claude đưa phương án, chấp nhận kết quả | Claude viết gần như toàn bộ (mọi commit trên `main` có dòng đồng tác giả Claude); phần của Tiến trên PR số 1 do Codex viết | Thư viện mục V; công thức từ bài báo mục VI |
 | Kiểm thử và cổng chất lượng | Đặt yêu cầu "test đỏ trước, xanh sau" trong quy trình | Claude viết test và chạy | pytest, Playwright |
 | Kiểm toán, sổ sự cố | Yêu cầu kiểm toán, quyết định sửa gì | Các đợt kiểm toán nhiều tác tử do Claude chạy; sổ sự cố do Claude ghi | — |
@@ -252,10 +253,10 @@ Các nguồn tài liệu trên do Claude tìm và đọc trong quá trình phát
 ## IX. Dữ liệu cá nhân và trách nhiệm pháp lý
 
 <!-- DUYỆT: câu lưu/xoá dưới đây theo PHƯƠNG ÁN A của hồ sơ mục 3.3; chọn B thì sửa theo scratchpad wf3/phuong-an-3-3.md. -->
-- Đội **không** tuyên bố đã có sự đồng ý của người bình luận trong 19.126 bình luận và **không** viện dẫn căn cứ xử lý dữ liệu không cần sự đồng ý. Dữ liệu này chỉ dùng offline để đánh giá mô hình, đã khử nhận dạng tại điểm nạp (không lưu tên hay mã kênh người bình luận), không phát hành lại, không nằm trong kho mã. Bản đầy đủ không được lưu thành tệp; phần còn giữ (6.586 bình luận của 1 buổi, 393 bình luận của 3 buổi, đã khử nhận dạng) bị xóa khi có tập thay thế qua API chính thức, chậm nhất 22/11/2026, hoặc ngay khi Ban Tổ chức hay cơ quan có thẩm quyền yêu cầu. Các bản còn định danh (bản sao lưu trước khi lọc lại, bình luận còn tên tài khoản trong bản lưu nhật ký gốc của công cụ AI) được xóa hoặc che trước ngày nộp, và Prompt Log được xuất lại sau khi bộ lọc bắt được tên tài khoản dính liền — chi tiết ở hồ sơ dự án, mục 3.3.
-- Kiểm tra ngày 14/09/2026 từng phát hiện handle mạng xã hội còn sót trong dữ liệu gán nhãn cục bộ do bộ lọc cũ chỉ nhận ký tự ASCII. Bộ lọc đã sửa ngày 15/09; ngày 25/09 quét lại còn 57 handle và đã lọc lại tại chỗ bằng đúng hàm của sản phẩm, quét lại ra 0 (`data/labeling/README.md`). Tệp mô hình v2 đóng gói 14/09 mang trong từ vựng một từ sinh từ tên tài khoản của một người bình luận; đã đóng gói lại ngày 25/09 trên dữ liệu đã lọc, thêm cổng `tests/test_artifact_khong_pii.py`; bản cũ vẫn còn trong lịch sử git. Còn mở: tên tài khoản viết dính liền chữ đứng trước (dạng `chữ@tên`) vẫn lọt bộ lọc — 4 dòng dữ liệu huấn luyện còn dạng này (tệp mô hình không mang chúng).
+- Đội **không** tuyên bố đã có sự đồng ý của người bình luận trong 19.126 bình luận và **không** viện dẫn căn cứ xử lý dữ liệu không cần sự đồng ý. Dữ liệu này chỉ dùng offline để đánh giá mô hình, đã khử nhận dạng tại điểm nạp (không lưu tên hay mã kênh người bình luận), không phát hành lại, không nằm trong kho mã. Bản đầy đủ không được lưu thành tệp; phần còn giữ (6.586 bình luận của 1 buổi, 393 bình luận của 3 buổi, đã khử nhận dạng) bị xóa khi có tập thay thế qua API chính thức, chậm nhất 22/11/2026, hoặc ngay khi Ban Tổ chức hay cơ quan có thẩm quyền yêu cầu. Các bản còn định danh (bản sao lưu trước khi lọc lại, bình luận còn tên tài khoản trong bản lưu nhật ký gốc của công cụ AI) được xóa hoặc che trước ngày nộp; Prompt Log đã được xuất lại ngày 25/09 sau khi bộ lọc bắt được tên tài khoản dính liền (mục I.3) — chi tiết ở hồ sơ dự án, mục 3.3.
+- Kiểm tra ngày 14/09/2026 từng phát hiện handle mạng xã hội còn sót trong dữ liệu gán nhãn cục bộ do bộ lọc cũ chỉ nhận ký tự ASCII. Bộ lọc đã sửa ngày 15/09; ngày 25/09 quét lại còn 57 handle và đã lọc lại tại chỗ bằng đúng hàm của sản phẩm, quét lại ra 0 (`data/labeling/README.md`). Tệp mô hình v2 đóng gói 14/09 mang trong từ vựng một từ sinh từ tên tài khoản của một người bình luận; đã đóng gói lại ngày 25/09 trên dữ liệu đã lọc, thêm cổng `tests/test_artifact_khong_pii.py`; bản cũ vẫn còn trong lịch sử git. Tên tài khoản viết dính liền (`chữ@tên`, `@@tên`) từng lọt bộ lọc; ngày 25/09 đã vá (commit `b331076`), lọc thêm 16 dòng (8 tên, trong đó 4 dòng dữ liệu huấn luyện), đóng gói lại v2; macro-F1 của C2 không đổi.
 - Trên sản phẩm, nhà bán chỉ đọc phiên của chính mình qua API chính thức; phiên thí điểm có khán giả chỉ chạy khi có văn bản đồng ý của shop đối tác.
-- Prompt Log nộp kèm che email, số điện thoại, mã số sinh viên của thành viên và handle của người xem (bản xuất 25/09 còn lọt 2 handle dạng dính liền, mục I.3 — phải xuất lại trước khi tải lên); nhật ký gốc không tải lên.
+- Prompt Log nộp kèm che email, số điện thoại, mã số sinh viên của thành viên và handle của người xem (bản xuất lại ngày 25/09: quét bộ lọc 0, đối chiếu băm 0 — mục I.3); nhật ký gốc không tải lên.
 - Theo Luật Trí tuệ nhân tạo 134/2025/QH15 và Nghị định 142/2026/NĐ-CP (Điều 6, 8, 9, 11), đội **tự đánh giá sơ bộ, chưa có ý kiến chuyên gia pháp lý**, LiveLift ở mức rủi ro thấp: không sinh nội dung, không tương tác trực tiếp với người xem. Hệ thống **có** tự ra quyết định: ở chế độ mặc định "Tự ghim", trong khối BẬT của lịch đã khóa, nó tự chọn sản phẩm và ra lệnh ghim qua cùng đường với nút của người trợ live, có nhật ký; thao tác ghim trên nền tảng vẫn do người làm; nhà bán chọn được "Chỉ gợi ý". Chi tiết và điểm cần chuyên gia xem: hồ sơ dự án, mục 11.2.
 
 
@@ -285,9 +286,13 @@ TP. Hồ Chí Minh, ngày ...... tháng ...... năm 2026
 ```
 # Prompt Log: đếm câu lệnh người gõ theo phiên (không ghi tệp)
 python scripts/xuat_prompt_log.py --kiem-tra --sao-luu D:/AISC2026/prompt-log-goc/2026-09-15
-# Xuất Prompt Log đã làm sạch, rồi quét lại (phải ra 0)
-python scripts/xuat_prompt_log.py --ra D:/AISC2026/GOI-DRIVE-SANG-TAO-TRE/01-Prompt-Log
-python scripts/xuat_prompt_log.py --quet D:/AISC2026/GOI-DRIVE-SANG-TAO-TRE/01-Prompt-Log
+# Xuất Prompt Log đã làm sạch, rồi quét lại (phải ra 0); tệp băm tên đã biết lưu ngoài kho
+PL=D:/AISC2026/GOI-DRIVE-SANG-TAO-TRE/01-Prompt-Log
+BAM=D:/AISC2026/dinh-danh-da-biet.sha256
+python scripts/xuat_prompt_log.py --ra $PL --doi-chieu $BAM --sao-luu D:/AISC2026/prompt-log-goc/2026-09-15
+python scripts/xuat_prompt_log.py --quet $PL --doi-chieu $BAM
+# So mọi số Prompt Log trong bản kê khai này và hồ sơ (mục 13) với SO-DEM.json vừa xuất
+python docs/competition/sang-tao-tre-2026/ke_khai/dung_goi_drive.py
 # Commit, dòng đồng tác giả, danh tính
 git rev-list --count main
 git log main --format="%(trailers:key=Co-Authored-By,valueonly)" | sort | uniq -c

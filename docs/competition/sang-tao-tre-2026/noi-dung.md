@@ -220,7 +220,7 @@ Hình 3 là kết quả xấu: tác động kéo sang khối sau (bán rã 0/120
 | Chỉ số | Kết quả | Nguồn |
 |---|---|---|
 | Kiểm thử tự động | 2.093 = 2.066 nhanh + 17 cổng chậm + 10 trình duyệt; chạy 25/09: 2.091 đạt, 2 bỏ qua, 0 lỗi | `scripts/dong_bo_so_test.py` |
-| Sự cố có phân tích nguyên nhân gốc | 99 | `docs/incident-log.md` |
+| Sự cố có phân tích nguyên nhân gốc | 109 | `docs/incident-log.md` |
 | Tốc độ nạp | 835–923 bình luận/giây (một tiến trình, kho bộ nhớ, không tính tải) | live-fire 10/09 |
 | Tất định; cô lập phiên | Chạy lại một buổi sau 2 ngày trùng từng con số; nạp song song không rò giữa phiên | như trên |
 | Kiểm thử đầu-cuối | Bản build + Chromium ở 1366×768, 1920×1080, 390×844 | 17/09, 25/09 |
@@ -296,7 +296,7 @@ Lý do lấy RI làm kết luận chính: với ít phiên, KTC dựa trên sai 
 
 ![Hình 5. (a) Ma trận nhầm lẫn của v2 (C2), chuẩn hóa theo hàng; (b) macro-F1 và KTC 95% của sáu hệ thống ở Bảng 7 và hai cấu hình ở Bảng 8 (C3: tự chọn ngưỡng; A4: bỏ bộ câu mẫu); nhãn tham chiếu do tác tử AI gán.](hinh/h6-nlp.png){width=16cm}
 
-C2 tốt hơn B2 ở cả ba buổi (macro-F1 0,064 / 0,412 / 0,138 lên 0,368 / 0,599 / 0,525); B3 cho thấy cải tiến đến từ bộ nhãn và dữ liệu, không từ việc học lại. Precision trên 393 dòng bị kéo lên vì 193 dòng được rút theo nhãn bản cũ dự đoán; trên 200 dòng rút ngẫu nhiên, precision là 21,4% (9/42) ở bản cũ và 66,7% (6/9, KTC 35–88%) ở bản mới, recall 47,4% (9/19) và 31,6% (6/19). Với ngưỡng 0,45 như sản phẩm, v2 cho macro-F1 0,523, precision 73,9%. C1 nhỉnh hơn C2 về macro-F1 nhưng KTC chồng lấn, còn C2 cao hơn về accuracy và precision.
+C2 tốt hơn B2 ở cả ba buổi (macro-F1 0,064 / 0,412 / 0,138 lên 0,368 / 0,599 / 0,525); B3 cho thấy cải tiến đến từ bộ nhãn và dữ liệu, không từ việc học lại. Precision trên 393 dòng bị kéo lên vì 193 dòng được rút theo nhãn bản cũ dự đoán; trên 200 dòng rút ngẫu nhiên, precision là 21,4% (9/42) ở bản cũ và 66,7% (6/9, KTC 35–88%) ở bản mới, recall 47,4% (9/19) và 31,6% (6/19). Với ngưỡng 0,45 như sản phẩm, v2 cho macro-F1 0,523, precision 73,9%. C1 nhỉnh hơn C2 về macro-F1 nhưng KTC chồng lấn (Hình 5b), còn C2 cao hơn về accuracy và precision.
 
 ## 9.4 Ablation — đóng góp của từng thành phần
 
@@ -334,7 +334,7 @@ Vòng chung kết đòi sản phẩm chạy ổn định ít nhất 48 giờ, n�
 ## 10.2 Khả năng duy trì — đã kiểm và chưa kiểm
 
 - **Đã kiểm (14/09):** 5/5 bản sao lưu qua kiểm tra toàn vẹn; khôi phục được sau khi giết cứng tiến trình; tắt API giữa chừng thì trang vẫn trả HTTP 200, không lộ vết ngăn xếp.
-- **Đã kiểm (25/09):** quét 58 commit trên mọi nhánh: 0 khóa bí mật thật; tệp compose hợp lệ; luồng người bán lần đầu chạy trọn trên bản build.
+- **Đã kiểm (25/09):** quét 79 commit trên mọi nhánh: 0 khóa bí mật thật; tệp compose hợp lệ; luồng người bán lần đầu chạy trọn trên bản build.
 - **Chưa kiểm:** `docker compose up` trọn vẹn trên máy của nhóm (hệ thống đang chạy bằng `scripts/chay_local.py`).
 
 **Địa chỉ demo công khai:** chưa có tại ngày 25/09/2026; mã nguồn ở mục 13 chạy được trên máy cá nhân theo README, địa chỉ chạy liên tục là mốc trước vòng chung kết (mục 12).
@@ -390,7 +390,7 @@ Rà soát ngày 14/09 phát hiện 12/15 đường ghi khi đó không có xác 
 
 **Thư mục minh chứng (Google Drive, mở quyền xem cho mọi người có liên kết):** ⬜ *dán liên kết và thử mở bằng cửa sổ ẩn danh trước khi nộp*
 
-- **Prompt Log:** hội thoại với Claude Code xuất từ nhật ký gốc (78 câu lệnh người gõ trong 5 phiên, 567 nhật ký tác tử con), kèm bảng băm SHA-256; đã che khóa bí mật và dữ liệu cá nhân, phần cắt bớt có đánh dấu. Ảnh chụp system prompt có ở 3/5 phiên (công cụ chỉ ghi từ bản 2.1.270); tệp chỉ dẫn `HARNESS.md` nộp kèm. Nhật ký Codex và Antigravity (21/09) do thành viên đã dùng tự xuất.
+- **Prompt Log:** hội thoại với Claude Code xuất từ nhật ký gốc (83 câu lệnh người gõ trong 5 phiên, 598 nhật ký tác tử con), kèm bảng băm SHA-256; đã che khóa bí mật và dữ liệu cá nhân, phần cắt bớt có đánh dấu. Ảnh chụp system prompt có ở 3/5 phiên (công cụ chỉ ghi từ bản 2.1.270); tệp chỉ dẫn `HARNESS.md` nộp kèm. Nhật ký Codex và Antigravity (21/09) do thành viên đã dùng tự xuất.
 - **Minh chứng tiến trình:** mốc commit theo ngày sinh từ `git log`; ảnh giao diện bản hiện tại chụp tự động ngày 25/09/2026 (13 màn hình, ghi mã commit); ảnh các mốc trước chụp lại từ commit cũ ⬜ *đội bổ sung trước khi nộp*. **Tài liệu kỹ thuật:** tiền đăng ký, sổ sự cố, số hiệu chuẩn, kết quả NLP, báo cáo nạp dữ liệu.
 - **Bản kê khai** công cụ AI, mô hình, dữ liệu, API, thư viện, mã kế thừa, có chữ ký ba thành viên.
 

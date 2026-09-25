@@ -229,6 +229,8 @@ def test_readme_khong_con_bo_so_hieu_chuan_cu_khong_tai_lap_duoc(readme: str) ->
 # ---------------------------------------------------------------------------
 FACT_SHEET = GOC / "docs" / "competition" / "FACT-SHEET.md"
 HO_SO = GOC / "docs" / "competition" / "sang-tao-tre-2026" / "noi-dung.md"
+KE_KHAI = GOC / "docs" / "competition" / "sang-tao-tre-2026" / "05-BAN-KE-KHAI.md"
+KICH_BAN = GOC / "docs" / "competition" / "sang-tao-tre-2026" / "07-KICH-BAN-2-VIDEO.md"
 NLP_NANG_CAP = GOC / "docs" / "competition" / "sang-tao-tre-2026" / "03-NLP-NANG-CAP.md"
 MO_HINH = GOC / "src" / "livelift" / "nlp" / "model"
 
@@ -250,6 +252,16 @@ def test_so_su_co_o_fact_sheet_va_ho_so_khop_so_hang_cua_so_su_co() -> None:
     assert f"{that} hàng, trong đó {ngay_25} hàng ngày 25/09" in dong, dong[:220]
     trich = {int(m) for m in re.findall(r"\*\*(\d+)\*\* sự cố", HO_SO.read_text("utf-8"))}
     assert trich == {that}, f"hồ sơ ghi {sorted(trich)} sự cố, sổ có {that} hàng"
+    # Phần việc 3 (tối 25/09/2026): mẫu "**N** sự cố" ở trên không quét dòng BẢNG, nên Bảng 5
+    # của hồ sơ và bảng "Số được phép nói" của kịch bản video còn ghi 99 sau khi sổ lên 109.
+    # Quét mọi dạng trích trong cả ba tệp nộp: "N sự cố", "**N** sự cố", "| Sự cố … | N |".
+    for tep in (HO_SO, KE_KHAI, KICH_BAN):
+        t = tep.read_text(encoding="utf-8")
+        so = [int(m) for m in re.findall(r"(\d+)(?:\*\*)? sự cố", t)]
+        so += [int(m) for m in re.findall(r"^\| Sự cố[^|]*\| (\d+) \|", t, re.M)]
+        assert so, f"{tep.name}: không thấy chỗ trích số sự cố nào"
+        assert set(so) == {that}, f"{tep.name} ghi {so} sự cố, sổ có {that} hàng"
+    assert f"gồm {ngay_25} dòng thêm ngày 25/09" in KE_KHAI.read_text(encoding="utf-8")
 
 
 def test_fact_sheet_hieu_chuan_trich_dung_lan_do_ghi_trong_json() -> None:
@@ -286,8 +298,12 @@ def test_ho_so_khong_con_noi_ten_dinh_lien_lot_bo_loc() -> None:
 
     for tho in ("cảm ơn bạn@minhthu8106 nhiều", "đẹp quá@@kimchi_88"):  # tên BỊA
         assert scrub(tho).counts.get("social", 0) == 1, "tiền đề: bộ lọc bắt dạng dính liền"
-    t = re.sub(r"\s+", " ", HO_SO.read_text(encoding="utf-8"))
-    assert "vẫn lọt bộ lọc" not in t, "hồ sơ còn nói tên dính liền lọt bộ lọc"
-    assert "lọc nốt 6 dòng" not in t
-    assert "16 dòng" in t
-    assert "8 tên" in t
+    # Phần việc 3: bản kê khai (mục I.3, IX) còn "Còn mở: … vẫn lọt bộ lọc" và "bản xuất 25/09
+    # còn lọt 2 handle" sau khi bộ lọc đã vá và Prompt Log đã xuất lại (quét 0, đối chiếu 0).
+    for tep in (HO_SO, KE_KHAI):
+        t = re.sub(r"\s+", " ", tep.read_text(encoding="utf-8"))
+        assert "vẫn lọt bộ lọc" not in t, f"{tep.name} còn nói tên dính liền lọt bộ lọc"
+        assert "lọc nốt 6 dòng" not in t, tep.name
+        assert "còn lọt" not in t, f"{tep.name} còn nói bản xuất Prompt Log lọt tên tài khoản"
+        assert "16 dòng" in t, tep.name
+        assert "8 tên" in t, tep.name

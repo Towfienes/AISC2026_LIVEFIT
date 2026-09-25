@@ -29,6 +29,21 @@ SCRIPT = GOC / "scripts" / "dong_bo_so_test.py"
 README = GOC / "README.md"
 TRANG_CHU = GOC / "web" / "src" / "app" / "page.tsx"
 FACT_SHEET = GOC / "docs" / "competition" / "FACT-SHEET.md"
+HO_SO_DIR = GOC / "docs" / "competition" / "sang-tao-tre-2026"
+#: Ba tệp nộp chép lại dòng "Bộ kiểm thử" của FACT-SHEET (phần việc 3, tối 25/09/2026): hồ sơ
+#: 2.093 = 2.066 + 17 + 10, bản kê khai mục VIII, bảng "Số được phép nói" của kịch bản video.
+#: Trước đó script không quét chúng — đổi số test thì ba tệp nộp giữ số cũ mà vẫn báo "đúng".
+HO_SO = (
+    HO_SO_DIR / "noi-dung.md",
+    HO_SO_DIR / "05-BAN-KE-KHAI.md",
+    HO_SO_DIR / "07-KICH-BAN-2-VIDEO.md",
+)
+#: Nhóm theo nguồn mà tệp chép số: ba tệp nộp đi cùng FACT-SHEET, tệp chúng trích.
+NHOM = {
+    "README.md": (README,),
+    "page.tsx": (TRANG_CHU,),
+    "FACT-SHEET+ho-so": (FACT_SHEET, *HO_SO),
+}
 
 
 @pytest.fixture(scope="module")
@@ -78,32 +93,40 @@ def test_khong_noi_dau_con_goi_17_cong_cham_la_monte_carlo(db):
         assert "Monte--Carlo-" not in noi_dung, f"{tep.name}: badge còn chữ Monte-Carlo"
 
 
-@pytest.mark.parametrize("tep", [README, TRANG_CHU, FACT_SHEET], ids=lambda p: p.name)
-def test_moi_mau_bat_buoc_khop_tep_that(db, tep):
+@pytest.mark.parametrize("nhom", list(NHOM))
+def test_moi_mau_bat_buoc_khop_tep_that(db, nhom):
     """Mẫu bắt buộc không khớp = script im lặng ngừng đồng bộ (sự cố T1)."""
-    luat = db.LUAT[tep.relative_to(GOC).as_posix()]
     so = db.SoTest(nhanh=4242, thong_ke=31, nlp=2, css=5, trinh_duyet=11)
-    _, thieu = db.ap_dung(_doc(tep), luat, so, "01/01/2099")
-    assert not thieu, f"{tep.name}: mẫu bắt buộc không tìm thấy trong tệp thật: {thieu}"
+    for tep in NHOM[nhom]:
+        luat = db.LUAT[tep.relative_to(GOC).as_posix()]
+        _, thieu = db.ap_dung(_doc(tep), luat, so, "01/01/2099")
+        assert not thieu, f"{tep.name}: mẫu bắt buộc không tìm thấy trong tệp thật: {thieu}"
 
 
-@pytest.mark.parametrize("tep", [README, TRANG_CHU, FACT_SHEET], ids=lambda p: p.name)
-def test_doi_so_thi_tep_that_doi_theo(db, tep):
-    luat = db.LUAT[tep.relative_to(GOC).as_posix()]
-    cu = _doc(tep)
+@pytest.mark.parametrize("nhom", list(NHOM))
+def test_doi_so_thi_tep_that_doi_theo(db, nhom):
     so = db.SoTest(nhanh=4242, thong_ke=31, nlp=2, css=5, trinh_duyet=11)
-    moi, _ = db.ap_dung(cu, luat, so, "01/01/2099")
-    assert moi != cu
-    assert "4242" in moi or "4.242" in moi
-    if tep is not TRANG_CHU:
-        assert "38 cổng chậm (31 mô phỏng/thống kê · 2 đánh giá NLP · 5 cổng build CSS)" in moi
-    if tep is FACT_SHEET:
-        assert "01/01/2099" in moi, "FACT-SHEET đổi số thì phải đổi luôn ngày đếm"
-        assert "4.242 test nhanh" in moi, "FACT-SHEET dùng số vi-VN"
-        assert "4.291" in moi, "FACT-SHEET dùng số vi-VN"
-    # Áp lại cùng bộ số lần hai: không đổi gì nữa (idempotent).
-    lai, _ = db.ap_dung(moi, luat, so, "02/02/2099")
-    assert lai == moi, "ngày đếm chỉ đổi khi con số đổi"
+    for tep in NHOM[nhom]:
+        luat = db.LUAT[tep.relative_to(GOC).as_posix()]
+        cu = _doc(tep)
+        moi, _ = db.ap_dung(cu, luat, so, "01/01/2099")
+        assert moi != cu, tep.name
+        assert "4242" in moi or "4.242" in moi, tep.name
+        if tep in (README, FACT_SHEET):
+            assert "38 cổng chậm (31 mô phỏng/thống kê · 2 đánh giá NLP · 5 cổng build CSS)" in moi
+        if tep is FACT_SHEET:
+            assert "01/01/2099" in moi, "FACT-SHEET đổi số thì phải đổi luôn ngày đếm"
+            assert "4.242 test nhanh" in moi, "FACT-SHEET dùng số vi-VN"
+            assert "4.291" in moi, "FACT-SHEET dùng số vi-VN"
+        if tep in HO_SO:
+            assert "4.291" in moi, f"{tep.name}: tổng số test phải đổi theo, số vi-VN"
+            # Số test THU THẬP đổi thì câu kết quả chạy cũ ("2.091 đạt, 2 bỏ qua") không còn
+            # cộng ra tổng: script không được tự sửa số đạt, phải báo để người chạy lại.
+            assert db.lech_ket_qua_chay(moi, so), f"{tep.name}: kết quả chạy cũ không bị báo"
+            assert not db.lech_ket_qua_chay("chạy: 4.289 đạt, 2 bỏ qua", so)
+        # Áp lại cùng bộ số lần hai: không đổi gì nữa (idempotent).
+        lai, _ = db.ap_dung(moi, luat, so, "02/02/2099")
+        assert lai == moi, f"{tep.name}: ngày đếm chỉ đổi khi con số đổi"
 
 
 def test_badge_giu_mau_va_khong_bi_khoa_vao_brightgreen(db):

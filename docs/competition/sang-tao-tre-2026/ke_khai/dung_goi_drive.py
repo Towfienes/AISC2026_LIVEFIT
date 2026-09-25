@@ -23,6 +23,8 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import json
+import re
 import shutil
 import subprocess
 import sys
@@ -218,6 +220,12 @@ PL=D:/AISC2026/GOI-DRIVE-SANG-TAO-TRE/01-Prompt-Log
 .venv/Scripts/python docs/competition/sang-tao-tre-2026/ke_khai/dung_goi_drive.py
 ```
 
+Lệnh cuối so mọi số Prompt Log trong bản kê khai (mục I.1, I.2, I.3, VII) và hồ sơ (mục 13)
+với `01-Prompt-Log/SO-DEM.json` vừa xuất. Báo **LỆCH** (mã 1) thì sửa số trong
+`05-BAN-KE-KHAI.md` và `noi-dung.md`, dựng lại kê khai, dựng lại hồ sơ
+(`.venv-docx/Scripts/python docs/competition/sang-tao-tre-2026/dung_ho_so.py`), chạy lại lệnh
+cuối tới khi hết lệch.
+
 ## 2. Việc của từng người trước khi tải
 
 - **Tiến:** xuất nhật ký Google Antigravity và OpenAI Codex ngày 21/09/2026 từ máy của mình,
@@ -257,9 +265,10 @@ PL=D:/AISC2026/GOI-DRIVE-SANG-TAO-TRE/01-Prompt-Log
 
 - [ ] `--quet … --doi-chieu …` trên `01-Prompt-Log` ra 0 ở cả ba phép: bộ lọc, đối chiếu
   băm, dò tiền tố băm (sau khi thêm nhật ký của Tiến)
-- [ ] Prompt Log đã xuất lại SAU khi bộ lọc bắt được tên tài khoản dính liền `chữ@tên`
-  (kiểm kê 25/09/2026 thấy 2 tên thật dạng này lọt trong 2 tệp `tac-tu-con/`, mà `--quet`
-  vẫn ra 0 vì dùng cùng bộ lọc)
+- [ ] Lần xuất CUỐI chạy trên mã có bộ lọc tên tài khoản dính liền `chữ@tên` (commit
+  `b331076`; bản xuất trước đó lọt 2 tên thật dạng này mà `--quet` vẫn ra 0)
+- [ ] `dung_goi_drive.py` không báo LỆCH số Prompt Log; bản kê khai và hồ sơ đã dựng lại
+  sau lần sửa số cuối
 - [ ] `01-Prompt-Log/ngoai-claude-code/` có nhật ký Antigravity, Codex hoặc GHI-CHU.md có lý do
 - [ ] `05-Ban-ke-khai/` có bản PDF đã ký của cả ba thành viên
 - [ ] `03-Tai-lieu-ky-thuat/` đã chép đủ danh sách
@@ -346,6 +355,99 @@ dùng ảnh chỉnh sửa. Không để dữ liệu cá nhân (số điện tho�
 """
 
 
+# ------------------------------------------------------------------ số Prompt Log
+# Phần việc 3 (tối 25/09/2026): bản kê khai (mục I.2, I.3, VII) và hồ sơ (mục 13) ghi 78 câu
+# lệnh / 567 nhật ký tác tử con trong khi bản xuất trên đĩa đã là 83 / 598. Phiên làm việc còn
+# ghi tiếp tới lần xuất cuối trước khi tải lên, nên số chép tay luôn đi sau; không gì so hai
+# bên. Các hàm dưới đây trích MỌI chỗ ghi số Prompt Log trong hai tệp .md và so với
+# SO-DEM.json của lần xuất đang nằm trong gói.
+KE_KHAI_MD = DAY.parent / "05-BAN-KE-KHAI.md"
+HO_SO_MD = DAY.parent / "noi-dung.md"
+
+_SO = r"(\d[\d.]*)"
+#: (khoá, mẫu một nhóm số). Khoá trùng khoá của ``gia_tri_tu_so_dem``.
+CHO_TRICH: list[tuple[str, re.Pattern[str]]] = [
+    ("cau_lenh_nguoi", re.compile(_SO + r" câu lệnh người gõ")),
+    ("cau_lenh_nguoi", re.compile(r"Câu lệnh người gõ cho Claude Code \| " + _SO)),
+    ("cau_lenh_nguoi", re.compile(r"qua " + _SO + r" câu lệnh")),
+    ("so_phien", re.compile(r"người gõ trong (\d+) phiên")),
+    ("so_phien", re.compile(r"Claude Code \| [\d.]+ \((\d+) phiên\)")),
+    ("so_phien", re.compile(r"; (\d+) phiên từ ")),
+    ("lenh_gach_cheo", re.compile(r"thêm (\d+) lệnh `/model`")),
+    ("tac_tu_con", re.compile(_SO + r" nhật ký tác tử con")),
+    ("tac_tu_con", re.compile(r"Tác tử con do Claude sinh ra \| " + _SO + r" nhật ký")),
+    ("goi_cong_cu_ca_tac_tu_con", re.compile(r"gọi công cụ \*\*" + _SO + r"\*\* lần")),
+    ("goi_cong_cu_ca_tac_tu_con", re.compile(r"Lời gọi công cụ của Claude \| " + _SO)),
+    ("ghi_sua_tep", re.compile(_SO + r" lần ghi hoặc sửa tệp")),
+    ("kich_ban_dieu_phoi", re.compile(r"(\d+) kịch bản điều phối")),
+    ("tim_web", re.compile(_SO + r" lần tìm web")),
+    ("doc_trang_web", re.compile(_SO + r" lần đọc trang web")),
+    ("system_prompt", re.compile(r"có ở (\d+)/\d+ phiên")),
+]
+_COT_PHIEN = ("cau_lenh_nguoi", "lenh_gach_cheo", "goi_cong_cu", "tac_tu_con")
+#: Dòng "Tổng" và dòng từng phiên của bảng mục I.3 (4 cột số theo ``_COT_PHIEN``).
+_DONG_TONG = re.compile(r"^\| \*\*Tổng\*\* \| *" + r"\| \*\*(\d[\d.]*)\*\* " * 4 + r"\|", re.M)
+_DONG_PHIEN = re.compile(r"^\| `([0-9a-f]{8})` \| [^|\n]* " + r"\| (\d[\d.]*) " * 4 + r"\|", re.M)
+#: Bảng mục I.2: số bản ghi trả lời theo mô hình.
+_DONG_MO_HINH = re.compile(r"\(`(claude-[a-z0-9-]+)`\) \| (\d[\d.]*) \|")
+
+
+def _int(s: str) -> int:
+    return int(s.replace(".", ""))
+
+
+def trich_so_prompt_log(van_ban: str) -> dict[str, list[int]]:
+    """Mọi con số Prompt Log mà một tệp .md ghi, theo khoá, đúng thứ tự xuất hiện."""
+    ra: dict[str, list[int]] = defaultdict(list)
+    for khoa, mau in CHO_TRICH:
+        for m in mau.finditer(van_ban):
+            ra[khoa].append(_int(m.group(1)))
+    for m in _DONG_TONG.finditer(van_ban):
+        for khoa, so in zip(_COT_PHIEN, m.groups(), strict=True):
+            ra[khoa].append(_int(so))
+    for m in _DONG_PHIEN.finditer(van_ban):
+        for khoa, so in zip(_COT_PHIEN, m.groups()[1:], strict=True):
+            ra[f"{m.group(1)}:{khoa}"].append(_int(so))
+    for m in _DONG_MO_HINH.finditer(van_ban):
+        ra[f"mo_hinh:{m.group(1)}"].append(_int(m.group(2)))
+    return dict(ra)
+
+
+def gia_tri_tu_so_dem(so_dem: dict) -> dict[str, int]:
+    """Giá trị đúng của từng khoá, đọc từ SO-DEM.json do ``scripts/xuat_prompt_log.py`` ghi."""
+    t = so_dem["tong"]
+    c = so_dem.get("tong_ke_ca_tac_tu_con", {})
+    phien = so_dem.get("phien", {})
+    g = {khoa: t[khoa] for khoa in _COT_PHIEN}
+    g |= {
+        "so_phien": t["so_phien_chinh"],
+        "kich_ban_dieu_phoi": t["so_kich_ban_dieu_phoi"],
+        "goi_cong_cu_ca_tac_tu_con": c.get("goi_cong_cu", 0),
+        "ghi_sua_tep": c.get("cong_cu:Write", 0) + c.get("cong_cu:Edit", 0),
+        "tim_web": c.get("cong_cu:WebSearch", 0),
+        "doc_trang_web": c.get("cong_cu:WebFetch", 0),
+        "system_prompt": sum(1 for p in phien.values() if p.get("system_prompt")),
+    }
+    for ma, p in phien.items():
+        g |= {f"{ma[:8]}:{khoa}": p[khoa] for khoa in _COT_PHIEN}
+    g |= {f"mo_hinh:{ten}": n for ten, n in t.get("mo_hinh", {}).items()}
+    return g
+
+
+def lech_so_prompt_log(ky_vong: dict[str, int], van_ban: list[tuple[str, str]]) -> list[str]:
+    """Mỗi chỗ một tệp ghi số Prompt Log khác ``ky_vong`` là một dòng báo lệch."""
+    lech = []
+    for ten, noi_dung in van_ban:
+        for khoa, cac_so in trich_so_prompt_log(noi_dung).items():
+            dung = ky_vong.get(khoa)
+            for so in cac_so:
+                if dung is None:
+                    lech.append(f"{ten}: {khoa} = {_so(so)} nhưng bản xuất không có khoá này")
+                elif so != dung:
+                    lech.append(f"{ten}: {khoa} ghi {_so(so)}, bản xuất có {_so(dung)}")
+    return lech
+
+
 def main(argv: list[str] | None = None) -> int:
     for s in (sys.stdout, sys.stderr):
         with contextlib.suppress(AttributeError, ValueError):
@@ -375,11 +477,27 @@ def main(argv: list[str] | None = None) -> int:
             da_chep.append(nguon.name)
     print(f"Đã dựng cây thư mục tại {g}")
     print(f"  bản kê khai đã chép: {', '.join(da_chep) or 'CHƯA CÓ — chạy dung_ke_khai.py trước'}")
-    if not (g / "01-Prompt-Log" / "SO-DEM.json").exists():
+    tep_so_dem = g / "01-Prompt-Log" / "SO-DEM.json"
+    if not tep_so_dem.exists():
         print("  01-Prompt-Log chưa có bản xuất — chạy scripts/xuat_prompt_log.py --ra ...")
-    else:
-        print("  Nhớ chạy lại --lap-manifest cho 01-Prompt-Log nếu vừa thêm ngoai-claude-code/")
-    return 0
+        return 0
+    print("  Nhớ chạy lại --lap-manifest cho 01-Prompt-Log nếu vừa thêm ngoai-claude-code/")
+    so_dem = json.loads(tep_so_dem.read_text(encoding="utf-8"))
+    lech = lech_so_prompt_log(
+        gia_tri_tu_so_dem(so_dem),
+        [(p.name, p.read_text(encoding="utf-8")) for p in (KE_KHAI_MD, HO_SO_MD)],
+    )
+    if not lech:
+        print(f"  Số Prompt Log trong kê khai, hồ sơ khớp SO-DEM.json ({so_dem['xuat_luc']}).")
+        return 0
+    print(f"  LỆCH số Prompt Log với {tep_so_dem} (xuất {so_dem['xuat_luc']}):")
+    for x in lech:
+        print("   -", x)
+    print(
+        "  Sửa số trong 05-BAN-KE-KHAI.md và noi-dung.md theo SO-DEM.json, dựng lại kê khai"
+        " (dung_ke_khai.py) và hồ sơ (dung_ho_so.py), rồi chạy lại tệp này."
+    )
+    return 1
 
 
 if __name__ == "__main__":

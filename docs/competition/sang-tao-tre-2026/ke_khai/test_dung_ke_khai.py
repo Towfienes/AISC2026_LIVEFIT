@@ -100,6 +100,46 @@ def test_ban_ke_khai_that_sach_va_du_muc():
         assert cong_cu in md, cong_cu
     for luat in ("91/2025/QH15", "356/2025/NĐ-CP", "134/2025/QH15"):
         assert luat in md, luat
+    # Số Prompt Log (phần việc 3, tối 25/09/2026): kê khai và hồ sơ mục 13 ghi 78 câu / 567 nhật
+    # ký trong khi bản xuất trên đĩa đã là 83 / 598 — không gì so hai bên. dung_goi_drive.py
+    # trích MỌI chỗ ghi số và so với SO-DEM.json của lần xuất; ở đây: các chỗ ghi phải khớp nhau,
+    # mỗi khoá quan trọng phải trích được, và lệch một số thì bị báo ở cả hai tệp.
+    import dung_goi_drive as goi
+
+    ho_so = (DAY.parent / "noi-dung.md").read_text(encoding="utf-8")
+    trich = goi.trich_so_prompt_log(md)
+    for khoa in ("cau_lenh_nguoi", "lenh_gach_cheo", "goi_cong_cu", "tac_tu_con", "so_phien"):
+        assert khoa in trich, f"kê khai không còn chỗ ghi {khoa} mà bộ so trích được"
+    so_phien = trich["so_phien"][0]
+    assert sum(k.endswith(":cau_lenh_nguoi") for k in trich) == so_phien, "bảng I.3 thiếu phiên"
+    kv = {khoa: cac_so[0] for khoa, cac_so in trich.items()}
+    van_ban = [("05-BAN-KE-KHAI.md", md), ("noi-dung.md", ho_so)]
+    assert goi.lech_so_prompt_log(kv, van_ban) == []
+    # Khoá của bộ trích và của SO-DEM.json phải là một: SO-DEM tối thiểu dựng từ chính bảng I.3.
+    so_dem = {
+        "tong": {
+            **{k: kv[k] for k in goi._COT_PHIEN},
+            "so_phien_chinh": so_phien,
+            "so_kich_ban_dieu_phoi": kv["kich_ban_dieu_phoi"],
+            "mo_hinh": {k[8:]: v for k, v in kv.items() if k.startswith("mo_hinh:")},
+        },
+        "phien": {
+            k[:8] + "-0000": {c: kv[f"{k[:8]}:{c}"] for c in goi._COT_PHIEN}
+            | {"system_prompt": i < kv["system_prompt"]}
+            for i, k in enumerate(k for k in kv if k.endswith(":cau_lenh_nguoi"))
+        },
+        "tong_ke_ca_tac_tu_con": {
+            "goi_cong_cu": kv["goi_cong_cu_ca_tac_tu_con"],
+            "cong_cu:Write": kv["ghi_sua_tep"],
+            "cong_cu:WebSearch": kv["tim_web"],
+            "cong_cu:WebFetch": kv["doc_trang_web"],
+        },
+    }
+    assert goi.lech_so_prompt_log(goi.gia_tri_tu_so_dem(so_dem), van_ban) == []
+    so_dem["tong"]["cau_lenh_nguoi"] += 1  # lần xuất sau có thêm một câu người gõ
+    lech = goi.lech_so_prompt_log(goi.gia_tri_tu_so_dem(so_dem), van_ban)
+    assert any(x.startswith("noi-dung.md") for x in lech), lech
+    assert sum(x.startswith("05-BAN-KE-KHAI.md") for x in lech) >= 4, lech
 
 
 def test_bang_ky_co_du_ba_thanh_vien():

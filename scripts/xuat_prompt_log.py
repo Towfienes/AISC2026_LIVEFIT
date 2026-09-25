@@ -24,6 +24,10 @@ con nằm trong ``<phiên>/subagents/**/agent-*.jsonl``.
     python scripts/xuat_prompt_log.py --quet <thư mục> \\
         --doi-chieu D:/AISC2026/dinh-danh-da-biet.sha256
 
+    # --doi-chieu đi cùng --ra: khi xuất, mọi đoạn hex từ 10 ký tự là tiền tố của một băm đã
+    # biết thành [BĂM-ĐỊNH-DANH] (nhật ký kiểm toán in 12 ký tự đầu của băm thay cho tên —
+    # sự cố 25/09/2026 tối); đi cùng --quet: dò cả tiền tố đó. Lần xuất nộp PHẢI kèm cờ này.
+
 PHÂN VAI (sửa 25/09/2026). Claude Code lưu cả kết quả công cụ, thông báo tác vụ
 và chỉ dẫn nạp tự động dưới ``type == "user"``. Bản trước gán nhãn "NGƯỜI DÙNG"
 cho tất cả, nên "câu lệnh của đội" bị thổi phồng khoảng 20 lần (1.297 so với 66
@@ -65,6 +69,7 @@ regex, không phải NER.
 from __future__ import annotations
 
 import argparse
+import functools
 import hashlib
 import json
 import os
@@ -300,6 +305,9 @@ def lam_sach(text: str, dem: Counter, loai: frozenset[str] | None = DAY_DU) -> s
     """Áp mọi luật lọc theo mức ``loai``; cộng dồn số lần thay vào ``dem``."""
     if not text:
         return text
+    # Che tiền tố băm định danh TRƯỚC bộ lọc sản phẩm: luật SĐT/số tài khoản có thể che một
+    # dãy số giữa chuỗi hex, cắt tiền tố thành mảnh mà phép dò tiền tố không còn nhận ra.
+    text = che_tien_to_bam(text, TAP_BAM_DA_BIET, dem)
     for tu_khoa, thay in DENYLIST.items():
         if tu_khoa and tu_khoa in text:
             dem["danh_sach_chan_doi"] += text.count(tu_khoa)
@@ -377,6 +385,7 @@ _XUONG_DONG = chr(10)
 def lam_sach_tep(duong_dan: Path, noi_dung: str, dem: Counter) -> str:
     """Lượt cuối trên từng DÒNG của tệp sắp ghi, cùng cách chia mức với ``quet_thu_muc``:
     bắt những gì chỉ lộ ra khi đoạn đã lọc đứng cạnh chữ khác (ô bảng, tiêu đề)."""
+    noi_dung = che_tien_to_bam(noi_dung, TAP_BAM_DA_BIET, dem)
     dong = noi_dung.split(_XUONG_DONG)
     ra = [
         lam_sach(d, dem, m) if sum(dem_con_sot(d, m).values()) else d
@@ -597,6 +606,92 @@ def _in_doi_chieu(trung: list[tuple[str, int, str]], so_bam: int) -> None:
     print(f"Đối chiếu độc lập với {so_bam} băm định danh đã biết: {len(trung)} chỗ trùng")
     for tep, so_dong, bam in trung[:200]:
         print(f"  {tep}:{so_dong}  băm {bam}")
+
+
+# --------------------------------------------------------------------------
+# Tiền tố băm định danh (thêm 25/09/2026, tối)
+# --------------------------------------------------------------------------
+# Để "không in tên", các làn kiểm toán in 12 ký tự đầu của băm SHA-256 KHÔNG muối của tên
+# tài khoản thật; nhật ký tác tử con của chính các làn đó đi vào Prompt Log (60 chỗ trong 13
+# tệp của bản xuất 25/09 16:39). 48 bit tiền tố đủ để xác nhận một tên đoán thử, nên tiền tố
+# cũng là định danh. Bộ lọc sản phẩm không biết băm; phép đối chiếu ở trên băm từng chuỗi
+# rồi so với băm ĐẦY ĐỦ nên cũng không thấy tiền tố. Khi có ``--doi-chieu``: lúc xuất, mọi
+# đoạn hex từ 10 ký tự là tiền tố của một băm đã biết thành ``NHAN_TIEN_TO_BAM``; lúc quét,
+# còn đoạn nào như vậy thì mã 1 (chỉ in ``tệp:dòng``, không in lại tiền tố).
+TIEN_TO_BAM_TOI_THIEU = 10  # 40 bit; dưới mức này tiền tố trùng ngẫu nhiên quá dễ
+NHAN_TIEN_TO_BAM = "[BĂM-ĐỊNH-DANH]"
+_CHUOI_HEX = re.compile(rf"[0-9A-Fa-f]{{{TIEN_TO_BAM_TOI_THIEU},}}")
+# Tập băm đã biết của lần chạy hiện tại (main() đặt khi có --doi-chieu, None nếu không).
+TAP_BAM_DA_BIET: set[str] | None = None
+
+
+@functools.lru_cache(maxsize=4)
+def _chi_muc_tien_to(tap: frozenset[str]) -> dict[str, tuple[str, ...]]:
+    chi_muc: dict[str, list[str]] = {}
+    for bam in tap:
+        chi_muc.setdefault(bam[:TIEN_TO_BAM_TOI_THIEU], []).append(bam)
+    return {k: tuple(v) for k, v in chi_muc.items()}
+
+
+def _tim_tien_to_bam(text: str, tap: set[str] | frozenset[str]):
+    """(đầu, cuối) của mỗi đoạn hex ≥ ``TIEN_TO_BAM_TOI_THIEU`` ký tự là tiền tố của một băm
+    trong ``tap``, xét ở MỌI vị trí trong chuỗi hex (kể cả khi dính sau hex khác)."""
+    chi_muc = _chi_muc_tien_to(frozenset(tap))
+    n = TIEN_TO_BAM_TOI_THIEU
+    for m in _CHUOI_HEX.finditer(text):
+        s = m.group(0).lower()
+        i = 0
+        while i + n <= len(s):
+            ung = chi_muc.get(s[i : i + n])
+            if not ung:
+                i += 1
+                continue
+            dai = n
+            for bam in ung:
+                k = n
+                while i + k < len(s) and k < len(bam) and s[i + k] == bam[k]:
+                    k += 1
+                dai = max(dai, k)
+            yield m.start() + i, m.start() + i + dai
+            i += dai
+
+
+def che_tien_to_bam(text: str, tap: set[str] | frozenset[str] | None, dem: Counter) -> str:
+    """Thay mọi tiền tố (≥ 10 ký tự hex) của băm định danh đã biết bằng ``NHAN_TIEN_TO_BAM``."""
+    if not tap or not text:
+        return text
+    doan = list(_tim_tien_to_bam(text, tap))
+    if not doan:
+        return text
+    phan: list[str] = []
+    con_tro = 0
+    for dau, cuoi in doan:
+        phan += [text[con_tro:dau], NHAN_TIEN_TO_BAM]
+        con_tro = cuoi
+    phan.append(text[con_tro:])
+    dem["tien_to_bam_dinh_danh"] += len(doan)
+    return "".join(phan)
+
+
+def do_tien_to_bam_thu_muc(thu_muc: Path, tap: set[str]) -> list[tuple[str, int]]:
+    """(tệp tương đối, số dòng) của mỗi tiền tố băm định danh còn trong thư mục."""
+    goc = Path(thu_muc)
+    kq: list[tuple[str, int]] = []
+    for f in _tep_van_ban(goc):
+        ten = f.relative_to(goc).as_posix()
+        with open(f, encoding="utf-8", errors="replace") as fh:
+            for so_dong, dong in enumerate(fh, 1):
+                kq += [(ten, so_dong) for _ in _tim_tien_to_bam(dong, tap)]
+    return kq
+
+
+def _in_tien_to(tien_to: list[tuple[str, int]]) -> None:
+    print(
+        f"Dò tiền tố băm định danh (≥ {TIEN_TO_BAM_TOI_THIEU} ký tự hex): "
+        f"{len(tien_to)} chỗ tiền tố băm"
+    )
+    for tep, so_dong in tien_to[:200]:
+        print(f"  {tep}:{so_dong}")
 
 
 # --------------------------------------------------------------------------
@@ -1201,7 +1296,8 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         metavar="TEP_BAM",
         help="đối chiếu ĐỘC LẬP (không dùng bộ lọc) bản xuất với tập băm định danh thật đã "
-        "biết; còn chuỗi nào băm trùng thì mã 1 (đi cùng --quet hoặc --ra)",
+        "biết; còn chuỗi nào băm trùng, hay đoạn hex ≥ 10 ký tự là tiền tố của một băm đó, thì "
+        "mã 1 (đi cùng --quet hoặc --ra; với --ra, tiền tố được thay bằng [BĂM-ĐỊNH-DANH])",
     )
     ap.add_argument(
         "--lap-doi-chieu",
@@ -1273,6 +1369,9 @@ def main(argv: list[str] | None = None) -> int:
             )
         return 0
     tap_doi_chieu = doc_tap_bam(a.doi_chieu) if a.doi_chieu else None
+    # Đặt lại mỗi lần gọi (test gọi main() nhiều lần trong cùng tiến trình).
+    global TAP_BAM_DA_BIET
+    TAP_BAM_DA_BIET = tap_doi_chieu
     if a.quet:
         kq = quet_thu_muc(a.quet)
         tong = sum(kq.values())
@@ -1280,10 +1379,13 @@ def main(argv: list[str] | None = None) -> int:
         for k, v in kq.most_common():
             print(f"  {k}: {v}")
         trung = []
+        tien_to: list[tuple[str, int]] = []
         if tap_doi_chieu is not None:
             trung = doi_chieu_thu_muc(a.quet, tap_doi_chieu)
             _in_doi_chieu(trung, len(tap_doi_chieu))
-        return 1 if tong or trung else 0
+            tien_to = do_tien_to_bam_thu_muc(a.quet, tap_doi_chieu)
+            _in_tien_to(tien_to)
+        return 1 if tong or trung or tien_to else 0
     if tap_doi_chieu is not None and not a.ra:
         ap.error("--doi-chieu đi cùng --quet <thư mục> hoặc --ra <thư mục>")
     if not a.kiem_tra and not a.ra:
@@ -1465,10 +1567,16 @@ def main(argv: list[str] | None = None) -> int:
     kq_quet = quet_thu_muc(a.ra)
     so["quet_lai"] = {"tong": sum(kq_quet.values()), "chi_tiet": dict(kq_quet)}
     trung: list[tuple[str, int, str]] = []
+    tien_to: list[tuple[str, int]] = []
     if tap_doi_chieu is not None:
         trung = doi_chieu_thu_muc(a.ra, tap_doi_chieu)
+        tien_to = do_tien_to_bam_thu_muc(a.ra, tap_doi_chieu)
         # chỉ số đếm vào tệp tải lên — vị trí (tệp:dòng, băm) chỉ in ra màn hình
-        so["doi_chieu_doc_lap"] = {"so_bam_da_biet": len(tap_doi_chieu), "trung": len(trung)}
+        so["doi_chieu_doc_lap"] = {
+            "so_bam_da_biet": len(tap_doi_chieu),
+            "trung": len(trung),
+            "tien_to_bam": len(tien_to),
+        }
     (a.ra / "SO-DEM.json").write_text(json.dumps(so, ensure_ascii=False, indent=1), "utf-8")
     # README ghi lần đầu TRƯỚC khi quét (để chính nó cũng được quét); ghi lại với kết quả
     # quét thật — phản biện 25/09: bản xuất thật in "**chưa chạy** chỗ còn khớp".
@@ -1488,6 +1596,10 @@ def main(argv: list[str] | None = None) -> int:
                 "băm mọi chuỗi chữ-số của bản xuất (không qua bộ lọc) và so với "
                 f"{len(tap_doi_chieu)} băm SHA-256 tên tài khoản thật lập từ dữ liệu gốc (tệp "
                 f"băm lưu ngoài gói): **{len(trung)}** chỗ trùng.\n"
+                f"\nTiền tố từ {TIEN_TO_BAM_TOI_THIEU} ký tự hex của các băm đó (nhật ký kiểm "
+                f"toán in ra thay cho tên): đã thay "
+                f"{bd.thay['tien_to_bam_dinh_danh']} chỗ bằng `{NHAN_TIEN_TO_BAM}`; dò lại "
+                f"còn **{len(tien_to)}** chỗ.\n"
             )
     _ghi_manifest(a.ra)
     print("\n".join(bang))
@@ -1497,7 +1609,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     if tap_doi_chieu is not None:
         _in_doi_chieu(trung, len(tap_doi_chieu))
-    return 0 if not kq_quet and not trung else 1
+        _in_tien_to(tien_to)
+    return 0 if not kq_quet and not trung and not tien_to else 1
 
 
 _TEP_SINH_RA = (
@@ -1720,6 +1833,9 @@ def _readme(so: dict) -> str:
                 "Đối chiếu độc lập (không qua bộ lọc) mọi chuỗi chữ-số của bản xuất với "
                 f"{so['doi_chieu_doc_lap']['so_bam_da_biet']} băm SHA-256 tên tài khoản thật đã",
                 f"biết (tệp băm lưu ngoài gói): **{so['doi_chieu_doc_lap']['trung']}** chỗ trùng.",
+                f"Tiền tố từ {TIEN_TO_BAM_TOI_THIEU} ký tự hex của các băm đó (nhật ký kiểm toán"
+                f" in ra thay cho tên) được thay bằng `{NHAN_TIEN_TO_BAM}` khi xuất; dò lại còn"
+                f" **{so['doi_chieu_doc_lap'].get('tien_to_bam', 'chưa chạy')}** chỗ.",
             ]
             if "doi_chieu_doc_lap" in so
             else []
@@ -1748,7 +1864,8 @@ def _readme(so: dict) -> str:
         "",
         "```",
         "python scripts/xuat_prompt_log.py --kiem-tra --sao-luu <thư mục sao lưu>  # chỉ đếm",
-        "python scripts/xuat_prompt_log.py --ra <thư mục> --sao-luu <thư mục sao lưu>",
+        "python scripts/xuat_prompt_log.py --ra <thư mục> --sao-luu <thư mục sao lưu> \\",
+        "    --doi-chieu <tệp băm>  # che cả tiền tố băm định danh",
         "python scripts/xuat_prompt_log.py --quet <thư mục>                         # phải ra 0",
         "python scripts/xuat_prompt_log.py --quet <thư mục> --doi-chieu <tệp băm>   # phải ra 0",
         "```",

@@ -204,11 +204,15 @@ def huong_dan() -> str:
 ```
 # Git Bash, tại thư mục kho mã
 cd D:/AISC2026/livelift
-# xuất lại Prompt Log (phiên đang chạy vẫn ghi thêm), rồi quét: phải ra 0
+# xuất lại Prompt Log (phiên đang chạy vẫn ghi thêm), rồi quét: phải ra 0. BẮT BUỘC kèm
+# --doi-chieu (tệp băm lưu ngoài kho, không tải lên): chỉ khi có nó bộ xuất mới che được
+# tiền tố băm tên tài khoản mà nhật ký kiểm toán in ra, và --quet mới dò được chúng.
 PL=D:/AISC2026/GOI-DRIVE-SANG-TAO-TRE/01-Prompt-Log
 .venv/Scripts/python scripts/xuat_prompt_log.py --ra $PL \
+    --doi-chieu D:/AISC2026/dinh-danh-da-biet.sha256 \
     --sao-luu D:/AISC2026/prompt-log-goc/2026-09-15
-.venv/Scripts/python scripts/xuat_prompt_log.py --quet $PL
+.venv/Scripts/python scripts/xuat_prompt_log.py --quet $PL \
+    --doi-chieu D:/AISC2026/dinh-danh-da-biet.sha256
 # dựng lại bản kê khai và cây thư mục
 .venv-docx/Scripts/python docs/competition/sang-tao-tre-2026/ke_khai/dung_ke_khai.py
 .venv/Scripts/python docs/competition/sang-tao-tre-2026/ke_khai/dung_goi_drive.py
@@ -251,7 +255,8 @@ PL=D:/AISC2026/GOI-DRIVE-SANG-TAO-TRE/01-Prompt-Log
 
 ## 5. Bảng kiểm cuối
 
-- [ ] `--quet` trên `01-Prompt-Log` ra 0 (sau khi thêm nhật ký của Tiến)
+- [ ] `--quet … --doi-chieu …` trên `01-Prompt-Log` ra 0 ở cả ba phép: bộ lọc, đối chiếu
+  băm, dò tiền tố băm (sau khi thêm nhật ký của Tiến)
 - [ ] Prompt Log đã xuất lại SAU khi bộ lọc bắt được tên tài khoản dính liền `chữ@tên`
   (kiểm kê 25/09/2026 thấy 2 tên thật dạng này lọt trong 2 tệp `tac-tu-con/`, mà `--quet`
   vẫn ra 0 vì dùng cùng bộ lọc)

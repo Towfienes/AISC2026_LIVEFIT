@@ -687,7 +687,7 @@ def test_ra_kem_doi_chieu_ghi_so_dem_khong_ghi_vi_tri(goc, tmp_path):
     out = tmp_path / "ra-doi-chieu"
     assert xpl.main(["--ra", str(out), "--doi-chieu", str(tep)]) == 0
     so = json.loads((out / "SO-DEM.json").read_text("utf-8"))
-    assert so["doi_chieu_doc_lap"] == {"so_bam_da_biet": 5, "trung": 0}
+    assert so["doi_chieu_doc_lap"] == {"so_bam_da_biet": 5, "trung": 0, "tien_to_bam": 0}
     assert "Đối chiếu độc lập" in (out / "README.md").read_text("utf-8")
     assert "**0** chỗ trùng" in (out / "BAO-CAO-LAM-SACH.md").read_text("utf-8")
 
@@ -716,3 +716,133 @@ def test_doi_chieu_can_quet_hoac_ra(tmp_path):
     tep = _tep_bam(tmp_path, "minhthu8106")
     with pytest.raises(SystemExit):
         xpl.main(["--doi-chieu", str(tep), "--kiem-tra"])
+
+
+# --------------------------------------------------------------------------
+# 7. Tiền tố băm định danh trong chính nhật ký kiểm toán (25/09/2026, tối)
+# --------------------------------------------------------------------------
+# Sự cố: để "không in tên", các làn kiểm toán in 12 ký tự đầu của băm SHA-256 KHÔNG muối
+# của tên tài khoản thật; nhật ký tác tử con của chính các làn đó đi vào Prompt Log (60 chỗ
+# trong 13 tệp). 48 bit tiền tố đủ để xác nhận một tên đoán thử. Đối chiếu cũ băm từng chuỗi
+# chữ-số rồi so với băm ĐẦY ĐỦ nên không thấy tiền tố. Mọi băm dưới đây là băm của tên BỊA.
+BAM_BIA = xpl.bam_dinh_danh("minhthu8106")
+BAM_KHAC = hashlib.sha256(b"khong-phai-ten-tai-khoan").hexdigest()
+
+
+def test_che_tien_to_bam_tu_10_ky_tu_hex():
+    van_ban = (
+        f"băm {BAM_BIA[:12]} (8 dòng)\n"
+        f"đủ: {BAM_BIA}\n"
+        f"hoa: {BAM_BIA[:16].upper()}\n"
+        f"dính: deadbeef{BAM_BIA[:10]}\n"
+        f"ngắn: {BAM_BIA[:9]}\n"
+        f"khác: {BAM_KHAC[:12]}\n"
+    )
+    dem: Counter = Counter()
+    sach = xpl.che_tien_to_bam(van_ban, {BAM_BIA}, dem)
+    assert BAM_BIA[:10] not in sach.lower(), sach
+    assert sach.count(xpl.NHAN_TIEN_TO_BAM) == 4
+    assert dem["tien_to_bam_dinh_danh"] == 4
+    assert f"dính: deadbeef{xpl.NHAN_TIEN_TO_BAM}" in sach
+    assert f"ngắn: {BAM_BIA[:9]}" in sach, "dưới 10 ký tự hex thì giữ nguyên"
+    assert f"khác: {BAM_KHAC[:12]}" in sach, "băm không có trong tập thì giữ nguyên"
+    assert xpl.che_tien_to_bam(van_ban, None, Counter()) == van_ban
+    # nhãn thay thế không làm bộ lọc hay phép đối chiếu báo động
+    for muc in (xpl.DAY_DU, xpl.DINH_DANH):
+        assert sum(xpl.dem_con_sot(sach, muc).values()) == 0
+
+
+def _phien_co_tien_to(projects: Path) -> None:
+    """Phiên thứ hai: tiền tố băm nằm trong trả lời của AI, đầu vào công cụ, kết quả công cụ,
+    mô tả tác tử con (đi vào MUC-LUC) và kịch bản điều phối."""
+    phien2 = "22222222-3333-4444-5555-666666666666"
+    thu_muc = projects / "d--AISC2026"
+    _ghi(
+        thu_muc / f"{phien2}.jsonl",
+        [
+            _nguoi("đối chiếu lại tập băm", 30),
+            _ai(
+                31,
+                {"type": "text", "text": f"Còn 8 dòng mang băm `{BAM_BIA[:12]}`."},
+                {
+                    "type": "tool_use",
+                    "id": "toolu_h1",
+                    "name": "Bash",
+                    "input": {"command": f"grep -c {BAM_BIA[:12]} tap.sha256"},
+                },
+            ),
+            _ket_qua("toolu_h1", f"{BAM_BIA}  *tap\n{BAM_KHAC[:12]} giữ nguyên", 32),
+        ],
+    )
+    con = thu_muc / phien2 / "subagents" / "workflows" / "wf_bam" / "agent-b0001.jsonl"
+    _ghi(con, [_ai(33, {"type": "text", "text": f"băm {BAM_BIA[:12].upper()}"})])
+    (con.parent / "agent-b0001.meta.json").write_text(
+        json.dumps({"agentType": "workflow-subagent", "description": f"Soát {BAM_BIA[:12]}"}),
+        "utf-8",
+    )
+    js = projects / "D--AISC2026-livelift" / phien2 / "workflows" / "scripts" / "soat-wf_bam.js"
+    js.parent.mkdir(parents=True, exist_ok=True)
+    js.write_text(f"const BAM = '{BAM_BIA[:12]}'\n", "utf-8")
+
+
+def test_ra_kem_doi_chieu_che_tien_to_bam_o_moi_tep(goc, tmp_path):
+    _phien_co_tien_to(goc)
+    tep = _tep_bam(tmp_path, "minhthu8106")
+    out = tmp_path / "ra-tien-to"
+    assert xpl.main(["--ra", str(out), "--doi-chieu", str(tep)]) == 0
+    co_nhan = set()
+    for f in out.rglob("*"):
+        if f.is_file():
+            noi = f.read_text("utf-8", errors="replace")
+            assert BAM_BIA[:10] not in noi.lower(), f"còn tiền tố băm ở {f.relative_to(out)}"
+            if xpl.NHAN_TIEN_TO_BAM in noi:
+                co_nhan.add(f.relative_to(out).parts[0])
+    assert {"phien", "tac-tu-con", "kich-ban-dieu-phoi"} <= co_nhan, co_nhan
+    muc_luc = next(out.glob("tac-tu-con/22222222/MUC-LUC.md")).read_text("utf-8")
+    assert f"Soát {xpl.NHAN_TIEN_TO_BAM}" in muc_luc
+    assert BAM_KHAC[:12] in _doc_tat_ca(out), "băm không có trong tập thì giữ nguyên"
+    so = json.loads((out / "SO-DEM.json").read_text("utf-8"))
+    assert so["tong"]["so_lan_thay_the"]["tien_to_bam_dinh_danh"] >= 6
+    assert so["doi_chieu_doc_lap"] == {"so_bam_da_biet": 1, "trung": 0, "tien_to_bam": 0}
+    readme = (out / "README.md").read_text("utf-8")
+    assert f"`{xpl.NHAN_TIEN_TO_BAM}` khi xuất; dò lại còn **0** chỗ" in readme
+    assert xpl.main(["--quet", str(out), "--doi-chieu", str(tep)]) == 0
+
+
+def _doc_tat_ca(thu_muc: Path) -> str:
+    return "\n".join(
+        f.read_text("utf-8", errors="replace") for f in thu_muc.rglob("*") if f.is_file()
+    )
+
+
+def test_quet_doi_chieu_do_tien_to_bam_ma_bo_loc_va_doi_chieu_cu_deu_mu(ra, tmp_path, capsys):
+    tep = _tep_bam(tmp_path, "minhthu8106")
+    lot = ra / "tac-tu-con" / "x" / "agent-y.md"
+    lot.parent.mkdir(parents=True)
+    lot.write_text(f"mở đầu\nbăm {BAM_BIA[:12]} còn 8 dòng\n", "utf-8")
+    tap = xpl.doc_tap_bam(tep)
+    assert sum(xpl.quet_thu_muc(ra).values()) == 0, "tiền đề: bộ lọc không thấy tiền tố băm"
+    assert xpl.doi_chieu_thu_muc(ra, tap) == [], "tiền đề: so băm đầy đủ không thấy tiền tố"
+    assert xpl.do_tien_to_bam_thu_muc(ra, tap) == [("tac-tu-con/x/agent-y.md", 2)]
+    capsys.readouterr()
+    assert xpl.main(["--quet", str(ra), "--doi-chieu", str(tep)]) == 1
+    man_hinh = capsys.readouterr().out
+    assert "1 chỗ tiền tố băm" in man_hinh
+    assert "tac-tu-con/x/agent-y.md:2" in man_hinh
+    assert BAM_BIA[:10] not in man_hinh, "chỉ in vị trí, không in lại tiền tố"
+
+
+def test_huong_dan_tai_len_xuat_va_quet_deu_kem_doi_chieu():
+    """Chỉ khi có ``--doi-chieu`` bộ xuất mới biết băm nào cần che. Lệnh trong hướng dẫn tải
+    lên (lần xuất cuối trước khi nộp) thiếu cờ này thì tiền tố băm quay lại bản tải lên."""
+    tep = _GOC / "docs" / "competition" / "sang-tao-tre-2026" / "ke_khai" / "dung_goi_drive.py"
+    spec = importlib.util.spec_from_file_location("dung_goi_drive", tep)
+    assert spec is not None
+    assert spec.loader is not None
+    goi = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(goi)
+    lenh = re.sub(r"\\\n\s*", " ", goi.huong_dan())  # nối dòng lệnh ngắt bằng "\"
+    dong = [d for d in lenh.splitlines() if re.search(r"xuat_prompt_log\.py --(ra|quet) ", d)]
+    assert len(dong) >= 2, dong
+    for d in dong:
+        assert "--doi-chieu D:/AISC2026/dinh-danh-da-biet.sha256" in d, d

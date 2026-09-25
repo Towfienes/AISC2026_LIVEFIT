@@ -1,6 +1,6 @@
 {
  "ngay_do": "2026-09-25",
- "ban_git": "390027b+ban-lam-viec-co-thay-doi",
+ "ban_git": "b33673a",
  "lenh": "python scripts/ve_hinh_ho_so.py --tinh-lai",
  "tham_so_mong_doi": {
   "aa": {
@@ -21,7 +21,12 @@
   }
  },
  "ghi_chu": "Sinh bằng scripts/ve_hinh_ho_so.py. Dữ liệu MÔ PHỎNG Monte-Carlo, không phải phiên thí nghiệm thật. Sửa tay tệp này là sai quy trình — chạy lại script.",
- "tong_giay": 377.4,
+ "tong_giay": 215.5,
+ "moi_truong": {
+  "python": "3.12.6",
+  "numpy": "2.5.2",
+  "scipy": "1.18.1"
+ },
  "ket_qua": {
   "aa": {
    "tham_so": {
@@ -843,7 +848,7 @@
     0.0,
     0.0
    ],
-   "giay": 334.4
+   "giay": 195.5
   },
   "thu_hoi": {
    "tham_so": {
@@ -1025,7 +1030,7 @@
     0.27041862534379235,
     0.2864227389376345
    ],
-   "giay": 42.9
+   "giay": 20.0
   }
  }
 }

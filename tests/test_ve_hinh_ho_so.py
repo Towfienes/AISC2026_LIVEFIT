@@ -10,7 +10,8 @@ rẻ tiền trong bộ test nhanh:
 2. Tham số cổng hiệu ứng lưu mà hình 5 bóc bằng ``ast`` TRÙNG với tham số cổng thật sự
    gọi. Phép kiểm đi đường khác hẳn ``ast``: CHẠY hàm cổng với ``run_validation`` giả
    rồi ghi lại lời gọi.
-3. Số đếm trong ``hinh/du-lieu/hieu-chuan.json`` khớp ``docs/benchmarks/so-hieu-chuan.json``.
+3. Số đếm trong ``hinh/du-lieu/hieu-chuan.json`` khớp ``docs/benchmarks/so-hieu-chuan.json``;
+   cả hai tệp Monte-Carlo (hình 3, 5) được tính trên cây sạch, đúng một commit.
 4. Số trên hình 6 lấy đúng từ ``docs/benchmarks/intent-eval/chi-tiet-hinh.json``, và
    bản PNG/NGUON.md đang nằm trong kho được vẽ từ đúng bản JSON hiện tại.
 
@@ -24,6 +25,7 @@ import copy
 import dataclasses
 import importlib.util
 import json
+import re
 import struct
 from pathlib import Path
 
@@ -44,6 +46,14 @@ LY_DO_THIEU_MPL = (
 
 def _doc(duong: Path) -> dict:
     return json.loads(duong.read_text(encoding="utf-8"))
+
+
+def _tinh_tren_cay_sach(du_lieu: dict) -> None:
+    """Chân hình 3/5 in ``ban_git`` của lần tính: phải là MỘT commit, không kèm thay đổi chưa
+    commit (25/09/2026: hai tệp mang "390027b+ban-lam-viec-co-thay-doi" — không ai tái lập
+    được từ một commit). Tính lại bằng ``--tinh-lai`` trên cây sạch rồi commit."""
+    ban = du_lieu["ban_git"]
+    assert re.fullmatch(r"[0-9a-f]{7,40}", ban), f"ban_git = {ban!r}: tính trên cây bẩn/không rõ"
 
 
 @pytest.fixture(scope="module")
@@ -194,12 +204,13 @@ def test_tham_so_cong_doc_tu_ma_nguon_khong_chep_tay(vh, monkeypatch, tmp_path):
 
 def test_du_lieu_hinh5_tinh_voi_tham_so_cong_hien_hanh(vh):
     """hieu-ung-luu.json tính với tham số khác cổng hiện tại = hình 5 đã cũ."""
-    mong_doi = _doc(DU_LIEU / "hieu-ung-luu.json")["tham_so_mong_doi"]
-    assert mong_doi == {
+    du_lieu = _doc(DU_LIEU / "hieu-ung-luu.json")
+    assert du_lieu["tham_so_mong_doi"] == {
         "cong": vh.tham_so_cong_hieu_ung_luu(),
         "ban_ra_s": list(vh.BAN_RA_S),
         "seed_them": list(vh.SEED_THEM),
     }
+    _tinh_tren_cay_sach(du_lieu)
 
 
 # ============================================================ 3. số hiệu chuẩn
@@ -217,6 +228,7 @@ def test_dem_trong_hieu_chuan_json_khop_so_hieu_chuan():
         assert f"{sum(p < alpha for p in kq['p_values'])}/{n}" == c["so_lan_bac_bo"]
         assert f"{sum(bool(x) for x in kq['co_phu'])}/{n}" == c["so_lan_phu"]
         assert round(kq["do_lech_tuong_doi"], 4) == c["do_lech_tuong_doi"]
+    _tinh_tren_cay_sach(du_lieu)
 
 
 def test_kiem_khop_so_hieu_chuan_dung_khi_lech(vh):

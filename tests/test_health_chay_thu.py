@@ -38,7 +38,7 @@ def _tao(client, **kw) -> str:
 
 def test_kho_trong_dem_chay_thu_bang_0(client):
     body = client.get("/health").json()
-    assert body["mode_counts"] == {"demo": 0, "real": 0, "dry_run": 0}
+    assert body["mode_counts"] == {"demo": 0, "real": 0, "dry_run": 0, "da_huy": 0}
 
 
 def test_chay_thu_duoc_dem_rieng_ben_trong_real(client):
@@ -62,7 +62,7 @@ def test_phien_demo_khong_bao_gio_dem_la_chay_thu(client):
     _tao(client)
 
     mc = client.get("/health").json()["mode_counts"]
-    assert mc == {"demo": 2, "real": 2, "dry_run": 1}
+    assert mc == {"demo": 2, "real": 2, "dry_run": 1, "da_huy": 0}
     assert 0 <= mc["dry_run"] <= mc["real"]
 
 

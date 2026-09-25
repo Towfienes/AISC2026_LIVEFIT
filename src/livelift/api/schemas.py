@@ -739,6 +739,12 @@ class BaoCaoOut(BaseModel):
     """Cờ DỮ LIỆU MẪU của phiên (xem :class:`SessionOut`). Báo cáo phiên demo
     xem được đầy đủ nhưng client phải vẽ nhãn/watermark DEMO — con số mô phỏng
     không bao giờ được trình bày như số đo thật."""
+    dry_run: bool = False
+    """Cờ CHẠY THỬ của phiên (xem :class:`SessionCreate`) — THÊM 25/09/2026, hợp
+    đồng chỉ thêm trường. Phiên chạy thử là phiên THẬT (``is_demo=False``) nhưng
+    bị loại khỏi kết quả gộp (PREREGISTRATION §8.2), nên riêng ``is_demo`` không
+    đủ: trước bản vá, ``/ket-qua?phien=<phiên chạy thử>`` có KTC loại 0 đóng dấu
+    "TÁC ĐỘNG THẬT". Client phải dùng nhãn chạy thử, không nói "thật"."""
     binh_luan_tong_hop: int = 0
     """Số bình luận TỔNG HỢP (nguồn mô phỏng, ``platform='sim'``) trong phiên.
 

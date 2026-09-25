@@ -18,15 +18,19 @@ classifier itself never stores or logs its input.
 The keyword baseline and the DEFAULT artifact emit only
 :data:`~livelift.nlp.labels.TRAINED_LABELS` (the six pre-registered classes).
 
-Since 14/09/2026 there is a second artifact, ``intent_clf_v2.joblib``, trained on
+Since 14/09/2026 there is a second artifact, ``intent_clf_v2.joblib`` (repackaged
+25/09/2026 on the re-scrubbed data — the 14/09 build carried a token derived from
+a user's account handle; gate: tests/test_artifact_khong_pii.py), trained on
 2,513 rows (393 real comments whose labels were assigned by an AI agent — no
 human labels yet — + 320 re-labelled authored rows + 1,800 LLM-labelled real
 comments) that DOES produce all eleven annotation classes. It is selected with
 ``LIVELIFT_INTENT_MODEL=v2`` and is deliberately not the default yet — promoting
 it changes ``TRAINED_LABELS`` from 6 to 11, which several gates still encode.
 Honest measurement on real chat (leave-one-session-out over three live
-sessions; the test labels were assigned by an AI agent): macro-F1 0.211 -> 0.565,
-accuracy 0.338 -> 0.741, action-label precision 23.0% -> 66.7%. Method,
+sessions; the test labels were assigned by an AI agent): macro-F1 0.211 -> 0.542
+[0.478; 0.625], accuracy 0.338 -> 0.730, action-label precision 23.0% -> 65.5%
+(38/58), action-label recall 78.3% -> 55.1% (re-measured 25/09/2026 after the PII
+re-scrub; 0.565 was the 14/09 figure). Method,
 ablation and remaining limitations:
 docs/competition/sang-tao-tre-2026/03-NLP-NANG-CAP.md.
 """
@@ -185,9 +189,12 @@ không bao giờ bị ghi đè.
 ``v2`` — ``intent_clf_v2.joblib``, **11 lớp**, huấn luyện trên 2.513 mẫu (393 bình
 luận thật có nhãn do TÁC TỬ AI gán — chưa có nhãn người + 320 câu biên soạn đã gán
 lại + 1.800 nhãn LLM trên bình luận thật).
-Đo bằng leave-one-session-out trên chat thật: macro-F1 **0,211 → 0,565**, accuracy
-**0,338 → 0,741**, precision nhãn hành động **23,0% → 66,7%**
-(``docs/competition/sang-tao-tre-2026/03-NLP-NANG-CAP.md``).
+Đo bằng leave-one-session-out trên chat thật: macro-F1 **0,211 → 0,542** [0,478; 0,625],
+accuracy **0,338 → 0,730**, precision nhãn hành động **23,0% → 65,5%** (38/58) — nhưng
+recall nhãn hành động **78,3% → 55,1%** (đo lại 25/09/2026 sau khi lọc lại PII; 0,565
+là số 14/09). Chạy lại: ``python -m livelift.nlp.eval_intent`` · chi tiết:
+``docs/competition/sang-tao-tre-2026/03-NLP-NANG-CAP.md``. Artifact đóng gói lại
+25/09/2026 trên dữ liệu đã lọc (cổng ``tests/test_artifact_khong_pii.py``).
 
 Vì sao là **cờ bật tay** chứ không phải mặc định: đổi mặc định kéo theo đổi
 ``TRAINED_LABELS`` (6 → 11) và mọi cổng đang khoá con số cũ theo bộ 6 lớp. Đó là

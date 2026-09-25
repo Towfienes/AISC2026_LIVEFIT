@@ -1262,6 +1262,7 @@ def session_bao_cao(session_id: str, store: StoreDep) -> BaoCaoOut:
         loai_phien="quan_sat" if observational else "thi_nghiem",
         nhan=NHAN_QUAN_SAT if observational else NHAN_THI_NGHIEM,
         is_demo=bool(session.get("is_demo")),
+        dry_run=bool(session.get("dry_run")),
         binh_luan_tong_hop=sum(1 for c in comments if c.get("platform") == PLATFORM_SIM),
         tong_quan=tong_quan,
         tin_hieu=cov_dict["signals"],

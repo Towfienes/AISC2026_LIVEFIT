@@ -136,16 +136,31 @@ function ChipGlyph({ glyph }: { glyph: Glyph }) {
 function khoTu(mode: unknown, counts: unknown): KhoState | null {
   if (mode === "unknown") return "chua-ro";
   if (mode !== "demo" && mode !== "mixed" && mode !== "real") return null;
-  const c = counts as { demo?: unknown; real?: unknown; dry_run?: unknown } | null | undefined;
+  const c = counts as
+    | { demo?: unknown; real?: unknown; dry_run?: unknown; da_huy?: unknown }
+    | null
+    | undefined;
   // Kiểm toán 25/09/2026 (runtime.md §3.2): máy chủ đếm phiên CHẠY THỬ bên
   // "real" (chạy thử là phiên thật, chỉ không được TÍNH), nên tập dượt một lần
   // là chip thành "THẬT + MẪU" dù kho không có phiên thí nghiệm thật nào. Khi
   // `/health` gửi `mode_counts.dry_run` (nằm TRONG số real), chip trừ nó ra;
   // máy chủ cũ không gửi thì giữ nguyên luật cũ bên dưới.
-  if (c && typeof c.dry_run === "number" && typeof c.real === "number" && typeof c.demo === "number") {
-    const that = Math.max(0, c.real - c.dry_run);
+  // Cùng lý do, phiên ĐÃ HUỶ (`mode_counts.da_huy`, máy chủ từ 25/09/2026, rời
+  // với dry_run): chưa từng lên sóng, không có dữ liệu — một bản nháp đã huỷ
+  // không được làm chip in "DỮ LIỆU THẬT". Khoá nào không phải số thì coi như
+  // máy chủ không gửi (không đoán).
+  const dryRun = c && typeof c.dry_run === "number" ? c.dry_run : null;
+  const daHuy = c && typeof c.da_huy === "number" ? c.da_huy : null;
+  if (
+    c &&
+    (dryRun != null || daHuy != null) &&
+    typeof c.real === "number" &&
+    typeof c.demo === "number"
+  ) {
+    const chayThu = dryRun ?? 0;
+    const that = Math.max(0, c.real - chayThu - (daHuy ?? 0));
     if (that > 0) return c.demo > 0 ? "ca-hai" : "that";
-    if (c.dry_run > 0) return c.demo > 0 ? "mau-chay-thu" : "chay-thu";
+    if (chayThu > 0) return c.demo > 0 ? "mau-chay-thu" : "chay-thu";
     return c.demo > 0 ? "mau" : "trong";
   }
   if (mode === "demo") return "mau";
@@ -156,12 +171,23 @@ function khoTu(mode: unknown, counts: unknown): KhoState | null {
   return "that";
 }
 
-/** Câu thêm vào tooltip khi kho có phiên chạy thử mà câu của máy chủ chưa nói. */
-function ghiChuChayThu(note: string, counts: unknown): string {
-  const c = counts as { dry_run?: unknown } | null | undefined;
-  const n = c && typeof c.dry_run === "number" ? c.dry_run : 0;
-  if (n <= 0 || /chạy thử/i.test(note)) return note;
-  return `${note} Trong đó ${n} phiên CHẠY THỬ — tập dượt, không bao giờ vào kết quả thật.`;
+/**
+ * Câu thêm vào tooltip khi kho có phiên chạy thử / đã huỷ mà câu của máy chủ
+ * chưa nói (máy chủ cũ) — để chip "KHO TRỐNG" cạnh một phiên đã huỷ không đọc
+ * như mâu thuẫn.
+ */
+function ghiChuKho(note: string, counts: unknown): string {
+  const c = counts as { dry_run?: unknown; da_huy?: unknown } | null | undefined;
+  const nThu = c && typeof c.dry_run === "number" ? c.dry_run : 0;
+  const nHuy = c && typeof c.da_huy === "number" ? c.da_huy : 0;
+  let out = note;
+  if (nThu > 0 && !/chạy thử/i.test(note)) {
+    out += ` Trong đó ${nThu} phiên CHẠY THỬ — tập dượt, không bao giờ vào kết quả thật.`;
+  }
+  if (nHuy > 0 && !/huỷ|hủy/i.test(note)) {
+    out += ` Trong đó ${nHuy} phiên ĐÃ HUỶ — chưa từng lên sóng, không có dữ liệu.`;
+  }
+  return out;
 }
 
 export default function ModeChip() {
@@ -182,7 +208,7 @@ export default function ModeChip() {
       if (h && k) {
         setKho(k);
         if (typeof h.mode_note === "string" && h.mode_note) {
-          setNote(ghiChuChayThu(h.mode_note, h.mode_counts));
+          setNote(ghiChuKho(h.mode_note, h.mode_counts));
         }
       }
       // API cũ không có trường mode, hoặc API tắt → giữ nhãn DỮ LIỆU MẪU an toàn.

@@ -4,6 +4,9 @@ Chạy (tại thư mục kho mã)::
 
     .venv/Scripts/python -m pytest docs/competition/sang-tao-tre-2026/ke_khai -q
 
+``pytest`` mặc định (``testpaths = ["tests"]``, cả CI) thu thập bộ này qua cầu nối
+``tests/test_dung_ke_khai.py`` (25/09/2026) — đổi tên/chuyển tệp này thì sửa cả cầu nối.
+
 Phần dựng .docx chỉ chạy khi môi trường có python-docx (``.venv-docx``); còn lại chỉ cần
 thư viện chuẩn.
 """

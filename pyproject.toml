@@ -45,6 +45,16 @@ ml = [
 nlp = [
     "underthesea>=6.8",
 ]
+# Vẽ hình hồ sơ thuyết minh (scripts/ve_hinh_ho_so.py): matplotlib cho hình 1, 3–6,
+# Pillow ghi dpi, Playwright chụp hình 2 (sau khi cài: `playwright install chromium`).
+# matplotlib >= 3.9 vì lõi cho phép numpy 2.x. Bộ hình trong hồ sơ 25/09/2026 vẽ
+# bằng matplotlib 3.11.2, Pillow 12.3.0, Playwright 1.63.0 — muốn trùng từng điểm
+# ảnh thì cài đúng các bản đó. Gate: tests/test_pyproject_extra_hinh.py.
+hinh = [
+    "matplotlib>=3.9",
+    "pillow>=10.1",
+    "playwright>=1.40",
+]
 dev = [
     "pytest>=8.2",
     "pytest-cov>=5.0",

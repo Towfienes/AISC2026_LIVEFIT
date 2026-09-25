@@ -342,8 +342,8 @@ def test_che_do_memory_khong_bi_anh_huong():
     assert STORE_DOWN_CORE not in (body["storage_warning"] or ""), (
         "kho RAM khỏe mà bị dán cảnh báo Postgres chết là báo động giả"
     )
-    # 25/09/2026: thêm khoá con dry_run (C-4 chỉ THÊM, demo/real giữ nguyên).
-    assert body["mode_counts"] == {"demo": 0, "real": 0, "dry_run": 0}
+    # 25/09/2026: thêm khoá con dry_run, da_huy (C-4 chỉ THÊM, demo/real giữ nguyên).
+    assert body["mode_counts"] == {"demo": 0, "real": 0, "dry_run": 0, "da_huy": 0}
     assert giay < 1.0, f"/health chế độ memory mất {giay:.2f}s"
 
 

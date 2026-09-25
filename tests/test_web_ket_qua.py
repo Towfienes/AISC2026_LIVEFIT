@@ -50,8 +50,10 @@ def test_ba_trang_thai_cung_muc_cong_phu_card_lg():
     """Mỗi trạng thái là một Card padding='lg' có huy hiệu nhận diện — NULL và
     CHƯA ĐỦ không được là một dòng chữ xám lép vế cạnh trạng thái dương."""
     src = _read(KET_QUA)
+    # Con dấu của VerdictCoTacDong lấy chữ từ chuConDau (phiên thật / mẫu / chạy
+    # thử — 25/09/2026); "TÁC ĐỘNG THẬT" nằm trong hàm đó, xem test mục 2.
     for comp, badge in [
-        ("VerdictCoTacDong", "TÁC ĐỘNG THẬT"),
+        ("VerdictCoTacDong", "chuConDau(v)"),
         ("VerdictNull", "KẾT QUẢ TRUNG THỰC"),
         ("VerdictChuaDu", "CHƯA ĐỦ ĐIỀU KIỆN"),
     ]:
@@ -74,18 +76,25 @@ def test_verdict_state_theo_dung_luat_ktc_loai_0():
 
 
 def test_con_dau_tac_dong_that_chi_o_nhanh_co_tac_dong():
-    src = _read(KET_QUA)
+    src = _render(_read(KET_QUA))
     # chuỗi RENDER của con dấu (không tính chú thích mã) phải xuất hiện đúng
-    # MỘT chỗ — trong VerdictCoTacDong
+    # MỘT chỗ — trong chuConDau, hàm chọn chữ con dấu (25/09/2026: phiên thật /
+    # dữ liệu mẫu / phiên chạy thử) ...
     con_dau = "TÁC ĐỘNG THẬT · KTC 95% không chứa 0"
     assert src.count(con_dau) == 1, "con dấu render phải xuất hiện đúng MỘT chỗ"
+    chon = src.split("function chuConDau")[1].split("\nfunction ")[0]
+    assert con_dau in chon, "con dấu phải nằm trong chuConDau"
+    # ... chuConDau chỉ được gọi từ VerdictCoTacDong (một lần duy nhất) ...
+    assert src.count("chuConDau(") == 2, "chuConDau: một định nghĩa + đúng một chỗ gọi"
     body = src.split("function VerdictCoTacDong")[1].split("\nfunction ")[0]
-    assert con_dau in body, "con dấu phải nằm trong VerdictCoTacDong"
+    assert "chuConDau(v)" in body, "con dấu phải được đóng trong VerdictCoTacDong"
     # ... và VerdictCoTacDong chỉ được render khi state là duong/am
     m = re.search(r'verdict\.state === "duong" \|\| verdict\.state === "am"', src)
     assert m, "VerdictCoTacDong phải được gate bằng state duong/am"
-    # con dấu luôn kèm KTC ngay trong chính nó (phản biện #1)
-    assert "TÁC ĐỘNG THẬT · KTC 95% không chứa 0" in body
+    # con dấu luôn kèm KTC ngay trong chính nó (phản biện #1) — mọi nhánh
+    nhan = re.findall(r'return "([^"]+)";', chon)
+    assert len(nhan) == 3, nhan
+    assert all("KTC 95% không chứa 0" in n for n in nhan), nhan
 
 
 # ---------------------------------------------------------------------------
@@ -435,12 +444,10 @@ def test_con_dau_tren_du_lieu_mau_khong_goi_la_that():
     """Kiểm toán 25/09 (§3.3): chip xanh "TÁC ĐỘNG THẬT" đứng ngay cạnh "DEMO —
     dữ liệu mẫu" trên /ket-qua?env=demo — ảnh chụp màn hình dễ bị hiểu sai.
     Trên dữ liệu mẫu, con dấu nói đúng điều KTC nói: hiệu ứng rõ, không chứa 0."""
-    body = _read(KET_QUA).split("function VerdictCoTacDong")[1].split("\nfunction ")[0]
-    m = re.search(
-        r'v\.isDemo\s*\?\s*"(HIỆU ỨNG RÕ[^"]*)"\s*:\s*"TÁC ĐỘNG THẬT · KTC 95% không chứa 0"',
-        body,
-    )
+    chon = _render(_read(KET_QUA)).split("function chuConDau")[1].split("\nfunction ")[0]
+    m = re.search(r'if \(v\.isDemo\) return "(HIỆU ỨNG RÕ[^"]*)";', chon)
     assert m, "con dấu phải rẽ nhánh theo v.isDemo — dữ liệu mẫu không được gọi là THẬT"
+    # Phiên CHẠY THỬ (25/09/2026) — chạy thật hàm: tests/test_chay_thu_da_huy_2509.py.
     assert "KTC 95% không chứa 0" in m.group(1), "con dấu demo vẫn phải mang KTC (phản biện #1)"
     assert "THẬT" not in m.group(1)
 

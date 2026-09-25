@@ -6,7 +6,9 @@
  * Đơn đặt hàng từ phản biện khoa học (ưu tiên #6 — điều kiện bắt buộc):
  * CẢ BA trạng thái kết quả được thiết kế RIÊNG với mức công phu NGANG NHAU —
  * - DƯƠNG/ÂM: khu tuyên bố tác động với con số lớn + thanh KTC; con dấu
- *   "TÁC ĐỘNG THẬT" CHỈ hiện khi KTC 95% loại 0 và luôn đứng cạnh chính KTC;
+ *   "TÁC ĐỘNG THẬT" CHỈ hiện khi KTC 95% loại 0 và luôn đứng cạnh chính KTC —
+ *   và chỉ trên phiên THẬT được tính: dữ liệu mẫu và phiên CHẠY THỬ mang con
+ *   dấu "HIỆU ỨNG RÕ" (xem `chuConDau`);
  * - NULL: huy hiệu "KẾT QUẢ TRUNG THỰC" — vì sao null vẫn đáng tiền, và bảng
  *   "cần thêm bao nhiêu phiên" giải từ CV đo được (không phải lời an ủi);
  * - CHƯA ĐỦ ĐIỀU KIỆN / KHÓA §7: hệ thống TỪ CHỐI kết luận, in nguyên văn lý
@@ -89,6 +91,12 @@ interface VerdictData {
   /** Mọi con số ở đây sinh từ dữ liệu mẫu — đeo chip DEMO. */
   isDemo: boolean;
   /**
+   * Phiên CHẠY THỬ (bản một phiên, `BaoCao.dry_run`): phiên thật nhưng không
+   * được tính vào kết quả (PREREGISTRATION §8.2) — không bao giờ gọi là "THẬT".
+   * Bản gộp luôn false: máy chủ đã loại phiên chạy thử khỏi bản gộp.
+   */
+  isDryRun: boolean;
+  /**
    * CHỈ SỐ CHÍNH — lượt nhấp hợp lệ qua link đo. null = THIẾU (không phải 0).
    * Là số vận hành, không phải suy luận: máy chủ trả ở MỌI nhánh, kể cả khóa
    * §7 và chưa đủ điều kiện, nên khối CHƯA ĐỦ phải in nó ra.
@@ -165,6 +173,7 @@ function verdictFromSummary(d: ExperimentSummary): VerdictData {
     nOff: d.n_off,
     nSessions: d.n_sessions,
     isDemo: d.env === "demo",
+    isDryRun: false,
     luotNhapHopLe: (d as SummaryCoLuotNhap).valid_clicks ?? null,
     luotNhapThieu: null,
     motPhien: null,
@@ -175,6 +184,7 @@ function verdictFromKetQua(
   kq: BaoCaoKetQuaThiNghiem,
   isDemo: boolean,
   tq: BaoCaoTongQuan | null | undefined,
+  isDryRun = false,
 ): VerdictData {
   const estimable = kq.estimable && kq.estimate != null;
   const ktcThieu = estimable && (kq.ci_low == null || kq.ci_high == null);
@@ -192,6 +202,7 @@ function verdictFromKetQua(
     nOff: kq.n_off,
     nSessions: null,
     isDemo,
+    isDryRun,
     luotNhapHopLe: tq?.luot_nhap_hop_le ?? null,
     luotNhapThieu: tq?.thieu?.luot_nhap ?? null,
     motPhien: tq
@@ -313,6 +324,19 @@ function EvidenceRow({ v }: { v: VerdictData }) {
 // ---------------------------------------------------------------------------
 
 /**
+ * Chữ trên con dấu của trạng thái DƯƠNG/ÂM — CHỈ `VerdictCoTacDong` gọi hàm này,
+ * nên con dấu vẫn bị nhốt trong nhánh KTC-loại-0. "TÁC ĐỘNG THẬT" chỉ dành cho
+ * phiên thật ĐƯỢC TÍNH: dữ liệu mẫu và phiên CHẠY THỬ (phản biện 25/09/2026 —
+ * `/ket-qua?phien=<phiên chạy thử>` từng đóng dấu "TÁC ĐỘNG THẬT") nói đúng điều
+ * KTC nói — hiệu ứng rõ, KTC không chứa 0 — không nói "thật".
+ */
+function chuConDau(v: { isDemo: boolean; isDryRun: boolean }): string {
+  if (v.isDemo) return "HIỆU ỨNG RÕ · KTC 95% không chứa 0";
+  if (v.isDryRun) return "HIỆU ỨNG RÕ · CHẠY THỬ · KTC 95% không chứa 0";
+  return "TÁC ĐỘNG THẬT · KTC 95% không chứa 0";
+}
+
+/**
  * DƯƠNG / ÂM: KTC 95% loại 0 — chỉ ở đây con dấu "TÁC ĐỘNG THẬT" được đóng.
  * Trên dữ liệu MẪU con dấu đổi chữ (kiểm toán 25/09/2026, runtime.md §3.3):
  * chip xanh "THẬT" đứng cạnh "DEMO — dữ liệu mẫu" là thứ bị chụp màn hình rồi
@@ -341,9 +365,10 @@ function VerdictCoTacDong({ v }: { v: VerdictCoSo }) {
               trong chính con dấu — không bao giờ tách điểm ước lượng khỏi
               khoảng của nó (phản biện #1). */}
           <Badge tone={duong ? "good" : "critical"} dot>
-            {v.isDemo ? "HIỆU ỨNG RÕ · KTC 95% không chứa 0" : "TÁC ĐỘNG THẬT · KTC 95% không chứa 0"}
+            {chuConDau(v)}
           </Badge>
           {v.isDemo ? <Badge tone="warn">DEMO — dữ liệu mẫu</Badge> : null}
+          {v.isDryRun ? <Badge tone="neutral">CHẠY THỬ — không tính vào kết quả</Badge> : null}
         </div>
         <h2 className="mt-3 font-display text-title font-bold tracking-tight text-ink">
           {duong
@@ -366,6 +391,13 @@ function VerdictCoTacDong({ v }: { v: VerdictCoSo }) {
         </p>
         <CIBar lo={v.ciLow} hi={v.ciHigh} est={v.estimate} tone={duong ? "good" : "crit"} />
         <EvidenceRow v={v} />
+        {v.isDryRun ? (
+          <p className="mt-3 text-body leading-relaxed text-sec">
+            Phiên CHẠY THỬ: con số này kiểm tra đường ống đo trên một buổi tập dượt, không
+            phải kết quả thí nghiệm — phiên chạy thử không bao giờ vào kết quả gộp (tiền đăng
+            ký §8.2).
+          </p>
+        ) : null}
         {!duong ? (
           <p className="mt-3 text-body leading-relaxed text-sec">
             Tác dụng ngược cũng là một phép đo thật: hệ thống báo cáo nó với đúng mức nhấn thị
@@ -399,6 +431,7 @@ function VerdictNull({ v, powerTable }: { v: VerdictCoSo; powerTable: PowerRow[]
             KẾT QUẢ TRUNG THỰC
           </Badge>
           {v.isDemo ? <Badge tone="warn">DEMO — dữ liệu mẫu</Badge> : null}
+          {v.isDryRun ? <Badge tone="neutral">CHẠY THỬ — không tính vào kết quả</Badge> : null}
         </div>
         <h2 className="mt-3 font-display text-title font-bold tracking-tight text-ink">
           CHƯA ĐỦ BẰNG CHỨNG để kết luận — và đó là một kết quả hợp lệ
@@ -510,6 +543,7 @@ function VerdictChuaDu({ v }: { v: VerdictData }) {
             {v.khoa ? "KHÓA THEO TIỀN ĐĂNG KÝ §7" : "CHƯA ĐỦ ĐIỀU KIỆN"}
           </Badge>
           {v.isDemo ? <Badge tone="warn">DEMO — dữ liệu mẫu</Badge> : null}
+          {v.isDryRun ? <Badge tone="neutral">CHẠY THỬ — không tính vào kết quả</Badge> : null}
         </div>
         <h2 className="mt-3 font-display text-title font-bold tracking-tight text-ink">
           {v.khoa
@@ -765,7 +799,13 @@ export default function KetQuaPage() {
 
   const verdict: VerdictData | null = phien
     ? baoCao?.ket_qua_thi_nghiem
-      ? verdictFromKetQua(baoCao.ket_qua_thi_nghiem, baoCao.is_demo, baoCao.tong_quan)
+      ? verdictFromKetQua(
+          baoCao.ket_qua_thi_nghiem,
+          baoCao.is_demo,
+          baoCao.tong_quan,
+          // Máy chủ cũ không gửi dry_run ⇒ undefined ⇒ không phải chạy thử.
+          baoCao.dry_run === true,
+        )
       : null
     : data
       ? verdictFromSummary(data)
@@ -792,6 +832,9 @@ export default function KetQuaPage() {
               Kết quả &amp; chiến lược
               {isDemoView && !loading ? (
                 <Badge tone="warn">{phien ? "PHIÊN DEMO" : "BẢN GỘP DEMO — MÔ PHỎNG"}</Badge>
+              ) : null}
+              {phien && baoCao?.dry_run === true && !loading ? (
+                <Badge tone="neutral">PHIÊN CHẠY THỬ</Badge>
               ) : null}
             </span>
           }

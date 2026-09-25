@@ -543,7 +543,8 @@ class TfidfSystem:
         if self.use_gold:
             rows += [
                 # Nguồn "gold_ai": nhãn tham chiếu lô 2 do tác tử AI gán. Tên cũ
-                # "gold_human" (còn trong intent_clf_v2.meta.json) là SAI nguồn.
+                # "gold_human" (meta của artifact đóng gói 14/09) là SAI nguồn —
+                # đã đóng gói lại 25/09/2026, cổng: tests/test_nlp_eval_harness.py.
                 TrainRow(r.text, r.label, GOLD_SOURCE, r.session)
                 for r in gold_train
                 # Tầng `predicted` được rút theo nhãn model đoán nên lệch về
@@ -1461,33 +1462,70 @@ def run_ablation(gold: list[GoldRow], extra: list[TrainRow]) -> list[dict[str, A
     return rows
 
 
+def rows_for_packaging(gold: list[GoldRow], extra: list[TrainRow]) -> list[TrainRow]:
+    """Đúng tập dòng mà :func:`save_best_model` dùng để fit artifact v2 (C2, cả ba buổi).
+
+    Tách thành hàm để cổng ``tests/test_artifact_khong_pii.py`` kiểm từ vựng
+    của artifact trên ĐÚNG tập này, không phải một bản chép tay dễ lệch.
+    """
+    system = TfidfSystem()
+    system.extra_pool = extra
+    return system.training_rows(
+        [GoldRow(r.uid, r.text, r.label, r.session, r.stratum) for r in gold]
+    )
+
+
+def training_fingerprint(rows: list[TrainRow]) -> str:
+    """SHA-256 của (nguồn, nhãn, văn bản) theo đúng thứ tự fit — dấu vân tay dữ liệu.
+
+    Ghi vào sidecar để biết artifact được đóng gói từ bản dữ liệu nào: dữ liệu
+    lọc lại PII mà băm không đổi theo nghĩa là artifact còn mang bản cũ (sự cố
+    25/09/2026: v2 đóng gói 14/09 còn 1 token sinh từ tên tài khoản người dùng).
+    """
+    import hashlib
+
+    h = hashlib.sha256()
+    for r in rows:
+        h.update(json.dumps([r.source, r.label, r.text], ensure_ascii=False).encode("utf-8"))
+        h.update(b"\n")
+    return h.hexdigest()
+
+
 def save_best_model(gold: list[GoldRow], extra: list[TrainRow]) -> Path:
     """Huấn luyện lại trên TOÀN BỘ dữ liệu rồi đóng gói ``intent_clf_v2.joblib``.
 
     Huấn luyện cuối dùng cả ba buổi gold — hợp lệ vì mọi con số công bố đã đo
     xong bằng leave-one-session-out trước đó; artifact giao hàng thì không có
-    lý do gì phải bỏ phí một buổi dữ liệu.
+    lý do gì phải bỏ phí một buổi dữ liệu. Artifact KHÔNG tham gia phép đo LOSO
+    nào (mỗi fold fit mô hình riêng), nên đóng gói lại không đổi số công bố.
     """
+    import platform
+
     import joblib
+    import numpy
     import sklearn
 
-    system = TfidfSystem()
-    system.extra_pool = extra
-    rows = system.training_rows(
-        [GoldRow(r.uid, r.text, r.label, r.session, r.stratum) for r in gold]
-    )
+    rows = rows_for_packaging(gold, extra)
     pipe = build_tfidf_pipeline()
     pipe.fit([r.text for r in rows], [r.label for r in rows])
     MODEL_V2.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(pipe, MODEL_V2, compress=9)
     meta = {
+        "artifact": MODEL_V2.name,
+        "packaged_by": "python -m livelift.nlp.eval_intent --save-model",
         "sklearn_version": sklearn.__version__,
+        "joblib_version": joblib.__version__,
+        "numpy_version": numpy.__version__,
+        "python_version": platform.python_version(),
         "trained_at_utc": __import__("datetime")
         .datetime.now(__import__("datetime").UTC)
         .isoformat(timespec="seconds"),
         "n_samples": len(rows),
         "labels": sorted({r.label for r in rows}, key=INTENT_LABELS.index),
+        # Tên nguồn: "gold_ai" = 393 nhãn lô 2 do TÁC TỬ AI gán (không phải người);
+        # "authored_11" = câu mẫu do AI soạn; "llm_lot1" = nhãn LLM, không người duyệt.
         "sources": dict(Counter(r.source for r in rows)),
+        "du_lieu_train_sha256": training_fingerprint(rows),
         "seed": SEED,
         "style_features": list(STYLE_FEATURE_NAMES),
         "eval": (

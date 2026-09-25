@@ -13,6 +13,7 @@ người: lọc lại PII, sinh bảng gán mù, tính Cohen κ.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -410,16 +411,24 @@ def test_v2_meta_declares_provenance_and_matches_the_artifact():
     ]
     # Xuất xứ từng nguồn dữ liệu phải nằm trong sidecar — Điều 5 §5–6 buộc kê
     # khai phần nào do AI tạo ra, và artifact là chỗ con số ấy sống lâu nhất.
-    # "gold_ai" là tên nguồn đúng từ 25/09 (nhãn lô 2 do tác tử AI gán); "gold_human"
-    # còn trong sidecar của artifact đóng gói 14/09 — tên SAI nguồn, chờ đóng gói lại.
-    assert set(meta["sources"]) <= {
-        "gold_ai",
-        "gold_human",
-        "authored_11",
-        "authored_6",
-        "llm_lot1",
-    }
+    # "gold_ai" là tên nguồn đúng (nhãn lô 2 do tác tử AI gán). "gold_human" của
+    # artifact đóng gói 14/09 là SAI nguồn; đóng gói lại 25/09/2026 nên từ nay
+    # KHÔNG còn được chấp nhận (cổng siết lại sau khi được nới tạm).
+    assert set(meta["sources"]) <= {"gold_ai", "authored_11", "authored_6", "llm_lot1"}
+    assert "gold_human" not in json.dumps(meta, ensure_ascii=False)
+    assert meta["sources"].get("gold_ai", 0) > 0, "v2 phải kê khai nguồn nhãn lô 2 là gold_ai"
     assert meta["n_samples"] == sum(meta["sources"].values())
+    # Câu kê khai nguồn nhãn đi cùng artifact phải là ĐÚNG câu của khung đánh giá
+    # (một nguồn duy nhất), và nói rõ tác tử AI gán, chưa có nhãn người.
+    assert meta["label_provenance"] == ev.LABEL_PROVENANCE
+    assert "tác tử AI" in meta["label_provenance"]["test"]
+    assert "chưa có nhãn người" in meta["label_provenance"]["test"]
+    assert "chưa có nhãn người" in meta["eval"]
+    # Phiên bản: đủ để dựng lại đúng môi trường đã đóng gói.
+    for key in ("sklearn_version", "joblib_version", "numpy_version", "python_version"):
+        assert meta.get(key), f"meta v2 thiếu {key}"
+    assert meta["packaged_by"] == "python -m livelift.nlp.eval_intent --save-model"
+    assert re.fullmatch(r"[0-9a-f]{64}", meta["du_lieu_train_sha256"])
 
 
 @v2_only

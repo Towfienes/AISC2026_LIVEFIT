@@ -450,8 +450,11 @@ tiếp.
   **"Chép link"** (bấm xong đổi thành *"Đã chép ✓"*), và một ô tự đánh dấu
   *"Tôi đã dán (hoặc sẽ dán ngay khi lên sóng) link đo vào bình luận ghim"*;
 - **Nguồn bình luận** — khung **Bộ thu bình luận** ngay trong checklist: chọn
-  nền tảng, dán link buổi live, bấm **"Bật bộ thu"**. Bật trước giờ phát cũng
-  được — bộ thu chờ buổi live bắt đầu. Chi tiết ở **mục 10**;
+  nền tảng, dán link buổi live, bấm **"Bật bộ thu"**. YouTube/Facebook: bật
+  trước giờ phát được — bộ thu chờ nền tảng báo buổi live đang phát (không chờ
+  nút *"Bắt đầu phát sóng"*); bình luận ghi trước lúc phiên lên sóng không thuộc
+  khối nào. Nguồn Mô phỏng phát ngay khi bật, nên bật SAU khi bấm *"Bắt đầu
+  phát sóng"*. Chi tiết ở **mục 10**;
 - **Màn hình người dẫn** — nút **"Mở màn hình người dẫn ↗"** (mở
   `/host?session=<mã phiên>` ở tab mới) kèm hướng dẫn kéo sang màn phụ/TV, bấm
   F11;
@@ -798,7 +801,10 @@ khi lưu.
 **Ở đâu** (hai chỗ, cùng điều khiển một bộ thu của phiên):
 
 - **Chuẩn bị phiên → bước 4/4 — Lên sóng**, dòng **"Nguồn bình luận"** trong
-  checklist. Bật **trước giờ phát** cũng được: bộ thu sẽ chờ buổi live bắt đầu.
+  checklist. Bật **trước giờ phát** được: bộ thu chờ nền tảng báo buổi live đang
+  phát, KHÔNG chờ nút *"Bắt đầu phát sóng"* của LiveLift; bình luận ghi trước lúc
+  phiên lên sóng không thuộc khối nào. Nguồn Mô phỏng (mục 12) thì phát ngay khi
+  bật.
 - **Bàn trợ live**, khung **"Bộ thu bình luận"** ở đầu cột giữa. Khung chỉ hiện
   khi bàn nối được máy chủ thật và phiên chưa kết thúc.
 

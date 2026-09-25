@@ -50,7 +50,7 @@ F1 theo lớp (5-fold CV, bộ biên soạn): `hoi_gia` 0.855 · `hoi_size` 0.91
 Trên chat thật, bốn lớp `hoi_size` / `che_dat` / `chot_don` / `van_chuyen` có
 **F1 = 0** (không có trường hợp thật nào trong 200 mẫu, model vẫn gắn 15 nhãn).
 
-Suy luận: < 1ms/bình luận trên CPU, artifact 84 KB, không cần torch/GPU.
+Suy luận: < 1ms/bình luận trên CPU, artifact v1 86.496 byte (≈ 84 KiB; v2 ≈ 921 KiB), không cần torch/GPU.
 Fallback tự động về baseline từ khóa khi thiếu sklearn hoặc thiếu artifact.
 
 ## Dữ liệu huấn luyện là gì — nói thẳng

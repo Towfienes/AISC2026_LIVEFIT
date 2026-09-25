@@ -450,12 +450,13 @@ Sinh bằng `python -m livelift.nlp.eval_intent --errors <file>`. Bình luận �
    ViSoBERT trên CPU với ~2,5k mẫu là khả thi về thời gian (vài chục phút/epoch) nhưng đòi
    cài ~2,5 GB phụ thuộc và **một đường mạng ổn định để tải trọng số** — hai thứ không đảm
    bảo được trong 5 ngày còn lại, và một artifact 500 MB không hợp với ràng buộc vận hành
-   hiện tại (suy luận < 1 ms/bình luận, artifact 86 KB, không cần torch). **Quyết định:
+   hiện tại (suy luận < 1 ms/bình luận, artifact v1 ≈ 84 KiB, không cần torch). **Quyết định:
    không hứa ViSoBERT trong hồ sơ vòng 1.** Module `normalize.py` được giữ lại chính vì
    nó là bước chuẩn bị đúng cho tokenizer của ViSoBERT, dù nó không giúp TF-IDF.
-8. **Tăng gấp đôi kích thước artifact.** `intent_clf_v2.joblib` ≈ **921 KB** so với 86 KB
-   (từ vựng char n-gram lớn hơn 8 lần vì có dữ liệu thật). Vẫn nạp được trong < 1 s, vẫn
-   không cần torch, nhưng con số phải được ghi đúng ở mọi nơi.
+8. **Artifact lớn gấp khoảng 10,9 lần.** `intent_clf_v2.joblib` 942.653 byte (≈ 921 KiB)
+   so với 86.496 byte (≈ 84 KiB) của v1 (từ vựng char n-gram lớn hơn 8 lần vì có dữ liệu
+   thật). Vẫn nạp được trong < 1 s, vẫn không cần torch, nhưng con số phải được ghi đúng ở
+   mọi nơi.
 
 ---
 

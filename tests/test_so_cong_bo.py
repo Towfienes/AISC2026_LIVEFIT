@@ -222,3 +222,72 @@ def test_readme_khong_con_bo_so_hieu_chuan_cu_khong_tai_lap_duoc(readme: str) ->
         if so in d and "cũ" not in d and "không tái lập" not in d
     ]
     assert not con_lai, f"README còn trích bộ số hiệu chuẩn cũ: {con_lai}"
+
+
+# ---------------------------------------------------------------------------
+# Tích hợp 25/09/2026 tối: tài liệu nộp phải khớp NGUỒN, không chỉ README
+# ---------------------------------------------------------------------------
+FACT_SHEET = GOC / "docs" / "competition" / "FACT-SHEET.md"
+HO_SO = GOC / "docs" / "competition" / "sang-tao-tre-2026" / "noi-dung.md"
+NLP_NANG_CAP = GOC / "docs" / "competition" / "sang-tao-tre-2026" / "03-NLP-NANG-CAP.md"
+MO_HINH = GOC / "src" / "livelift" / "nlp" / "model"
+
+
+def _dong_bang(van_ban: str, dau: str) -> str:
+    dong = [d for d in van_ban.splitlines() if d.startswith(dau)]
+    assert len(dong) == 1, f"phải có đúng một dòng bảng bắt đầu bằng {dau!r}, có {len(dong)}"
+    return dong[0]
+
+
+def test_so_su_co_o_fact_sheet_va_ho_so_khop_so_hang_cua_so_su_co() -> None:
+    """Gate README ở trên không quét FACT-SHEET hay hồ sơ: tối 25/09/2026 sổ thêm hàng mà
+    hai tệp nộp này vẫn có thể ghi số cũ."""
+    so = SO_SU_CO.read_text(encoding="utf-8")
+    that = len(HANG_SU_CO_RE.findall(so))
+    ngay_25 = len(re.findall(r"^\| 25/09/2026 \|", so, re.M))
+    dong = _dong_bang(FACT_SHEET.read_text(encoding="utf-8"), "| Sổ sự cố |")
+    assert f"**{that} sự cố có nguyên nhân gốc**" in dong, dong[:160]
+    assert f"{that} hàng, trong đó {ngay_25} hàng ngày 25/09" in dong, dong[:220]
+    trich = {int(m) for m in re.findall(r"\*\*(\d+)\*\* sự cố", HO_SO.read_text("utf-8"))}
+    assert trich == {that}, f"hồ sơ ghi {sorted(trich)} sự cố, sổ có {that} hàng"
+
+
+def test_fact_sheet_hieu_chuan_trich_dung_lan_do_ghi_trong_json() -> None:
+    """V3 (25/09/2026) đo lại hiệu chuẩn trên 17c3ee1 và ghi ``ban_git``/``ngay_do`` vào
+    JSON, nhưng dòng A/A của FACT-SHEET vẫn nói "đo 14/09 … chạy lại trên 390027b" — không
+    script đồng bộ nào chạm phần chữ của dòng này."""
+    import json
+
+    so = json.loads((GOC / "docs" / "benchmarks" / "so-hieu-chuan.json").read_text("utf-8"))
+    dong = _dong_bang(FACT_SHEET.read_text(encoding="utf-8"), "| Hiệu chuẩn A/A")
+    assert so["ban_git"] in dong, f"dòng A/A không nêu bản git của lần đo ({so['ban_git']})"
+    ngay = "/".join(reversed(so["ngay_do"].split("-")))
+    assert ngay in dong, f"dòng A/A không nêu ngày đo {ngay}"
+
+
+def test_kich_thuoc_artifact_trong_03_nlp_khop_tep_that() -> None:
+    """03-NLP ghi "Tăng gấp đôi kích thước artifact … ≈ 921 KB so với 86 KB": 921 là KiB,
+    86 là kB, và tỷ lệ thật khoảng 10,9 lần chứ không phải gấp đôi."""
+    v2 = (MO_HINH / "intent_clf_v2.joblib").stat().st_size
+    v1 = (MO_HINH / "intent_clf.joblib").stat().st_size
+    t = NLP_NANG_CAP.read_text(encoding="utf-8")
+    assert "gấp đôi kích thước" not in t.lower()
+    for n in (v1, v2):
+        assert f"{n:,} byte".replace(",", ".") in t, f"thiếu kích thước thật {n} byte"
+        assert f"≈ {round(n / 1024)} KiB" in t, f"thiếu {round(n / 1024)} KiB"
+    ti_le = f"{v2 / v1:.1f}".replace(".", ",")
+    assert f"{ti_le} lần" in t, f"tỷ lệ v2/v1 thật là {ti_le} lần"
+
+
+def test_ho_so_khong_con_noi_ten_dinh_lien_lot_bo_loc() -> None:
+    """Hồ sơ §3.2 ghi "Còn mở: … ``chữ@tên`` vẫn lọt bộ lọc" và §3.3 "lọc nốt 6 dòng" sau
+    khi bộ lọc đã vá (b331076, 16 dòng, 8 tên). Câu chữ phải theo hành vi thật của mã."""
+    from livelift.ingest.pii import scrub
+
+    for tho in ("cảm ơn bạn@minhthu8106 nhiều", "đẹp quá@@kimchi_88"):  # tên BỊA
+        assert scrub(tho).counts.get("social", 0) == 1, "tiền đề: bộ lọc bắt dạng dính liền"
+    t = re.sub(r"\s+", " ", HO_SO.read_text(encoding="utf-8"))
+    assert "vẫn lọt bộ lọc" not in t, "hồ sơ còn nói tên dính liền lọt bộ lọc"
+    assert "lọc nốt 6 dòng" not in t
+    assert "16 dòng" in t
+    assert "8 tên" in t

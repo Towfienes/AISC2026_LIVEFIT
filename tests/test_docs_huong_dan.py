@@ -153,3 +153,20 @@ def test_huong_dan_co_muc_gioi_han_va_muc_ai_dung_man_nao(guide_text: str) -> No
     assert "Chưa có đăng nhập" in guide_text
     assert "chưa có bộ thực thi" in guide_text
     assert "Điện thoại chưa dùng được" in guide_text
+
+
+def test_huong_dan_noi_bo_thu_cho_nen_tang_khong_hua_cho_buoi_live(guide_text: str) -> None:
+    """Sự cố 25/09/2026: wizard bước 4 từng hứa "bộ thu sẽ chờ buổi live bắt đầu" — sai với
+    nguồn Mô phỏng (phát NGAY khi bật) và mơ hồ với YouTube/Facebook (chờ NỀN TẢNG báo đang
+    phát, không chờ nút "Bắt đầu phát sóng"). Web đã sửa ở 2f6ede1; hướng dẫn chép câu cũ ở
+    hai chỗ (bước 4 và mục bộ thu) nên phải neo vào đúng câu của máy chủ ``CHO_NEN_TANG``."""
+    from livelift.api.ingest_jobs import CHO_NEN_TANG
+
+    phang = re.sub(r"[*_>]|\s+", " ", guide_text)
+    phang = re.sub(r" +", " ", phang)
+    assert "chờ buổi live bắt đầu" not in phang, "câu hứa cũ của wizard bước 4 còn trong hướng dẫn"
+    cho = "chờ nền tảng báo buổi live đang phát"
+    assert cho in CHO_NEN_TANG.lower(), "máy chủ đổi câu CHO_NEN_TANG — xem lại hướng dẫn"
+    assert phang.count(cho) >= 2, "cả bước 4 lẫn mục bộ thu phải nói bộ thu chờ NỀN TẢNG"
+    assert "không thuộc khối nào" in phang
+    assert "ngay khi bật" in phang, "phải dặn nguồn Mô phỏng phát ngay khi bật"

@@ -71,6 +71,8 @@ Thí nghiệm ngẫu nhiên trong livestream cho thấy quyết định trong ph
 
 Xie, Sharma và Mehra [5] chỉ ra một **sự đánh đổi**: trình bày một sản phẩm lâu hơn thì doanh thu sản phẩm đó cao hơn, nhưng thời lượng trình bày trung bình tăng thì doanh thu cả phiên giảm. Không có đáp án chung nên mỗi phòng live phải tự đo, trong khi nghiên cứu đó chỉ dùng dữ liệu có sẵn. Trong phạm vi rà soát tài liệu và công cụ của nhóm (tháng 9/2026), **chưa tìm thấy công bố hay công cụ nào cho người bán tự chạy switchback trong phiên livestream của mình**.
 
+## 1.4 Lý do lựa chọn giải pháp
+
 Xuất phát từ những lý do trên, nhóm nghiên cứu quyết định lựa chọn và tiến hành nghiên cứu, phát triển giải pháp “LiveLift - Nền tảng thí nghiệm vận hành và hỗ trợ ra quyết định cho livestream thương mại”, hướng tới việc hỗ trợ đội ngũ vận hành đánh giá có hệ thống tác động của các quyết định trong phiên live và từng bước chuyển từ ra quyết định chủ yếu dựa trên kinh nghiệm sang ra quyết định dựa trên bằng chứng.
 
 # 2. Mục tiêu, phạm vi và đối tượng ứng dụng của sản phẩm

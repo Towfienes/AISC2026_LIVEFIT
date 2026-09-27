@@ -154,6 +154,9 @@ def test_bang_ky_co_du_ba_thanh_vien():
     ten = [h[0] for h in bang.muc[1:]]
     assert ten == ["Ngô Bình Minh", "Lê Xuân Khánh", "Ngô Lâm Tiến"]
     assert all(h[-1] == "" for h in bang.muc[1:]), "cột chữ ký phải để trống để ký tay"
+    # 27/09/2026: bản nộp không còn cột "tự ghi" nào; ngoài chữ ký, mọi ô đã có chữ.
+    assert all(o.strip() for h in bang.muc[1:] for o in h[:-1]), "còn ô trống ngoài cột ký"
+    assert "ngày ...... tháng" not in _nguon(), "dòng ngày ký phải điền sẵn"
 
 
 def test_khang_dinh_sai_cu_chi_con_trong_muc_dinh_chinh():
@@ -172,26 +175,29 @@ def test_khang_dinh_sai_cu_chi_con_trong_muc_dinh_chinh():
     can_cu = md.index("## Căn cứ")
     for m in re.finditer("13/2023", md):
         assert can_cu <= m.start() < cuoi, "Nghị định 13/2023 chỉ được nhắc là đã bị thay"
-    # Kiểm độc lập 25/09/2026 (wf6-5, P0): hồ sơ mục 13 sẽ trỏ `main` SAU khi hợp nhất, còn
-    # 05 tả `main` = 390027b, 56/56 commit, nhánh hoàn thiện "chưa hợp nhất". Điền mã commit ở
-    # mục 13 mà không sửa 05 thì hai văn bản nộp cùng nhau mâu thuẫn — bộ dựng phải chặn.
-    ho_so = (DAY.parent / "noi-dung.md").read_text(encoding="utf-8")
-    assert dung_ke_khai.lech_trang_thai_kho(ho_so, md) == [], "mục 13 chưa điền mã commit"
-    # 27/09/2026: ô ⬜ của mục 13 thành dấu giữ chỗ [[COMMIT_NOP]]; hoan_tat_ho_so.py thay nó
-    # bằng `mã` (7 ký tự, trong dấu mã) — đúng dạng mẫu dò _MA_COMMIT_MUC_13 bắt được.
-    sau_hop_nhat = ho_so.replace("commit [[COMMIT_NOP]]", "commit `a1b2c3d`")
-    assert sau_hop_nhat != ho_so, "câu mục 13 đổi chữ — sửa mẫu dò _MA_COMMIT_MUC_13"
-    lech = dung_ke_khai.lech_trang_thai_kho(sau_hop_nhat, md)
-    assert any("390027b" in x for x in lech), lech
-    assert any("a1b2c3d" in x for x in lech), lech
-    assert len(lech) >= 5, lech  # dòng 11, I.1, I.2, II, VII.1
-    # 05 đã viết lại theo trạng thái sau hợp nhất thì sạch — kể cả câu PR số 1 "chưa hợp nhất".
-    da_sua = (
-        "| Trạng thái mã nguồn khi kê khai | Nhánh `main` tại commit `a1b2c3d` (đã hợp nhất "
-        "`hoan-thien/ho-so-2509`; trước đó `main` ở 390027b, 56 commit). Nhánh "
-        "`tien/aisc-round2` (PR số 1) chưa hợp nhất |"
+    # Kiểm độc lập 25/09/2026 (wf6-5, P0): 05 tả `main` = 390027b, 56/56 commit, nhánh hoàn
+    # thiện "chưa hợp nhất" trong khi bản nộp đi sau khi hợp nhất. 27/09/2026: trưởng nhóm hợp
+    # nhất nhánh hoàn thiện vào `main` và đẩy lên trong ngày, hồ sơ mục 13 không còn ghi mã
+    # commit, nên bản kê khai phải tả kho SAU hợp nhất vô điều kiện (không ghi mã commit cụ thể).
+    assert dung_ke_khai.lech_trang_thai_kho(md) == [], dung_ke_khai.lech_trang_thai_kho(md)
+    cu = (
+        "| Trạng thái mã nguồn khi kê khai | Nhánh `main` tại commit `390027b` (56 commit). "
+        "Nhánh hoàn thiện hồ sơ `hoan-thien/ho-so-2509` và nhánh `tien/aisc-round2` (PR số 1) "
+        "đang chờ trưởng nhóm duyệt, chưa hợp nhất |\n| Commit trên `main` | 56 commit |"
     )
-    assert dung_ke_khai.lech_trang_thai_kho(sau_hop_nhat, da_sua) == []
+    lech = dung_ke_khai.lech_trang_thai_kho(cu)
+    assert any("390027b" in x for x in lech), lech
+    assert any("chưa hợp nhất" in x for x in lech), lech
+    assert any("27/09/2026" in x for x in lech), "thiếu câu đã hợp nhất phải bị báo"
+    assert len(lech) >= 4, lech
+    da_sua = (
+        "Toàn bộ công việc hoàn thiện được hợp nhất vào nhánh `main` của kho công khai ngày "
+        "27/09/2026. Nhánh `tien/aisc-round2` (PR số 1 của Tiến) chưa hợp nhất."
+    )
+    assert dung_ke_khai.lech_trang_thai_kho(da_sua) == []
+    # 27/09/2026: bản kê khai nộp không nhắc Google Drive (kể cả đường dẫn gói cũ).
+    assert dung_ke_khai.nhac_drive(md) == []
+    assert dung_ke_khai.nhac_drive("x\nPL=D:/AISC2026/GOI-DRIVE-SANG-TAO-TRE\n<!-- Drive -->")
 
 
 def test_dung_docx_khong_lot_ky_hieu(tmp_path):

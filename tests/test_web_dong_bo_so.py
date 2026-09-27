@@ -31,8 +31,9 @@ TRANG_CHU = GOC / "web" / "src" / "app" / "page.tsx"
 FACT_SHEET = GOC / "docs" / "competition" / "FACT-SHEET.md"
 HO_SO_DIR = GOC / "docs" / "competition" / "sang-tao-tre-2026"
 #: Ba tệp nộp chép lại dòng "Bộ kiểm thử" của FACT-SHEET (phần việc 3, tối 25/09/2026): hồ sơ
-#: 2.093 = 2.066 + 17 + 10, bản kê khai mục VIII, bảng "Số được phép nói" của kịch bản video.
+#: (Tóm tắt, Bảng 5), bản kê khai mục VIII, lời dẫn và bảng "Số được phép nói" của kịch bản video.
 #: Trước đó script không quét chúng — đổi số test thì ba tệp nộp giữ số cũ mà vẫn báo "đúng".
+#: 27/09/2026: ba tệp viết lại theo văn phong tự nhiên, mẫu của script đổi theo.
 HO_SO = (
     HO_SO_DIR / "noi-dung.md",
     HO_SO_DIR / "05-BAN-KE-KHAI.md",

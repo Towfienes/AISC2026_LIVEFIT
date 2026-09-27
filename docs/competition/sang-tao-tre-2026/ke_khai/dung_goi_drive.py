@@ -1,5 +1,11 @@
 """Dựng cây thư mục gói Google Drive minh chứng (mục 13 MẪU 3) — ngoài kho mã.
 
+NGỪNG DÙNG CHO BẢN NỘP (27/09/2026, trưởng nhóm chốt): hồ sơ nộp không nhắc Google Drive; mục
+13 trỏ kho mã công khai, Prompt Log được kê khai trong bản kê khai và đội giữ bản xuất. Tệp này
+còn giữ vì hai phần vẫn được dùng và có test: bộ so số Prompt Log (``trich_so_prompt_log``,
+``lech_so_prompt_log``: số trong 05, noi-dung.md, 06 phải khớp ``SO-DEM.json`` của lần xuất) và
+``chep_anh_moc_cu``. Hướng dẫn tải lên bên dưới chỉ còn giá trị lịch sử.
+
     .venv/Scripts/python docs/competition/sang-tao-tre-2026/ke_khai/dung_goi_drive.py
     ... --goc D:/AISC2026/GOI-DRIVE-SANG-TAO-TRE
 
@@ -37,7 +43,7 @@ from pathlib import Path
 DAY = Path(__file__).resolve().parent
 REPO = DAY.parents[3]
 GOC_MAC_DINH = Path("D:/AISC2026/GOI-DRIVE-SANG-TAO-TRE")
-KE_KHAI_MAC_DINH = Path("D:/AISC2026/AI2026_Ban_Ke_Khai_LiveLift.docx")
+KE_KHAI_MAC_DINH = Path("D:/AISC2026/AI2026_BangC_LiveLift_BanKeKhai.docx")
 KHO = "https://github.com/bminhnemhoi/AISC2026_LIVEFIT"
 
 TAI_LIEU_KY_THUAT = [

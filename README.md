@@ -11,7 +11,7 @@ hành động *tạo ra giá trị* với *sự trùng hợp thời điểm*.
 
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
-[![Tests](https://img.shields.io/badge/tests-2066%20nhanh%20%2B%2017%20c%E1%BB%95ng%20ch%E1%BA%ADm-blue)](#-kết-quả-đã-kiểm-chứng)
+[![Tests](https://img.shields.io/badge/tests-2089%20nhanh%20%2B%2017%20c%E1%BB%95ng%20ch%E1%BA%ADm-blue)](#-kết-quả-đã-kiểm-chứng)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Next.js 14](https://img.shields.io/badge/Next.js-14-black?logo=next.js)](web/)
 
@@ -108,7 +108,7 @@ pip install -e ".[dev,server,ml]"
 > thẳng `.venv\Scripts\python -m pytest ...`. Linux/macOS: `source .venv/bin/activate`.
 
 ```bash
-pytest -m "not slow"                # 2066 test nhanh (số thu thập — đếm lại: scripts/dong_bo_so_test.py)
+pytest -m "not slow"                # 2089 test nhanh (số thu thập — đếm lại: scripts/dong_bo_so_test.py)
 pytest -m "slow and not browser"    # 17 cổng chậm (13 mô phỏng/thống kê · 1 đánh giá NLP · 3 cổng build CSS), ~25 phút
 pytest -m browser                   # 10 test trình duyệt (cần Chromium của Playwright)
 ruff check src tests                # lint
@@ -289,7 +289,7 @@ Chi tiết thành tựu, việc còn lại (P0/P1/P2), nợ kỹ thuật không 
 ## 🧑‍💻 Quy trình & đóng góp
 
 Vòng lặp: *hiểu → nghiên cứu (có trích dẫn) → thiết kế test trước → code thuần ở lõi
-→ gate tự động → root cause mọi lỗi → sổ sự cố*. Quality gates: 2066 test nhanh ·
+→ gate tự động → root cause mọi lỗi → sổ sự cố*. Quality gates: 2089 test nhanh ·
 17 cổng chậm (13 mô phỏng/thống kê · 1 đánh giá NLP · 3 cổng build CSS) · recall PII · cân bằng gán 1000 lịch · **contract test web↔API**
 · cách ly collectors · ruff.
 

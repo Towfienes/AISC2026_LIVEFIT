@@ -25,20 +25,21 @@ Luật an toàn của bản nộp (sửa 25/09/2026, sau kiểm toán hồ sơ):
 1. **Không bao giờ ghi đè bản nộp bằng một bản hỏng.** Mọi thứ dựng ra tệp tạm
    trong thư mục đích; chỉ khi đạt HẾT điều kiện (không ô ⬜, không thiếu hình,
    ô "3 người" đã tích, không lọt ký tự Markdown, ≤ 20 trang do Word đếm) thì
-   tệp tạm mới được đổi tên thành ``AI2026_Ho_So_Du_An_LiveLift_BangC.docx/.pdf``.
+   tệp tạm mới được đổi tên thành ``AI2026_BangC_LiveLift_HoSoDuAn.docx/.pdf``.
    Trước đây bộ dựng ghi .docx + .pdf RỒI mới báo lỗi và thoát mã 1.
 2. Còn ô ⬜ mà không có ``--cho-phep-o-trong`` → thoát mã 1 ngay, không tạo
    tệp nào. Có cờ đó → dựng BẢN NHÁP mang hậu tố ``_NHAP``, không bao giờ trùng
    tên bản nộp.
 3. Giới hạn cứng **20 trang**, đếm bằng Word (COM) — chỉ Word ngắt trang giống
    thứ ban tổ chức sẽ mở. Mẫu để giãn dòng 1,15 nên bộ dựng giữ đúng 1,15.
-4. (27/09/2026) Hai thứ chỉ có SAU khi hợp nhất nhánh và tải gói Drive lên — link
-   Drive và mã commit nộp — là dấu giữ chỗ ``[[LINK_DRIVE]]``, ``[[COMMIT_NOP]]``,
-   KHÁC ô ⬜. Còn dấu này thì không ra bản nộp; cờ ``--ban-cho-link`` dựng BẢN CHỜ
-   LINK (hậu tố ``_CHO_LINK``, dấu giữ chỗ in đỏ, dải đỏ "CHƯA ĐIỀN LINK DRIVE" ở ô
-   trái khối ký tên trang cuối) khi mọi thứ khác đã đủ. Bản nộp dựng bằng
-   ``hoan_tat_ho_so.py --link-drive … --commit …``: thay dấu giữ chỗ trên bản sao
-   tạm của ``noi-dung.md``, gọi bộ dựng này, quét PDF, chép vào thư mục nộp.
+4. (27/09/2026, trưởng nhóm chốt) Hồ sơ nộp NGAY, không chờ link nào: mục 13 trỏ kho
+   mã công khai, không nhắc Google Drive. Bỏ hẳn "bản chờ link" (cờ ``--ban-cho-link``,
+   dải đỏ, hậu tố ``_CHO_LINK``). Dấu giữ chỗ ``[[…]]`` nào còn trong nội dung thì bản
+   nộp bị CHẶN như ô ⬜; bản nháp (``--cho-phep-o-trong``) in nó màu đỏ.
+5. (27/09/2026) Khối ký tên điền sẵn nơi ký VÀ ngày ký (``--ngay-ky``, mặc định hôm
+   nay) để bản in không còn dòng chấm nào phải điền tay; chỉ còn chữ ký.
+   Bản nộp chính thức dựng bằng ``hoan_tat_ho_so.py`` (không tham số): dựng hồ sơ và bản
+   kê khai, quét chữ của cả hai PDF, rồi mới chép vào thư mục nộp.
 
 Cú pháp Markdown được hỗ trợ — xem đầu ``noi-dung.md`` (khối chú thích).
 """
@@ -73,16 +74,14 @@ MAU = Path(
     r"\AI2026_Mẫu hồ sơ.docx"
 )
 OUT_DIR_MAC_DINH = Path(r"D:\AISC2026")
-TEN_TEP = "AI2026_Ho_So_Du_An_LiveLift_BangC"
+TEN_TEP = "AI2026_BangC_LiveLift_HoSoDuAn"
 HAU_TO_NHAP = "_NHAP"
-HAU_TO_CHO_LINK = "_CHO_LINK"
 
 CHO_TRONG = "⬜"
-#: Dấu giữ chỗ cho thứ chỉ có sau khi hợp nhất và tải gói Drive lên (xem luật 4 ở đầu tệp).
+#: Dấu giữ chỗ ``[[TEN]]``: còn trong nội dung là CHẶN bản nộp (luật 4 ở đầu tệp).
 DAU_GIU_CHO = re.compile(r"\[\[[A-Z][A-Z_]*\]\]")
 _TACH_GIU_CHO = re.compile(r"(\[\[[A-Z][A-Z_]*\]\])")
 MAU_DO = RGBColor(0xC0, 0x00, 0x00)
-NEN_DAI_DO = "C00000"
 #: Nơi ký ở khối "…, ngày … tháng … năm 2026" của MẪU 3 (đội học tại TP.HCM).
 NOI_KY = "TP. Hồ Chí Minh"
 GIOI_HAN_TRANG = 20
@@ -93,7 +92,7 @@ FONT_MA = "Consolas"
 CO = Pt(13)
 CO_BANG = Pt(10.5)
 CO_KHOI_MA = Pt(9)
-CO_TLTK = Pt(10.5)  # danh mục tài liệu tham khảo = cỡ chữ bảng (27/09/2026: 11 → 10,5)
+CO_TLTK = Pt(10)  # danh mục tài liệu tham khảo (27/09/2026: 11 → 10,5 → 10, giới hạn 20 trang)
 GIAN_DONG = 1.15  # đúng như mẫu MẪU 3 đặt cho phần nội dung
 
 NEN_TIEU_DE_BANG = "D5DCE4"  # đúng màu nền hàng tiêu đề trong bảng của mẫu BTC
@@ -104,11 +103,12 @@ RONG_HINH_MAC_DINH_CM = 15.0
 RONG_CHU_CM = 16.0  # A4 11907 twip − lề trái 1701 − lề phải 1134 = 9072 twip = 16,0 cm
 
 TAC_GIA = "Đội LiveLift"
+#: Tên sản phẩm đúng như trưởng nhóm chốt 27/09/2026: dấu "-" (gạch nối) sau LiveLift.
 TEN_SAN_PHAM = (
-    "LiveLift – Nền tảng thí nghiệm vận hành và hỗ trợ ra quyết định cho livestream thương mại"
+    "LiveLift - Nền tảng thí nghiệm vận hành và hỗ trợ ra quyết định cho livestream thương mại"
 )
 TIEU_DE_TEP = (
-    f"{TEN_SAN_PHAM} — Hồ sơ dự án Bảng C, Cuộc thi Sáng tạo trẻ Quốc gia trong lĩnh vực "
+    f"{TEN_SAN_PHAM}. Hồ sơ dự án Bảng C, Cuộc thi Sáng tạo trẻ Quốc gia trong lĩnh vực "
     "Trí tuệ nhân tạo năm 2026"
 )
 
@@ -210,7 +210,7 @@ def emit_runs(p, text, *, size=CO, bold=False, italic=False):
             emit_runs(p, chunk[1:-1], size=size, bold=bold, italic=True)
         else:
             chu = _KHONG_NGAT.sub("\\1\u00a0", chunk)
-            # Dấu giữ chỗ [[…]] (chỉ còn trong BẢN CHỜ LINK) in đỏ đậm: nhìn là thấy.
+            # Dấu giữ chỗ [[…]] (chỉ lọt tới đây ở BẢN NHÁP) in đỏ đậm: nhìn là thấy.
             for k, phan in enumerate(_TACH_GIU_CHO.split(chu)):
                 if not phan:
                     continue
@@ -724,25 +724,53 @@ def _o_khoi_ky(tbl_el, doc):
     return (o[0], o[-1]) if len(o) >= 2 else (None, o[0])
 
 
-def dien_khoi_ky(tbl_el, doc, dai_dien: str | None) -> bool:
-    """Điền nơi ký và họ tên người đại diện vào khối ký tên; giữ khối liền một trang.
+def chu_ngay_ky(ngay: dt.date) -> str:
+    """Chữ ngày ký, ví dụ "ngày 27 tháng 9 năm 2026".
+
+    Theo Nghị định 30/2020/NĐ-CP: ngày dưới 10 và tháng 1, 2 thì thêm số 0 phía trước.
+    """
+    d = f"{ngay.day:02d}" if ngay.day < 10 else str(ngay.day)
+    m = f"{ngay.month:02d}" if ngay.month < 3 else str(ngay.month)
+    return f"ngày {d} tháng {m} năm {ngay.year}"
+
+
+_DONG_NGAY_MAU = re.compile(r"^[.…\s]+,\s*ngày\s*[.…\s]*tháng\s*[.…\s]*năm\s*\d{4}")
+
+
+def dien_khoi_ky(tbl_el, doc, dai_dien: str | None, ngay: dt.date | None = None) -> bool:
+    """Điền nơi ký, ngày ký và họ tên người đại diện vào khối ký tên; giữ khối liền một trang.
 
     Mẫu ghi "………, ngày …… tháng …… năm 2026 / Đại diện đội thi / (Ký, ghi rõ họ
-    tên)" rồi hết — bản 25/09 để khối này sát đáy trang 20, không còn chỗ ký. Nay
-    thêm ba dòng trống để ký tay và họ tên in đậm NGAY TRONG ô, rồi cấm xẻ hàng:
-    không đủ chỗ thì cả khối sang trang 21 và bộ đếm trang chặn bản nộp.
-    Ngày, tháng để trống cho người ký ghi tay. Trả True nếu điền được nơi ký.
+    tên)" rồi hết. Bản 25/09 để khối này sát đáy trang 20, không còn chỗ ký; nay thêm ba
+    dòng trống để ký tay và họ tên in đậm NGAY TRONG ô, rồi cấm xẻ hàng: không đủ chỗ thì
+    cả khối sang trang 21 và bộ đếm trang chặn bản nộp. Từ 27/09/2026 điền luôn ngày ký
+    (``ngay``) để bản in không còn dòng chấm nào; ``ngay`` là None thì giữ chấm của mẫu.
+    Trả True nếu điền được nơi ký (và ngày, khi có ``ngay``).
     """
     _trai, phai = _o_khoi_ky(tbl_el, doc)
     da_dien = False
     for t in phai._tc.iter(qn("w:t")):
-        if t.text and re.match(r"^[.…\s]+,\s*ngày", t.text):
+        if not t.text or not re.match(r"^[.…\s]+,\s*ngày", t.text):
+            continue
+        if ngay is None:
             t.text = re.sub(r"^[.…\s]+(?=,\s*ngày)", NOI_KY, t.text)
             da_dien = True
-            break
+        elif _DONG_NGAY_MAU.match(t.text):
+            t.text = _DONG_NGAY_MAU.sub(f"{NOI_KY}, {chu_ngay_ky(ngay)}", t.text)
+            da_dien = True
+        break
+    # Mẫu chia đôi 4505/4510 twip: dòng "TP. Hồ Chí Minh, ngày 27 tháng 9 năm 2026" (nghiêng,
+    # cỡ 13) dài hơn 8 cm nên "2026" rơi xuống dòng riêng. Ô trái vốn trống: nhường 1 cm.
+    luoi = tbl_el.find(qn("w:tblGrid"))
+    cot = luoi.findall(qn("w:gridCol")) if luoi is not None else []
+    if len(cot) == 2:
+        tong = sum(int(float(c.get(qn("w:w")) or 0)) for c in cot)
+        if tong > 7000:
+            cot[0].set(qn("w:w"), str(tong - 5600))
+            cot[1].set(qn("w:w"), "5600")
     if dai_dien and CHO_TRONG not in dai_dien:
         p = phai.paragraphs[-1]
-        set_font(p.add_run("\n\n\n\n"), size=CO)
+        set_font(p.add_run("\n\n\n"), size=CO)  # ba dòng trống để ký tay
         set_font(p.add_run(dai_dien), bold=True, size=CO)
     trpr = tbl_el.find(f"{qn('w:tr')}/{qn('w:trPr')}")
     if trpr is not None:
@@ -752,32 +780,6 @@ def dien_khoi_ky(tbl_el, doc, dai_dien: str | None) -> bool:
             trpr.append(cs)
         cs.set(qn("w:val"), "1")
     return da_dien
-
-
-DAI_CHO_LINK = (
-    "BẢN CHỜ LINK – CHƯA ĐIỀN LINK DRIVE",
-    "Mục 13 còn dấu giữ chỗ link Google Drive và mã commit nộp. KHÔNG NỘP BẢN NÀY: "
-    "dựng bản nộp bằng hoan_tat_ho_so.py --link-drive … --commit …",
-)
-
-
-def ghi_dai_cho_link(tbl_el, doc) -> None:
-    """Dải đỏ ở ô trái (vốn trống) của khối ký tên trang cuối: không tốn thêm dòng nào."""
-    trai, _phai = _o_khoi_ky(tbl_el, doc)
-    if trai is None:
-        return
-    _nen_o(trai, NEN_DAI_DO)
-    for p in list(trai.paragraphs):
-        p._p.getparent().remove(p._p)
-    for k, chu in enumerate(DAI_CHO_LINK):
-        p = trai.add_paragraph()
-        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        pf = p.paragraph_format
-        pf.line_spacing = 1.0
-        pf.first_line_indent = Pt(0)
-        pf.space_after = Pt(3)
-        r = set_font(p.add_run(chu), bold=True, size=Pt(12) if k == 0 else Pt(10))
-        r.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
 
 
 def dat_thuoc_tinh(doc) -> None:
@@ -917,7 +919,7 @@ def kiem_sau_khi_dung(tep: Path, so_thanh_vien: int, *, cho_phep_giu_cho=False) 
     if lot:
         chan.append(f"lọt ký tự Markdown vào bản in ({len(lot)} chỗ): " + " | ".join(lot[:3]))
     if giu_cho and not cho_phep_giu_cho:
-        chan.append(f"bản in còn {giu_cho} dấu giữ chỗ '[[' (chạy hoan_tat_ho_so.py)")
+        chan.append(f"bản in còn {giu_cho} dấu giữ chỗ '[['")
     if o_trong:
         chan.append(f"bản in còn {o_trong} ô {CHO_TRONG}")
     dung, tong = dem_o_tich(doc, so_thanh_vien)
@@ -975,10 +977,11 @@ def xuat_pdf_va_dem_trang(docx: Path):
 
 
 # ------------------------------------------------------------------ dựng toàn bộ
-def dung(secs, thanh_vien, goc: Path, *, dai_dien: str | None = None, ban_cho_link=False):
+def dung(secs, thanh_vien, goc: Path, *, dai_dien: str | None = None, ngay_ky=None):
     """Dựng Document từ mẫu + nội dung. Trả (doc, ngữ cảnh, số ô thí sinh đã điền).
 
-    ``dai_dien``: họ tên in dưới chữ ký; ``ban_cho_link``: thêm dải đỏ ở khối ký tên.
+    ``dai_dien``: họ tên in dưới chữ ký; ``ngay_ky`` (``datetime.date``): ngày in ở khối
+    ký tên, None thì giữ dòng chấm của mẫu.
     """
     if not MAU.exists():
         sys.exit(f"Không thấy file mẫu của ban tổ chức: {MAU}")
@@ -1010,7 +1013,7 @@ def dung(secs, thanh_vien, goc: Path, *, dai_dien: str | None = None, ban_cho_li
             space_after=3,
             giu_voi_doan_sau=True,
         )
-        # Danh mục tài liệu tham khảo in cỡ CO_TLTK (10,5 = cỡ chữ bảng) — tiết kiệm
+        # Danh mục tài liệu tham khảo in cỡ CO_TLTK (10 pt, nhỏ hơn chữ bảng) — tiết kiệm
         # ~0,25 trang mà vẫn trên ngưỡng đọc được khi in.
         la_tltk = s["heading"].strip().lower().startswith("tài liệu tham khảo")
         render_body(doc, s["body"], ctx, co=CO_TLTK if la_tltk else CO)
@@ -1022,12 +1025,12 @@ def dung(secs, thanh_vien, goc: Path, *, dai_dien: str | None = None, ban_cho_li
             sect.addprevious(ky_ten)
         else:
             body.append(ky_ten)
-        if not dien_khoi_ky(ky_ten, doc, dai_dien):
-            ctx.canh_bao.append("không điền được nơi ký ở khối ký tên — mẫu BTC đổi chữ?")
-        if ban_cho_link:
-            ghi_dai_cho_link(ky_ten, doc)
-    elif ban_cho_link:
-        ctx.canh_bao.append("không thấy khối ký tên để đặt dải CHƯA ĐIỀN LINK DRIVE")
+        if not dien_khoi_ky(ky_ten, doc, dai_dien, ngay_ky):
+            ctx.canh_bao.append("không điền được nơi ký, ngày ký ở khối ký tên (mẫu BTC đổi chữ?)")
+        # Word bắt buộc có một đoạn sau bảng cuối tài liệu; để Word tự thêm thì đoạn đó cỡ 13,
+        # và khi khối ký tên vừa khít đáy trang 20, riêng đoạn rỗng ấy sinh ra trang 21 trắng
+        # (27/09/2026). Đoạn đệm cao 1 pt đặt sẵn ở đây.
+        _dem(doc, cao=1)
     dat_thuoc_tinh(doc)
     return doc, ctx, so_o
 
@@ -1057,17 +1060,15 @@ def _xoa(*tep):
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Dựng hồ sơ dự án Bảng C (MẪU 3) từ noi-dung.md")
     ap.add_argument("--out-dir", default=str(OUT_DIR_MAC_DINH), help="thư mục ghi .docx/.pdf")
-    che_do = ap.add_mutually_exclusive_group()
-    che_do.add_argument(
+    ap.add_argument(
         "--cho-phep-o-trong",
         action="store_true",
-        help="dựng BẢN NHÁP (hậu tố _NHAP) dù còn ô ⬜ hoặc thiếu hình",
+        help="dựng BẢN NHÁP (hậu tố _NHAP) dù còn ô ⬜, dấu giữ chỗ [[…]] hoặc thiếu hình",
     )
-    che_do.add_argument(
-        "--ban-cho-link",
-        action="store_true",
-        help="dựng BẢN CHỜ LINK (hậu tố _CHO_LINK): chỉ cho phép dấu giữ chỗ [[…]], "
-        "mọi điều kiện khác của bản nộp vẫn áp",
+    ap.add_argument(
+        "--ngay-ky",
+        default=None,
+        help="ngày in ở khối ký tên, dạng DD/MM/YYYY (mặc định: hôm nay)",
     )
     ap.add_argument("--khong-pdf", action="store_true", help="bỏ bước Word (không đếm trang)")
     ap.add_argument("--noi-dung", default=str(NOI_DUNG), help=argparse.SUPPRESS)
@@ -1080,6 +1081,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.tu_kiem:
         return tu_kiem()
 
+    try:
+        ngay_ky = (
+            dt.datetime.strptime(args.ngay_ky, "%d/%m/%Y").date()
+            if args.ngay_ky
+            else dt.date.today()
+        )
+    except ValueError:
+        print(f"--ngay-ky phải có dạng DD/MM/YYYY, nhận {args.ngay_ky!r}")
+        return 2
     out_dir = Path(args.out_dir)
     noi_dung = Path(args.noi_dung).resolve()
     goc = Path(args.goc_hinh).resolve() if args.goc_hinh else noi_dung.parent
@@ -1089,11 +1099,8 @@ def main(argv: list[str] | None = None) -> int:
 
     chan = kiem_dau_vao(thanh_vien, secs, goc, doi)
     giu_cho = giu_cho_trong(secs)
-    if giu_cho and not args.ban_cho_link:
-        chan.append(
-            f"còn dấu giữ chỗ {', '.join(giu_cho)} — bản nộp dựng bằng "
-            "hoan_tat_ho_so.py --link-drive … --commit … (bản chờ: --ban-cho-link)"
-        )
+    if giu_cho:
+        chan.append(f"còn dấu giữ chỗ {', '.join(giu_cho)}: điền nội dung thật vào noi-dung.md")
     if chan and not args.cho_phep_o_trong:
         print("CHƯA NỘP ĐƯỢC — không tạo và không ghi đè tệp nào:")
         for c in chan:
@@ -1101,9 +1108,7 @@ def main(argv: list[str] | None = None) -> int:
         print("  (dựng bản nháp: thêm --cho-phep-o-trong)")
         return 1
 
-    doc, ctx, so_o = dung(
-        secs, thanh_vien, goc, dai_dien=dai_dien_tu(doi), ban_cho_link=args.ban_cho_link
-    )
+    doc, ctx, so_o = dung(secs, thanh_vien, goc, dai_dien=dai_dien_tu(doi), ngay_ky=ngay_ky)
     for c in ctx.canh_bao:
         chan.append(c)
     if so_o < 6 * len(thanh_vien):
@@ -1112,9 +1117,7 @@ def main(argv: list[str] | None = None) -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     tam = out_dir / f"{TEN_TEP}.tam-{os.getpid()}.docx"
     doc.save(str(tam))
-    chan += kiem_sau_khi_dung(
-        tam, len(thanh_vien), cho_phep_giu_cho=args.ban_cho_link or args.cho_phep_o_trong
-    )
+    chan += kiem_sau_khi_dung(tam, len(thanh_vien), cho_phep_giu_cho=args.cho_phep_o_trong)
 
     trang = tu = pdf_tam = None
     # Word có thể đã ghi PDF tạm rồi mới hỏng ở bước đọc số trang; khi đó
@@ -1139,18 +1142,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  THIẾU HÌNH: {h}")
 
     if not chan:
-        hau_to = HAU_TO_CHO_LINK if args.ban_cho_link else ""
-        dich = out_dir / f"{TEN_TEP}{hau_to}.docx"
+        dich = out_dir / f"{TEN_TEP}.docx"
         os.replace(tam, dich)
         os.replace(pdf_tam, dich.with_suffix(".pdf"))
         print("Đã ghi:", dich, "và", dich.with_suffix(".pdf"))
-        if args.ban_cho_link:
-            print(
-                f"  BẢN CHỜ LINK — chưa nộp được: còn {', '.join(giu_cho) or 'không'} "
-                "(mọi điều kiện khác đã đạt)."
-            )
-        else:
-            print("  Sẵn sàng nộp.")
+        print("  Đạt mọi cổng của bộ dựng (bản nộp chính thức: hoan_tat_ho_so.py).")
         return 0
 
     print("  CHƯA NỘP ĐƯỢC:")
@@ -1445,14 +1441,12 @@ def tu_kiem() -> int:
             not nhap_pdf.exists() and (ra7 / f"{TEN_TEP}{HAU_TO_NHAP}.docx").exists(),
         )
 
-        # (9) Dấu giữ chỗ [[…]] (27/09/2026): bản nộp CHẶN; --ban-cho-link ra _CHO_LINK, dấu
-        #     giữ chỗ in đỏ, dải đỏ ở ô trái khối ký tên; bản nộp cũ nguyên vẹn. Nội dung là
-        #     bản sao ở thư mục KHÁC, hình lấy theo --goc-hinh (đúng cách hoan_tat_ho_so.py gọi).
+        # (9) Dấu giữ chỗ [[…]] (27/09/2026, bỏ "bản chờ link"): bản nộp CHẶN, bản cũ nguyên
+        #     vẹn; bản nháp in dấu đó màu đỏ. Nội dung ở thư mục KHÁC, hình lấy theo --goc-hinh.
         sao = td / "sao"
         sao.mkdir()
         (sao / "cho.md").write_text(
-            md6.replace("Đoạn 13.", "Link: [[LINK_DRIVE]], commit [[COMMIT_NOP]]."),
-            encoding="utf-8",
+            md6.replace("Đoạn 13.", "Link: [[LINK_THIEU]]."), encoding="utf-8"
         )
         doi9 = {"truong_nhom": 0, "thanh_vien": [dict(tv), dict(tv), dict(tv)]}
         (td / "doi9.json").write_text(json.dumps(doi9, ensure_ascii=False), encoding="utf-8")
@@ -1461,16 +1455,40 @@ def tu_kiem() -> int:
         for duoi in (".docx", ".pdf"):
             (ra9 / f"{TEN_TEP}{duoi}").write_bytes(b"BAN-CU")
         truoc9 = {p.name: p.read_bytes() for p in ra9.iterdir()}
-        doi_cho = [
-            "--noi-dung",
-            str(sao / "cho.md"),
-            "--goc-hinh",
-            str(td),
-            "--thong-tin",
-            str(td / "doi9.json"),
-        ]
-        ma_nop = main(["--out-dir", str(ra9), *doi_cho])
+        doi_cho = ["--goc-hinh", str(td), "--thong-tin", str(td / "doi9.json")]
+        ma_nop = main(["--out-dir", str(ra9), "--noi-dung", str(sao / "cho.md"), *doi_cho])
         sau_nop = {p.name: p.read_bytes() for p in ra9.iterdir()}
+        main(
+            [
+                "--out-dir",
+                str(ra9),
+                "--noi-dung",
+                str(sao / "cho.md"),
+                *doi_cho,
+                "--cho-phep-o-trong",
+                "--khong-pdf",
+            ]
+        )
+        tep_nhap = ra9 / f"{TEN_TEP}{HAU_TO_NHAP}.docx"
+        do = []
+        if tep_nhap.exists():
+            do = [
+                r.text
+                for p in Document(str(tep_nhap)).paragraphs
+                for r in p.runs
+                if r.text.startswith("[[") and r.font.color.rgb == MAU_DO
+            ]
+        kq(
+            "còn [[…]] → bản nộp thoát 1, bản cũ nguyên vẹn; bản nháp in dấu giữ chỗ màu đỏ",
+            ma_nop == 1 and sau_nop == truoc9 and do == ["[[LINK_THIEU]]"],
+            f"mã {ma_nop}, đỏ {do}",
+        )
+
+        # (10) Bản nộp đủ điều kiện (Word giả): khối ký có nơi ký, NGÀY KÝ, họ tên người đại
+        #      diện, không xẻ trang; bản in không còn dòng chấm "…… tháng ……" nào.
+        (sao / "du.md").write_text(md6, encoding="utf-8")
+        ra10 = td / "ra10"
+        ra10.mkdir()
 
         def word_gia(docx: Path):
             pdf = docx.with_suffix(".pdf")
@@ -1479,43 +1497,37 @@ def tu_kiem() -> int:
 
         globals()["xuat_pdf_va_dem_trang"] = word_gia
         try:
-            ma_cho = main(["--out-dir", str(ra9), *doi_cho, "--ban-cho-link"])
+            ma10 = main(
+                [
+                    "--out-dir",
+                    str(ra10),
+                    "--noi-dung",
+                    str(sao / "du.md"),
+                    *doi_cho,
+                    "--ngay-ky",
+                    "05/02/2026",
+                ]
+            )
         finally:
             globals()["xuat_pdf_va_dem_trang"] = goc_word
-        tep_cho = ra9 / f"{TEN_TEP}{HAU_TO_CHO_LINK}.docx"
-        kq(
-            "còn [[…]] → bản nộp thoát 1, không đụng tệp; --ban-cho-link ra _CHO_LINK",
-            ma_nop == 1
-            and sau_nop == truoc9
-            and ma_cho == 0
-            and tep_cho.exists()
-            and tep_cho.with_suffix(".pdf").exists()
-            and {p.name: p.read_bytes() for p in ra9.iterdir() if "CHO_LINK" not in p.name}
-            == truoc9,
-            f"mã {ma_nop}/{ma_cho}",
-        )
-        if tep_cho.exists():
-            d9 = Document(str(tep_cho))
-            chu9 = "".join(t.text or "" for t in d9.element.body.iter(qn("w:t")))
-            do = [
-                r.text
-                for p in d9.paragraphs
-                for r in p.runs
-                if r.text.startswith("[[") and r.font.color.rgb == MAU_DO
-            ]
-            ky = next(t for t in d9.tables if "Đại diện đội thi" in t._tbl.xml)
+        tep10 = ra10 / f"{TEN_TEP}.docx"
+        chu10 = ""
+        tach = None
+        if tep10.exists():
+            d10 = Document(str(tep10))
+            chu10 = "".join(t.text or "" for t in d10.element.body.iter(qn("w:t")))
+            ky = next(t for t in d10.tables if "Đại diện đội thi" in t._tbl.xml)
             tach = ky._tbl.find(f"{qn('w:tr')}/{qn('w:trPr')}/{qn('w:cantSplit')}")
-            kq(
-                "bản chờ link: dấu giữ chỗ in đỏ, dải CHƯA ĐIỀN LINK DRIVE, nơi ký + họ tên "
-                "người đại diện, khối ký không xẻ trang",
-                do == ["[[LINK_DRIVE]]", "[[COMMIT_NOP]]"]
-                and DAI_CHO_LINK[0] in chu9
-                and f"{NOI_KY}, ngày" in chu9
-                and chu9.rstrip().endswith(tv["ho_ten"])
-                and tach is not None
-                and tach.get(qn("w:val")) == "1",
-                f"đỏ {do}",
-            )
+        kq(
+            "bản nộp: nơi ký và ngày ký điền sẵn, họ tên người đại diện, khối ký không xẻ trang",
+            ma10 == 0
+            and f"{NOI_KY}, ngày 05 tháng 02 năm 2026" in chu10
+            and "……" not in chu10
+            and chu10.rstrip().endswith(tv["ho_ten"])
+            and tach is not None
+            and tach.get(qn("w:val")) == "1",
+            f"mã {ma10}",
+        )
     print("TỰ KIỂM:", "ĐẠT" if not loi else f"{loi} HỎNG")
     return 0 if not loi else 1
 

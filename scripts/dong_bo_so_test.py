@@ -216,6 +216,7 @@ LUAT: dict[str, list[Luat]] = {
         ),
     ],
     # Ba tệp nộp chép lại dòng "Bộ kiểm thử" của FACT-SHEET (phần việc 3, tối 25/09/2026).
+    # 27/09/2026: ba tệp viết lại theo văn phong tự nhiên (không "=", "+", "—"), mẫu đổi theo.
     HO_SO + "noi-dung.md": [
         Luat(
             "Tóm tắt: tổng kiểm thử",
@@ -225,12 +226,12 @@ LUAT: dict[str, list[Luat]] = {
         Luat(
             "Bảng 5: dòng Kiểm thử tự động",
             re.compile(
-                r"(\| Kiểm thử tự động \| )[\d.]+ = [\d.]+ nhanh \+ \d+ cổng chậm"
-                r" \+ \d+ trình duyệt"
+                r"(\| Kiểm thử tự động \| )[\d.]+ bài, gồm [\d.]+ nhanh, \d+ cổng chậm"
+                r" và \d+ trên trình duyệt"
             ),
             lambda m, so, _: (
-                f"{m.group(1)}{vi(so.tong)} = {vi(so.nhanh)} nhanh + {so.cham} cổng chậm"
-                f" + {so.trinh_duyet} trình duyệt"
+                f"{m.group(1)}{vi(so.tong)} bài, gồm {vi(so.nhanh)} nhanh, {so.cham} cổng chậm"
+                f" và {so.trinh_duyet} trên trình duyệt"
             ),
         ),
     ],
@@ -238,28 +239,29 @@ LUAT: dict[str, list[Luat]] = {
         Luat(
             "mục VIII: bộ kiểm thử",
             re.compile(
-                r"[\d.]+ test thu thập( trên nhánh [^—\n]*— )[\d.]+ test nhanh, \d+ test chậm"
-                r" \(\d+ mô phỏng/thống kê, \d+ đánh giá NLP, \d+ dựng CSS\), \d+ test trình duyệt"
+                r"[\d.]+ bài kiểm tra tự động, gồm [\d.]+ bài nhanh, \d+ bài chậm"
+                r" \(\d+ mô phỏng và thống kê, \d+ đánh giá NLP, \d+ dựng CSS\)"
+                r" và \d+ bài trên trình duyệt"
             ),
             lambda m, so, _: (
-                f"{vi(so.tong)} test thu thập{m.group(1)}{vi(so.nhanh)} test nhanh, {so.cham}"
-                f" test chậm ({so.thong_ke} mô phỏng/thống kê, {so.nlp} đánh giá NLP,"
-                f" {so.css} dựng CSS), {so.trinh_duyet} test trình duyệt"
+                f"{vi(so.tong)} bài kiểm tra tự động, gồm {vi(so.nhanh)} bài nhanh, {so.cham}"
+                f" bài chậm ({so.thong_ke} mô phỏng và thống kê, {so.nlp} đánh giá NLP,"
+                f" {so.css} dựng CSS) và {so.trinh_duyet} bài trên trình duyệt"
             ),
         ),
     ],
     HO_SO + "07-KICH-BAN-2-VIDEO.md": [
         Luat(
             "lời thoại phần Kết quả",
-            re.compile(r"\b\d[\d.]*( kiểm thử tự động, \d+ sự cố)"),
+            re.compile(r"\b\d[\d.]*( kiểm thử tự động(?:,| và) \d+ sự cố)"),
             lambda m, so, _: f"{vi(so.tong)}{m.group(1)}",
         ),
         Luat(
             "bảng Số được phép nói",
-            re.compile(r"(\| Kiểm thử \| )[\d.]+ \([\d.]+ nhanh \+ \d+ chậm \+ \d+ trình duyệt"),
+            re.compile(r"(\| Kiểm thử \| )[\d.]+ \(gồm [\d.]+ nhanh, \d+ chậm, \d+ trình duyệt"),
             lambda m, so, _: (
-                f"{m.group(1)}{vi(so.tong)} ({vi(so.nhanh)} nhanh + {so.cham} chậm"
-                f" + {so.trinh_duyet} trình duyệt"
+                f"{m.group(1)}{vi(so.tong)} (gồm {vi(so.nhanh)} nhanh, {so.cham} chậm,"
+                f" {so.trinh_duyet} trình duyệt"
             ),
         ),
     ],

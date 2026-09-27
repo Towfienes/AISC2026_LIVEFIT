@@ -6,7 +6,7 @@ thì sửa tệp .md rồi chạy lại, KHÔNG sửa thẳng tệp .docx.
     # cần venv riêng có python-docx (đã gitignore): .venv-docx
     .venv-docx/Scripts/python docs/competition/sang-tao-tre-2026/ke_khai/dung_ke_khai.py
     .venv-docx/Scripts/python docs/competition/sang-tao-tre-2026/ke_khai/dung_ke_khai.py \\
-        --ra D:/AISC2026/AI2026_Ban_Ke_Khai_LiveLift.docx
+        --ra D:/AISC2026/AI2026_BangC_LiveLift_BanKeKhai.docx
     # chỉ .docx, không gọi Word:
     ... dung_ke_khai.py --khong-pdf
 
@@ -14,9 +14,11 @@ thì sửa tệp .md rồi chạy lại, KHÔNG sửa thẳng tệp .docx.
 11 cho bảng; tiêu đề đậm; bảng có viền, lặp dòng tiêu đề khi sang trang; số trang
 "Trang X/Y" ở chân trang; bảng chữ ký cao đủ để ký tay.
 
-Kiểm TRƯỚC khi thay tệp cũ: không còn ký hiệu Markdown (backtick, ``**``, ``](``) và
-không còn ô ⬜ trong văn bản. PDF xuất bằng Word (COM) — cùng bộ máy ngắt trang mà
-người chấm sẽ mở. Lỗi ở bất kỳ bước nào thì giữ nguyên bản cũ và thoát mã 1.
+Kiểm TRƯỚC khi thay tệp cũ: không còn ký hiệu Markdown (backtick, ``**``, ``](``), không
+còn ô ⬜, không nhắc Google Drive (trưởng nhóm chốt 27/09/2026) và không còn câu tả kho mã
+như trước khi hợp nhất nhánh hoàn thiện vào ``main``. Bản nộp chính thức (chép vào thư mục
+nộp sau khi quét PDF) dựng bằng ``hoan_tat_ho_so.py``. PDF xuất bằng Word (COM), cùng bộ
+máy ngắt trang mà người chấm sẽ mở. Lỗi ở bất kỳ bước nào thì giữ nguyên bản cũ, thoát mã 1.
 """
 
 from __future__ import annotations
@@ -34,7 +36,7 @@ sys.path.insert(0, str(DAY))
 from doc_md import Khoi, chu_tron, phan_tich, tach_trong_dong  # noqa: E402
 
 NGUON = DAY.parent / "05-BAN-KE-KHAI.md"
-RA_MAC_DINH = Path("D:/AISC2026/AI2026_Ban_Ke_Khai_LiveLift.docx")
+RA_MAC_DINH = Path("D:/AISC2026/AI2026_BangC_LiveLift_BanKeKhai.docx")
 FONT = "Times New Roman"
 FONT_MA = "Consolas"
 CO = 13
@@ -204,8 +206,10 @@ def _bang(doc, khoi: Khoi, *, ky_ten=False) -> None:
     t.style = "Table Grid"
     t.alignment = WD_TABLE_ALIGNMENT.CENTER
     rong = _do_rong_cot(hang, ncot, 16.0)
-    if ky_ten and ncot == 4:  # họ tên · vai trò · tự khai · CHỮ KÝ (đủ rộng để ký tay)
+    if ky_ten and ncot == 4:  # họ tên, vai trò, tự khai, CHỮ KÝ (đủ rộng để ký tay)
         rong = [3.3, 2.3, 6.4, 4.0]
+    elif ky_ten and ncot == 3:  # họ tên, vai trò, CHỮ KÝ (27/09/2026: bỏ cột tự khai)
+        rong = [5.5, 4.0, 6.5]
     # Word tự co giãn cột (autofit) và bỏ qua độ rộng từng ô nếu lưới cột không khớp:
     # tắt autofit, bố cục cố định, ghi độ rộng vào cả lưới cột.
     t.autofit = False
@@ -252,7 +256,7 @@ def _bang(doc, khoi: Khoi, *, ky_ten=False) -> None:
 def _quoc_hieu(doc) -> None:
     _doan(doc, "**CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM**", canh="giua", sau=0)
     p = _doan(doc, "", canh="giua", sau=10)
-    _run(p, "Độc lập – Tự do – Hạnh phúc", dam=True, gach=True)
+    _run(p, "Độc lập - Tự do - Hạnh phúc", dam=True, gach=True)
 
 
 def _so_trang(doc) -> None:
@@ -263,7 +267,7 @@ def _so_trang(doc) -> None:
     for sec in doc.sections:
         p = sec.footer.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        _run(p, "Bản kê khai — LiveLift · Trang ", co=10, nghieng=True)
+        _run(p, "Bản kê khai LiveLift, trang ", co=10, nghieng=True)
         for truong in ("PAGE", "NUMPAGES"):
             r = _run(p, "", co=10, nghieng=True)
             for kieu, chu in (("begin", None), (None, f" {truong} "), ("end", None)):
@@ -292,7 +296,7 @@ def dung_docx(khoi: list[Khoi], ra: Path) -> None:
     st = doc.styles["Normal"]
     st.font.name = FONT
     st.font.size = Pt(CO)
-    doc.core_properties.title = "Bản kê khai công cụ AI, dữ liệu, API, thư viện — LiveLift"
+    doc.core_properties.title = "Bản kê khai công cụ AI, dữ liệu, API, thư viện của LiveLift"
     doc.core_properties.author = "Đội thi LiveLift"
     doc.core_properties.comments = "Dựng từ 05-BAN-KE-KHAI.md bằng ke_khai/dung_ke_khai.py"
 
@@ -329,7 +333,7 @@ def dung_docx(khoi: list[Khoi], ra: Path) -> None:
             _doan(doc, k.chu)
         elif k.loai in ("ds_cham", "ds_so"):
             for n, (cap, chu) in enumerate(k.muc, 1):
-                dau = ("•" if cap == 0 else "–") if k.loai == "ds_cham" else f"{n}."
+                dau = ("•" if cap == 0 else "-") if k.loai == "ds_cham" else f"{n}."
                 p = _doan(doc, "", thut_trai=0.6 + 0.6 * cap, thut_dau=-0.5, sau=2)
                 _run(p, dau + "\t")
                 _chu_dinh_dang(p, chu)
@@ -374,35 +378,52 @@ def kiem_md(khoi: list[Khoi]) -> list[str]:
     return loi
 
 
-HO_SO = DAY.parent / "noi-dung.md"
-_MA_COMMIT_MUC_13 = re.compile(r"nhánh `main` tại commit `([0-9a-f]{7,40})`")
 # Câu tả kho TRƯỚC khi hợp nhất nhánh hoàn thiện hồ sơ vào `main` (kiểm độc lập 25/09/2026).
+# Từ 27/09/2026 bản kê khai nộp tả kho SAU hợp nhất (trưởng nhóm hợp nhất và đẩy lên cùng
+# ngày), nên mọi câu dưới đây là lỗi, không phụ thuộc hồ sơ mục 13 có ghi mã commit hay không.
 _CAU_TRUOC_HOP_NHAT: tuple[tuple[str, str], ...] = (
-    (r"`main` tại commit `390027b`", "trạng thái mã nguồn còn ghi main = 390027b"),
-    (r"\b56/56\b", "còn ghi 56/56 commit trên main (I.1, VII.1)"),
+    (r"390027b", "còn ghi mã commit main cũ 390027b"),
+    (r"\b56/56\b", "còn ghi 56/56 commit trên main"),
     (r"0 trên `main`", "I.2 còn ghi Opus 5.5 có 0 commit trên main"),
-    (r"Chờ trưởng nhóm hợp nhất", "II còn ghi chờ hợp nhất"),
-    (r"Trên nhánh hoàn thiện hồ sơ", "II còn tả thay đổi là của nhánh chưa hợp nhất"),
-    (r"nhánh hoàn thiện hồ sơ[^|\n]{0,40}chưa hợp nhất", "còn ghi nhánh hoàn thiện chưa hợp nhất"),
+    (r"[Cc]hờ trưởng nhóm (?:duyệt|hợp nhất)", "còn ghi chờ trưởng nhóm duyệt/hợp nhất"),
+    (r"Trên nhánh hoàn thiện hồ sơ", "còn tả thay đổi là của nhánh chưa hợp nhất"),
+    (
+        r"(?:nhánh hoàn thiện hồ sơ|hoan-thien/ho-so-2509)[^|\n.]{0,80}chưa hợp nhất",
+        "còn ghi nhánh hoàn thiện chưa hợp nhất",
+    ),
     (r"Commit trên `main` \| 56 commit", "VII.1 còn ghi 56 commit trên main"),
 )
+#: Câu phải có: công việc hoàn thiện đã vào `main`; PR số 1 của Tiến vẫn chưa hợp nhất.
+_CAU_SAU_HOP_NHAT: tuple[tuple[str, str], ...] = (
+    (
+        r"hợp nhất vào nhánh `main`[^.\n|]{0,80}27/09/2026",
+        "thiếu câu: công việc hoàn thiện đã hợp nhất vào nhánh `main` ngày 27/09/2026",
+    ),
+    (r"PR số 1[^.\n|]{0,120}chưa hợp nhất", "thiếu câu: PR số 1 của Tiến chưa hợp nhất"),
+)
+_DRIVE = re.compile(r"drive", re.I)
 
 
-def lech_trang_thai_kho(ho_so: str, ke_khai: str) -> list[str]:
-    """Hồ sơ mục 13 đã ghi mã commit `main` (tức đã hợp nhất và đẩy lên) thì bản kê khai không
-    được còn tả kho như trước khi hợp nhất, và phải ghi đúng mã commit đó. Mục 13 còn ô ⬜ thì
-    không kiểm (trả rỗng). Trả danh sách lỗi, rỗng là khớp."""
-    m = _MA_COMMIT_MUC_13.search(ho_so)
-    if not m:
-        return []
+def lech_trang_thai_kho(ke_khai: str) -> list[str]:
+    """Bản kê khai phải tả kho SAU khi hợp nhất: không còn câu kiểu "main = 390027b", "nhánh
+    hoàn thiện chưa hợp nhất"; có câu đã hợp nhất vào `main` ngày 27/09/2026 và câu PR số 1
+    chưa hợp nhất. Trả danh sách lỗi, rỗng là khớp. Trước 27/09 hàm này chỉ kiểm khi hồ sơ
+    mục 13 ghi mã commit; hồ sơ nay không ghi mã commit nên kiểm vô điều kiện."""
+    phang = re.sub(r"\s+", " ", ke_khai)
     loi = [
-        f"hồ sơ mục 13 trỏ main {m.group(1)} nhưng bản kê khai {ly_do} ({len(thay)} chỗ)"
+        f"bản kê khai {ly_do} ({len(thay)} chỗ)"
         for mau, ly_do in _CAU_TRUOC_HOP_NHAT
-        if (thay := re.findall(mau, ke_khai))
+        if (thay := re.findall(mau, phang))
     ]
-    if m.group(1)[:7] not in ke_khai:
-        loi.append(f"bản kê khai không ghi mã commit main {m.group(1)[:7]} của hồ sơ mục 13")
+    loi += [f"bản kê khai {ly_do}" for mau, ly_do in _CAU_SAU_HOP_NHAT if not re.search(mau, phang)]
     return loi
+
+
+def nhac_drive(van_ban: str) -> list[str]:
+    """Các dòng còn nhắc Google Drive (trưởng nhóm chốt 27/09/2026: hồ sơ nộp không nói tới
+    Drive). Chú thích ``<!-- … -->`` không in ra nên không tính."""
+    in_ra = re.sub(r"<!--.*?-->", "", van_ban, flags=re.S)
+    return [d.strip()[:80] for d in in_ra.splitlines() if _DRIVE.search(d)]
 
 
 def kiem_docx(tep: Path) -> list[str]:
@@ -465,8 +486,8 @@ def main(argv: list[str] | None = None) -> int:
     nguon = a.nguon.read_text(encoding="utf-8")
     khoi = phan_tich(nguon)
     loi = kiem_md(khoi)
-    if HO_SO.exists():
-        loi += lech_trang_thai_kho(HO_SO.read_text(encoding="utf-8"), nguon)
+    loi += lech_trang_thai_kho(nguon)
+    loi += [f"còn nhắc Drive: {d!r}" for d in nhac_drive(nguon)]
     if loi:
         print("CHƯA DỰNG — nguồn còn lỗi:")
         for x in loi:

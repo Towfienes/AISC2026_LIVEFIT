@@ -226,11 +226,12 @@ LUAT: dict[str, list[Luat]] = {
         Luat(
             "Bảng 5: dòng Kiểm thử tự động",
             re.compile(
-                r"(\| Kiểm thử tự động \| )[\d.]+ bài, gồm [\d.]+ nhanh, \d+ cổng chậm"
+                # Soát văn phong 27/09/2026: hồ sơ viết "bài chậm" (giám khảo không biết "cổng").
+                r"(\| Kiểm thử tự động \| )[\d.]+ bài, gồm [\d.]+ nhanh, \d+ (?:cổng|bài) chậm"
                 r" và \d+ trên trình duyệt"
             ),
             lambda m, so, _: (
-                f"{m.group(1)}{vi(so.tong)} bài, gồm {vi(so.nhanh)} nhanh, {so.cham} cổng chậm"
+                f"{m.group(1)}{vi(so.tong)} bài, gồm {vi(so.nhanh)} nhanh, {so.cham} bài chậm"
                 f" và {so.trinh_duyet} trên trình duyệt"
             ),
         ),

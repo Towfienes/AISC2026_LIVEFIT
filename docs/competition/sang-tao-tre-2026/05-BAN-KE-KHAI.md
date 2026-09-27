@@ -10,13 +10,13 @@
 | Kho mã nguồn (công khai) | https://github.com/bminhnemhoi/AISC2026_LIVEFIT |
 | Trạng thái mã nguồn khi kê khai | Toàn bộ công việc hoàn thiện hồ sơ (làm trên nhánh `hoan-thien/ho-so-2509` từ ngày 25/09/2026) được hợp nhất vào nhánh `main` của kho công khai ngày 27/09/2026. Nhánh `tien/aisc-round2` (PR số 1 của Tiến, 2 commit ngày 21/09/2026) chưa hợp nhất |
 | Ngày lập | 25/09/2026; cập nhật ngày 27/09/2026 |
-| Người soạn | Tác tử AI Claude (qua Claude Code) soạn nháp theo yêu cầu của đội trưởng, từ số đếm máy trên kho mã và nhật ký phiên. Ba thành viên đọc, sửa và ký ở mục X |
+| Người soạn | Tác tử AI Claude (qua Claude Code) soạn nháp theo yêu cầu của đội trưởng, dựa trên số liệu đếm tự động từ kho mã và nhật ký phiên làm việc. Ba thành viên đọc, sửa và ký ở mục X |
 
-Con số đếm bằng máy có lệnh tái lập ở Phụ lục. Con số lấy từ tài liệu khác của dự án được ghi nguồn tại chỗ. Điều gì đội chưa kiểm được thì ghi rõ là chưa kiểm, không suy đoán.
+Các con số đếm tự động đều có lệnh để chạy lại ở Phụ lục. Con số lấy từ tài liệu khác của dự án được ghi nguồn ngay tại chỗ. Điều gì đội chưa kiểm được thì ghi rõ là chưa kiểm, không suy đoán.
 
 ## Căn cứ
 
-- **Điều 5 Thể lệ Cuộc thi** (ban hành kèm Kế hoạch số 01-KH/TWĐTN-KHCN ngày 03/7/2026; số này ghi ở tiêu đề Thể lệ, bìa Kế hoạch để trống): đội thi được dùng mô hình ngôn ngữ lớn, thư viện mở, mô hình huấn luyện sẵn, dữ liệu công khai và API nếu kê khai trung thực, nêu rõ phần đội tự xây dựng, phần do AI tạo ra và phần kế thừa nguồn mở. Thể lệ nghiêm cấm che giấu nguồn mã, dữ liệu, API và giả mạo Prompt Log, lịch sử commit, dữ liệu thử nghiệm, video demo.
+- **Điều 5 Thể lệ Cuộc thi** (ban hành kèm Kế hoạch số 01-KH/TWĐTN-KHCN ngày 03/7/2026; số hiệu này lấy từ tiêu đề Thể lệ vì bìa Kế hoạch để trống): đội thi được dùng mô hình ngôn ngữ lớn, thư viện mở, mô hình huấn luyện sẵn, dữ liệu công khai và API nếu kê khai trung thực, nêu rõ phần đội tự xây dựng, phần do AI tạo ra và phần kế thừa nguồn mở. Thể lệ nghiêm cấm che giấu nguồn mã, dữ liệu, API và giả mạo Prompt Log, lịch sử commit, dữ liệu thử nghiệm, video demo.
 - **Luật Bảo vệ dữ liệu cá nhân số 91/2025/QH15** (hiệu lực 01/01/2026) và **Nghị định 356/2025/NĐ-CP** ngày 31/12/2025 quy định chi tiết Luật này (thay thế Nghị định 13/2023/NĐ-CP).
 - **Luật Trí tuệ nhân tạo số 134/2025/QH15** (thông qua 10/12/2025, hiệu lực 01/3/2026) và Nghị định 142/2026/NĐ-CP hướng dẫn thi hành (theo tra cứu ngày 25/09/2026; đội chưa có ý kiến của người có chuyên môn pháp lý).
 
@@ -49,14 +49,14 @@ Bản lập ngày 14/09/2026 có những khẳng định mà chính đội đã 
 | **ChatGPT Deep Research** | OpenAI | Ngô Lâm Tiến, ngày 22/09/2026 (tự khai) | Rà tài liệu, phương pháp, đối chiếu nguồn và rà các khẳng định của bản nháp hồ sơ. Không dùng để tạo dữ liệu thực nghiệm | Tự khai của Tiến |
 | **ChatGPT Image Generation** | OpenAI | Ngô Lâm Tiến, ngày 22/09/2026 (tự khai) | Thử một bố cục infographic từ ảnh chụp màn hình để tham khảo cách trình bày. **Không dùng làm bằng chứng**; không có ảnh nào do AI vẽ trong hồ sơ nộp | Tự khai của Tiến |
 | **GitHub Copilot coding agent** | GitHub | Kho fork `Towfienes/AISC2026_LIVEFIT` của Ngô Lâm Tiến, 17:01 UTC ngày 21/09/2026 (00:01 ngày 22/09 giờ Việt Nam) | Tạo commit `ec56971` "fix: pin scikit-learn to artifact-compatible 1.9.0" (tác giả `copilot-swe-agent[bot]`, đồng tác giả Towfienes; sửa 1 dòng `pyproject.toml`), hợp nhất vào `main` của kho fork qua PR số 1 của kho fork (`e33503e`). Trên **kho đội**, Copilot được gọi rà soát PR số 1 lúc 22:58 ngày 21/09 (giờ Việt Nam) nhưng không chạy: GitHub ghi "the job was not started because the account is locked due to a billing issue" | Lịch sử commit của kho fork; trang PR số 1 của kho đội |
-| Tabnine (tiện ích gợi ý mã trong VS Code) | Tabnine | Cài trên máy trạm của đội trưởng từ 08/03/2026 | Không tìm thấy bằng chứng dùng cho LiveLift; mọi thay đổi mã trên `main` đi qua Claude Code theo dòng đồng tác giả. Kê khai để minh bạch | Thư mục tiện ích VS Code |
+| Tabnine (tiện ích gợi ý mã trong VS Code) | Tabnine | Cài trên máy trạm của đội trưởng từ 08/03/2026 | Không tìm thấy bằng chứng dùng cho LiveLift: theo dòng đồng tác giả, mọi thay đổi mã trên `main` đều đi qua Claude Code. Kê khai để minh bạch | Thư mục tiện ích VS Code |
 
 Ghi chú:
 
 - Máy trạm của đội trưởng cũng có cài Google Antigravity. Tìm chuỗi "livelift" và "AISC2026" trong dữ liệu dạng văn bản của Antigravity trên máy này cho 0 kết quả. Dữ liệu hội thoại của Antigravity lưu dạng nhị phân nên cách tìm này không loại trừ hoàn toàn.
 - Ba commit của Tiến (`08be6ae`, `8949963` trên nhánh PR số 1; `049486b` chỉ có trên kho fork) không có dòng khai báo AI, dù tài liệu trong chính các commit ghi là do Antigravity và Codex tạo. Đội bổ sung khai báo tại đây, không viết lại lịch sử commit.
 - **"Live Simulator" (`/simulator`) chưa có mã.** Bản nháp hồ sơ của Tiến (soạn bằng ChatGPT, Codex) mô tả một màn mô phỏng phiên live `/simulator` (giao diện điện thoại, số người xem theo nhịp của máy chủ, nút "Mua ngay" phản hồi về bàn trợ live) và ghi là xây trong hai ngày 21 và 22/09/2026 bằng Codex. Ngày 27/09/2026, phần này **không có trong kho đội, cũng không có trên kho fork của Tiến** (kho fork có đúng 5 commit: `08be6ae`, `8949963`, `049486b`, `ec56971`, `e33503e`; không commit nào chứa `/simulator`). Đội **không kê nó là thành phần sản phẩm**. Thứ mô phỏng có trong sản phẩm là nguồn bình luận Mô phỏng cho phiên chạy thử (`src/livelift/ingest/mo_phong.py`) và bộ mô phỏng thống kê (`src/livelift/sim/`), cả hai do Claude viết.
-- Nhật ký hội thoại ChatGPT (kể cả Deep Research, Image Generation), Codex và Antigravity nằm trong tài khoản và trên máy của Tiến; Tiến tự xuất và lưu cùng Prompt Log.
+- Nhật ký hội thoại ChatGPT (kể cả Deep Research, Image Generation), Codex và Antigravity nằm trong tài khoản và trên máy của Tiến. Tiến tự xuất các nhật ký này và lưu cùng Prompt Log.
 - Lê Xuân Khánh chưa có commit nào trong kho.
 - Hai tệp ý tưởng và kế hoạch ban đầu mà đội đưa vào phiên Claude Code đầu tiên ngày 24/08/2026 (`LiveLift-Mo-Ta-Du-An-Ban-Trien-Khai (1).md`, `LiveLift-Ke-Hoach-Trien-Khai.md`) có trên máy trước phiên đó: hệ thống tệp ghi thời điểm tạo 17:07 và 17:08 ngày 24/08/2026, còn phiên Claude Code đầu tiên bắt đầu lúc 20:42 cùng ngày (giờ Việt Nam).
 
@@ -69,7 +69,7 @@ Ghi chú:
 | Claude Opus 5.5 (`claude-opus-5-5`) | 9.676 | Mọi commit của đợt hoàn thiện hồ sơ từ ngày 25/09/2026 |
 | Claude Fable 5.1 (`claude-fable-5-1`) | 372 | 0 |
 
-Số bản ghi trả lời đếm trên mọi nhật ký (phiên chính và tác tử con), không tính tin nhắn lỗi tổng hợp. Claude Code ghi mỗi khối văn bản, khối suy luận hay lời gọi công cụ thành một bản ghi riêng, nên đây không phải số lần gọi mô hình (một lần gọi thường sinh nhiều bản ghi). Đội truy cập qua thuê bao Claude Code của đội trưởng.
+Số bản ghi trả lời được đếm trên mọi nhật ký (phiên chính và tác tử con), không tính các thông báo lỗi do hệ thống tự sinh. Claude Code ghi mỗi khối văn bản, khối suy luận hay lời gọi công cụ thành một bản ghi riêng, nên đây không phải số lần gọi mô hình (một lần gọi thường sinh nhiều bản ghi). Đội truy cập qua thuê bao Claude Code của đội trưởng.
 
 ### I.3. Prompt Log: số đếm của lần xuất 18:37 ngày 25/09/2026
 
@@ -86,14 +86,14 @@ Số bản ghi trả lời đếm trên mọi nhật ký (phiên chính và tác
 - Phiên `22b800c6` vẫn tiếp tục sau lần đếm này, nên bảng trên là số tại 18:37 ngày 25/09/2026. Mỗi lần xuất ghi số đếm vào tệp `SO-DEM.json` đi kèm bản xuất; bộ kiểm của đội so mọi con số của mục này với tệp đó và báo lệch.
 - Tính cả tác tử con, Claude đã gọi công cụ **27.437** lần, trong đó 3.753 lần ghi hoặc sửa tệp (Write, Edit). 23 kịch bản điều phối nhiều tác tử cũng do Claude viết.
 - System prompt: Claude Code chỉ ghi ảnh chụp system prompt vào nhật ký từ bản 2.1.270, nên nó có ở 3/5 phiên (`3b0c8ccf`, `9b100e02`, `22b800c6`) và được xuất nguyên văn. Hai phiên đầu không có; đội không dựng bản thay thế. Tệp chỉ dẫn quy trình cấp dự án `HARNESS.md` nằm trong kho mã.
-- Bản xuất đã che dữ liệu cá nhân và bí mật bằng chính bộ lọc của sản phẩm; quét lại toàn bộ bản xuất bằng cùng bộ lọc cho 0 chỗ còn khớp. Vì bộ quét dùng chung bộ lọc nên không thấy được chỗ bộ lọc bỏ sót. Đối chiếu độc lập ngày 25/09/2026 bằng băm SHA-256 với 33 tên tài khoản thật đã biết (danh sách băm lưu ngoài kho) từng thấy 2 tên viết dính liền (`chữ@tên`) trong 2 tệp tác tử con. Bộ lọc đã được vá (commit `b331076`) và Prompt Log đã xuất lại; lần xuất 18:37 cho quét bộ lọc 0, đối chiếu băm 0, và 0 tiền tố băm tên tài khoản do nhật ký kiểm toán in ra (đã thay bằng nhãn). Bộ lọc dựa trên biểu thức chính quy nên không bảo đảm bắt hết mọi dữ liệu cá nhân. Khối suy luận nội bộ của mô hình và ảnh không được xuất; kết quả công cụ bị cắt bớt có ghi số ký tự.
-- Đội lưu giữ bản xuất Prompt Log (kèm bảng băm SHA-256 từng tệp) và cung cấp ngay khi Ban Tổ chức yêu cầu; ở vòng Khu vực, đội nộp Prompt Log đầy đủ theo thể lệ.
+- Bản xuất đã che dữ liệu cá nhân và bí mật bằng chính bộ lọc của sản phẩm. Quét lại toàn bộ bản xuất bằng cùng bộ lọc cho 0 chỗ còn khớp, nhưng vì dùng chung bộ lọc nên cách quét này không thấy được chỗ bộ lọc bỏ sót. Lần đối chiếu độc lập ngày 25/09/2026 bằng băm SHA-256 với 33 tên tài khoản thật đã biết (danh sách băm lưu ngoài kho) đã thấy 2 tên viết dính liền (`chữ@tên`) trong 2 tệp tác tử con. Bộ lọc đã được vá (commit `b331076`) và Prompt Log đã được xuất lại. Ở lần xuất 18:37, quét bộ lọc cho 0, đối chiếu băm cho 0, và nhật ký kiểm toán không còn in tiền tố băm tên tài khoản nào (0, đã thay bằng nhãn). Bộ lọc dựa trên biểu thức chính quy nên không bảo đảm bắt hết mọi dữ liệu cá nhân. Khối suy luận nội bộ của mô hình và ảnh không được xuất; kết quả công cụ bị cắt bớt có ghi số ký tự.
+- Đội lưu giữ bản xuất Prompt Log (kèm bảng băm SHA-256 từng tệp) và cung cấp ngay khi Ban Tổ chức yêu cầu. Ở vòng Khu vực, đội nộp Prompt Log đầy đủ theo thể lệ.
 
 ### I.4. Không dùng
 
 - **Không có lời gọi API mô hình ngôn ngữ nào trong sản phẩm.** Tìm `anthropic`, `openai` trong `src/` và `web/src` cho 0 kết quả ở mã chạy. Câu tường thuật trong báo cáo sinh từ mẫu câu cố định (`src/livelift/analysis/narrate.py`).
 - Không dùng nền tảng no-code hay low-code, không dùng mô hình huấn luyện sẵn tải từ HuggingFace (ViSoBERT mới nằm trong lộ trình).
-- `src/livelift/nlp/label_llm.py` chỉ chuẩn bị lô dữ liệu để gửi đi gán nhãn; tệp này không chứa lời gọi mạng.
+- `src/livelift/nlp/label_llm.py` chỉ chuẩn bị lô dữ liệu để gửi đi gán nhãn, tệp này không chứa lời gọi mạng.
 
 ## II. Mô hình AI trong sản phẩm
 
@@ -124,7 +124,7 @@ Số bản ghi trả lời đếm trên mọi nhật ký (phiên chính và tác
 
 Những điều đội **không** tuyên bố:
 
-- **0 phiên thí nghiệm ngẫu nhiên thật** đã chạy. Mọi con số hiệu chuẩn thống kê đo trên dữ liệu mô phỏng; 19.126 bình luận là dữ liệu quan sát.
+- **0 phiên thí nghiệm ngẫu nhiên thật** đã chạy. Mọi con số hiệu chuẩn thống kê đều đo trên dữ liệu mô phỏng, còn 19.126 bình luận là dữ liệu quan sát.
 - Chưa có nhãn do người gán cho bất kỳ bình luận thật nào.
 - Con số "5 đến 15 người xem đồng thời" trong tài liệu dự án là ước tính từ giá quảng cáo (CPM), chưa đo.
 
@@ -140,7 +140,7 @@ Những điều đội **không** tuyên bố:
 | TikTok Webcast qua `TikTokLive` (không chính thức) | Thử đọc phòng live công khai | Thất bại 10/10 lần; không được cài trong môi trường chạy |
 | API mô hình ngôn ngữ | Không dùng | Không có trong mã sản phẩm |
 
-Khóa và token chỉ đọc từ biến môi trường; tệp `.env` nằm trong `.gitignore`. Tại ngày kê khai, `.env` của đội không có khóa nền tảng nào: các trường YouTube, Facebook để trống; chưa có trường Shopee, TikTok Shop. Quét 84 commit trên mọi nhánh tối 25/09/2026: 0 khóa thật bị commit (chỉ có 2 chuỗi giả dùng trong test).
+Khóa và token chỉ đọc từ biến môi trường, và tệp `.env` nằm trong `.gitignore`. Tại ngày kê khai, `.env` của đội không có khóa nền tảng nào: các trường YouTube, Facebook để trống, còn trường Shopee, TikTok Shop chưa có. Quét 84 commit trên mọi nhánh tối 25/09/2026 cho 0 khóa thật bị commit (chỉ có 2 chuỗi giả dùng trong test).
 
 ## V. Thư viện và mã nguồn mở
 
@@ -197,7 +197,7 @@ Các giấy phép trên đều cho phép dùng trong sản phẩm AGPL-3.0; gói
 
 ## VI. Mã nguồn tham khảo và kế thừa
 
-Không có đoạn mã nào ghi là chép từ kho mã của người khác: tìm các dấu hiệu "copied from", liên kết StackOverflow hoặc GitHub trong `src/` cho 0 kết quả; một chỗ ghi "adapted from" là chuyển thể phương pháp từ bài báo. Mã cài đặt công thức do Claude viết, có trích nguồn tại chỗ:
+Không có đoạn mã nào ghi là chép từ kho mã của người khác. Tìm các dấu hiệu "copied from", liên kết StackOverflow hoặc GitHub trong `src/` cho 0 kết quả, và một chỗ ghi "adapted from" là chuyển thể phương pháp từ bài báo. Mã cài đặt công thức do Claude viết, có trích nguồn tại chỗ:
 
 | Vị trí trong mã | Nguồn | Kế thừa cái gì |
 |---|---|---|
@@ -250,7 +250,7 @@ Các nguồn tài liệu trên do Claude tìm và đọc trong quá trình phát
 
 ## VIII. Quy trình kiểm chứng đầu ra AI
 
-- Quy trình cấp dự án nằm trong `HARNESS.md`: logic quyết định là hàm thuần, kiểm thử được không cần hạ tầng; mỗi lỗi phải có test tái hiện trước khi sửa và một dòng trong sổ sự cố.
+- Quy trình của dự án ghi trong `HARNESS.md`: phần logic ra quyết định viết thành hàm thuần để kiểm thử được mà không cần hạ tầng. Mỗi lỗi phải có test tái hiện trước khi sửa và một dòng trong sổ sự cố.
 - Bộ kiểm thử có 2.116 bài kiểm tra tự động, gồm 2.089 bài nhanh, 17 bài chậm (13 mô phỏng và thống kê, 1 đánh giá NLP, 3 dựng CSS) và 10 bài trên trình duyệt. Lần chạy đầy đủ ngày 27/09/2026 cho 2.114 đạt, 2 bỏ qua có lý do, 0 lỗi. Một ca bỏ qua là phần dựng .docx của bản kê khai này (cần python-docx, chỉ có trong môi trường riêng), đã chạy riêng và đạt.
 - Hiệu chuẩn thống kê (trên mô phỏng, 200 lần lặp A/A): tỷ lệ bác bỏ 3,50% (7/200), p nhị thức 0,4168; độ phủ khoảng tin cậy 95% là 96,50%, là mặt kia của tỷ lệ bác bỏ vì khoảng tin cậy lấy bằng cách đảo ngược kiểm định. Thu hồi tác động biết trước, 40 lần: lệch −0,84%, độ phủ 92,50% (37/40). Đo lại ngày 25/09/2026: khớp từng chữ số.
 - Sổ sự cố `docs/incident-log.md`: 121 sự cố có nguyên nhân gốc (đếm ngày 27/09/2026, gồm 61 dòng thêm ngày 25/09).
@@ -261,11 +261,11 @@ Các nguồn tài liệu trên do Claude tìm và đọc trong quá trình phát
 
 - Đội **không** tuyên bố đã có sự đồng ý của người bình luận trong 19.126 bình luận và **không** viện dẫn căn cứ xử lý dữ liệu không cần sự đồng ý. Dữ liệu này chỉ dùng ngoại tuyến để đánh giá mô hình, đã lọc định danh tại điểm nạp (không lưu tên hay mã kênh người bình luận), không phát hành lại, không nằm trong kho mã. Bản đầy đủ không được lưu thành tệp. Phần còn giữ (6.586 bình luận của 1 buổi, 393 bình luận của 3 buổi, đã lọc định danh) chưa được coi là đã khử nhận dạng theo Luật 91/2025/QH15 Điều 2 khoản 11, vì câu nguyên văn vẫn tra ngược được người viết. Vì vậy phần này được bảo vệ như dữ liệu cá nhân và bị xóa khi có tập thay thế qua API chính thức, chậm nhất ngày 22/11/2026, hoặc ngay khi Ban Tổ chức hay cơ quan có thẩm quyền yêu cầu.
 - Các bản còn định danh (bản sao lưu trước khi lọc lại; bình luận còn tên tài khoản trong bản lưu nhật ký gốc của công cụ AI) được xử lý chậm nhất ngày 29/09/2026, trước ngày nộp: bản sao lưu bị xóa an toàn (ghi đè rồi xóa), tên tài khoản trong bản lưu nhật ký gốc bị che. Prompt Log đã được xuất lại ngày 25/09 sau khi bộ lọc bắt được tên tài khoản dính liền (mục I.3). Chi tiết ở hồ sơ dự án, mục 3.3.
-- Kiểm tra ngày 14/09/2026 từng phát hiện tên tài khoản mạng xã hội còn sót trong dữ liệu gán nhãn cục bộ, do bộ lọc cũ chỉ nhận ký tự ASCII. Bộ lọc đã sửa ngày 15/09; ngày 25/09 quét lại còn 57 lượt tên tài khoản và đã lọc lại tại chỗ bằng đúng hàm của sản phẩm, quét lại ra 0 (`data/labeling/README.md`). Tệp mô hình v2 đóng gói ngày 14/09 mang trong từ vựng một từ sinh từ tên tài khoản của một người bình luận; tệp đã đóng gói lại ngày 25/09 trên dữ liệu đã lọc, kèm cổng `tests/test_artifact_khong_pii.py`; bản cũ vẫn còn trong lịch sử git của kho công khai. Tên tài khoản viết dính liền (`chữ@tên`, `@@tên`) từng không bị bộ lọc bắt; ngày 25/09 đã vá (commit `b331076`), lọc thêm 16 dòng (8 tên, trong đó 4 dòng dữ liệu huấn luyện) và đóng gói lại v2; macro-F1 của C2 không đổi.
+- Kiểm tra ngày 14/09/2026 từng phát hiện tên tài khoản mạng xã hội còn sót trong dữ liệu gán nhãn cục bộ, do bộ lọc cũ chỉ nhận ký tự ASCII. Bộ lọc đã sửa ngày 15/09. Ngày 25/09 quét lại còn 57 lượt tên tài khoản; đội đã lọc lại tại chỗ bằng đúng hàm của sản phẩm và quét lại ra 0 (`data/labeling/README.md`). Tệp mô hình v2 đóng gói ngày 14/09 mang trong bộ từ vựng một từ sinh ra từ tên tài khoản của một người bình luận. Tệp đã được đóng gói lại ngày 25/09 trên dữ liệu đã lọc, kèm bài kiểm thử `tests/test_artifact_khong_pii.py`, nhưng bản cũ vẫn còn trong lịch sử git của kho công khai. Tên tài khoản viết dính liền (`chữ@tên`, `@@tên`) từng không bị bộ lọc bắt. Ngày 25/09 bộ lọc đã được vá (commit `b331076`), lọc thêm 16 dòng (8 tên, trong đó 4 dòng dữ liệu huấn luyện) và đóng gói lại v2; macro-F1 của C2 không đổi.
 - Khi gán nhãn và rà dữ liệu (từ 09 đến 15/09/2026), bình luận được đưa vào Claude (Anthropic, dịch vụ đặt ngoài Việt Nam) lúc bộ lọc chưa bắt được tên tài khoản có dấu. Đó là xử lý dữ liệu cá nhân thu tại Việt Nam trên nền tảng ở nước ngoài (Luật 91/2025/QH15 Điều 20 khoản 1 điểm c); đội chưa lập hồ sơ đánh giá tác động chuyển dữ liệu theo khoản 2 của điều này.
 - Trên sản phẩm, bộ thu mặc định đọc phiên của chính nhà bán qua API chính thức. Hai đường yt-dlp (kể cả tùy chọn đọc cookie trình duyệt) còn trong mã, chỉ giữ tạm tới khi có khóa chính thức. Phiên thí điểm có khán giả chỉ chạy khi đã có văn bản đồng ý và thỏa thuận xử lý dữ liệu với shop đối tác.
 - Bản xuất Prompt Log che email, số điện thoại, mã số sinh viên của thành viên và tên tài khoản của người xem (bản xuất lại ngày 25/09: quét bộ lọc 0, đối chiếu băm 0, mục I.3). Nhật ký gốc không được chia sẻ ra ngoài.
-- Theo Luật Trí tuệ nhân tạo 134/2025/QH15 và Nghị định 142/2026/NĐ-CP (Điều 6, 8, 9, 11), đội **tự đánh giá sơ bộ, chưa có ý kiến chuyên gia pháp lý**, LiveLift ở mức rủi ro thấp: không sinh nội dung, không tương tác trực tiếp với người xem. Hệ thống **có** tự ra quyết định: ở chế độ mặc định "Tự ghim", trong khối BẬT của lịch đã khóa, nó tự chọn sản phẩm và ra lệnh ghim qua cùng đường với nút của người trợ live, có nhật ký; thao tác ghim trên nền tảng vẫn do người làm; nhà bán chọn được chế độ "Chỉ gợi ý". Chi tiết và điểm cần chuyên gia xem: hồ sơ dự án, mục 11.1.
+- Theo Luật Trí tuệ nhân tạo 134/2025/QH15 và Nghị định 142/2026/NĐ-CP (Điều 6, 8, 9, 11), đội tự đánh giá sơ bộ rằng LiveLift ở mức rủi ro thấp (**chưa có ý kiến chuyên gia pháp lý**), vì hệ thống không sinh nội dung và không tương tác trực tiếp với người xem. Hệ thống **có** tự ra quyết định. Ở chế độ mặc định "Tự ghim", trong khối BẬT của lịch đã khóa, nó tự chọn sản phẩm và ra lệnh ghim qua cùng đường với nút của người trợ live, có nhật ký. Thao tác ghim trên nền tảng vẫn do người làm, và nhà bán chọn được chế độ "Chỉ gợi ý". Chi tiết và những điểm cần chuyên gia xem nằm ở hồ sơ dự án, mục 11.1.
 
 ## X. Cam kết và chữ ký
 

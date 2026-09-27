@@ -125,6 +125,12 @@ def test_doi_so_thi_tep_that_doi_theo(db, nhom):
             # cộng ra tổng: script không được tự sửa số đạt, phải báo để người chạy lại.
             assert db.lech_ket_qua_chay(moi, so), f"{tep.name}: kết quả chạy cũ không bị báo"
             assert not db.lech_ket_qua_chay("chạy: 4.289 đạt, 2 bỏ qua", so)
+        if tep is README:
+            # README viết lại 27/09/2026: bảng "Bộ số chuẩn" nêu tổng số test (được đồng bộ)
+            # và kết quả một lần chạy (không tự sửa được, nên phải bị báo khi tổng đổi).
+            assert "4.291 test thu thập được, gồm 4.242 nhanh, 38 chậm" in moi
+            assert "README.md" in db.TEP_KET_QUA_CHAY
+            assert db.lech_ket_qua_chay(moi, so), "README: kết quả chạy cũ không bị báo"
         # Áp lại cùng bộ số lần hai: không đổi gì nữa (idempotent).
         lai, _ = db.ap_dung(moi, luat, so, "02/02/2099")
         assert lai == moi, f"{tep.name}: ngày đếm chỉ đổi khi con số đổi"

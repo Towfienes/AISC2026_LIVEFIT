@@ -21,9 +21,9 @@ việc đầu tiên của mình nằm ở đâu. Mỗi bước là một tệp c
 
 | Phút | Làm gì | Đọc / chạy |
 |---|---|---|
-| 0–15 | Bài toán và ranh giới trung thực: đo được gì, **chưa** có gì (0 phiên thí nghiệm ngẫu nhiên thật) | [README](README.md): dòng *Tình trạng* ở đầu tệp và mục *Kết quả đã kiểm chứng* · [docs/competition/FACT-SHEET.md](docs/competition/FACT-SHEET.md) |
+| 0–15 | Bài toán và ranh giới trung thực: đo được gì, **chưa** có gì (0 phiên thí nghiệm ngẫu nhiên thật) | [README](README.md): khung *Tình trạng* ở đầu tệp và mục *Trạng thái dự án* · [docs/competition/FACT-SHEET.md](docs/competition/FACT-SHEET.md) |
 | 15–30 | Luật làm việc: test trước, root cause, sổ sự cố | [HARNESS.md](HARNESS.md) · 5 dòng mới nhất của [docs/incident-log.md](docs/incident-log.md) |
-| 30–45 | Cài môi trường, chạy bộ test nhanh (khoảng 4 phút), bật hệ thống | README mục *Phát triển ngoài Docker* · `python scripts/chay_local.py` |
+| 30–45 | Cài môi trường, chạy bộ test nhanh (khoảng 4 phút), bật hệ thống | README mục *Bắt đầu nhanh*, cách 2 · `python scripts/chay_local.py` |
 | 45–65 | Đi một vòng như người bán: Xem thử 30 giây → Chuẩn bị phiên (chọn **Chạy thử**) → Bàn trợ live → Màn người dẫn → Kết quả | [docs/HUONG-DAN-SU-DUNG.md](docs/HUONG-DAN-SU-DUNG.md) · [docs/demo-vang.md](docs/demo-vang.md) |
 | 65–80 | Trái tim khoa học: lịch gán lưu trước giờ phát, kiểm định ngẫu nhiên hóa | [PREREGISTRATION.md](PREREGISTRATION.md) · `src/livelift/core/assigner/outer.py` · `src/livelift/analysis/estimators.py` |
 | 80–90 | Nhận việc | [docs/VIEC-CAN-LAM.md](docs/VIEC-CAN-LAM.md) · [09-PHAN-CONG.md](docs/competition/sang-tao-tre-2026/09-PHAN-CONG.md) |

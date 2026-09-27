@@ -9,15 +9,16 @@ chứng làm bản sắc mà để badge nói dối thì tự bắn vào chân m
 Nguồn duy nhất là chính pytest. Script gọi ``--collect-only`` cho ba nhóm rồi
 ghi con số vào:
 
-  - README.md                       badge Tests, dòng lệnh mẫu, "Quality gates"
+  - README.md                       badge Tests, dòng lệnh mẫu, "Quality gates", dòng
+                                    Kiểm thử tự động của bảng Bộ số chuẩn
   - web/src/app/page.tsx            hằng PROOF của trang chủ
   - docs/competition/FACT-SHEET.md  dòng "Bộ kiểm thử" (kèm ngày đếm)
   - docs/competition/sang-tao-tre-2026/  noi-dung.md (Tóm tắt, Bảng 5), 05-BAN-KE-KHAI.md
                                     (mục VIII), 07-KICH-BAN-2-VIDEO.md (lời thoại, bảng số)
 
-Ba tệp nộp cuối (thêm tối 25/09/2026) còn chép KẾT QUẢ một lần chạy ("2.091 đạt, 2 bỏ
-qua"). Script không tự sửa số đó; nếu số đạt + bỏ qua không còn cộng ra tổng thu thập thì
-báo LỖI, thoát mã 1 — phải chạy lại bộ test rồi sửa tay.
+Ba tệp nộp cuối (thêm tối 25/09/2026) và README (từ 27/09/2026) còn chép KẾT QUẢ một lần
+chạy ("2.091 đạt, 2 bỏ qua"). Script không tự sửa số đó; nếu số đạt + bỏ qua không còn
+cộng ra tổng thu thập thì báo LỖI, thoát mã 1 — phải chạy lại bộ test rồi sửa tay.
 
 Kiểm toán 25/09/2026 sửa ba lỗ của bản trước:
 
@@ -181,6 +182,18 @@ LUAT: dict[str, list[Luat]] = {
             lambda m, so, _: f"Quality gates: {so.nhanh} test nhanh",
         ),
         Luat("cụm cổng chậm", re.compile(CUM_CHAM_RE), lambda m, so, _: cum_cham(so)),
+        # README viết lại 27/09/2026 có bảng "Bộ số chuẩn" nêu tổng số test và đủ ba nhóm.
+        # Không có luật này thì tổng và số test trình duyệt ở bảng cũ đi mà không ai báo.
+        Luat(
+            "bảng Bộ số chuẩn: dòng Kiểm thử tự động",
+            re.compile(
+                r"[\d.]+ test thu thập được, gồm [\d.]+ nhanh, \d+ chậm và \d+ trên trình duyệt"
+            ),
+            lambda m, so, _: (
+                f"{vi(so.tong)} test thu thập được, gồm {vi(so.nhanh)} nhanh, {so.cham} chậm"
+                f" và {so.trinh_duyet} trên trình duyệt"
+            ),
+        ),
     ],
     "web/src/app/page.tsx": [
         Luat(
@@ -269,7 +282,8 @@ LUAT: dict[str, list[Luat]] = {
 }
 
 #: Tệp chép cả KẾT QUẢ một lần chạy — kiểm bằng ``lech_ket_qua_chay``, không tự sửa.
-TEP_KET_QUA_CHAY = tuple(k for k in LUAT if k.startswith(HO_SO))
+#: README vào danh sách từ 27/09/2026 (bảng Bộ số chuẩn ghi "2.114 đạt, 2 bỏ qua").
+TEP_KET_QUA_CHAY = (*(k for k in LUAT if k.startswith(HO_SO)), "README.md")
 
 KET_QUA_CHAY_RE = re.compile(r"(\d[\d.]*) đạt, (\d[\d.]*) bỏ qua")
 

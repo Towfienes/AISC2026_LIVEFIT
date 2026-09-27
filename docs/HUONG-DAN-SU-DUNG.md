@@ -288,6 +288,10 @@ Buổi phân tích là dòng bắt đầu bằng **"Phân tích: …"**; phiên 
 
 ![Đã chọn đúng buổi vừa phân tích](img/l2-04-chon-buoi-trong-dropdown.png)
 
+*(Trong ảnh này và ảnh ở bước 2.5, bình luận của người xem và tên kênh đã được
+che bằng khối xám để giữ riêng tư cho người xem và chủ kênh. Trên máy của bạn,
+các chỗ đó hiện đầy đủ.)*
+
 Đúng buổi rồi thì: tổng thời lượng bên phải khớp buổi đó (ví dụ `01:58:00`), và
 khung **Radar bình luận** có bình luận tiếng Việt thật.
 
@@ -670,6 +674,9 @@ thống không bịa ra con số đẹp.
 nút **"Báo cáo phiên"** ở dòng bạn muốn.
 
 ![Danh sách báo cáo từng phiên](img/l4-02-ket-qua-bao-cao-tung-phien.png)
+
+*(Tên các buổi live của kênh khác trong ảnh này và ảnh ở mục 6.3 đã được che bằng
+khối xám. Trên máy của bạn, tên buổi hiện đầy đủ.)*
 
 ### 6.3 — Đọc báo cáo sau phiên
 

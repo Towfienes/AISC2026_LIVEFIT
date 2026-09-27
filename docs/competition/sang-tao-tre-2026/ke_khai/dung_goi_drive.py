@@ -12,6 +12,8 @@ Tạo (hoặc làm mới) các tệp SINH RA TỪ KHO MÃ; không đụng tới 
     02-Minh-chung-tien-trinh/
       tien-trinh.md                     mốc commit theo thời gian, sinh từ git log (không có email)
       anh/DOC-TRUOC.md                  quy ước đặt ảnh chụp theo mốc (ảnh thêm sau)
+      anh-moc-cu/                       ảnh giao diện CÓ SẴN trong kho theo hai mốc: bản nháp
+                                        11/09 (docs/img/) và bản hoàn thiện 25/09 (docs/img/v2/)
     03-Tai-lieu-ky-thuat/DANH-SACH-TEP.md   danh sách tệp cần chép từ kho mã + lệnh chép
     04-Ma-nguon/LINK-KHO-MA.md          đường dẫn kho, commit, cách tải
     05-Ban-ke-khai/                     bản kê khai .docx/.pdf (chép từ bộ dựng) + DOC-TRUOC.md
@@ -55,6 +57,29 @@ TAI_LIEU_KY_THUAT = [
         "Nguồn và lệnh sinh lại các hình của hồ sơ",
     ),
 ]
+#: Ảnh giao diện theo mốc có sẵn trong kho (thêm 27/09/2026) — minh chứng "bản nháp → hoàn
+#: thiện" của mục 13. (thư mục con trong anh-moc-cu/, thư mục nguồn trong kho, mô tả)
+MOC_ANH = [
+    (
+        "2026-09-11_ban-nhap_04b3f52",
+        "docs/img",
+        "Bản nháp: ảnh chụp tay ngày 11/09/2026 cho hướng dẫn sử dụng (commit `04b3f52`)",
+    ),
+    (
+        "2026-09-25_hoan-thien_af11a93",
+        "docs/img/v2",
+        "Bản hoàn thiện: chụp tự động ngày 25/09/2026 bằng `scripts/chup_giao_dien.py` trên "
+        "bản build `fa64589` (commit `af11a93`); cách chụp và số đo ở `README.md`, `chup.json`",
+    ),
+]
+#: KHÔNG chép lên Drive (mở công khai): ảnh phân tích buổi live của KÊNH BÊN THỨ BA ngày 11/09
+#: — `l2-*` có bình luận nguyên văn của người xem thật (một ảnh còn lọt tên tài khoản, lỗi bộ
+#: lọc đã sửa 15/09), URL video; `l4-02..04` có tên shop, tiêu đề buổi live. Hồ sơ mục 3.3 cam
+#: kết không công bố bình luận nguyên văn ở thư mục minh chứng.
+BO_ANH = re.compile(r"^(l2-|l4-0[234])")
+DUOI_ANH = (".png", ".jpg", ".jpeg")
+TEP_KEM_MOC = ("README.md", "chup.json")
+
 NHANH_HO_SO = "hoan-thien/ho-so-2509"
 """Nhánh hoàn thiện hồ sơ 25/09/2026: chờ trưởng nhóm duyệt. Chưa hợp nhất thì liệt kê riêng."""
 
@@ -99,6 +124,7 @@ def tien_trinh(
     nhanh: str = "main",
     nhanh_pr: str = "origin/tien/aisc-round2",
     nhanh_ho_so: str = NHANH_HO_SO,
+    nhanh_fork: str = "tien-fork/main",
 ) -> str:
     """Mốc commit theo ngày từ git log — chỉ tên tác giả, không email."""
     sep = "\x1f"
@@ -172,6 +198,23 @@ def tien_trinh(
                 h, ts, ten, tieu_de = (d.split(sep) + [""] * 4)[:4]
                 ra.append(f"| {ts} | `{h}` | {ten} | {tieu_de.replace('|', '/')} |")
         ra.append("")
+    # Kho fork của Tiến (27/09/2026): chỉ máy có ref này mới liệt kê; không có thì bỏ qua.
+    fork = _nhanh_chua_hop_nhat(nhanh_fork, nhanh, fmt)
+    if fork.strip():
+        ra += [
+            "## Kho fork `Towfienes/AISC2026_LIVEFIT` của Tiến (chưa hợp nhất vào kho đội)",
+            "",
+            "Commit của `copilot-swe-agent[bot]` do GitHub Copilot coding agent tạo (bản kê khai,",
+            'mục I.1). Không commit nào ở đây chứa màn "Live Simulator" `/simulator`.',
+            "",
+            "| Thời điểm (giờ tác giả) | Commit | Tác giả | Nội dung |",
+            "|---|---|---|---|",
+        ]
+        for d in fork.splitlines():
+            if d.strip():
+                h, ts, ten, tieu_de = (d.split(sep) + [""] * 4)[:4]
+                ra.append(f"| {ts} | `{h}` | {ten} | {tieu_de.replace('|', '/')} |")
+        ra.append("")
     return "\n".join(ra)
 
 
@@ -223,7 +266,7 @@ PL=D:/AISC2026/GOI-DRIVE-SANG-TAO-TRE/01-Prompt-Log
 Lệnh cuối so mọi số Prompt Log trong bản kê khai (mục I.1, I.2, I.3, VII), hồ sơ (mục 13) và
 `06-KHO-MA-VA-MINH-CHUNG.md` với `01-Prompt-Log/SO-DEM.json` vừa xuất. Báo **LỆCH** (mã 1) thì
 sửa số trong ba tệp đó, dựng lại kê khai, dựng lại hồ sơ
-(`.venv-docx/Scripts/python docs/competition/sang-tao-tre-2026/dung_ho_so.py`), chạy lại lệnh
+(`.venv-docx/Scripts/python docs/competition/sang-tao-tre-2026/hoan_tat_ho_so.py`), chạy lại lệnh
 cuối tới khi hết lệch.
 
 ## 2. Việc của từng người trước khi tải
@@ -236,8 +279,9 @@ cuối tới khi hết lệch.
   sẵn trong tệp đó) từ commit nộp cuối cùng.
 - **Cả ba:** in bản kê khai, ghi cột tự khai, ký; scan thành
   `05-Ban-ke-khai/AI2026_Ban_Ke_Khai_LiveLift_da-ky.pdf`.
-- Chụp ảnh giao diện theo mốc vào `02-Minh-chung-tien-trinh/anh/` (quy ước trong
-  `anh/DOC-TRUOC.md`).
+- Ảnh giao diện hai mốc có sẵn trong kho (11/09, 25/09) đã được chép vào
+  `02-Minh-chung-tien-trinh/anh-moc-cu/`. Ảnh chụp thêm (nếu có) đặt vào
+  `02-Minh-chung-tien-trinh/anh/` (quy ước trong `anh/DOC-TRUOC.md`).
 
 ## 3. KHÔNG được đưa lên thư mục mở quyền
 
@@ -258,8 +302,13 @@ cuối tới khi hết lệch.
 4. Kiểm: mở một **cửa sổ ẩn danh** (Chrome: Ctrl+Shift+N), KHÔNG đăng nhập, dán đường liên kết.
    Phải thấy đủ 5 thư mục; mở thử một tệp trong mỗi thư mục. Nếu trang đòi đăng nhập hoặc
    "Bạn cần quyền truy cập" là mở quyền chưa đúng — làm lại bước 3 cho chính thư mục gốc.
-5. Dán đường liên kết vào mục 13 của hồ sơ (noi-dung.md), dựng lại hồ sơ, và kiểm lại một lần
-   nữa bằng cửa sổ ẩn danh sau khi tải xong mọi tệp.
+5. KHÔNG dán tay vào noi-dung.md. Sau khi trưởng nhóm hợp nhất nhánh, đẩy `main` và sửa bản kê
+   khai theo trạng thái sau hợp nhất, chạy
+   `.venv-docx/Scripts/python docs/competition/sang-tao-tre-2026/hoan_tat_ho_so.py
+   --link-drive <link thư mục> --commit <mã commit main>`: tệp này thay dấu giữ chỗ mục 13,
+   dựng bản nộp (≤ 20 trang), quét PDF rồi chép vào
+   `D:/AISC2026/NOP-HO-SO-SANG-TAO-TRE-2026/01-Ho-so-du-an/`. Kiểm lại link một lần nữa bằng
+   cửa sổ ẩn danh sau khi tải xong mọi tệp.
 
 ## 5. Bảng kiểm cuối
 
@@ -273,7 +322,8 @@ cuối tới khi hết lệch.
 - [ ] `05-Ban-ke-khai/` có bản PDF đã ký của cả ba thành viên
 - [ ] `03-Tai-lieu-ky-thuat/` đã chép đủ danh sách
 - [ ] Mở được bằng cửa sổ ẩn danh, không đăng nhập
-- [ ] Đường liên kết đã dán vào hồ sơ mục 13
+- [ ] `hoan_tat_ho_so.py --link-drive … --commit …` thoát 0; thư mục nộp chỉ còn bản nộp,
+  không còn tệp `_CHO_LINK`
 """
 
 
@@ -282,15 +332,17 @@ def ghi_chu_ngoai_claude_code() -> str:
 
 Thư mục này dành cho nhật ký của các công cụ AI khác mà thành viên đã dùng cho LiveLift.
 
-Theo kiểm toán ngày 2026-09-25, thành viên Tiến (làn giao diện) đã dùng **Google Antigravity**
-và **OpenAI Codex** ngày 2026-09-21 trên nhánh `tien/aisc-round2` (PR số 1). Nhật ký nằm trên
-máy của Tiến và CHƯA có ở đây.
+Theo kiểm toán ngày 2026-09-25 và tự khai bổ sung ngày 2026-09-27, thành viên Tiến (làn giao
+diện) đã dùng **ChatGPT** (GPT-5.6 Sol; kể cả Deep Research, Image Generation), **OpenAI Codex**
+và **Google Antigravity** trong 14–22/09/2026. Nhật ký nằm trong tài khoản, trên máy của Tiến
+và CHƯA có ở đây. Đặt vào `chatgpt/`, `codex/`, `antigravity/` cạnh tệp này.
 
 Trạng thái: CHƯA BỔ SUNG. (Tiến thay dòng này bằng danh sách tệp đã thêm, hoặc lý do không
 xuất được.)
 
-GitHub Copilot được gọi trên PR số 1 nhưng không chạy (GitHub báo tài khoản bị khoá vì thanh
-toán), nên không có nhật ký.
+GitHub Copilot: trên kho đội, lời gọi rà soát PR số 1 không chạy (GitHub báo tài khoản bị khoá
+vì thanh toán). Trên kho fork `Towfienes/AISC2026_LIVEFIT`, Copilot coding agent đã tạo commit
+`ec56971` (ghim scikit-learn 1.9.0) — dấu vết là chính commit đó và PR số 1 của fork.
 """
 
 
@@ -344,6 +396,66 @@ def ban_ke_khai_doc_truoc() -> str:
 - `AI2026_Ban_Ke_Khai_LiveLift_da-ky.pdf`: bản in có chữ ký tay của ba thành viên (đội thêm sau
   khi ký). Bản có chữ ký là bản chính thức.
 """
+
+
+def chep_anh_moc_cu(dich: Path, repo: Path = REPO) -> dict[str, list[str]]:
+    """Chép ảnh giao diện theo mốc từ kho vào ``dich`` (``anh-moc-cu/``), bỏ ảnh ``BO_ANH``.
+
+    Trả {thư mục con: [tên tệp đã chép]}; khoá ``"bo"`` là các ảnh cố ý không chép.
+    """
+    ra: dict[str, list[str]] = {"bo": []}
+    for thu_muc, nguon, _mo_ta in MOC_ANH:
+        tu = repo / nguon
+        ra[thu_muc] = []
+        if not tu.is_dir():
+            continue
+        den = dich / thu_muc
+        den.mkdir(parents=True, exist_ok=True)
+        for tep in sorted(tu.iterdir()):
+            if not tep.is_file():
+                continue
+            la_anh = tep.suffix.lower() in DUOI_ANH
+            if not la_anh and tep.name not in TEP_KEM_MOC:
+                continue
+            if la_anh and BO_ANH.match(tep.name):
+                ra["bo"].append(f"{nguon}/{tep.name}")
+                (den / tep.name).unlink(missing_ok=True)  # lần dựng cũ lỡ chép thì gỡ
+                continue
+            shutil.copy2(tep, den / tep.name)
+            ra[thu_muc].append(tep.name)
+    _ghi(dich / "DOC-TRUOC.md", anh_moc_cu_doc_truoc(ra))
+    return ra
+
+
+def anh_moc_cu_doc_truoc(da_chep: dict[str, list[str]]) -> str:
+    ra = [
+        "# Ảnh giao diện theo mốc — từ bản nháp tới bản hoàn thiện",
+        "",
+        "Ảnh CÓ SẴN trong kho mã (không chụp lại, không chỉnh sửa), chép bằng",
+        "`docs/competition/sang-tao-tre-2026/ke_khai/dung_goi_drive.py`.",
+        "",
+        "| Thư mục | Mốc | Số ảnh |",
+        "|---|---|---:|",
+    ]
+    for thu_muc, _nguon, mo_ta in MOC_ANH:
+        so = sum(1 for t in da_chep.get(thu_muc, []) if t.lower().endswith(DUOI_ANH))
+        ra.append(f"| `{thu_muc}/` | {mo_ta} | {so} |")
+    ra += [
+        "",
+        "Đọc so sánh: ảnh 11/09 là bản nháp đầu — trang kết quả chưa gắn nhãn DỮ LIỆU MẪU, số",
+        "trên ảnh là dữ liệu mô phỏng; ảnh 25/09 chụp trên bản build sạch, mọi màn hình ghi rõ",
+        "dữ liệu mẫu hay thật, bình luận là kịch bản mô phỏng với số điện thoại, địa chỉ giả.",
+        "",
+    ]
+    if da_chep.get("bo"):
+        ra += [
+            f"**Cố ý không chép {len(da_chep['bo'])} ảnh** của ngày 11/09 vì là ảnh phân tích buổi",
+            "live của kênh bên thứ ba (bình luận nguyên văn của người xem thật, tên shop, URL",
+            "video) — hồ sơ mục 3.3 cam kết không công bố bình luận nguyên văn trong thư mục",
+            "minh chứng: " + ", ".join(f"`{t.rsplit('/', 1)[-1]}`" for t in da_chep["bo"]) + ".",
+            "",
+        ]
+    return "\n".join(ra)
 
 
 def anh_doc_truoc() -> str:
@@ -466,10 +578,17 @@ def main(argv: list[str] | None = None) -> int:
     _ghi(g / "00-DOC-TRUOC.md", doc_truoc())
     _ghi(g / "HUONG-DAN-TAI-LEN.md", huong_dan())
     ghi_chu = g / "01-Prompt-Log" / "ngoai-claude-code" / "GHI-CHU.md"
-    if not ghi_chu.exists():  # không ghi đè phần Tiến đã điền
+    # Không ghi đè phần Tiến đã điền; bản mặc định chưa ai sửa ("CHƯA BỔ SUNG") thì làm mới.
+    if not ghi_chu.exists() or "Trạng thái: CHƯA BỔ SUNG." in ghi_chu.read_text("utf-8"):
         _ghi(ghi_chu, ghi_chu_ngoai_claude_code())
     _ghi(g / "02-Minh-chung-tien-trinh" / "tien-trinh.md", tien_trinh())
     _ghi(g / "02-Minh-chung-tien-trinh" / "anh" / "DOC-TRUOC.md", anh_doc_truoc())
+    moc = chep_anh_moc_cu(g / "02-Minh-chung-tien-trinh" / "anh-moc-cu")
+    print(
+        "  ảnh mốc cũ: "
+        + ", ".join(f"{k} {len(v)} tệp" for k, v in moc.items() if k != "bo")
+        + f"; bỏ {len(moc['bo'])} ảnh có dữ liệu thật của kênh bên thứ ba"
+    )
     _ghi(g / "03-Tai-lieu-ky-thuat" / "DANH-SACH-TEP.md", danh_sach_tep())
     _ghi(g / "04-Ma-nguon" / "LINK-KHO-MA.md", link_kho())
     _ghi(g / "05-Ban-ke-khai" / "DOC-TRUOC.md", ban_ke_khai_doc_truoc())

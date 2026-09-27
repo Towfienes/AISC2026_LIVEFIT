@@ -177,7 +177,9 @@ def test_khang_dinh_sai_cu_chi_con_trong_muc_dinh_chinh():
     # mục 13 mà không sửa 05 thì hai văn bản nộp cùng nhau mâu thuẫn — bộ dựng phải chặn.
     ho_so = (DAY.parent / "noi-dung.md").read_text(encoding="utf-8")
     assert dung_ke_khai.lech_trang_thai_kho(ho_so, md) == [], "mục 13 chưa điền mã commit"
-    sau_hop_nhat = ho_so.replace("commit ⬜ *điền sau khi hợp nhất và đẩy lên*", "commit `a1b2c3d`")
+    # 27/09/2026: ô ⬜ của mục 13 thành dấu giữ chỗ [[COMMIT_NOP]]; hoan_tat_ho_so.py thay nó
+    # bằng `mã` (7 ký tự, trong dấu mã) — đúng dạng mẫu dò _MA_COMMIT_MUC_13 bắt được.
+    sau_hop_nhat = ho_so.replace("commit [[COMMIT_NOP]]", "commit `a1b2c3d`")
     assert sau_hop_nhat != ho_so, "câu mục 13 đổi chữ — sửa mẫu dò _MA_COMMIT_MUC_13"
     lech = dung_ke_khai.lech_trang_thai_kho(sau_hop_nhat, md)
     assert any("390027b" in x for x in lech), lech
@@ -197,3 +199,33 @@ def test_dung_docx_khong_lot_ky_hieu(tmp_path):
     ra = tmp_path / "ke-khai.docx"
     dung_ke_khai.dung_docx(doc_md.phan_tich(_nguon()), ra)
     assert dung_ke_khai.kiem_docx(ra) == []
+
+
+def test_anh_moc_cu_bo_anh_co_du_lieu_that_cua_kenh_ben_thu_ba(tmp_path):
+    """Gói Drive mở công khai (27/09/2026): ảnh 11/09 phân tích buổi live của kênh bên thứ ba
+    (``l2-*`` có bình luận nguyên văn, một ảnh còn tên tài khoản; ``l4-02..04`` có tên shop)
+    không được chép vào ``anh-moc-cu/`` — hồ sơ mục 3.3 cam kết không công bố nguyên văn."""
+    import dung_goi_drive as goi
+
+    kho = tmp_path / "kho"
+    (kho / "docs" / "img" / "v2").mkdir(parents=True)
+    for ten in ("l1-01-a.png", "l2-05-b.png", "l4-01-c.png", "l4-03-d.png", "ghi-chu.txt"):
+        (kho / "docs" / "img" / ten).write_bytes(b"x")
+    for ten in ("01-a.png", "README.md", "chup.json"):
+        (kho / "docs" / "img" / "v2" / ten).write_bytes(b"x")
+    dich = tmp_path / "anh-moc-cu"
+    cu = dich / "2026-09-11_ban-nhap_04b3f52"
+    cu.mkdir(parents=True)
+    (cu / "l2-05-b.png").write_bytes(b"lan-dung-cu")
+    ra = goi.chep_anh_moc_cu(dich, kho)
+    assert sorted(p.name for p in cu.iterdir()) == ["l1-01-a.png", "l4-01-c.png"]
+    assert sorted(ra["bo"]) == ["docs/img/l2-05-b.png", "docs/img/l4-03-d.png"]
+    moi = dich / "2026-09-25_hoan-thien_af11a93"
+    assert sorted(p.name for p in moi.iterdir()) == ["01-a.png", "README.md", "chup.json"]
+    assert "Cố ý không chép 2 ảnh" in (dich / "DOC-TRUOC.md").read_text(encoding="utf-8")
+    # Kho thật: mọi ảnh l2-* và l4-02..04 bị loại, ảnh mô phỏng/demo thì giữ.
+    that = sorted(p.name for p in (goi.REPO / "docs" / "img").glob("*.png"))
+    bo = [t for t in that if goi.BO_ANH.match(t)]
+    assert bo, "không còn ảnh nào bị loại — kiểm lại BO_ANH"
+    assert all(t.startswith(("l2-", "l4-02", "l4-03", "l4-04")) for t in bo)
+    assert any(t.startswith("l3-") for t in that if t not in bo)

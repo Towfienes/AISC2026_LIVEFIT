@@ -5,11 +5,11 @@
 | Hạng mục | Nội dung |
 |---|---|
 | Cuộc thi | Cuộc thi Sáng tạo trẻ Quốc gia trong lĩnh vực Trí tuệ nhân tạo năm 2026 — Bảng C, đường trường cử |
-| Sản phẩm | LiveLift — hạ tầng đo lường nhân quả cho phiên livestream bán hàng |
+| Sản phẩm | LiveLift – Nền tảng thí nghiệm vận hành và hỗ trợ ra quyết định cho livestream thương mại |
 | Đội thi | Ngô Bình Minh (đội trưởng) · Lê Xuân Khánh · Ngô Lâm Tiến — Khoa Công nghệ thông tin, Trường Đại học Tôn Đức Thắng |
 | Kho mã nguồn (công khai) | https://github.com/bminhnemhoi/AISC2026_LIVEFIT |
 | Trạng thái mã nguồn khi kê khai | Nhánh `main` tại commit `390027b` (56 commit, 24/08 → 18/09/2026). Nhánh hoàn thiện hồ sơ `hoan-thien/ho-so-2509` (các commit từ ngày 25/09/2026, liệt kê bằng `git log main..hoan-thien/ho-so-2509` và trong `02-Minh-chung-tien-trinh/tien-trinh.md` của gói Drive) và nhánh `tien/aisc-round2` (PR số 1, 2 commit ngày 21/09/2026) đang chờ trưởng nhóm duyệt, chưa hợp nhất |
-| Ngày lập | 25/09/2026 |
+| Ngày lập | 25/09/2026; bổ sung 27/09/2026 (công cụ AI của thành viên Tiến, mục I.1) |
 | Người soạn | Bản này do tác tử AI (Claude, qua Claude Code) soạn nháp theo yêu cầu của đội trưởng, từ số đếm máy trên kho mã và nhật ký phiên. Ba thành viên đọc, sửa và ký ở mục X |
 
 Các con số đếm bằng máy có lệnh tái lập ở Phụ lục; con số lấy từ tài liệu khác của dự án ghi nguồn tại chỗ. Mục nào đội không kiểm được thì ghi rõ là chưa kiểm, không suy đoán.
@@ -33,7 +33,8 @@ Bản lập ngày 14/09/2026 có những khẳng định mà chính đội đã 
 | "1.297 câu lệnh của đội" | Bộ xuất cũ tính cả kết quả công cụ là câu lệnh người. Đếm lại: 83 câu lệnh người gõ (mục I.3) |
 | Kiểm toán đối kháng và gán nhãn "hoàn toàn của đội" | Các đợt kiểm toán 14, 15, 17 và 25/09 do tác tử AI chạy theo yêu cầu của đội; nhãn do AI gán |
 | Căn cứ thu thập dữ liệu: Nghị định 13/2023/NĐ-CP và "lợi ích chính đáng cho nghiên cứu" | Nghị định 13/2023 đã được thay thế trước khi thu dữ liệu; đội không viện dẫn căn cứ xử lý không cần đồng ý (mục IX) |
-| Chỉ dùng Claude Code | Thành viên Tiến còn dùng Google Antigravity và OpenAI Codex ngày 21/09/2026 (mục I.1) |
+| Chỉ dùng Claude Code | Thành viên Tiến còn dùng ChatGPT, OpenAI Codex, ChatGPT Deep Research, ChatGPT Image Generation, Google Antigravity (14–22/09/2026) và GitHub Copilot coding agent (mục I.1) |
+| Bản 25/09: GitHub Copilot "không chạy, không tạo ra nội dung nào" | Đúng với PR số 1 trên kho đội. Nhưng trên kho fork `Towfienes/AISC2026_LIVEFIT` của Tiến, Copilot coding agent đã tạo commit `ec56971` (ghim scikit-learn 1.9.0) ngày 21/09/2026 (mục I.1) |
 
 ## I. Công cụ AI dùng trong quá trình phát triển
 
@@ -42,16 +43,20 @@ Bản lập ngày 14/09/2026 có những khẳng định mà chính đội đã 
 | Công cụ | Nhà cung cấp | Ai dùng, khi nào | Dùng để làm gì | Bằng chứng |
 |---|---|---|---|---|
 | **Claude Code** (tiện ích VS Code, phiên bản 2.1.239 → 2.1.281) | Anthropic | Máy trạm của đội trưởng, dùng chung; 5 phiên từ 24/08 đến 25/09/2026 | Viết mã, kiểm thử, tài liệu, hồ sơ; khảo cứu tài liệu (765 lần tìm web, 988 lần đọc trang web); gán nhãn dữ liệu; soạn dữ liệu tổng hợp; chạy các đợt kiểm toán nhiều tác tử; soạn nháp bản kê khai này | Prompt Log (thư mục 01 trên Drive); dòng đồng tác giả trong 56/56 commit trên `main` |
-| **Google Antigravity** | Google | Ngô Lâm Tiến, 21/09/2026 | Rà soát mức sẵn sàng cho AISC vòng 2 và rà soát sau khi triển khai | `docs/competition/aisc-round2/ANTIGRAVITY-AUDIT.md`, `POST-IMPLEMENTATION-REVIEW.md` trên nhánh `tien/aisc-round2` (tài liệu tự ghi "thực hiện bởi AI Agent Antigravity") |
-| **OpenAI Codex** | OpenAI | Ngô Lâm Tiến, 21/09/2026 | Lập kế hoạch và viết mã: `scripts/round2_demo_check.py` và test, thay đổi trang `/ket-qua`, câu chữ đồng hồ khối — commit `8949963` | `CODEX-IMPLEMENTATION-PLAN.md`, `POST-IMPLEMENTATION-REVIEW.md` trên nhánh `tien/aisc-round2` |
-| GitHub Copilot (rà soát PR) | GitHub | Được gọi trên PR số 1 lúc 22:58 ngày 21/09/2026 (giờ Việt Nam; trang PR ghi 15:58 UTC) | Không chạy: GitHub ghi "Copilot stopped work … due to an error — the job was not started because the account is locked due to a billing issue". Không tạo ra nội dung nào | Trang PR số 1 trên GitHub |
+| **Google Antigravity** | Google | Ngô Lâm Tiến, 21/09/2026; 22/09/2026 (tự khai) | Rà soát mức sẵn sàng cho AISC vòng 2 và rà soát sau khi triển khai; dựng khung tài liệu và chụp ảnh giao diện (tự khai: 31 ảnh; không ảnh nào trong hồ sơ nộp) | `docs/competition/aisc-round2/ANTIGRAVITY-AUDIT.md`, `POST-IMPLEMENTATION-REVIEW.md` trên nhánh `tien/aisc-round2` (tài liệu tự ghi "thực hiện bởi AI Agent Antigravity") |
+| **OpenAI Codex** (mô hình GPT-5.6 Sol) | OpenAI | Ngô Lâm Tiến, 21/09/2026 (commit); 14–22/09/2026 (tự khai) | Lập kế hoạch và viết mã: `scripts/round2_demo_check.py` và test, thay đổi trang `/ket-qua`, câu chữ đồng hồ khối — commit `8949963` | `CODEX-IMPLEMENTATION-PLAN.md`, `POST-IMPLEMENTATION-REVIEW.md` trên nhánh `tien/aisc-round2` |
+| **ChatGPT** (mô hình GPT-5.6 Sol) | OpenAI | Ngô Lâm Tiến, 14–22/09/2026 (tự khai) | Phân rã yêu cầu, rà soát kiến trúc và logic, khoanh vùng lỗi từ kết quả chạy, hướng dẫn chạy demo, rà soát tài liệu, viết bản nháp hồ sơ của Tiến (bản nháp đó không phải hồ sơ nộp; hồ sơ nộp chỉ lấy từ nó thông tin thí sinh và danh mục công cụ AI tự khai) | Tự khai của Tiến (Bảng 1, 3 trong bản nháp hồ sơ); nhật ký do Tiến tự xuất (`01-Prompt-Log/ngoai-claude-code/`) |
+| **ChatGPT Deep Research** | OpenAI | Ngô Lâm Tiến, 22/09/2026 (tự khai) | Rà tài liệu, phương pháp, đối chiếu nguồn và rà các khẳng định của bản nháp hồ sơ. Không dùng để tạo dữ liệu thực nghiệm | Tự khai của Tiến |
+| **ChatGPT Image Generation** | OpenAI | Ngô Lâm Tiến, 22/09/2026 (tự khai) | Thử một bố cục infographic từ ảnh chụp màn hình để tham khảo cách trình bày. **Không dùng làm bằng chứng**; không có ảnh nào do AI tạo trong hồ sơ nộp | Tự khai của Tiến |
+| **GitHub Copilot coding agent** | GitHub | Kho fork `Towfienes/AISC2026_LIVEFIT` của Ngô Lâm Tiến, 21/09/2026 17:01 UTC (00:01 ngày 22/09 giờ Việt Nam) | Tạo commit `ec56971` "fix: pin scikit-learn to artifact-compatible 1.9.0" (tác giả `copilot-swe-agent[bot]`, đồng tác giả Towfienes; sửa 1 dòng `pyproject.toml`), hợp nhất vào `main` của fork qua PR số 1 của fork (`e33503e`). Trên **kho đội**, Copilot được gọi rà soát PR số 1 lúc 22:58 ngày 21/09 (giờ Việt Nam) nhưng không chạy: GitHub ghi "the job was not started because the account is locked due to a billing issue" | Lịch sử commit của kho fork; trang PR số 1 của kho đội |
 | Tabnine (tiện ích gợi ý mã trong VS Code) | Tabnine | Cài trên máy trạm của đội trưởng từ 08/03/2026 | Không tìm thấy bằng chứng dùng cho LiveLift; mọi thay đổi mã trên `main` đi qua Claude Code theo dòng đồng tác giả. Kê khai để minh bạch | Thư mục tiện ích VS Code |
 
 Ghi chú:
 
 - Máy trạm của đội trưởng cũng có cài Google Antigravity. Tìm chuỗi "livelift" và "AISC2026" trong dữ liệu Antigravity dạng văn bản trên máy này cho 0 kết quả; dữ liệu hội thoại của Antigravity lưu dạng nhị phân nên cách tìm này không loại trừ hoàn toàn.
-- Hai commit của Tiến (`08be6ae`, `8949963`) không có dòng khai báo AI, dù tài liệu trong chính các commit ghi là do Antigravity và Codex tạo. Đội bổ sung khai báo tại đây, không viết lại lịch sử commit.
-- Nhật ký hội thoại Antigravity và Codex nằm trên máy của Tiến; Tiến tự xuất và bổ sung vào Prompt Log (thư mục `01-Prompt-Log/ngoai-claude-code/`). Nếu không xuất được, Tiến ghi rõ lý do tại đó.
+- Ba commit của Tiến (`08be6ae`, `8949963` trên nhánh PR số 1; `049486b` chỉ có trên kho fork) không có dòng khai báo AI, dù tài liệu trong chính các commit ghi là do Antigravity và Codex tạo. Đội bổ sung khai báo tại đây, không viết lại lịch sử commit.
+- **"Live Simulator" (`/simulator`) chưa có mã.** Bản nháp hồ sơ của Tiến (soạn bằng ChatGPT, Codex) mô tả một màn mô phỏng phiên live `/simulator` (giao diện điện thoại, số người xem theo nhịp của máy chủ, nút "Mua ngay" phản hồi về bàn trợ live) và ghi là xây ngày 21–22/09/2026 bằng Codex. Ngày 27/09/2026 phần này **không có trong kho đội, cũng không có trên kho fork của Tiến** (kho fork có đúng 5 commit: `08be6ae`, `8949963`, `049486b`, `ec56971`, `e33503e`; không commit nào chứa `/simulator`). Đội **không kê nó như thành phần sản phẩm**. Thứ mô phỏng có trong sản phẩm là nguồn bình luận Mô phỏng cho phiên chạy thử (`src/livelift/ingest/mo_phong.py`) và bộ mô phỏng thống kê (`src/livelift/sim/`), cả hai do Claude viết.
+- Nhật ký hội thoại ChatGPT (kể cả Deep Research, Image Generation), Codex và Antigravity nằm trong tài khoản, trên máy của Tiến; Tiến tự xuất và bổ sung vào Prompt Log (thư mục `01-Prompt-Log/ngoai-claude-code/`). Nếu không xuất được, Tiến ghi rõ lý do tại đó.
 - Lê Xuân Khánh chưa có commit nào trong kho. Công cụ AI Khánh dùng cho LiveLift (nếu có) được khai ở mục X.
 - Hai tệp ý tưởng và kế hoạch ban đầu đội đưa vào phiên Claude Code đầu tiên ngày 24/08/2026 (`LiveLift-Mo-Ta-Du-An-Ban-Trien-Khai (1).md`, `LiveLift-Ke-Hoach-Trien-Khai.md`) có trên máy trước phiên đó: hệ thống tệp ghi thời điểm tạo 17:07 và 17:08 ngày 24/08/2026, phiên Claude Code đầu tiên bắt đầu lúc 20:42 cùng ngày (giờ Việt Nam). Cách hai tệp này được soạn được khai ở mục X.
 
@@ -221,7 +226,7 @@ Các nguồn tài liệu trên do Claude tìm và đọc trong quá trình phát
 | Commit trên `main` | 56 commit trong 17 ngày (24/08 → 18/09/2026), +166.177 / −7.498 dòng | `git log` |
 | Commit mang dòng đồng tác giả Claude | **56/56** | `git log --format=%(trailers)` |
 | Danh tính tác giả git | Cả 56 commit dùng một danh tính chung "LiveLift Team" | `git log --format=%an` |
-| Commit trên nhánh PR số 1 (chưa hợp nhất) | 2 commit của Tiến, 0 dòng khai báo AI; tài liệu trong commit ghi do Antigravity và Codex tạo | `git log origin/tien/aisc-round2` |
+| Commit trên nhánh PR số 1 (chưa hợp nhất) | 2 commit của Tiến, 0 dòng khai báo AI; tài liệu trong commit ghi do Antigravity và Codex tạo. Kho fork của Tiến có thêm `049486b` và commit `ec56971` do Copilot coding agent tạo | `git log origin/tien/aisc-round2`; lịch sử kho fork |
 | Commit trên nhánh hoàn thiện hồ sơ (chưa hợp nhất) | Các commit từ ngày 25/09/2026, commit nào cũng mang dòng đồng tác giả Claude Opus 5.5 | `git log main..hoan-thien/ho-so-2509` |
 | Câu lệnh người gõ cho Claude Code | 83 (5 phiên), thêm 9 lệnh `/model` | Prompt Log, mục I.3 |
 | Lời gọi công cụ của Claude | 27.437, trong đó 3.753 lần ghi hoặc sửa tệp | Prompt Log |
@@ -232,11 +237,11 @@ Các nguồn tài liệu trên do Claude tìm và đọc trong quá trình phát
 | Thành phần | Đội tự làm | AI tạo ra | Kế thừa |
 |---|---|---|---|
 | Ý tưởng, bài toán, mục tiêu dự thi | Đưa ra ý tưởng và hai tệp mô tả, kế hoạch ban đầu (nguồn gốc khai ở mục X); đặt mục tiêu và yêu cầu qua 83 câu lệnh | Phân tích, góp ý, đề xuất phương pháp, lập kế hoạch chi tiết | Thiết kế switchback từ bài báo (mục VI) |
-| Mã nguồn: lõi thống kê, API, cơ sở dữ liệu, web, nạp dữ liệu, bộ lọc dữ liệu cá nhân, NLP | Yêu cầu, chọn hướng khi Claude đưa phương án, chấp nhận kết quả | Claude viết gần như toàn bộ (mọi commit trên `main` có dòng đồng tác giả Claude); phần của Tiến trên PR số 1 do Codex viết | Thư viện mục V; công thức từ bài báo mục VI |
+| Mã nguồn: lõi thống kê, API, cơ sở dữ liệu, web, nạp dữ liệu, bộ lọc dữ liệu cá nhân, NLP | Yêu cầu, chọn hướng khi Claude đưa phương án, chấp nhận kết quả | Claude viết gần như toàn bộ (mọi commit trên `main` có dòng đồng tác giả Claude); phần của Tiến trên PR số 1 do Codex viết; một dòng ghim scikit-learn trên kho fork do Copilot coding agent viết | Thư viện mục V; công thức từ bài báo mục VI |
 | Kiểm thử và cổng chất lượng | Đặt yêu cầu "test đỏ trước, xanh sau" trong quy trình | Claude viết test và chạy | pytest, Playwright |
 | Kiểm toán, sổ sự cố | Yêu cầu kiểm toán, quyết định sửa gì | Các đợt kiểm toán nhiều tác tử do Claude chạy; sổ sự cố do Claude ghi | — |
 | Dữ liệu và nhãn | Quyết định dùng và cách dùng | Nhãn 393 + 1.800 dòng; 320 câu mẫu; 200 bình luận mô phỏng; 95 câu kiểm thử | Bình luận VOD công khai (qua yt-dlp); KuaiLive |
-| Tài liệu và hồ sơ dự thi | Đọc, sửa, chịu trách nhiệm, ký | Claude soạn nháp, kể cả bản kê khai này | — |
+| Tài liệu và hồ sơ dự thi | Đọc, sửa, chịu trách nhiệm, ký | Claude soạn nháp, kể cả bản kê khai này; ChatGPT soạn bản nháp hồ sơ của Tiến (hồ sơ nộp chỉ lấy từ đó thông tin thí sinh và danh mục công cụ tự khai) | — |
 | Việc ngoài kho mã (phỏng vấn nhà bán, quay video, gán nhãn thủ công, xác minh kênh) | Chưa có bằng chứng trong kho mã tại ngày kê khai; thành viên nào đã làm thì tự khai kèm bằng chứng | — | — |
 
 Đội không có phép đo tách số dòng mã do người gõ khỏi số dòng AI gõ, nên không nêu tỷ lệ phần trăm. Theo dòng đồng tác giả và nhật ký, có thể nói thẳng: phần mã và tài liệu trong kho do AI tạo ra; phần của đội là đặt bài toán, ra yêu cầu, lựa chọn, duyệt, vận hành công cụ và chịu trách nhiệm.
@@ -252,8 +257,7 @@ Các nguồn tài liệu trên do Claude tìm và đọc trong quá trình phát
 
 ## IX. Dữ liệu cá nhân và trách nhiệm pháp lý
 
-<!-- DUYỆT: câu lưu/xoá dưới đây theo PHƯƠNG ÁN A của hồ sơ mục 3.3; chọn B thì sửa theo scratchpad wf3/phuong-an-3-3.md. -->
-- Đội **không** tuyên bố đã có sự đồng ý của người bình luận trong 19.126 bình luận và **không** viện dẫn căn cứ xử lý dữ liệu không cần sự đồng ý. Dữ liệu này chỉ dùng offline để đánh giá mô hình, đã lọc định danh tại điểm nạp (không lưu tên hay mã kênh người bình luận), không phát hành lại, không nằm trong kho mã. Bản đầy đủ không được lưu thành tệp; phần còn giữ (6.586 bình luận của 1 buổi, 393 bình luận của 3 buổi, đã lọc định danh) chưa được coi là đã khử nhận dạng theo Luật 91/2025/QH15 Điều 2 khoản 11, vì câu nguyên văn vẫn tra ngược được người viết, nên được bảo vệ như dữ liệu cá nhân và bị xóa khi có tập thay thế qua API chính thức, chậm nhất 22/11/2026, hoặc ngay khi Ban Tổ chức hay cơ quan có thẩm quyền yêu cầu. Các bản còn định danh (bản sao lưu trước khi lọc lại, bình luận còn tên tài khoản trong bản lưu nhật ký gốc của công cụ AI) được xóa hoặc che trước ngày nộp; Prompt Log đã được xuất lại ngày 25/09 sau khi bộ lọc bắt được tên tài khoản dính liền (mục I.3) — chi tiết ở hồ sơ dự án, mục 3.3.
+- Đội **không** tuyên bố đã có sự đồng ý của người bình luận trong 19.126 bình luận và **không** viện dẫn căn cứ xử lý dữ liệu không cần sự đồng ý. Dữ liệu này chỉ dùng offline để đánh giá mô hình, đã lọc định danh tại điểm nạp (không lưu tên hay mã kênh người bình luận), không phát hành lại, không nằm trong kho mã. Bản đầy đủ không được lưu thành tệp; phần còn giữ (6.586 bình luận của 1 buổi, 393 bình luận của 3 buổi, đã lọc định danh) chưa được coi là đã khử nhận dạng theo Luật 91/2025/QH15 Điều 2 khoản 11, vì câu nguyên văn vẫn tra ngược được người viết, nên được bảo vệ như dữ liệu cá nhân và bị xóa khi có tập thay thế qua API chính thức, chậm nhất 22/11/2026, hoặc ngay khi Ban Tổ chức hay cơ quan có thẩm quyền yêu cầu. Các bản còn định danh (bản sao lưu trước khi lọc lại, bình luận còn tên tài khoản trong bản lưu nhật ký gốc của công cụ AI) được xử lý chậm nhất ngày 29/09/2026, trước ngày nộp: bản sao lưu bị xóa an toàn (ghi đè rồi xóa), tên tài khoản trong bản lưu nhật ký gốc bị che; Prompt Log đã được xuất lại ngày 25/09 sau khi bộ lọc bắt được tên tài khoản dính liền (mục I.3) — chi tiết ở hồ sơ dự án, mục 3.3.
 - Kiểm tra ngày 14/09/2026 từng phát hiện handle mạng xã hội còn sót trong dữ liệu gán nhãn cục bộ do bộ lọc cũ chỉ nhận ký tự ASCII. Bộ lọc đã sửa ngày 15/09; ngày 25/09 quét lại còn 57 lượt tên tài khoản và đã lọc lại tại chỗ bằng đúng hàm của sản phẩm, quét lại ra 0 (`data/labeling/README.md`). Tệp mô hình v2 đóng gói 14/09 mang trong từ vựng một từ sinh từ tên tài khoản của một người bình luận; đã đóng gói lại ngày 25/09 trên dữ liệu đã lọc, thêm cổng `tests/test_artifact_khong_pii.py`; bản cũ vẫn còn trong lịch sử git của kho công khai. Tên tài khoản viết dính liền (`chữ@tên`, `@@tên`) từng lọt bộ lọc; ngày 25/09 đã vá (commit `b331076`), lọc thêm 16 dòng (8 tên, trong đó 4 dòng dữ liệu huấn luyện), đóng gói lại v2; macro-F1 của C2 không đổi.
 - Khi gán nhãn và rà dữ liệu (09–15/09/2026), bình luận được đưa vào Claude (Anthropic, dịch vụ đặt ngoài Việt Nam) khi bộ lọc chưa bắt được tên tài khoản có dấu: đó là xử lý dữ liệu cá nhân thu tại Việt Nam trên nền tảng ở nước ngoài (Luật 91/2025/QH15 Điều 20 khoản 1 điểm c); đội chưa lập hồ sơ đánh giá tác động chuyển dữ liệu theo khoản 2 của điều này.
 - Trên sản phẩm, bộ thu mặc định đọc phiên của chính nhà bán qua API chính thức; hai đường yt-dlp (kể cả tùy chọn đọc cookie trình duyệt) còn trong mã, chỉ giữ tạm tới khi có khóa chính thức. Phiên thí điểm có khán giả chỉ chạy khi đã có văn bản đồng ý và thỏa thuận xử lý dữ liệu với shop đối tác.
@@ -280,7 +284,7 @@ TP. Hồ Chí Minh, ngày ...... tháng ...... năm 2026
 |---|---|---|---|
 | Ngô Bình Minh | Đội trưởng | | |
 | Lê Xuân Khánh | Thành viên | | |
-| Ngô Lâm Tiến | Thành viên | Google Antigravity, OpenAI Codex (21/09/2026) — theo tài liệu trên nhánh `tien/aisc-round2`; bổ sung: | |
+| Ngô Lâm Tiến | Thành viên | ChatGPT, Codex, Deep Research, Image Generation, Antigravity (14–22/09); Copilot coding agent trên kho fork (21/09) — theo tự khai và lịch sử commit; bổ sung: | |
 
 ## Phụ lục — lệnh tái lập các con số
 

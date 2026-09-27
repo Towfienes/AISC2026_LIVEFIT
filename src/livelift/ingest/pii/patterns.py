@@ -202,7 +202,43 @@ SOCIAL_URL_RE = re.compile(
 # gate in tests/test_pii_filter.py never caught it because every fixture handle
 # was ASCII. Hyphen and period are allowed inside, but the match must END on a
 # word character so sentence punctuation after it ("cảm ơn @shop.") survives.
-SOCIAL_HANDLE_RE = re.compile(r"(?<![\w.@])@\w[\w.\-]{1,30}\w")
+#
+# "@" also means "giá/lúc" in shopping chat ("@50k", "3 cái@50k", "hẹn@7h30",
+# "size@2XL"). A body that is ENTIRELY a price, a clock time or a garment size is
+# not a handle (25/09/2026: "@50k" used to become "[MXH]").
+_GIA = (
+    r"\d[\d.]*(?:k|đ|d|vnđ|vnd|tr|triệu|trieu|ngàn|ngan|nghìn|nghin)\d*"
+    r"|\d{1,3}(?:\.\d{3})+"
+)
+_GIO = r"\d{1,2}[hg]\d{0,2}(?:p|ph)?"
+_CO = r"\d?x{0,4}[sml]"
+# Negative lookahead placed right after "@": the whole body (up to where the
+# handle body would stop) is a price/time/size.
+_KHONG_PHAI_HANDLE = rf"(?!(?i:{_GIA}|{_GIO}|{_CO})(?![.\-]*\w))"
+SOCIAL_HANDLE_RE = re.compile(rf"(?<![\w.@])@{_KHONG_PHAI_HANDLE}\w[\w.\-]{{1,30}}\w")
+# "chữ@tên8106" — the SAME body glued to the word before it: exactly the "@"
+# positions SOCIAL_HANDLE_RE's lookbehind skips ("chữ@tên", "@@tên"). Until
+# 25/09/2026 nothing looked at them, so 8 real commenter handles (16 rows) stayed in
+# data/labeling and 2 reached the "scrubbed" Prompt Log. "@" is also an email
+# separator and a "giá/lúc" sign, so a candidate only counts once
+# ``is_glued_handle`` accepts its body; emails still win through KIND_PRIORITY
+# (email beats social on overlap).
+SOCIAL_HANDLE_GLUED_RE = re.compile(
+    rf"(?<=[\w.@])@{_KHONG_PHAI_HANDLE}(?P<body>\w[\w.\-]{{1,30}}\w)"
+)
+GLUED_LETTERS_MIN = 5  # letters-only glued body: "8h@live" (4) stays, real ones were 9-19
+
+
+def is_glued_handle(body: str) -> bool:
+    """A glued ``@body`` is a handle when the body has a letter AND either carries a
+    digit/"."/"_" (``tên8106``, ``lan.anh``, ``thu_trang``) or is a letters-only name of
+    at least ``GLUED_LETTERS_MIN`` characters. Pure numbers (``next@14.2.3``) are not."""
+    if not any(ch.isalpha() for ch in body):
+        return False
+    if any(ch.isdigit() or ch in "._" for ch in body):
+        return True
+    return sum(ch.isalpha() for ch in body) >= GLUED_LETTERS_MIN
+
 
 # --- Bank account -----------------------------------------------------------
 # Context-triggered only ("stk", "số tk", "tk:", "số tài khoản" + 6-19 digits).

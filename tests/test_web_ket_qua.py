@@ -50,8 +50,10 @@ def test_ba_trang_thai_cung_muc_cong_phu_card_lg():
     """Mỗi trạng thái là một Card padding='lg' có huy hiệu nhận diện — NULL và
     CHƯA ĐỦ không được là một dòng chữ xám lép vế cạnh trạng thái dương."""
     src = _read(KET_QUA)
+    # Con dấu của VerdictCoTacDong lấy chữ từ chuConDau (phiên thật / mẫu / chạy
+    # thử — 25/09/2026); "TÁC ĐỘNG THẬT" nằm trong hàm đó, xem test mục 2.
     for comp, badge in [
-        ("VerdictCoTacDong", "TÁC ĐỘNG THẬT"),
+        ("VerdictCoTacDong", "chuConDau(v)"),
         ("VerdictNull", "KẾT QUẢ TRUNG THỰC"),
         ("VerdictChuaDu", "CHƯA ĐỦ ĐIỀU KIỆN"),
     ]:
@@ -74,18 +76,25 @@ def test_verdict_state_theo_dung_luat_ktc_loai_0():
 
 
 def test_con_dau_tac_dong_that_chi_o_nhanh_co_tac_dong():
-    src = _read(KET_QUA)
+    src = _render(_read(KET_QUA))
     # chuỗi RENDER của con dấu (không tính chú thích mã) phải xuất hiện đúng
-    # MỘT chỗ — trong VerdictCoTacDong
+    # MỘT chỗ — trong chuConDau, hàm chọn chữ con dấu (25/09/2026: phiên thật /
+    # dữ liệu mẫu / phiên chạy thử) ...
     con_dau = "TÁC ĐỘNG THẬT · KTC 95% không chứa 0"
     assert src.count(con_dau) == 1, "con dấu render phải xuất hiện đúng MỘT chỗ"
+    chon = src.split("function chuConDau")[1].split("\nfunction ")[0]
+    assert con_dau in chon, "con dấu phải nằm trong chuConDau"
+    # ... chuConDau chỉ được gọi từ VerdictCoTacDong (một lần duy nhất) ...
+    assert src.count("chuConDau(") == 2, "chuConDau: một định nghĩa + đúng một chỗ gọi"
     body = src.split("function VerdictCoTacDong")[1].split("\nfunction ")[0]
-    assert con_dau in body, "con dấu phải nằm trong VerdictCoTacDong"
+    assert "chuConDau(v)" in body, "con dấu phải được đóng trong VerdictCoTacDong"
     # ... và VerdictCoTacDong chỉ được render khi state là duong/am
     m = re.search(r'verdict\.state === "duong" \|\| verdict\.state === "am"', src)
     assert m, "VerdictCoTacDong phải được gate bằng state duong/am"
-    # con dấu luôn kèm KTC ngay trong chính nó (phản biện #1)
-    assert "TÁC ĐỘNG THẬT · KTC 95% không chứa 0" in body
+    # con dấu luôn kèm KTC ngay trong chính nó (phản biện #1) — mọi nhánh
+    nhan = re.findall(r'return "([^"]+)";', chon)
+    assert len(nhan) == 3, nhan
+    assert all("KTC 95% không chứa 0" in n for n in nhan), nhan
 
 
 # ---------------------------------------------------------------------------
@@ -265,10 +274,13 @@ def test_chip_demo_theo_co_is_demo():
 
 
 def test_danh_sach_phien_tach_nhom_that_demo():
+    """CẬP NHẬT CÓ CHỦ ĐÍCH (kiểm toán 25/09/2026, runtime.md §3.2): mục "Phiên
+    thật" từ nay còn loại cả phiên CHẠY THỬ (xem test_phien_chay_thu_...); bất
+    biến cũ giữ nguyên — phiên demo không bao giờ lọt vào nhóm thật."""
     src = _read(KET_QUA)
     assert "realSessions" in src
     assert "demoSessions" in src
-    assert "filter((s) => !s.is_demo)" in src
+    assert "filter((s) => !s.is_demo && s.dry_run !== true)" in src
     assert "filter((s) => s.is_demo)" in src
 
 
@@ -294,3 +306,195 @@ def test_xem_mot_phien_qua_query_phien():
     assert 'get("phien")' in src
     assert "getBaoCao(phien)" in src
     assert "verdictFromKetQua" in src
+
+
+# ---------------------------------------------------------------------------
+# 8. Kiểm toán thử thật 25/09/2026 (runtime.md §3.0, §3.2, §3.3, §3.4)
+# ---------------------------------------------------------------------------
+#
+# Chạy THẬT các hàm thuần của trang bằng node (tách nguyên văn khỏi mã nguồn,
+# node ≥ 22 tự bỏ chú thích kiểu — cùng cách tests/test_web_desk_v3.py). Gate
+# đọc chữ không bắt được vụ sập 25/09: `verdictState` trả "null" khi máy chủ
+# gửi estimable=true nhưng KTC null, rồi VerdictNull gọi `v.ciLow!.toFixed`.
+
+FORMAT_TS = SRC / "lib" / "format.ts"
+
+
+def _tach(src: str, ten: str) -> str:
+    """Tách nguyên văn một khai báo cấp cao nhất (function/const) khỏi nguồn."""
+    lines = src.replace("\r\n", "\n").split("\n")
+    head = re.compile(rf"^(?:export )?(?:function|const) {re.escape(ten)}\b")
+    for i, line in enumerate(lines):
+        if not head.match(line):
+            continue
+        la_const = line.startswith(("const ", "export const "))
+        if la_const and line.rstrip().endswith(";"):
+            return line
+        for j in range(i + 1, len(lines)):
+            cuoi = lines[j].rstrip()
+            # Hằng chuỗi nối nhiều dòng kết thúc ở dòng đầu tiên có dấu `;`.
+            if la_const and cuoi.endswith(";"):
+                return "\n".join(lines[i : j + 1])
+            if not la_const and cuoi == "}":
+                return "\n".join(lines[i : j + 1])
+        break
+    raise AssertionError(f"không tách được khai báo {ten!r}")
+
+
+def _node(tmp_path: Path, khai_bao: list[tuple[Path, str]], bieu_thuc: str):
+    import json
+    import shutil
+    import subprocess
+
+    import pytest
+
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("không có node — bỏ qua phần chạy thử hàm thuần")
+    mo_dun = "\n\n".join(_tach(_read(p), ten) for p, ten in khai_bao)
+    tep = tmp_path / "ket_qua_thuan.mts"
+    tep.write_text(mo_dun + f"\nconsole.log(JSON.stringify({bieu_thuc}));\n", encoding="utf-8")
+    out = subprocess.run(
+        [node, "--experimental-strip-types", "--no-warnings", str(tep)],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=60,
+    )
+    if out.returncode != 0 and "bad option" in out.stderr:
+        pytest.skip("node quá cũ, chưa bỏ được chú thích kiểu")
+    assert out.returncode == 0, out.stderr
+    return json.loads(out.stdout.strip().splitlines()[-1])
+
+
+def _ham_verdict() -> list[tuple[Path, str]]:
+    src = _read(KET_QUA)
+    ten = ["verdictState", "verdictFromSummary", "verdictFromKetQua"]
+    # Hằng câu lý do (nếu có) phải đi cùng các hàm dùng nó.
+    ten = list(re.findall(r"(?m)^const (KTC_\w+)\b", src)) + ten
+    return [(KET_QUA, t) for t in ten]
+
+
+def test_ktc_null_la_chua_du_khong_phai_null(tmp_path):
+    """Sự cố 25/09 (runtime.md §3.0): phiên ≥ 4 khối, 0 lượt nhấp → máy chủ trả
+    {estimable: true, estimate: 0, ci_low: null, ci_high: null}; trang sập với
+    `Cannot read properties of null (reading 'toFixed')`. KTC không tính được thì
+    KHÔNG có kết luận nào để vẽ — trạng thái phải là CHƯA ĐỦ, kèm lý do."""
+    kq = {
+        "estimable": True,
+        "estimate": 0.0,
+        "ci_low": None,
+        "ci_high": None,
+        "p_value": 1.0,
+        "n_draws": 999,
+        "n_blocks": 4,
+        "n_on": 2,
+        "n_off": 2,
+        "khoa": False,
+        "ly_do_khoa": None,
+        "message": None,
+    }
+    gop = {
+        "env": "real",
+        "estimable": True,
+        "estimate": 0.0,
+        "ci_low": None,
+        "ci_high": None,
+        "p_value": 1.0,
+        "n_draws": 999,
+        "n_blocks": 8,
+        "n_on": 4,
+        "n_off": 4,
+        "n_sessions": 2,
+        "message": None,
+    }
+    import json
+
+    ra = _node(
+        tmp_path,
+        _ham_verdict(),
+        "["
+        "verdictState(true, null, null),"
+        "verdictState(true, -0.2, null),"
+        "verdictState(true, null, 0.3),"
+        "verdictState(true, 0.1, 0.5),"
+        "verdictState(true, -0.5, -0.1),"
+        "verdictState(true, -0.1, 0.2),"
+        "verdictState(false, 0.1, 0.5),"
+        f"verdictFromKetQua({json.dumps(kq)}, false, null),"
+        f"verdictFromSummary({json.dumps(gop)})"
+        "]",
+    )
+    assert ra[:7] == ["chuadu", "chuadu", "chuadu", "duong", "am", "null", "chuadu"]
+    for v in ra[7:]:
+        assert v["state"] == "chuadu", v
+        assert v["lyDo"], "CHƯA ĐỦ vì KTC null phải nói lý do, không để câu mặc định chung chung"
+        assert "khoảng tin cậy" in v["lyDo"]
+
+
+def test_khong_con_khang_dinh_khong_null_tren_so_nhan_qua():
+    """Dấu `!` của TypeScript chỉ tắt tiếng trình biên dịch, không chặn được null
+    lúc chạy — chính nó để vụ sập 25/09 lọt qua `tsc --noEmit`."""
+    src = _render(_read(KET_QUA))
+    con = re.findall(r"\b(?:v|verdict)\.\w+!", src)
+    assert not con, f"còn khẳng định không-null trên số liệu verdict: {con}"
+
+
+def test_con_dau_tren_du_lieu_mau_khong_goi_la_that():
+    """Kiểm toán 25/09 (§3.3): chip xanh "TÁC ĐỘNG THẬT" đứng ngay cạnh "DEMO —
+    dữ liệu mẫu" trên /ket-qua?env=demo — ảnh chụp màn hình dễ bị hiểu sai.
+    Trên dữ liệu mẫu, con dấu nói đúng điều KTC nói: hiệu ứng rõ, không chứa 0."""
+    chon = _render(_read(KET_QUA)).split("function chuConDau")[1].split("\nfunction ")[0]
+    m = re.search(r'if \(v\.isDemo\) return "(HIỆU ỨNG RÕ[^"]*)";', chon)
+    assert m, "con dấu phải rẽ nhánh theo v.isDemo — dữ liệu mẫu không được gọi là THẬT"
+    # Phiên CHẠY THỬ (25/09/2026) — chạy thật hàm: tests/test_chay_thu_da_huy_2509.py.
+    assert "KTC 95% không chứa 0" in m.group(1), "con dấu demo vẫn phải mang KTC (phản biện #1)"
+    assert "THẬT" not in m.group(1)
+
+
+def test_phien_chay_thu_co_muc_va_huy_hieu_rieng():
+    """Kiểm toán 25/09 (§3.2): tập dượt một lần bằng "Chạy thử" là /ket-qua hiện
+    "PHIÊN THẬT · 1 phiên" — trong khi hồ sơ nói 0 phiên thí nghiệm thật. Phiên
+    chạy thử (dry_run) bị loại khỏi kết quả gộp (PREREGISTRATION §8.2) nên phải
+    đứng ở mục riêng và đeo huy hiệu CHẠY THỬ ở mọi dòng."""
+    src = _render(_read(KET_QUA))
+    assert "s.dry_run !== true" in src, "mục Phiên thật phải loại phiên chạy thử"
+    assert "s.dry_run === true" in src, "phải có danh sách phiên chạy thử riêng"
+    assert "chayThuSessions" in src
+    assert re.search(r">\s*Phiên chạy thử\s*</SectionTitle>", src), (
+        "thiếu tiêu đề mục Phiên chạy thử"
+    )
+    rows = src.split("function SessionRows")[1].split("\nfunction ")[0]
+    assert re.search(r"s\.dry_run\s*\?\s*<Badge[^>]*>\s*CHẠY THỬ\s*</Badge>", rows), (
+        "từng dòng phiên chạy thử phải đeo huy hiệu CHẠY THỬ"
+    )
+
+
+def test_so_thap_phan_theo_vi_vn(tmp_path):
+    """Kiểm toán 25/09 (§3.4): "+0.533" đứng cạnh "39.000 ₫" — người đọc Việt hiểu
+    0.533 thành 533. Số nhân quả trên /ket-qua và /bao-cao đi qua một bộ định
+    dạng vi-VN chung, không `toFixed` (dấu chấm thập phân kiểu Anh)."""
+    for trang in (KET_QUA, BAO_CAO):
+        src = _render(_read(trang))
+        assert ".toFixed(" not in src, f"{trang.parent.name}: còn toFixed — in dấu chấm thập phân"
+        assert "fmtThapPhan" in src
+    ra = _node(
+        tmp_path,
+        [(FORMAT_TS, "fmtThapPhan")],
+        "[fmtThapPhan(0.533, 3), fmtThapPhan(-0.49, 3), fmtThapPhan(1234.5, 1),"
+        " fmtThapPhan(0.001, 4), fmtThapPhan(0, 3)]",
+    )
+    assert ra == ["0,533", "-0,490", "1.234,5", "0,0010", "0,000"]
+
+
+def test_bao_cao_khong_in_uoc_luong_khi_thieu_ktc():
+    """Kiểm toán 25/09 (runtime.md §3.0): máy chủ trả estimable=true, ước lượng 0
+    và KTC null khi lượt nhấp THIẾU; /bao-cao từng in "0.000 · KTC 95% [— … —]".
+    Khối số chỉ được vẽ khi có ĐỦ hai đầu KTC — gate đọc chính điều kiện render
+    (phản biện 25/09: trước đó chỉ `tsc` gác, pytest không đỏ nếu điều kiện bị gỡ)."""
+    src = _render(_read(BAO_CAO))
+    assert re.search(
+        r"kq\.estimable\s*&&\s*kq\.estimate != null\s*&&\s*kq\.ci_low != null"
+        r"\s*&&\s*kq\.ci_high != null\s*\?",
+        src,
+    ), "khối ước lượng nhân quả trên /bao-cao phải đòi đủ ci_low và ci_high"

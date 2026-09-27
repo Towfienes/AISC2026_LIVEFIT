@@ -204,11 +204,29 @@ def test_the_dry_run_flag_cannot_be_flipped_after_the_fact(store, client):
     assert store.get_session(thu)["dry_run"] is True
 
     # ...và không route nào NHẬN cờ này ngoài lúc tạo phiên.
-    schemas = client.get("/openapi.json").json()["components"]["schemas"]
+    openapi = client.get("/openapi.json").json()
+    schemas = openapi["components"]["schemas"]
     mang_co = {n for n, s in schemas.items() if "dry_run" in (s.get("properties") or {})}
     assert "SessionCreate" in mang_co
-    assert mang_co <= {"SessionCreate", "SessionOut", "SessionDetail"}, (
-        f"có schema khác nhận cờ chạy thử: {sorted(mang_co)}"
+    # Schema ĐẦU RA được mang cờ để NÓI phiên là chạy thử — từ 25/09/2026 cả báo
+    # cáo sau phiên (BaoCaoOut), để /ket-qua không đóng dấu "TÁC ĐỘNG THẬT" cho
+    # phiên chạy thử (tests/test_chay_thu_da_huy_2509.py).
+    assert mang_co <= {"SessionCreate", "SessionOut", "SessionDetail", "BaoCaoOut"}, (
+        f"có schema khác mang cờ chạy thử: {sorted(mang_co)}"
+    )
+    # ...nhưng chỉ MỘT schema ĐẦU VÀO nhận nó: thân yêu cầu tạo phiên.
+    dau_vao: set[str] = set()
+    for route in openapi["paths"].values():
+        for op in route.values():
+            if not isinstance(op, dict):
+                continue
+            noi_dung = (op.get("requestBody") or {}).get("content") or {}
+            for kieu in noi_dung.values():
+                ref = (kieu.get("schema") or {}).get("$ref", "")
+                if ref:
+                    dau_vao.add(ref.rsplit("/", 1)[-1])
+    assert dau_vao & mang_co == {"SessionCreate"}, (
+        f"schema đầu vào nhận cờ chạy thử: {sorted(dau_vao & mang_co)}"
     )
 
 

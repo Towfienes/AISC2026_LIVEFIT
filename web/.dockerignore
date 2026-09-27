@@ -1,0 +1,19 @@
+# Ngữ cảnh build của ảnh web (docker-compose.yml: context ./web).
+#
+# Kiểm toán Docker 25/09/2026 (docker.md P2-1): không có tệp này thì
+# `COPY . .` của docker/web.Dockerfile chép node_modules build trên Windows
+# (có @next/swc-win32-x64-msvc 130 MB, shim .bin của Windows) ĐÈ lên
+# node_modules Linux mà stage `deps` vừa `npm ci`; các thư mục build .next*
+# của máy dev (~387 MB) và .env*.local (có thể nhúng NEXT_PUBLIC_* của máy dev
+# vào bundle) cũng theo vào. Trên VPS clone sạch thì không mắc — trên máy demo
+# của đội thì có.
+node_modules
+.next
+.next-*
+out
+build
+.env
+.env*.local
+*.tsbuildinfo
+npm-debug.log*
+.DS_Store

@@ -49,7 +49,7 @@ import Card from "@/components/ui/Card";
 import SectionTitle from "@/components/ui/SectionTitle";
 import Skeleton from "@/components/ui/Skeleton";
 import { getBaoCao, getSessionDetail } from "@/lib/api";
-import { fmtClock, fmtNumber } from "@/lib/format";
+import { fmtClock, fmtNumber, fmtThapPhan } from "@/lib/format";
 import { CHART, INTENT_META, type BaoCao, type SignalStatus } from "@/lib/types";
 
 /** Tên tiếng Việt cho các tín hiệu trong ma trận (khớp signals.py). */
@@ -103,8 +103,8 @@ const STATUS_BADGE: Record<SignalStatus, { tone: "good" | "warn" | "neutral"; la
 function formatP(p: number | null, draws: number | null): string {
   if (p == null) return "—";
   const floor = draws ? 1 / (draws + 1) : null;
-  if (floor != null && p <= floor * 1.001) return `p < ${floor.toFixed(4)}`;
-  return `p = ${p.toFixed(4)}`;
+  if (floor != null && p <= floor * 1.001) return `p < ${fmtThapPhan(floor, 4)}`;
+  return `p = ${fmtThapPhan(p, 4)}`;
 }
 
 /**
@@ -618,7 +618,7 @@ export default function BaoCaoPage() {
                         </span>
                         <span className="text-meta text-dim">
                           nền {fmtNumber(Math.round(kk.nen_per_phut))}
-                          {kk.ty_le != null ? ` · gấp ${kk.ty_le.toFixed(1)} lần` : ""}
+                          {kk.ty_le != null ? ` · gấp ${fmtThapPhan(kk.ty_le, 1)} lần` : ""}
                         </span>
                         <span className="min-w-0 flex-1 basis-full text-body leading-snug text-sec">
                           {kk.mo_ta}
@@ -666,7 +666,7 @@ export default function BaoCaoPage() {
                           {fmtNumber(count)}
                         </span>
                         <span className="tnum shrink-0 text-meta text-dim">
-                          {pct.toFixed(1)}%
+                          {fmtThapPhan(pct, 1)}%
                         </span>
                       </li>
                     );
@@ -699,15 +699,18 @@ export default function BaoCaoPage() {
                       {kq.ly_do_khoa}
                     </Callout>
                   ) : null}
-                  {kq.estimable && kq.estimate != null ? (
+                  {/* Kiểm toán 25/09/2026: máy chủ từng trả estimable=true, ước
+                      lượng 0 và KTC null khi lượt nhấp THIẾU — trang in "0.000 ·
+                      KTC [— … —]". Không có KTC thì không in ước lượng. */}
+                  {kq.estimable && kq.estimate != null && kq.ci_low != null && kq.ci_high != null ? (
                     <Card padding="lg">
                       <div className="text-label uppercase text-dim">
                         Tác động ước lượng (nhấp/1000 giây·người xem)
                       </div>
                       <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                        <span className="text-num-m text-ink">{kq.estimate.toFixed(3)}</span>
+                        <span className="text-num-m text-ink">{fmtThapPhan(kq.estimate, 3)}</span>
                         <span className="tnum text-strong text-sec">
-                          KTC 95% [{kq.ci_low?.toFixed(3) ?? "—"} … {kq.ci_high?.toFixed(3) ?? "—"}]
+                          KTC 95% [{fmtThapPhan(kq.ci_low, 3)} … {fmtThapPhan(kq.ci_high, 3)}]
                         </span>
                         <span className="tnum text-body text-sec">
                           {formatP(kq.p_value, kq.n_draws)}
@@ -723,7 +726,9 @@ export default function BaoCaoPage() {
                     <Card className="text-body leading-relaxed text-sec">
                       <strong className="text-ink">Chưa ước lượng được tác động.</strong>{" "}
                       {kq.message ??
-                        "Chưa đủ khối đo được cho phiên này — tuyên bố thiếu, không trả số."}{" "}
+                        (kq.estimable
+                          ? "Máy chủ chưa tính được khoảng tin cậy 95% (thường vì lượt nhấp qua link đo đang THIẾU) — không in ước lượng khi thiếu khoảng."
+                          : "Chưa đủ khối đo được cho phiên này — tuyên bố thiếu, không trả số.")}{" "}
                       <span className="text-dim">
                         ({kq.n_blocks} khối đo được · {kq.n_on} BẬT / {kq.n_off} TẮT)
                       </span>

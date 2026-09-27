@@ -1,671 +1,317 @@
-# BẢN KÊ KHAI CÔNG CỤ AI, BỘ DỮ LIỆU, API, THƯ VIỆN VÀ MÃ NGUỒN MỞ
+<!-- QUOC-HIEU -->
 
-**Sản phẩm:** LiveLift — nền tảng thí nghiệm vận hành cho livestream thương mại
-**Đội thi:** Ngô Bình Minh (đội trưởng) · Lê Xuân Khánh · Ngô Lâm Tiến — Khoa CNTT, Đại học Tôn Đức Thắng
-**Bảng:** C (19–22 tuổi) · Khu vực miền Nam
-**Kho mã nguồn:** `https://github.com/bminhnemhoi/AISC2026_LIVEFIT` (xem hạng mục 4 — [`06-KHO-MA-VA-MINH-CHUNG.md`](06-KHO-MA-VA-MINH-CHUNG.md))
-**Ngày lập:** 14/09/2026 · **Trạng thái mã nguồn tại thời điểm kê khai:** commit `dd66b38`, 42 commit
+# BẢN KÊ KHAI CÔNG CỤ AI, BỘ DỮ LIỆU, API, THƯ VIỆN, MÃ NGUỒN MỞ VÀ PHẦN VIỆC DO ĐỘI TỰ XÂY DỰNG
 
----
+| Hạng mục | Nội dung |
+|---|---|
+| Cuộc thi | Cuộc thi Sáng tạo trẻ Quốc gia trong lĩnh vực Trí tuệ nhân tạo năm 2026, Bảng C, đường trường cử |
+| Sản phẩm | LiveLift - Nền tảng thí nghiệm vận hành và hỗ trợ ra quyết định cho livestream thương mại |
+| Đội thi | Ngô Bình Minh (đội trưởng), Lê Xuân Khánh, Ngô Lâm Tiến; Khoa Công nghệ thông tin, Trường Đại học Tôn Đức Thắng |
+| Kho mã nguồn (công khai) | https://github.com/bminhnemhoi/AISC2026_LIVEFIT |
+| Trạng thái mã nguồn khi kê khai | Toàn bộ công việc hoàn thiện hồ sơ (làm trên nhánh `hoan-thien/ho-so-2509` từ ngày 25/09/2026) được hợp nhất vào nhánh `main` của kho công khai ngày 27/09/2026. Nhánh `tien/aisc-round2` (PR số 1 của Tiến, 2 commit ngày 21/09/2026) chưa hợp nhất |
+| Ngày lập | 25/09/2026; cập nhật ngày 27/09/2026 |
+| Người soạn | Tác tử AI Claude (qua Claude Code) soạn nháp theo yêu cầu của đội trưởng, dựa trên số liệu đếm tự động từ kho mã và nhật ký phiên làm việc. Ba thành viên đọc, sửa và ký ở mục X |
 
-## Cơ sở pháp lý của bản kê khai
+Các con số đếm tự động đều có lệnh để chạy lại ở Phụ lục. Con số lấy từ tài liệu khác của dự án được ghi nguồn ngay tại chỗ. Điều gì đội chưa kiểm được thì ghi rõ là chưa kiểm, không suy đoán.
 
-Bản kê khai này lập theo **Điều 5 Thể lệ Cuộc thi Sáng tạo trẻ Quốc gia trong lĩnh vực AI 2026**
-(Kế hoạch số 01-KH/TWĐTN-KHCN ngày 03/7/2026), cụ thể:
+## Căn cứ
 
-- **§5–6:** đội được phép dùng LLM, thư viện mở, mô hình pretrained, dataset công khai và API
-  **nếu kê khai trung thực**, nêu rõ **phần tự xây dựng / phần do AI hoặc công cụ hỗ trợ tạo ra /
-  phần kế thừa từ nguồn mở**, và chứng minh được khả năng **hiểu, kiểm chứng, chỉnh sửa, vận hành
-  và chịu trách nhiệm** với sản phẩm.
-- **§7:** **che giấu nguồn mã nguồn, dataset hoặc API là hành vi bị nghiêm cấm.**
+- **Điều 5 Thể lệ Cuộc thi** (ban hành kèm Kế hoạch số 01-KH/TWĐTN-KHCN ngày 03/7/2026; số hiệu này lấy từ tiêu đề Thể lệ vì bìa Kế hoạch để trống): đội thi được dùng mô hình ngôn ngữ lớn, thư viện mở, mô hình huấn luyện sẵn, dữ liệu công khai và API nếu kê khai trung thực, nêu rõ phần đội tự xây dựng, phần do AI tạo ra và phần kế thừa nguồn mở. Thể lệ nghiêm cấm che giấu nguồn mã, dữ liệu, API và giả mạo Prompt Log, lịch sử commit, dữ liệu thử nghiệm, video demo.
+- **Luật Bảo vệ dữ liệu cá nhân số 91/2025/QH15** (hiệu lực 01/01/2026) và **Nghị định 356/2025/NĐ-CP** ngày 31/12/2025 quy định chi tiết Luật này (thay thế Nghị định 13/2023/NĐ-CP).
+- **Luật Trí tuệ nhân tạo số 134/2025/QH15** (thông qua 10/12/2025, hiệu lực 01/3/2026) và Nghị định 142/2026/NĐ-CP hướng dẫn thi hành (theo tra cứu ngày 25/09/2026; đội chưa có ý kiến của người có chuyên môn pháp lý).
 
-Nguyên tắc biên soạn: **thà kê khai thừa một mục bất lợi còn hơn thiếu một mục.** Mọi con số trong
-tài liệu này sinh lại được bằng lệnh và trỏ về `docs/competition/FACT-SHEET.md` — bộ số chuẩn duy
-nhất của dự án. Các mục đánh dấu ⚠️ là **điểm bất lợi do đội tự khai**, không phải do người khác
-phát hiện.
+## Đính chính so với các bản kê khai trước
 
----
+Bản lập ngày 14/09/2026 có những khẳng định mà chính đội đã phát hiện là sai (công bố đính chính ở commit `af0f00e` ngày 15/09/2026) hoặc bị kiểm toán ngày 25/09/2026 chỉ ra. Bản này thay thế hoàn toàn bản cũ.
 
-## I. CÔNG CỤ AI SỬ DỤNG TRONG QUÁ TRÌNH PHÁT TRIỂN
+| Bản cũ ghi | Sự thật |
+|---|---|
+| 320 câu mẫu ý định "do 3 thành viên tự viết, không sinh bằng LLM" | Do Claude soạn ngày 01/09/2026 |
+| 393 bình luận tập kiểm tra "do người gán tay, gán mù" | Nhãn do tác tử AI (Claude) gán ngày 09/09/2026; chưa có nhãn người |
+| macro-F1 0,271 trên 200 bình luận thật | Không tái lập được vì tệp nhãn không được lưu, nên rút lại. Số chính thức: từ 0,211 lên 0,542, đo lại ngày 25/09 (mục II) |
+| A/A bác bỏ 4,5%, độ phủ 95,5% | Không tái lập được. Đo lại ngày 14/09 và 25/09: bác bỏ 3,50% (7/200), độ phủ 96,50% |
+| "1.297 câu lệnh của đội" | Bộ xuất cũ tính cả kết quả công cụ là câu lệnh người. Đếm lại: 83 câu lệnh người gõ (mục I.3) |
+| Kiểm toán đối kháng và gán nhãn "hoàn toàn của đội" | Các đợt kiểm toán ngày 14, 15, 17 và 25/09 do tác tử AI chạy theo yêu cầu của đội; nhãn do AI gán |
+| Căn cứ thu thập dữ liệu: Nghị định 13/2023/NĐ-CP và "lợi ích chính đáng cho nghiên cứu" | Nghị định 13/2023 đã được thay thế trước khi thu dữ liệu; đội không viện dẫn căn cứ xử lý không cần đồng ý (mục IX) |
+| Chỉ dùng Claude Code | Thành viên Tiến còn dùng ChatGPT, OpenAI Codex, ChatGPT Deep Research, ChatGPT Image Generation, Google Antigravity (từ 14 đến 22/09/2026) và GitHub Copilot coding agent (mục I.1) |
+| Bản 25/09: GitHub Copilot "không chạy, không tạo ra nội dung nào" | Đúng với PR số 1 trên kho đội. Nhưng trên kho fork `Towfienes/AISC2026_LIVEFIT` của Tiến, Copilot coding agent đã tạo commit `ec56971` (ghim scikit-learn 1.9.0) ngày 21/09/2026 (mục I.1) |
 
-### I.1. Công cụ chính
+## I. Công cụ AI dùng trong quá trình phát triển
+
+### I.1. Danh mục công cụ
+
+| Công cụ | Nhà cung cấp | Ai dùng, khi nào | Dùng để làm gì | Bằng chứng |
+|---|---|---|---|---|
+| **Claude Code** (tiện ích VS Code, phiên bản từ 2.1.239 đến 2.1.281) | Anthropic | Máy trạm của đội trưởng, dùng chung; 5 phiên từ 24/08 đến 25/09/2026 | Viết mã, kiểm thử, tài liệu, hồ sơ; khảo cứu tài liệu (765 lần tìm web, 988 lần đọc trang web); gán nhãn dữ liệu; soạn dữ liệu tổng hợp; chạy các đợt kiểm toán nhiều tác tử; soạn kịch bản và dựng hình cho hai video nộp kèm; soạn nháp bản kê khai này | Prompt Log (mục I.3); dòng đồng tác giả Claude trên các commit của `main` |
+| **Google Antigravity** | Google | Ngô Lâm Tiến, ngày 21 và 22/09/2026 (tự khai) | Rà soát mức sẵn sàng cho AISC vòng 2 và rà soát sau khi triển khai; dựng khung tài liệu và chụp ảnh giao diện (tự khai: 31 ảnh; không ảnh nào trong hồ sơ nộp) | `docs/competition/aisc-round2/ANTIGRAVITY-AUDIT.md`, `POST-IMPLEMENTATION-REVIEW.md` trên nhánh `tien/aisc-round2` (tài liệu tự ghi "thực hiện bởi AI Agent Antigravity") |
+| **OpenAI Codex** (mô hình GPT-5.6 Sol) | OpenAI | Ngô Lâm Tiến, commit ngày 21/09/2026; dùng từ 14 đến 22/09/2026 (tự khai) | Lập kế hoạch và viết mã: `scripts/round2_demo_check.py` và test, thay đổi trang `/ket-qua`, câu chữ đồng hồ khối (commit `8949963`) | `CODEX-IMPLEMENTATION-PLAN.md`, `POST-IMPLEMENTATION-REVIEW.md` trên nhánh `tien/aisc-round2` |
+| **ChatGPT** (mô hình GPT-5.6 Sol) | OpenAI | Ngô Lâm Tiến, từ 14 đến 22/09/2026 (tự khai) | Phân rã yêu cầu, rà soát kiến trúc và logic, khoanh vùng lỗi từ kết quả chạy, hướng dẫn chạy demo, rà soát tài liệu, viết bản nháp hồ sơ của Tiến. Bản nháp đó không phải hồ sơ nộp; hồ sơ nộp chỉ lấy từ nó thông tin thí sinh và danh mục công cụ AI tự khai | Tự khai của Tiến (Bảng 1, 3 trong bản nháp hồ sơ); nhật ký do Tiến tự xuất, lưu cùng Prompt Log |
+| **ChatGPT Deep Research** | OpenAI | Ngô Lâm Tiến, ngày 22/09/2026 (tự khai) | Rà tài liệu, phương pháp, đối chiếu nguồn và rà các khẳng định của bản nháp hồ sơ. Không dùng để tạo dữ liệu thực nghiệm | Tự khai của Tiến |
+| **ChatGPT Image Generation** | OpenAI | Ngô Lâm Tiến, ngày 22/09/2026 (tự khai) | Thử một bố cục infographic từ ảnh chụp màn hình để tham khảo cách trình bày. **Không dùng làm bằng chứng**; không có ảnh nào do AI vẽ trong hồ sơ nộp | Tự khai của Tiến |
+| **GitHub Copilot coding agent** | GitHub | Kho fork `Towfienes/AISC2026_LIVEFIT` của Ngô Lâm Tiến, 17:01 UTC ngày 21/09/2026 (00:01 ngày 22/09 giờ Việt Nam) | Tạo commit `ec56971` "fix: pin scikit-learn to artifact-compatible 1.9.0" (tác giả `copilot-swe-agent[bot]`, đồng tác giả Towfienes; sửa 1 dòng `pyproject.toml`), hợp nhất vào `main` của kho fork qua PR số 1 của kho fork (`e33503e`). Trên **kho đội**, Copilot được gọi rà soát PR số 1 lúc 22:58 ngày 21/09 (giờ Việt Nam) nhưng không chạy: GitHub ghi "the job was not started because the account is locked due to a billing issue" | Lịch sử commit của kho fork; trang PR số 1 của kho đội |
+| Tabnine (tiện ích gợi ý mã trong VS Code) | Tabnine | Cài trên máy trạm của đội trưởng từ 08/03/2026 | Không tìm thấy bằng chứng dùng cho LiveLift: theo dòng đồng tác giả, mọi thay đổi mã trên `main` đều đi qua Claude Code. Kê khai để minh bạch | Thư mục tiện ích VS Code |
+
+Ghi chú:
+
+- Máy trạm của đội trưởng cũng có cài Google Antigravity. Tìm chuỗi "livelift" và "AISC2026" trong dữ liệu dạng văn bản của Antigravity trên máy này cho 0 kết quả. Dữ liệu hội thoại của Antigravity lưu dạng nhị phân nên cách tìm này không loại trừ hoàn toàn.
+- Ba commit của Tiến (`08be6ae`, `8949963` trên nhánh PR số 1; `049486b` chỉ có trên kho fork) không có dòng khai báo AI, dù tài liệu trong chính các commit ghi là do Antigravity và Codex tạo. Đội bổ sung khai báo tại đây, không viết lại lịch sử commit.
+- **"Live Simulator" (`/simulator`) chưa có mã.** Bản nháp hồ sơ của Tiến (soạn bằng ChatGPT, Codex) mô tả một màn mô phỏng phiên live `/simulator` (giao diện điện thoại, số người xem theo nhịp của máy chủ, nút "Mua ngay" phản hồi về bàn trợ live) và ghi là xây trong hai ngày 21 và 22/09/2026 bằng Codex. Ngày 27/09/2026, phần này **không có trong kho đội, cũng không có trên kho fork của Tiến** (kho fork có đúng 5 commit: `08be6ae`, `8949963`, `049486b`, `ec56971`, `e33503e`; không commit nào chứa `/simulator`). Đội **không kê nó là thành phần sản phẩm**. Thứ mô phỏng có trong sản phẩm là nguồn bình luận Mô phỏng cho phiên chạy thử (`src/livelift/ingest/mo_phong.py`) và bộ mô phỏng thống kê (`src/livelift/sim/`), cả hai do Claude viết.
+- Nhật ký hội thoại ChatGPT (kể cả Deep Research, Image Generation), Codex và Antigravity nằm trong tài khoản và trên máy của Tiến. Tiến tự xuất các nhật ký này và lưu cùng Prompt Log.
+- Lê Xuân Khánh chưa có commit nào trong kho.
+- Hai tệp ý tưởng và kế hoạch ban đầu mà đội đưa vào phiên Claude Code đầu tiên ngày 24/08/2026 (`LiveLift-Mo-Ta-Du-An-Ban-Trien-Khai (1).md`, `LiveLift-Ke-Hoach-Trien-Khai.md`) có trên máy trước phiên đó: hệ thống tệp ghi thời điểm tạo 17:07 và 17:08 ngày 24/08/2026, còn phiên Claude Code đầu tiên bắt đầu lúc 20:42 cùng ngày (giờ Việt Nam).
+
+### I.2. Mô hình AI nền của Claude Code
+
+| Mô hình (tên ghi trong nhật ký) | Số bản ghi trả lời trong nhật ký | Số commit mang dòng đồng tác giả |
+|---|---:|---:|
+| Claude Opus 5 (`claude-opus-5`) | 30.050 | 26 (Opus 5, 1M context) và 1 (Opus 5) |
+| Claude Fable 5 (`claude-fable-5`) | 6.296 | 29 |
+| Claude Opus 5.5 (`claude-opus-5-5`) | 9.676 | Mọi commit của đợt hoàn thiện hồ sơ từ ngày 25/09/2026 |
+| Claude Fable 5.1 (`claude-fable-5-1`) | 372 | 0 |
+
+Số bản ghi trả lời được đếm trên mọi nhật ký (phiên chính và tác tử con), không tính các thông báo lỗi do hệ thống tự sinh. Claude Code ghi mỗi khối văn bản, khối suy luận hay lời gọi công cụ thành một bản ghi riêng, nên đây không phải số lần gọi mô hình (một lần gọi thường sinh nhiều bản ghi). Đội truy cập qua thuê bao Claude Code của đội trưởng.
+
+### I.3. Prompt Log: số đếm của lần xuất 18:37 ngày 25/09/2026
+
+| Phiên | Thời gian (giờ Việt Nam) | Câu lệnh người gõ | Lệnh `/model` | Lời gọi công cụ của Claude | Nhật ký tác tử con |
+|---|---|---:|---:|---:|---:|
+| `feb901dc` | 24/08 đến 03/09/2026 | 21 | 3 | 527 | 99 |
+| `3c773cb8` | 06/09 đến 14/09/2026 | 41 | 5 | 578 | 179 |
+| `3b0c8ccf` | 14/09 đến 15/09/2026 | 4 | 0 | 308 | 74 |
+| `9b100e02` | 17/09 đến 19/09/2026 | 11 | 1 | 306 | 190 |
+| `22b800c6` | 25/09/2026 (đang chạy khi đếm) | 6 | 0 | 102 | 56 |
+| **Tổng** | | **83** | **9** | **1.821** | **598** |
+
+- "Câu lệnh người gõ" là bản ghi mà Claude Code đánh dấu do người nhập (`origin.kind = human`), được kiểm chéo bằng mã câu lệnh (`promptId`) và bản ghi `last-prompt` trong cùng nhật ký. Nhật ký không ghi thành viên nào ngồi gõ.
+- Phiên `22b800c6` vẫn tiếp tục sau lần đếm này, nên bảng trên là số tại 18:37 ngày 25/09/2026. Mỗi lần xuất ghi số đếm vào tệp `SO-DEM.json` đi kèm bản xuất; bộ kiểm của đội so mọi con số của mục này với tệp đó và báo lệch.
+- Tính cả tác tử con, Claude đã gọi công cụ **27.437** lần, trong đó 3.753 lần ghi hoặc sửa tệp (Write, Edit). 23 kịch bản điều phối nhiều tác tử cũng do Claude viết.
+- System prompt: Claude Code chỉ ghi ảnh chụp system prompt vào nhật ký từ bản 2.1.270, nên nó có ở 3/5 phiên (`3b0c8ccf`, `9b100e02`, `22b800c6`) và được xuất nguyên văn. Hai phiên đầu không có; đội không dựng bản thay thế. Tệp chỉ dẫn quy trình cấp dự án `HARNESS.md` nằm trong kho mã.
+- Bản xuất đã che dữ liệu cá nhân và bí mật bằng chính bộ lọc của sản phẩm. Quét lại toàn bộ bản xuất bằng cùng bộ lọc cho 0 chỗ còn khớp, nhưng vì dùng chung bộ lọc nên cách quét này không thấy được chỗ bộ lọc bỏ sót. Lần đối chiếu độc lập ngày 25/09/2026 bằng băm SHA-256 với 33 tên tài khoản thật đã biết (danh sách băm lưu ngoài kho) đã thấy 2 tên viết dính liền (`chữ@tên`) trong 2 tệp tác tử con. Bộ lọc đã được vá (commit `b331076`) và Prompt Log đã được xuất lại. Ở lần xuất 18:37, quét bộ lọc cho 0, đối chiếu băm cho 0, và nhật ký kiểm toán không còn in tiền tố băm tên tài khoản nào (0, đã thay bằng nhãn). Bộ lọc dựa trên biểu thức chính quy nên không bảo đảm bắt hết mọi dữ liệu cá nhân. Khối suy luận nội bộ của mô hình và ảnh không được xuất; kết quả công cụ bị cắt bớt có ghi số ký tự.
+- Đội lưu giữ bản xuất Prompt Log (kèm bảng băm SHA-256 từng tệp) và cung cấp ngay khi Ban Tổ chức yêu cầu. Ở vòng Khu vực, đội nộp Prompt Log đầy đủ theo thể lệ.
+
+### I.4. Không dùng
+
+- **Không có lời gọi API mô hình ngôn ngữ nào trong sản phẩm.** Tìm `anthropic`, `openai` trong `src/` và `web/src` cho 0 kết quả ở mã chạy. Câu tường thuật trong báo cáo sinh từ mẫu câu cố định (`src/livelift/analysis/narrate.py`).
+- Không dùng nền tảng no-code hay low-code, không dùng mô hình huấn luyện sẵn tải từ HuggingFace (ViSoBERT mới nằm trong lộ trình).
+- `src/livelift/nlp/label_llm.py` chỉ chuẩn bị lô dữ liệu để gửi đi gán nhãn, tệp này không chứa lời gọi mạng.
+
+## II. Mô hình AI trong sản phẩm
 
 | Hạng mục | Kê khai |
 |---|---|
-| **Tên công cụ** | **Claude Code** (Anthropic) — CLI lập trình có agent |
-| **Phiên bản** | `2.1.251` (ghi trong trường `version` của mọi bản ghi nhật ký phiên) |
-| **Mô hình nền** | Họ mô hình Claude (Anthropic), truy cập qua `api.anthropic.com` |
-| **Vai trò** | Cặp lập trình (pair programmer): soạn nháp mã, soạn nháp tài liệu, khảo cứu tài liệu khoa học, chạy lệnh kiểm thử dưới sự điều khiển của đội |
-| **Phạm vi** | Toàn bộ vòng đời: hạ tầng, API, giao diện web, thống kê, NLP, tài liệu |
-| **Hình thức trả phí** | Thuê bao cá nhân của đội trưởng |
-| **Bằng chứng** | 3 phiên làm việc chính, **1.297 câu lệnh của đội**, **~2.345 lượt phản hồi**, **289 nhật ký tiến trình con**, tổng **191 MB** nhật ký thô — xuất ra dạng đọc được bằng `scripts/xuat_prompt_log.py` |
+| Tên | Bộ phân loại ý định bình luận tiếng Việt: `intent_clf` (v1, 6 lớp, mặc định) và `intent_clf_v2` (11 lớp, chỉ bật khi đặt `LIVELIFT_INTENT_MODEL=v2`) |
+| Kiến trúc | TF-IDF trên n-gram ký tự dài 2 đến 5 và n-gram từ dài 1 đến 2, cộng `LogisticRegression` (scikit-learn). Không dùng trọng số huấn luyện sẵn |
+| Mã huấn luyện | `src/livelift/nlp/train_intent.py` và `python -m livelift.nlp.eval_intent`, mã do Claude viết |
+| Dữ liệu huấn luyện | v1: 320 câu mẫu do Claude soạn. v2: thêm nhãn 11 lớp do AI gán cho bình luận thật (mục III) |
+| Hiệu năng | macro-F1 0,870 chỉ là kiểm định chéo trên 320 câu do AI soạn. Trên 393 bình luận thật của 3 buổi live (chia theo buổi, KTC bootstrap), điểm tăng từ 0,211 [0,172; 0,247] của v1 lên 0,542 [0,478; 0,625] của v2 trên thang 11 lớp (v1 không đoán được năm lớp mới). Chấm cùng thang 6 lớp thì từ 0,370 [0,306; 0,432] lên 0,572 [0,471; 0,667] (dòng A9 và A8 của `docs/benchmarks/intent-eval/results.md`). Số này đo lại ngày 25/09/2026 sau khi lọc lại tên tài khoản trong dữ liệu; số ngày 14/09 trên dữ liệu trước khi lọc là 0,565 [0,491; 0,649] (nguồn: `docs/competition/FACT-SHEET.md`). Nhãn tham chiếu do AI gán, nên đây là mức đồng thuận với nhãn AI, chưa phải độ chính xác so với con người |
+| Vai trò | Phụ trợ: "radar ý định" trên bàn trợ live. Không tham gia ước lượng nhân quả |
+| Phiên bản và đóng gói | Trước ngày 25/09/2026, `pyproject.toml` ghim scikit-learn dưới 1.8 trong khi tệp mô hình đóng gói bằng 1.9.0, nên cài mới thì 5 test NLP đỏ và API lùi về bộ phân loại từ khóa (Tiến phát hiện ngày 21/09, tái hiện ngày 25/09). Đợt hoàn thiện ghim `scikit-learn==1.9.0` (commit `ba96b73`) và đóng gói lại `intent_clf_v2.joblib` ngày 25/09 bằng scikit-learn 1.9.0 trên dữ liệu đã lọc lại tên tài khoản; siêu dữ liệu ghi nguồn nhãn "tác tử AI gán, chưa có nhãn người" và băm dữ liệu huấn luyện (commit `47e5320`, đóng gói lại lần nữa ở `b331076` sau khi lọc thêm 16 dòng có tên dính liền). Số LOSO của C2 không đổi. Các thay đổi này nằm trong `main` từ ngày 27/09/2026 |
 
-**⭐ Bằng chứng khai báo mạnh nhất — ghi thẳng trong lịch sử commit:**
+## III. Bộ dữ liệu
 
-**42/42 commit (100%) đều mang trailer đồng tác giả AI**, kiểm chứng được bằng một lệnh
-(`git log --format="%b" | grep -i "Co-Authored-By"`):
+| # | Bộ dữ liệu | Cách có | Quy mô | Ai tạo nội dung, nhãn | Giấy phép, lưu trữ |
+|---|---|---|---|---|---|
+| 1 | Bình luận chat replay của VOD YouTube công khai | Tải bằng yt-dlp (không qua API chính thức); lô đo ngày 10/09/2026 | 19.126 bình luận, 16 buổi live, 7 ngành hàng | Người xem thật; dữ liệu QUAN SÁT, không phải thí nghiệm | Điều khoản YouTube không cho phép cách thu này (`robots.txt` chặn `/live_chat`, `/youtubei/`). Đã lọc định danh khi nạp; không nằm trong kho mã |
+| 2 | Tập kiểm tra ý định | Trích từ bộ 1, 3 buổi | 393 bình luận | Nhãn do tác tử AI (Claude) gán ngày 09/09/2026 | Lưu cục bộ, không trong kho |
+| 3 | Lô huấn luyện ý định | Trích từ bộ 1, 1 buổi khác | 1.800 bình luận | Nhãn do Claude gán ngày 14/09/2026; một mô hình, không có người duyệt | Chỉ dùng huấn luyện; lưu cục bộ |
+| 4 | Câu mẫu ý định | Soạn mới | 320 câu | Claude soạn ngày 01/09/2026 | Trong kho, `src/livelift/nlp/data/intent_dataset.jsonl` |
+| 5 | Kịch bản bình luận mô phỏng | Soạn mới | 200 bình luận | Claude soạn ngày 17/09/2026; số điện thoại, địa chỉ đều giả | Trong kho, `src/livelift/ingest/mo_phong_kich_ban.jsonl`; máy chủ chỉ cho dùng trên phiên chạy thử hoặc phiên mẫu |
+| 6 | Câu kiểm thử bộ lọc dữ liệu cá nhân | Soạn mới | 95 câu | Claude soạn (commit `5111e48`, ngày 24/08/2026); dữ liệu giả | Trong kho, `tests/data/pii_comments.jsonl` |
+| 7 | Dữ liệu mô phỏng | Sinh bằng `src/livelift/sim/`, mọi bộ sinh ngẫu nhiên có seed | Không giới hạn | Mã do Claude viết | Không chứa dữ liệu người thật |
+| 8 | KuaiLive (SIGIR 2026, arXiv:2508.05633) | Tải từ Zenodo, bản ghi 16565801 | 1,16 triệu phòng live | Kế thừa | Giấy phép mâu thuẫn: trang dự án và bài báo ghi CC BY-NC-SA 4.0, siêu dữ liệu Zenodo ghi CC BY 4.0. Đội áp dụng điều kiện chặt hơn (phi thương mại, chia sẻ tương tự), chưa liên hệ tác giả. Chỉ dùng hiệu chỉnh 3 tham số mô phỏng; không phân phối lại |
+| 9 | Taobao UserBehavior; LSEC (arXiv:2106.03415) | Chỉ lấy con số công bố trong bài báo | Không tải | Kế thừa | Không tải dữ liệu |
+| 10 | Bình luận TikTok công khai | Thử bằng thư viện `TikTokLive` (không chính thức) ngày 09/09/2026 | 0 bình luận (bị từ chối 10/10 lần) | Không có | Mã giữ trong `collectors/tiktok_public/`, tách riêng khỏi lõi |
 
-| Trailer | Số commit |
-|---|---:|
-| `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>` | 29 |
-| `Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>` | 12 |
-| `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>` | 1 |
-| **Tổng** | **42 / 42** |
+Những điều đội **không** tuyên bố:
 
-Nghĩa là: **đội đã khai báo sự tham gia của AI ngay tại thời điểm viết mã**, trong từng commit,
-suốt 22 ngày — **trước khi biết đến yêu cầu kê khai của cuộc thi**, chứ không phải khai lùi lại
-sau khi đọc thể lệ. Đây là bằng chứng không thể ngụy tạo về sau (sửa trailer sẽ viết lại toàn bộ
-hash lịch sử — chính là hành vi "giả mạo commit history" mà Điều 5 §7 cấm, và đội **không** làm).
+- **0 phiên thí nghiệm ngẫu nhiên thật** đã chạy. Mọi con số hiệu chuẩn thống kê đều đo trên dữ liệu mô phỏng, còn 19.126 bình luận là dữ liệu quan sát.
+- Chưa có nhãn do người gán cho bất kỳ bình luận thật nào.
+- Con số "5 đến 15 người xem đồng thời" trong tài liệu dự án là ước tính từ giá quảng cáo (CPM), chưa đo.
 
-**Nhật ký phiên (Prompt Log) — kê khai đầy đủ, không cắt xén:**
+## IV. API bên ngoài
 
-| Phiên | Khoảng thời gian | Lượt hội thoại | Câu lệnh của đội |
-|---|---|---:|---:|
-| `feb901dc-ddba-415c-9bd7-c845e5b2221c` | 24/08/2026 → 03/09/2026 | 1.368 | 584 |
-| `3c773cb8-b1eb-4198-afb3-95cac7974ee1` | 06/09/2026 → 14/09/2026 | 1.566 | 680 |
-| `3b0c8ccf-f9f0-4c53-b50c-f83d4ccb3720` | 14/09/2026 | 71 | 33 |
-| **Tổng** | **22 ngày** | **≈3.059** | **≈1.297** |
-
-*(Phiên 14/09 vẫn đang chạy khi lập bảng — số cuối cùng lấy lại bằng `python scripts/xuat_prompt_log.py --kiem-tra` ngay trước khi nộp.)*
-
-⚠️ **Về "System Prompt" mà thể lệ yêu cầu (mục 7, mục 13 MẪU 3):** system prompt của nhà cung cấp
-Claude Code **không được lưu trong nhật ký phiên và đội không có quyền truy cập** — đội không thể
-nộp thứ mình không có, và không bịa ra một bản thay thế. Cái đội **có** và nộp là:
-
-1. **`HARNESS.md`** — bản hợp đồng quy trình do đội tự viết, đóng vai trò chỉ dẫn hệ thống ở cấp
-   dự án: mọi phiên làm việc đều bắt đầu bằng việc trỏ công cụ AI vào file này. Đây là "system
-   prompt" thực tế của dự án.
-2. **Toàn bộ 1.297 câu lệnh nguyên văn** của đội (đã lọc dữ liệu cá nhân — xem §VIII.4).
-
-### I.2. Công cụ AI KHÔNG sử dụng — kê khai để loại trừ hiểu nhầm
-
-| Công cụ | Trạng thái |
-|---|---|
-| API LLM gọi từ trong sản phẩm | **KHÔNG CÓ.** Không một dòng mã nào trong repo gọi API LLM. `src/livelift/analysis/narrate.py` sinh câu tường thuật bằng **template chuỗi**, không phải mô hình sinh |
-| Nền tảng no-code / low-code | Không dùng |
-| Mô hình pretrained tải từ HuggingFace | **Chưa dùng.** ViSoBERT (EMNLP 2023) chỉ nằm trong lộ trình nâng cấp, chưa tích hợp |
-| Dịch vụ AI của bên thứ ba trong đường chạy | Không có |
-
-⚠️ **Một ngoại lệ phải khai:** `src/livelift/nlp/label_llm.py` **chuẩn bị** lô dữ liệu để đội **tự
-tay** gửi sang 2 LLM bất kỳ (quy trình LLM-as-annotator, đồng thuận 2 mô hình + người duyệt bất
-đồng). Module này **không chứa lời gọi mạng nào**; việc gửi/nhận là thao tác thủ công ngoài repo.
-Đến 14/09/2026 quy trình này **chưa chạy trên lô thật** — mọi nhãn hiện có đều do **người gán tay**.
-
----
-
-## II. MÔ HÌNH AI
-
-Toàn bộ dự án có **đúng một mô hình học máy**. Đội đã rà soát toàn bộ mã nguồn tìm mọi điểm tải
-checkpoint (`joblib`, `pickle`, `.onnx`, `from_pretrained`, `torch.load`) — kết quả dưới đây là đầy đủ.
-
-| Hạng mục | Kê khai |
-|---|---|
-| **Tên** | Bộ phân loại ý định bình luận tiếng Việt (`intent_clf`) |
-| **Kiến trúc** | TF-IDF ký tự `char_wb` 2–5-gram ⊕ TF-IDF từ 1–2-gram (`FeatureUnion`) → `LogisticRegression` (`C=4.0`, `class_weight="balanced"`, `max_iter=2000`) |
-| **Nguồn** | **ĐỘI TỰ HUẤN LUYỆN.** Không kế thừa trọng số từ bất kỳ mô hình pretrained nào |
-| **Mã huấn luyện** | `src/livelift/nlp/train_intent.py` — chạy lại được bằng `python -m livelift.nlp.train_intent` |
-| **Dữ liệu huấn luyện** | `src/livelift/nlp/data/intent_dataset.jsonl` — **320 câu do đội tự biên soạn** (xem §III.2) |
-| **Artifact** | `src/livelift/nlp/model/intent_clf.joblib` (86 KB) + sidecar `intent_clf.meta.json` |
-| **Seed** | `2026` — tái lập bit-for-bit |
-| **Huấn luyện lúc** | 2026-09-06T16:04:26Z, scikit-learn 1.9.0 (ghi trong sidecar) |
-| **Giấy phép** | Cùng giấy phép sản phẩm: **AGPL-3.0-only** |
-| **Vai trò trong hệ thống** | **Phụ trợ.** "Radar ý định" trên bảng điều khiển + biến hiệp biến khám phá. **KHÔNG tham gia vào ước lượng nhân quả** — con số thí nghiệm của LiveLift không phụ thuộc mô hình này |
-| **Cơ chế dự phòng** | Khi thiếu artifact hoặc thiếu `scikit-learn`, hệ thống tự lùi về baseline từ khóa (`classify_keywords`) — không sập |
-
-### ⚠️ II.1. Hiệu năng thật — kê khai CẶP SỐ, không quote riêng số đẹp
-
-| Đo trên | macro-F1 | Ghi chú |
-|---|---:|---|
-| 320 câu **tự biên soạn**, 5-fold CV | **0,870** | Con số "đẹp" — chỉ có giá trị nội bộ |
-| **200 bình luận CHAT THẬT** gán nhãn tay mù | **0,271** | **Thua cả baseline luôn đoán lớp "khác"** |
-
-Đội chủ động công bố cả hai và **quy định trong `FACT-SHEET.md`: không bao giờ quote riêng 0,870**.
-Nguyên nhân đã xác định: dữ liệu biên soạn không phản ánh phân bố chat thật (chat thật đa số là
-chào hỏi/tán gẫu, không phải câu hỏi mua hàng). Lộ trình sửa đã có mã chạy được
-(`label_llm.py` + active learning), chưa hoàn thành. **Đây là hạn chế đội tự nêu, không giấu.**
-
-### II.2. Mô hình cân nhắc nhưng CHƯA dùng
-
-| Mô hình | Nguồn | Trạng thái |
+| API | Dùng để | Trạng thái thật ngày 25/09/2026 |
 |---|---|---|
-| ViSoBERT `5CD-AI/visobert-14gb-corpus` | HuggingFace, EMNLP 2023 | Lộ trình — sẽ fine-tune khi có 2–3k nhãn thật, đối chứng với mô hình hiện tại làm ablation |
-| `underthesea` | PyPI, GPL-3.0 | Khai báo trong extra `[nlp]` của `pyproject.toml` nhưng **KHÔNG được import ở bất kỳ đâu** và **không được cài** trong môi trường chạy. ⚠️ Đây là khai báo thừa — đội đề nghị gỡ khỏi `pyproject.toml` |
+| YouTube Data API v3 | Đọc chat live trên kênh của chính nhà bán | Có mã (`src/livelift/ingest/youtube.py`, `scripts/kiem_tra_youtube.py`). Chưa có khóa API; 0 cuộc gọi thật |
+| Facebook Graph API v25.0 | Đọc bình luận live trên Page của chính nhà bán | Có mã (`src/livelift/ingest/facebook.py`). Chưa có token; 0 cuộc gọi thật |
+| Shopee Open Platform v2 (API loại User, sửa ngày 17/09/2026) | Bình luận và số liệu phiên Shopee Live | Có mã (`src/livelift/ingest/shopee.py`). Chưa có mã đối tác; ngày 11/09 chỉ kiểm endpoint tồn tại qua mã lỗi; 0 cuộc gọi thành công |
+| TikTok Shop Open API | Số liệu LIVE theo phút, chỉ có sau phiên | Có mã (`src/livelift/ingest/tiktok_shop.py`, `scripts/kiem_tra_tiktok_shop.py`). Chưa có khóa; 0 cuộc gọi thật |
+| YouTube qua yt-dlp (không chính thức) | Tải chat replay VOD; thử đọc live | Nguồn của 100% dữ liệu thật (mục III, dòng 1). Đường live thử 1 phiên ngày 09/09: 104 bình luận chỉ đi qua bộ nhận giả trong bộ nhớ, không ghi vào kho (`docs/research/2026-09-09-youtube-ytdlp-live.md`); tìm trên máy ngày 25/09 không còn tệp chat thô của buổi đó. Đường chạy mặc định của sản phẩm là API chính thức |
+| TikTok Webcast qua `TikTokLive` (không chính thức) | Thử đọc phòng live công khai | Thất bại 10/10 lần; không được cài trong môi trường chạy |
+| API mô hình ngôn ngữ | Không dùng | Không có trong mã sản phẩm |
 
----
+Khóa và token chỉ đọc từ biến môi trường, và tệp `.env` nằm trong `.gitignore`. Tại ngày kê khai, `.env` của đội không có khóa nền tảng nào: các trường YouTube, Facebook để trống, còn trường Shopee, TikTok Shop chưa có. Quét 84 commit trên mọi nhánh tối 25/09/2026 cho 0 khóa thật bị commit (chỉ có 2 chuỗi giả dùng trong test).
 
-## III. BỘ DỮ LIỆU
+## V. Thư viện và mã nguồn mở
 
-### III.1. Tổng quan — 5 nguồn dữ liệu
+Giấy phép của sản phẩm: **AGPL-3.0-only**. Phiên bản dưới đây là bản đang cài trong môi trường chạy ngày 25/09/2026; giấy phép lấy từ siêu dữ liệu của gói đã cài (Python) và `web/package-lock.json` (JavaScript).
 
-| # | Bộ dữ liệu | Nguồn | Quy mô | Có dữ liệu cá nhân? |
-|---|---|---|---:|---|
-| 1 | Bình luận livestream thật | VOD công khai YouTube | 19.126 bình luận / 16 buổi | **CÓ** ⚠️ |
-| 2 | Bộ nhãn ý định | Đội tự biên soạn | 320 câu | Không |
-| 3 | Lô gán nhãn **thủ công** | Trích từ (1) | **393 dòng** (3 buổi, bộ TEST) | **CÓ** ⚠️ |
-| 4 | Dữ liệu mô phỏng | Sinh bằng mã, có seed | Không giới hạn | Không |
-| 5 | KuaiLive (tham chiếu hiệu chỉnh) | Zenodo 16565801 | 1,16 triệu phòng live | Đã ẩn danh sẵn |
-| **6** | **Lô gán nhãn do LLM sinh** ⚠️ | Trích từ (1), nhãn do **AI** gán | **1.800 dòng** (1 buổi, chỉ TRAIN) | **CÓ** ⚠️ |
+### V.1. Python
 
-#### ⚠️ (6) Lô nhãn do AI sinh — kê khai bắt buộc theo Điều 5 §5–6
+| Thư viện | Phiên bản | Giấy phép | Dùng để |
+|---|---|---|---|
+| numpy | 2.5.2 | BSD-3-Clause (kèm phần 0BSD, MIT, Zlib, CC0-1.0) | Tính toán số cho thống kê và mô phỏng |
+| scipy | 1.18.1 | BSD-3-Clause | Phân vị, kiểm định nhị thức |
+| pandas | 3.0.5 | BSD-3-Clause | Đọc dữ liệu KuaiLive khi hiệu chỉnh |
+| statsmodels | 0.14.6 | BSD-3-Clause | Hồi quy có sai số chuẩn gom cụm |
+| scikit-learn | 1.9.0 | BSD-3-Clause | Bộ phân loại ý định (ghim phiên bản: xem mục II) |
+| joblib | 1.5.3 | BSD-3-Clause | Lưu và nạp tệp mô hình |
+| pydantic, pydantic-settings | 2.13.4 và 2.15.0 | MIT | Lược đồ API, đọc cấu hình |
+| fastapi, starlette | 0.141.1 và 1.6.0 | MIT và BSD-3-Clause | Khung API HTTP và WebSocket |
+| uvicorn | 0.52.4 | BSD-3-Clause | Máy chủ ASGI |
+| psycopg (binary, pool) | 3.3.4 và 3.3.1 | LGPL-3.0-only | Kết nối PostgreSQL |
+| redis | 8.1.0 | MIT | Hàng đợi, bộ đệm |
+| httpx | 0.28.1 | BSD-3-Clause | Gọi API nền tảng |
+| yt-dlp | 2026.8.19 | Unlicense | Tải chat replay (xem cảnh báo mục III, IV) |
+| lightgbm | 4.7.0 | MIT | Khai trong nhóm `ml` nhưng không được import |
+| underthesea | không cài | GPL-3.0 | Khai trong nhóm `nlp` nhưng không được cài, không được import |
+| pytest, pytest-cov | 9.1.1 và 7.1.0 | MIT | Kiểm thử |
+| ruff, mypy | 0.16.4 và 2.3.1 | MIT | Kiểm tra mã |
+| playwright | 1.63.0 | Apache-2.0 | Kiểm thử trình duyệt, chụp và quay màn hình sản phẩm |
+| hatchling | không ghim | MIT | Đóng gói |
+| python-docx | 1.2.0 | MIT | Dựng hồ sơ và bản kê khai (môi trường riêng) |
 
-*Tạo 14/09/2026. Nguồn sự thật đầy đủ: [`03-NLP-NANG-CAP.md`](03-NLP-NANG-CAP.md) §7.*
+### V.2. JavaScript (giao diện web)
 
-| Hạng mục | Kê khai |
-|---|---|
-| **Việc AI làm** | Gán nhãn 11 lớp cho **1.800 bình luận thật** của phiên `b519f75c` → `data/labeling/lot1-achan-b519f75c/train_llm.jsonl` |
-| **Mô hình** | Claude (Anthropic) qua Claude Code — cùng công cụ đã kê khai ở §I.1 |
-| **Đội tự làm** | Guideline 11 lớp (`src/livelift/nlp/labels.py`); rút mẫu hai tầng có seed; quy ước cho ca mơ hồ; hợp nhất + kiểm tra phân bố; **quyết định lô này CHỈ dùng để train** |
-| **Dùng vào đâu** | **Chỉ huấn luyện.** Không một con số đánh giá nào trong hồ sơ đo trên nhãn do AI sinh — tập test là 393 dòng **người** gán, ở **buổi live khác** |
-| ⚠️ **Hạn chế đội tự khai** | (a) **một** mô hình, **không** đồng thuận 2 LLM, **không** người duyệt — trái với chính quy trình đội đã thiết kế trong `label_llm.py`; (b) quy ước gán nhãn được hiệu chuẩn bằng cách **đọc nhãn của tập test**, nên lợi ích đo được của lô này **mang thiên lệch lạc quan**; (c) lô nghèo ý định mua (1.800 dòng chỉ có 2 dòng ý định mua) |
-| **Kiểm chứng được không** | Có. File nhãn nằm trên đĩa, phân bố in ra bằng lệnh, và bảng ablation A3 đo riêng phần đóng góp của nó (accuracy 0,608 → 0,741; precision nhãn hành động 46,2% → 66,7%) |
+| Thư viện | Phiên bản khóa | Giấy phép | Dùng để |
+|---|---|---|---|
+| next | 14.2.32 | MIT | Khung ứng dụng web |
+| react, react-dom | 18.3.1 | MIT | Giao diện |
+| recharts | 2.15.4 | MIT | Biểu đồ |
+| tailwindcss, postcss, autoprefixer | 3.4.17, 8.4.49 và 10.4.20 | MIT | CSS |
+| typescript | 5.6.3 | Apache-2.0 | Kiểm kiểu |
+| @types/node, @types/react, @types/react-dom | 20.19.43, 18.3.12 và 18.3.1 | MIT | Khai báo kiểu |
 
-### III.2. Chi tiết từng bộ
+Toàn bộ 153 gói trong `web/package-lock.json` gồm: 119 MIT, 20 ISC, 6 Apache-2.0, 3 BSD-3-Clause, 1 0BSD, 1 "MIT AND ISC", 1 CC-BY-4.0 (`caniuse-lite`, dữ liệu trình duyệt), và 2 gói không ghi trường giấy phép trong lockfile (`busboy`, `streamsearch`; tệp `package.json` của gói ghi MIT). Không dùng bộ giao diện trả phí hay mẫu mua sẵn.
 
-#### (1) Bình luận livestream thật — 19.126 bình luận · 16 buổi live · 7 ngành hàng
+### V.3. Ảnh Docker
 
-| Hạng mục | Kê khai |
-|---|---|
-| **Nguồn** | Chat replay của **VOD công khai** trên YouTube (video đã kết thúc phát, chat replay ở chế độ công khai) |
-| **Cách thu thập** | Tải track phụ đề `live_chat` bằng **yt-dlp**, nạp qua `POST /replays/youtube` (`src/livelift/ingest/youtube_replay.py`) |
-| **Cách chọn mẫu** | 6 buổi từ lô 08/09 + 11 buổi tìm bằng 4 truy vấn tiếng Việt (thời trang / mỹ phẩm / gia dụng), lọc lấy video có track `live_chat`. 17 video đẩy qua API → 16 nạp được, 1 lỗi, **chỉ 7/16 đạt ≥100 bình luận** |
-| **Buổi lớn nhất** | `ZU_0QJzsR6w` — "Mega Live: Achan Shop Hải Phòng", 117 phút, **6.586 bình luận** |
-| **Lưu ở đâu** | CSDL vận hành + `data/labeling/` (cả hai **đều bị `.gitignore`** — không vào kho mã) |
-| **Cơ sở pháp lý đội viện dẫn** | **Nghị định 13/2023/NĐ-CP** (thu thập) và **Luật 91/2025/QH15 + NĐ 356/2025/NĐ-CP** (xử lý): **khử nhận dạng ngay tại điểm thu thập + lợi ích chính đáng cho nghiên cứu học thuật phi thương mại**. ⚠️ Đội **KHÔNG tự nhận là đã có sự đồng ý** của người bình luận — một bản nháp trước đây từng coi thông báo trong phòng live là "đồng ý", đội đã **tự phát hiện và sửa** (ghi trong `docs/competition/thuyet-minh/noi-dung.json`) |
-| **Dùng để làm gì** | Chỉ **phân tích quan sát** (`design.analysis_only=true`). Không gán ngẫu nhiên, **không sinh ra bất kỳ con số nhân quả nào** — có cổng chặn ở `api/routes/reports.py` |
-| **Định danh người bình luận** | **Không bao giờ lưu.** `parse_live_chat_line` chỉ bóc `offset` + `text`; trường `authorName`/`authorExternalChannelId` bị loại ngay tại tầng parse. File tải về bị xóa ngay sau khi parse |
+| Ảnh | Giấy phép | Dùng để |
+|---|---|---|
+| `timescale/timescaledb:latest-pg16` | Apache-2.0 (một số tính năng theo Timescale License) | Cơ sở dữ liệu |
+| `redis:7-alpine` | BSD-3-Clause | Hàng đợi, bộ đệm |
+| `caddy:2-alpine` | Apache-2.0 | Cổng vào HTTPS |
+| `python:3.11-slim`, `node:20-alpine` | Giấy phép của Python (PSF) và Node.js (MIT) | Ảnh nền dựng API và web |
 
-**⚠️ RỦI RO PHÁP LÝ QUAN TRỌNG NHẤT — PHƯƠNG THỨC THU THẬP TRÁI ĐIỀU KHOẢN DỊCH VỤ YOUTUBE**
+Các giấy phép trên đều cho phép dùng trong sản phẩm AGPL-3.0; gói GPL-3.0 duy nhất (`underthesea`) không được cài.
 
-Đội kê khai thẳng, vì §7 Điều 5 cấm che giấu nguồn:
+## VI. Mã nguồn tham khảo và kế thừa
 
-- **Toàn bộ 19.126 bình luận** — nghĩa là **100% dữ liệu thật của dự án** — được thu bằng **yt-dlp**.
-- Điều khoản dịch vụ YouTube cấm truy cập dịch vụ "bằng bất kỳ phương thức tự động nào" trừ khi
-  theo `robots.txt` hoặc được YouTube cho phép trước bằng văn bản. `https://www.youtube.com/robots.txt`
-  (kiểm tra 09/09/2026) **chặn đúng hai đường mà yt-dlp gọi**: `/live_chat` và `/youtubei/`.
-  ⇒ **Ngoại lệ robots.txt không bao trùm cách làm này.**
-- Repo đã tự ghi nhận điều này rất rõ trong `src/livelift/ingest/youtube_ytdlp.py` (đường live).
-- ⚠️ **Nhưng** `src/livelift/ingest/youtube_replay.py` — module thật sự sinh ra 100% dữ liệu —
-  **hiện KHÔNG có cảnh báo điều khoản nào**, dù dùng đúng cơ chế yt-dlp đó.
-- ⚠️ **Nghiêm trọng hơn:** module replay có đường `YTDLP_COOKIES_FROM_BROWSER` hướng dẫn nạp
-  **cookie đăng nhập YouTube của chính thành viên đội** để vượt kiểm tra chống bot. Dùng phiên đã
-  đăng nhập để vượt biện pháp chống tự động hóa là mức vi phạm **nặng hơn** truy cập ẩn danh, và
-  gắn trách nhiệm vào tài khoản cá nhân của thành viên.
-- ⚠️ Tài liệu thuyết minh hiện ghi đường yt-dlp "chỉ dùng kiểm thử kỹ thuật, không đưa vào hồ sơ
-  dự thi" — **câu này mâu thuẫn với thực tế** và phải sửa trước khi nộp.
+Không có đoạn mã nào ghi là chép từ kho mã của người khác. Tìm các dấu hiệu "copied from", liên kết StackOverflow hoặc GitHub trong `src/` cho 0 kết quả, và một chỗ ghi "adapted from" là chuyển thể phương pháp từ bài báo. Mã cài đặt công thức do Claude viết, có trích nguồn tại chỗ:
 
-**Khuyến nghị xử lý của đội (đã đánh giá 3 phương án):**
+| Vị trí trong mã | Nguồn | Kế thừa cái gì |
+|---|---|---|
+| `core/assigner/outer.py` | Bojinov, Simchi-Levi và Zhao, Management Science 69(7), 2023 (arXiv:2009.00148) | Thiết kế thí nghiệm switchback, nền tảng phương pháp |
+| `core/assigner/outer.py`, `core/features.py` | Hu và Wager (arXiv:2209.00197) | Cửa sổ burn-in khi phân tích |
+| `analysis/estimators.py`, `analysis/carryover.py` | Bojinov và Shephard, JASA 2019 | Kiểm định ngẫu nhiên hóa khớp thiết kế |
+| `analysis/adjust.py` | Deng, Knoblich và Lu, KDD 2018 (arXiv:1803.06336); arXiv:2608.24038; arXiv:2606.27662 | Phương sai delta cho chỉ số tỷ lệ; CUPED nhiều biến; cảnh báo ít cụm |
+| `analysis/robust.py` | Lin, Ann. Appl. Stat. 2013; Cameron, Gelbach và Miller, REStat 2008; arXiv:2510.01127 | Hiệu chỉnh hồi quy, sai số chuẩn CR1, kiểm định mẫu số |
+| `analysis/power.py` | Công thức MDE của J-PAL; arXiv:2106.03415 | Cỡ hiệu ứng tối thiểu phát hiện được; hệ số khán giả |
+| `core/quality.py`, `core/click_validity.py` | Bakshy, Eckles và Bernstein, WWW 2014; Fabijan và cộng sự, KDD 2019 | Kiểm tra chất lượng gán, lệch tỷ lệ mẫu, lọc nhấp chuột bot |
+| `sim/report.py` | Talts và cộng sự (arXiv:1804.06788); Modrák và cộng sự (arXiv:2211.02383) | Kiểm định hiệu chuẩn dựa trên mô phỏng, chuyển sang đại lượng tần suất |
+| `core/features.py` | Nguyễn và cộng sự, IMCOM 2026 | Đặc trưng nhịp thả tim trước khối |
+| `core/moments.py` | Sản phẩm thương mại Feigua | Ý tưởng giao diện đánh dấu "khoảnh khắc" trên dòng thời gian (không có mã của Feigua) |
+| `ingest/shopee.py` | SDK TypeScript chính thức của Shopee | Bảng máy chủ theo khu vực và lược đồ ký yêu cầu: đặc tả giao thức, viết lại bằng Python |
+| `ingest/youtube_ytdlp.py` | Mã nguồn yt-dlp | Đọc để chẩn đoán độ trễ, không chép |
+| `ingest/pii/admin_units.py` | Không có nguồn ngoài | Danh sách đơn vị hành chính Việt Nam do Claude soạn (commit `5111e48`), chưa dẫn nguồn chính thức |
+| `nlp/labels.py` | Buổi live-fire (dữ liệu mục III, dòng 1) | Vài câu ví dụ trích nguyên văn bình luận thật đã lọc dữ liệu cá nhân, có ghi chú tại chỗ |
 
-| Phương án | Đánh giá |
-|---|---|
-| Giấu, không kê khai | **Loại ngay** — vi phạm §7, rủi ro bị loại đội |
-| Gỡ bỏ toàn bộ dữ liệu yt-dlp | Mất 100% bằng chứng thực nghiệm, không kịp thu lại trước hạn |
-| **Kê khai minh bạch + rào chắn + sửa lời văn** ✅ | **Chọn phương án này** |
+Các nguồn tài liệu trên do Claude tìm và đọc trong quá trình phát triển (nhật ký ghi 765 lần tìm web và 988 lần đọc trang web).
 
-Cụ thể: (a) giữ nguyên dữ liệu đã thu và **khai đúng phương thức** ở mọi nơi trích số;
-(b) **tắt `YTDLP_COOKIES_FROM_BROWSER` mặc định** và ghi cảnh báo điều khoản vào
-`youtube_replay.py` ngang mức module live; (c) sửa câu mâu thuẫn trong thuyết minh;
-(d) **xin `YOUTUBE_API_KEY`** (miễn phí, ~10 phút, không cần app review) và tuyên bố API v3 là
-đường chính thức cho mọi phiên từ nay; (e) **không mở rộng quy mô thu** bằng đường này.
+## VII. Phân định phần việc: đội tự xây dựng, AI tạo ra, kế thừa
 
-#### ⚠️ (3) Lô gán nhãn thủ công — PHÁT HIỆN RÒ RỈ DỮ LIỆU CÁ NHÂN
+### VII.1. Số đo kiểm được
 
-Đội **mở file dữ liệu ra kiểm trực tiếp** thay vì tin tài liệu, và tìm thấy lỗi:
+| Chỉ số | Giá trị | Nguồn |
+|---|---|---|
+| Commit trên `main` đến ngày 18/09/2026 | 56 commit trong 17 ngày (từ 24/08 đến 18/09/2026), thêm 166.177 dòng và bớt 7.498 dòng | `git log` |
+| Dòng đồng tác giả Claude trên 56 commit đó | Tất cả 56 commit đều có | `git log --format=%(trailers)` |
+| Danh tính tác giả git | Mọi commit dùng một danh tính chung "LiveLift Team" | `git log --format=%an` |
+| Đợt hoàn thiện hồ sơ từ ngày 25/09/2026 | Làm trên nhánh `hoan-thien/ho-so-2509`; mỗi commit mang dòng đồng tác giả Claude Opus 5.5; toàn bộ được hợp nhất vào nhánh `main` ngày 27/09/2026 | `git log main` |
+| Commit trên nhánh PR số 1 của Tiến | 2 commit của Tiến, không có dòng khai báo AI; tài liệu trong commit ghi do Antigravity và Codex tạo. Kho fork của Tiến có thêm `049486b` và commit `ec56971` do Copilot coding agent tạo. Nhánh này chưa hợp nhất | `git log origin/tien/aisc-round2`; lịch sử kho fork |
+| Câu lệnh người gõ cho Claude Code | 83 (5 phiên), thêm 9 lệnh `/model` | Prompt Log, mục I.3 |
+| Lời gọi công cụ của Claude | 27.437, trong đó 3.753 lần ghi hoặc sửa tệp | Prompt Log |
+| Tác tử con do Claude sinh ra | 598 nhật ký | Prompt Log |
 
-**Kết quả kiểm `data/labeling/lot1-achan-b519f75c/comments_b519f75c.jsonl` (6.586 dòng):**
+### VII.2. Phân định theo thành phần
 
-| Loại | Kết quả |
-|---|---|
-| Số điện thoại còn sót | **0** ✅ |
-| Email còn sót | **0** ✅ |
-| Nhãn `[MXH]` đã che thành công | 123 |
-| ⚠️ **Handle mạng xã hội CÒN SÓT** | **53 (37 handle duy nhất)** ❌ |
+| Thành phần | Đội tự làm | AI tạo ra | Kế thừa |
+|---|---|---|---|
+| Ý tưởng, bài toán, mục tiêu dự thi | Đưa ra ý tưởng; hai tệp mô tả và kế hoạch ban đầu có trên máy trước phiên Claude Code đầu tiên (mục I.1); đặt mục tiêu và yêu cầu qua 83 câu lệnh | Phân tích, góp ý, đề xuất phương pháp, lập kế hoạch chi tiết | Thiết kế switchback từ bài báo (mục VI) |
+| Mã nguồn: lõi thống kê, API, cơ sở dữ liệu, web, nạp dữ liệu, bộ lọc dữ liệu cá nhân, NLP | Ra yêu cầu, chọn hướng khi Claude đưa phương án, duyệt và chấp nhận kết quả, vận hành | Claude viết gần như toàn bộ theo chỉ đạo và kiểm soát của đội (mọi commit trên `main` có dòng đồng tác giả Claude); phần của Tiến trên PR số 1 do Codex viết; một dòng ghim scikit-learn trên kho fork do Copilot coding agent viết | Thư viện mục V; công thức từ bài báo mục VI |
+| Kiểm thử và cổng chất lượng | Đặt yêu cầu "test đỏ trước, xanh sau" trong quy trình | Claude viết test và chạy | pytest, Playwright |
+| Kiểm toán, sổ sự cố | Yêu cầu kiểm toán, quyết định sửa gì | Các đợt kiểm toán nhiều tác tử do Claude chạy; sổ sự cố do Claude ghi | Không có |
+| Dữ liệu và nhãn | Quyết định dùng dữ liệu nào và dùng thế nào | Nhãn 393 và 1.800 dòng; 320 câu mẫu; 200 bình luận mô phỏng; 95 câu kiểm thử | Bình luận VOD công khai (qua yt-dlp); KuaiLive |
+| Tài liệu và hồ sơ dự thi | Đọc, sửa, chịu trách nhiệm, ký | Claude soạn nháp, kể cả bản kê khai này; ChatGPT soạn bản nháp hồ sơ của Tiến (hồ sơ nộp chỉ lấy từ đó thông tin thí sinh và danh mục công cụ tự khai) | Mẫu hồ sơ của Ban Tổ chức |
+| Hai video nộp kèm | Duyệt kịch bản, thu âm lời thuyết minh | Claude soạn kịch bản và lời dẫn; phần hình (slide và quay màn hình sản phẩm thật chạy trên máy nhóm, dữ liệu mẫu và mô phỏng) do Claude dựng và quay tự động bằng công cụ lập trình | Playwright, các công cụ dựng video mã nguồn mở |
+| Việc ngoài kho mã (phỏng vấn nhà bán, gán nhãn thủ công, xác minh kênh) | Chưa có bằng chứng trong kho mã tại ngày kê khai | Không có | Không có |
 
-Ví dụ còn nguyên trong dữ liệu trên đĩa (tên đã che khi đưa vào kho mã — bản gốc là tài khoản thật): `@Cư***`, `@Ng***`, `@Gi***`,
-`@Ki***`, `@Bạ***-…`, `@Ng***`, `@DŨ***`, `@Hư***`.
-**Mỗi handle này mở thẳng ra một kênh YouTube cụ thể** ⇒ là **định danh trực tiếp** một con người
-theo Nghị định 13/2023/NĐ-CP, không phải dữ liệu đã ẩn danh.
+Đội không có phép đo tách số dòng mã do người gõ khỏi số dòng AI gõ, nên không nêu tỷ lệ phần trăm. Theo dòng đồng tác giả và nhật ký, có thể nói thẳng: phần lớn mã và tài liệu trong kho do Claude viết theo chỉ đạo và kiểm soát của đội. Phần của đội là đặt bài toán, ra yêu cầu, lựa chọn phương án, duyệt, vận hành công cụ và chịu trách nhiệm về sản phẩm.
 
-**Nguyên nhân gốc (đã truy đến dòng mã):**
+## VIII. Quy trình kiểm chứng đầu ra AI
 
-```python
-# src/livelift/ingest/pii/patterns.py:198
-SOCIAL_HANDLE_RE = re.compile(r"(?<![\w.@])@[A-Za-z0-9_.]{3,32}\b")
+- Quy trình của dự án ghi trong `HARNESS.md`: phần logic ra quyết định viết thành hàm thuần để kiểm thử được mà không cần hạ tầng. Mỗi lỗi phải có test tái hiện trước khi sửa và một dòng trong sổ sự cố.
+- Bộ kiểm thử có 2.116 bài kiểm tra tự động, gồm 2.089 bài nhanh, 17 bài chậm (13 mô phỏng và thống kê, 1 đánh giá NLP, 3 dựng CSS) và 10 bài trên trình duyệt. Lần chạy đầy đủ ngày 27/09/2026 cho 2.114 đạt, 2 bỏ qua có lý do, 0 lỗi. Một ca bỏ qua là phần dựng .docx của bản kê khai này (cần python-docx, chỉ có trong môi trường riêng), đã chạy riêng và đạt.
+- Hiệu chuẩn thống kê (trên mô phỏng, 200 lần lặp A/A): tỷ lệ bác bỏ 3,50% (7/200), p nhị thức 0,4168; độ phủ khoảng tin cậy 95% là 96,50%, là mặt kia của tỷ lệ bác bỏ vì khoảng tin cậy lấy bằng cách đảo ngược kiểm định. Thu hồi tác động biết trước, 40 lần: lệch −0,84%, độ phủ 92,50% (37/40). Đo lại ngày 25/09/2026: khớp từng chữ số.
+- Sổ sự cố `docs/incident-log.md`: 121 sự cố có nguyên nhân gốc (đếm ngày 27/09/2026, gồm 61 dòng thêm ngày 25/09).
+- Các ràng buộc chống nói quá nằm trong mã: thẻ dự báo từ mô hình không mang khoảng tin cậy; màn hình người dẫn không thấy lịch khối (người dẫn vẫn thấy sản phẩm đang ghim nên ở chế độ Tự ghim có thể đoán nhánh, hồ sơ mục 5.3); phân tích VOD không mang ngôn ngữ thí nghiệm; nhãn DEMO hay THẬT do máy chủ quyết định.
+- Các lỗi đã biết còn mở tại ngày kê khai được ghi trong sổ sự cố và báo cáo kiểm toán, không lược đi.
+
+## IX. Dữ liệu cá nhân và trách nhiệm pháp lý
+
+- Đội **không** tuyên bố đã có sự đồng ý của người bình luận trong 19.126 bình luận và **không** viện dẫn căn cứ xử lý dữ liệu không cần sự đồng ý. Dữ liệu này chỉ dùng ngoại tuyến để đánh giá mô hình, đã lọc định danh tại điểm nạp (không lưu tên hay mã kênh người bình luận), không phát hành lại, không nằm trong kho mã. Bản đầy đủ không được lưu thành tệp. Phần còn giữ (6.586 bình luận của 1 buổi, 393 bình luận của 3 buổi, đã lọc định danh) chưa được coi là đã khử nhận dạng theo Luật 91/2025/QH15 Điều 2 khoản 11, vì câu nguyên văn vẫn tra ngược được người viết. Vì vậy phần này được bảo vệ như dữ liệu cá nhân và bị xóa khi có tập thay thế qua API chính thức, chậm nhất ngày 22/11/2026, hoặc ngay khi Ban Tổ chức hay cơ quan có thẩm quyền yêu cầu.
+- Các bản còn định danh (bản sao lưu trước khi lọc lại; bình luận còn tên tài khoản trong bản lưu nhật ký gốc của công cụ AI) được xử lý chậm nhất ngày 29/09/2026, trước ngày nộp: bản sao lưu bị xóa an toàn (ghi đè rồi xóa), tên tài khoản trong bản lưu nhật ký gốc bị che. Prompt Log đã được xuất lại ngày 25/09 sau khi bộ lọc bắt được tên tài khoản dính liền (mục I.3). Chi tiết ở hồ sơ dự án, mục 3.3.
+- Kiểm tra ngày 14/09/2026 từng phát hiện tên tài khoản mạng xã hội còn sót trong dữ liệu gán nhãn cục bộ, do bộ lọc cũ chỉ nhận ký tự ASCII. Bộ lọc đã sửa ngày 15/09. Ngày 25/09 quét lại còn 57 lượt tên tài khoản; đội đã lọc lại tại chỗ bằng đúng hàm của sản phẩm và quét lại ra 0 (`data/labeling/README.md`). Tệp mô hình v2 đóng gói ngày 14/09 mang trong bộ từ vựng một từ sinh ra từ tên tài khoản của một người bình luận. Tệp đã được đóng gói lại ngày 25/09 trên dữ liệu đã lọc, kèm bài kiểm thử `tests/test_artifact_khong_pii.py`, nhưng bản cũ vẫn còn trong lịch sử git của kho công khai. Tên tài khoản viết dính liền (`chữ@tên`, `@@tên`) từng không bị bộ lọc bắt. Ngày 25/09 bộ lọc đã được vá (commit `b331076`), lọc thêm 16 dòng (8 tên, trong đó 4 dòng dữ liệu huấn luyện) và đóng gói lại v2; macro-F1 của C2 không đổi.
+- Khi gán nhãn và rà dữ liệu (từ 09 đến 15/09/2026), bình luận được đưa vào Claude (Anthropic, dịch vụ đặt ngoài Việt Nam) lúc bộ lọc chưa bắt được tên tài khoản có dấu. Đó là xử lý dữ liệu cá nhân thu tại Việt Nam trên nền tảng ở nước ngoài (Luật 91/2025/QH15 Điều 20 khoản 1 điểm c); đội chưa lập hồ sơ đánh giá tác động chuyển dữ liệu theo khoản 2 của điều này.
+- Trên sản phẩm, bộ thu mặc định đọc phiên của chính nhà bán qua API chính thức. Hai đường yt-dlp (kể cả tùy chọn đọc cookie trình duyệt) còn trong mã, chỉ giữ tạm tới khi có khóa chính thức. Phiên thí điểm có khán giả chỉ chạy khi đã có văn bản đồng ý và thỏa thuận xử lý dữ liệu với shop đối tác.
+- Bản xuất Prompt Log che email, số điện thoại, mã số sinh viên của thành viên và tên tài khoản của người xem (bản xuất lại ngày 25/09: quét bộ lọc 0, đối chiếu băm 0, mục I.3). Nhật ký gốc không được chia sẻ ra ngoài.
+- Theo Luật Trí tuệ nhân tạo 134/2025/QH15 và Nghị định 142/2026/NĐ-CP (Điều 6, 8, 9, 11), đội tự đánh giá sơ bộ rằng LiveLift ở mức rủi ro thấp (**chưa có ý kiến chuyên gia pháp lý**), vì hệ thống không sinh nội dung và không tương tác trực tiếp với người xem. Hệ thống **có** tự ra quyết định. Ở chế độ mặc định "Tự ghim", trong khối BẬT của lịch đã khóa, nó tự chọn sản phẩm và ra lệnh ghim qua cùng đường với nút của người trợ live, có nhật ký. Thao tác ghim trên nền tảng vẫn do người làm, và nhà bán chọn được chế độ "Chỉ gợi ý". Chi tiết và những điểm cần chuyên gia xem nằm ở hồ sơ dự án, mục 11.1.
+
+## X. Cam kết và chữ ký
+
+Chúng tôi, ba thành viên đội thi LiveLift, cam kết:
+
+1. Bản kê khai này trung thực và đầy đủ theo hiểu biết của chúng tôi tại ngày ký, kể cả những điểm bất lợi: dữ liệu thật thu bằng yt-dlp trái điều khoản YouTube, nhãn dữ liệu do AI gán, phần lớn mã và tài liệu do AI tạo ra, lịch sử commit dùng một danh tính chung, và các khẳng định sai trong bản kê khai cũ đã đính chính ở trên.
+2. Chúng tôi hiểu, kiểm chứng được, chỉnh sửa được, vận hành được và chịu trách nhiệm với toàn bộ sản phẩm, kể cả phần do công cụ AI tạo ra, và sẵn sàng trình bày, chạy lại mọi con số trước Ban Giám khảo.
+3. Chúng tôi không thi hộ, không thuê làm, không để người ngoài làm thay, không sao chép sản phẩm, không giả mạo Prompt Log, lịch sử commit, dữ liệu thử nghiệm hay video demo, và không che giấu nguồn mã, dữ liệu, API.
+4. Nếu phát hiện thiếu sót trong bản kê khai, chúng tôi bổ sung ngay và báo Ban Tổ chức.
+
+TP. Hồ Chí Minh, ngày 27 tháng 9 năm 2026
+
+<!-- BANG-KY -->
+
+| Họ và tên | Vai trò | Chữ ký |
+|---|---|---|
+| Ngô Bình Minh | Đội trưởng | |
+| Lê Xuân Khánh | Thành viên | |
+| Ngô Lâm Tiến | Thành viên | |
+
+## Phụ lục: lệnh tái lập các con số
+
 ```
-
-Lớp ký tự **chỉ có ASCII** — không có chữ tiếng Việt có dấu, không có dấu gạch ngang `-`. Mà handle
-YouTube tiếng Việt thì gần như luôn có dấu và thường có hậu tố `-xxx`.
-
-**Vì sao cổng chất lượng không bắt được:** `HARNESS.md` §2 quy định cổng "PII recall ≥ 95% từng loại"
-nhưng chỉ liệt kê **SĐT, email, mã đơn, địa chỉ** — **không có loại "handle mạng xã hội"**. Bộ
-đánh giá `tests/data/pii_comments.jsonl` (95 dòng) cũng **không có nhãn `social`**, và test hiện có
-chỉ kiểm handle ASCII (`@hoa_nguyen`). **Lỗi lọt qua vì không ai đo nó**, không phải vì bộ lọc hỏng.
-
-**Phạm vi ảnh hưởng (đã khoanh vùng bằng máy):**
-
-| Nơi | Trạng thái |
-|---|---|
-| Kho mã GitHub | ✅ **SẠCH** — `data/labeling/*` bị `.gitignore`, không handle nào vào git |
-| `data/snapshot/livelift-store.json` | ✅ **SẠCH** — quét 1,77 triệu ký tự: 0 handle, 0 số điện thoại |
-| `data/labeling/lot1-…/comments_*.jsonl` (trên đĩa) | ❌ **CÓ 53 handle** |
-| Nhật ký phiên Claude Code | ❌ **2 / 292 file** có chứa handle thật |
-
-**Việc phải làm (chi tiết trong [`06-KHO-MA-VA-MINH-CHUNG.md`](06-KHO-MA-VA-MINH-CHUNG.md) §P0):**
-sửa regex thành lớp ký tự Unicode + `-`, thêm loại `social` vào bộ đánh giá và vào cổng
-`HARNESS.md` §2, rồi **chạy lại bộ lọc trên dữ liệu đã lưu**.
-
-#### (2) Bộ nhãn ý định tự biên soạn — 320 câu
-
-Do **3 thành viên tự viết**, mô phỏng văn phong chat bán hàng tiếng Việt (có/không dấu, teencode,
-lỗi chính tả). 6 lớp: `hoi_gia`, `hoi_size`, `che_dat`, `chot_don`, `van_chuyen`, `khac`.
-**Không cào từ đâu, không sinh bằng LLM.** Không chứa dữ liệu cá nhân. Giấy phép: AGPL-3.0 theo repo.
-
-#### (4) Dữ liệu mô phỏng
-
-Sinh bằng `src/livelift/sim/simulator.py`, **mọi RNG nhận seed tường minh**, tái lập bit-for-bit.
-Tham số phân bố hiệu chỉnh theo KuaiLive (xem dưới). Không chứa dữ liệu người thật. Dùng để thẩm
-định ước lượng viên (A/A 200 lặp, độ phủ KTC, MDE).
-
-#### (5) KuaiLive — dữ liệu tham chiếu để hiệu chỉnh mô phỏng
-
-| Hạng mục | Kê khai |
-|---|---|
-| **Tên đầy đủ** | KuaiLive: A Real-time Interactive Dataset for Live Streaming Recommendation |
-| **Công bố** | **SIGIR '26**, arXiv:2508.05633, DOI `10.1145/3805712.3808587` |
-| **Tải từ** | **Zenodo record 16565801** (858,2 MB, MD5 `9f0f13950f677a0d9d2224c3e7abb553`) — **công khai, không cần đăng ký hay ký thỏa thuận** |
-| ⚠️ **Giấy phép** | **MÂU THUẪN giữa hai nguồn:** trang dự án & bài báo ghi **CC BY-NC-SA 4.0**; metadata Zenodo ghi **CC BY 4.0**. **Đội áp dụng phương án thận trọng: coi là NC (phi thương mại)** — hợp lệ cho dự thi sinh viên, **cấm đóng gói vào bản thương mại LiveLift**. Đội **chưa liên hệ tác giả để xác minh** — đây là việc cần làm |
-| **Dùng để làm gì** | Hiệu chỉnh **3 tham số phân bố** của mô phỏng: thời gian ở lại trung bình (6→10 phút), tỷ lệ bình luận/người xem/phút (0,25→0,016), tỷ lệ like (0,014) |
-| **Đội KHÔNG dùng để làm gì** | ⚠️ Có **lệnh cấm được mã hóa thẳng vào mã nguồn** (`analysis/power.py:412`, `PREREGISTRATION.md:177`): **cấm ánh xạ KuaiLive lên phễu mua hàng** — vì "click" của KuaiLive là *vào phòng*, không phải *bấm sản phẩm ghim*. Đây là quyết định phương pháp luận của đội |
-| **Dữ liệu cá nhân** | Bộ dữ liệu đã ẩn danh sẵn tại nguồn (ID số). **Không tái phân phối** — `data/raw/` bị `.gitignore` |
-
-#### (6) Nguồn tham chiếu khác — chỉ lấy CON SỐ từ bài báo, không lấy dữ liệu
-
-| Nguồn | Lấy gì | Ghi chú |
-|---|---|---|
-| **Taobao UserBehavior** (Alibaba Tianchi #649) | Tiên nghiệm phễu: pv→cart 9,33% × cart→buy 24,33% ≈ 2,3% | Dùng cho bảng MDE đơn hàng. Không tải dữ liệu về |
-| **LSEC** (KDD 2021, arXiv:2106.03415) | Hệ số nhân khán giả ×4,9 | ⚠️ **Bộ dữ liệu bị đội TỪ CHỐI**: không có timestamp + **không có giấy phép** ⇒ rủi ro khi tái phân phối số dẫn xuất. Chỉ trích số từ bài báo đã xuất bản |
-| KuaiLive-M3, LiveRec, KuaiRec, KuaiRand, YTLive, UIT-ViOCD, UIT-ViSFD, ViHSD | **Không dùng** | Có khảo sát, ghi trong `docs/research/2026-08-24-datasets-simulation.md`, quyết định bỏ qua |
-
-#### (7) VLiveBench (TikTok) — kê khai một nỗ lực THẤT BẠI
-
-Đội có viết bộ thu thập phòng live TikTok công khai (`collectors/tiktok_public/`) dùng thư viện
-**`TikTokLive`** — thư viện **dịch ngược (reverse-engineered)**, không phải API chính thức, định
-tuyến qua proxy bên thứ ba **Euler Stream**. ⚠️ Việc dùng **có thể vi phạm điều khoản TikTok**.
-
-**Kết quả thật: WebSocket bị từ chối HTTP 400 trong 10/10 lần thử (09/09/2026) — thu được 0 bình luận.**
-Thư viện **không được cài** trong môi trường chạy. Mã vẫn còn trong repo, **cách ly hoàn toàn**
-(venv riêng, tiến trình riêng, có cổng CI `scripts/check_isolation.py` chặn `src/` import từ
-`collectors/`). **Không một con số nào trong hồ sơ đến từ nguồn này.**
-**Khuyến nghị:** giữ mã + README cảnh báo (là bằng chứng trung thực về một hướng đã thử và thất
-bại), **không** đưa vào đường chạy mặc định.
-
----
-
-## IV. API BÊN NGOÀI
-
-Đội đã quét toàn bộ mã nguồn tìm mọi lời gọi mạng ra ngoài. Danh sách dưới đây là **đầy đủ**.
-
-| # | API | Endpoint | Xác thực | Giới hạn | Điều khoản cho phép? | Đã chạy thật? |
-|---|---|---|---|---|---|---|
-| 1 | **YouTube Data API v3** | `https://www.googleapis.com/youtube/v3` · `/videos`, `/liveChat/messages` | API key (`YOUTUBE_API_KEY`) trong query | **10.000 đơn vị/ngày**; ~5 đơn vị/lệnh; poll tối thiểu 2s; phải tôn trọng `pollingIntervalMillis` | ✅ **CÓ** — API chính thức, dùng trong hạn ngạch được cấp. `search.list` bị **cấm trong mã** (tốn 100 đơn vị/lệnh) | ❌ Chưa — đội **chưa có API key** |
-| 2 | ⚠️ **YouTube qua yt-dlp** (live) | `youtube.com/live_chat`, `/youtubei/` | Không | Không | ❌ **KHÔNG** — `robots.txt` chặn đúng 2 đường này | ✅ 1 phiên kiểm thử (104 bình luận, 09/09) |
-| 3 | ⚠️ **YouTube qua yt-dlp** (VOD replay) | track `live_chat` của VOD | Không (tùy chọn: cookie trình duyệt ⚠️) | Không | ❌ **KHÔNG** — cùng cơ chế với (2) | ✅ **19.126 bình luận / 16 buổi — 100% dữ liệu thật của dự án** |
-| 4 | **Facebook Graph API** | `https://graph.facebook.com/v25.0` · `/{page_id}/live_videos`, `/{id}/comments` | Bearer token trong **header** (`FACEBOOK_PAGE_ACCESS_TOKEN`) | 4.800 lệnh × số người tương tác / 24h trượt; đọc header `X-App-Usage` | ✅ **CÓ** — chỉ đọc **Page của chính đội**, quyền `pages_read_engagement` + `pages_read_user_content`, Standard Access không cần App Review | ❌ Chưa — sẵn sàng kỹ thuật, chưa có token |
-| 5 | **Shopee Open Platform API v2** | `https://partner.shopeemobile.com/api/v2` · `/livestream/get_latest_comment_list`, `/get_session_metric`, `/get_session_detail` | **HMAC-SHA256** ký query (`SHOPEE_PARTNER_KEY`), token hạn 4 giờ | Chỉ trả bình luận **10 giây gần nhất** ⇒ mã **cưỡng chế** `poll_s ≤ 8s`, vượt thì `raise` | ✅ **CÓ** — API chính thức cho đối tác | ❌ Chưa — đội **chưa có `SHOPEE_PARTNER_ID`**. Chỉ xác minh endpoint tồn tại bằng đối chứng mã lỗi (11/09) |
-| 6 | ⚠️ **TikTok Webcast** (qua `TikTokLive`) | Qua proxy Euler Stream | Không (ẩn danh) | — | ❌ **KHÔNG** — giao thức dịch ngược | ❌ Thất bại 10/10 lần, 0 bình luận |
-| 7 | **API LLM** | — | — | — | — | ❌ **KHÔNG CÓ trong mã** |
-
-**Bí mật/khoá được quản lý thế nào:** tất cả qua biến môi trường, `.env` bị `.gitignore`.
-Đội đã **quét toàn bộ 42 commit lịch sử git**: **không có khoá API, token hay khoá riêng tư nào bị
-commit nhầm**. `.env` cục bộ hiện có **mọi trường credential nền tảng đều rỗng**.
-`FACEBOOK_APP_SECRET` có ghi chú trong `.env.example` cấm đưa lên máy chạy ingest.
-
----
-
-## V. THƯ VIỆN & MÃ NGUỒN MỞ
-
-### V.1. Giấy phép của chính sản phẩm
-
-**AGPL-3.0-only** (`LICENSE`, `pyproject.toml`). Chọn AGPL vì LiveLift là dịch vụ chạy qua mạng —
-AGPL buộc mọi bản triển khai qua mạng phải công khai mã nguồn, bảo vệ tính mở của phương pháp.
-Mọi phụ thuộc dưới đây đều **cho phép** (BSD/MIT/Apache/Unlicense/PSF) ⇒ **tương thích với AGPL-3.0**.
-
-### V.2. Phụ thuộc Python trực tiếp
-
-| Thư viện | Phiên bản đang dùng | Giấy phép | Dùng để làm gì trong LiveLift |
-|---|---|---|---|
-| `numpy` | 2.5.2 | BSD-3-Clause | Mảng số nền tảng cho toàn bộ tầng thống kê và mô phỏng |
-| `scipy` | 1.18.1 | BSD-3-Clause | Phân vị chuẩn cho công thức MDE, kiểm định nhị thức chính xác ở cổng hiệu chuẩn A/A |
-| `pandas` | 3.0.5 | BSD-3-Clause | Đọc/gộp CSV KuaiLive trong `analysis/calibration/kuailive_calibration.py` |
-| `statsmodels` | 0.14.6 | BSD-3-Clause | Hồi quy OLS có hiệu ứng cố định theo phiên + sai số chuẩn gom cụm CR1 trong `analysis/robust.py` |
-| `scikit-learn` | 1.9.0 | BSD-3-Clause | TF-IDF + LogisticRegression + `classification_report` cho bộ phân loại ý định (`nlp/train_intent.py`) |
-| `joblib` | 1.5.3 | BSD-3-Clause | Lưu/nạp artifact `intent_clf.joblib` |
-| `lightgbm` | 4.7.0 | MIT | Khai báo trong extra `[ml]` — ⚠️ **hiện chưa được import ở đâu**, dự phòng cho mô hình xếp hạng ứng viên |
-| `pydantic` | 2.13.4 | MIT | Định nghĩa & kiểm tra schema toàn bộ hợp đồng API (`api/schemas.py`) |
-| `pydantic-settings` | 2.15.0 | MIT | Đọc cấu hình/biến môi trường có kiểm kiểu (`config.py`) |
-| `fastapi` | 0.141.1 | MIT | Khung API HTTP + WebSocket của toàn hệ thống |
-| `starlette` | 1.6.0 | BSD-3-Clause | Tầng ASGI bên dưới FastAPI (phụ thuộc bắc cầu bắt buộc) |
-| `uvicorn[standard]` | 0.52.4 | BSD-3-Clause | Máy chủ ASGI chạy API |
-| `psycopg[binary,pool]` | 3.3.4 | LGPL-3.0 | Driver PostgreSQL/TimescaleDB + connection pool (`api/store.py`) |
-| `redis` | 8.1.0 | MIT | Hàng đợi/bộ đệm sự kiện thời gian thực |
-| `httpx` | 0.28.1 | BSD-3-Clause | Client HTTP bất đồng bộ cho **mọi** adapter nền tảng (YouTube/Facebook/Shopee) |
-| ⚠️ `yt-dlp` | 2026.8.19 | **Unlicense** (phạm vi công cộng) | Tải chat replay VOD YouTube — **xem cảnh báo điều khoản §III.2 và §IV** |
-| `pytest` | 9.1.1 | MIT | Chạy 890 hàm test / 58 file |
-| `pytest-cov` | 7.1.0 | MIT | Đo độ phủ test trong CI |
-| `ruff` | 0.16.4 | MIT | Lint + format (cổng CI, 0 lỗi mới được merge) |
-| `mypy` | 2.3.1 | MIT | Kiểm kiểu tĩnh |
-| `hatchling` | — | MIT | Build backend đóng gói `livelift` |
-| `TikTokLive` | ≥6 (**không cài**) | MIT | Chỉ trong `collectors/tiktok_public/requirements.txt` — bộ thu TikTok đã thất bại |
-| `underthesea` | **không cài** | GPL-3.0 | ⚠️ Khai báo thừa trong extra `[nlp]`, không được import — đề nghị gỡ |
-
-**Phụ thuộc gián tiếp (bắc cầu):** tổng **51 gói** trong môi trường chạy. Toàn bộ là giấy phép cho
-phép (MIT / BSD / Apache-2.0 / PSF / ISC). Sinh lại danh sách đầy đủ bằng:
-`.venv/Scripts/python -m pip list --format=freeze`.
-
-### V.3. Phụ thuộc JavaScript (giao diện web)
-
-| Thư viện | Phiên bản | Giấy phép | Dùng để làm gì |
-|---|---|---|---|
-| `next` | ^14.2.5 | MIT | Khung ứng dụng web (bàn điều khiển, màn hình host, trang kết quả) |
-| `react` / `react-dom` | ^18.3.1 | MIT | Thư viện giao diện |
-| `recharts` | ^2.12.7 | MIT | Vẽ biểu đồ chuỗi thời gian trên bảng điều khiển & trang kết quả |
-| `tailwindcss` | ^3.4.7 | MIT | Hệ thống CSS tiện ích |
-| `typescript` | ^5.5.4 | Apache-2.0 | Kiểm kiểu tĩnh cho web |
-| `postcss` / `autoprefixer` | ^8.4.39 / ^10.4.19 | MIT | Pipeline biên dịch CSS |
-| `@types/*` | — | MIT | Khai báo kiểu |
-
-Khóa phiên bản chính xác: `web/package-lock.json` (70 KB, **đã commit** ⇒ build tái lập được).
-**Không có UI kit trả phí, không có template mua sẵn** — bộ 10 component trong `web/src` do đội tự
-dựng theo chuẩn thiết kế công khai (Tremor/shadcn/Linear), **0 dependency mới**.
-
-### V.4. Hạ tầng (Docker image)
-
-| Image | Giấy phép | Dùng để làm gì |
-|---|---|---|
-| `timescale/timescaledb:latest-pg16` | Apache-2.0 / TSL | CSDL chuỗi thời gian cho sự kiện phiên live |
-| `redis:7-alpine` | BSD-3-Clause | Bộ đệm / hàng đợi |
-| `caddy:2-alpine` | Apache-2.0 | Reverse proxy + TLS tự động cho bản công khai |
-
----
-
-## VI. MÃ NGUỒN THAM KHẢO / KẾ THỪA
-
-**Kết quả rà soát:** đội đã quét toàn bộ `src/` tìm đoạn mã sao chép (comment ghi nguồn, link
-StackOverflow/GitHub/Wikipedia, thuật toán chuẩn). **Không tìm thấy đoạn mã nào chép nguyên văn từ
-kho mã của người khác.** Mọi tham chiếu bên ngoài đều là **trích dẫn tài liệu khoa học đặt cạnh
-phần cài đặt do đội tự viết**. Đây là danh sách đầy đủ.
-
-### VI.1. Công thức/thuật toán cài đặt lại từ bài báo (đội tự viết mã, trích nguồn tại chỗ)
-
-| Vị trí | Nguồn trích dẫn | Kế thừa cái gì |
-|---|---|---|
-| `analysis/adjust.py:35,119,162` | Deng, Knoblich & Lu, *Applying the Delta Method in Metric Analytics*, **KDD 2018 / arXiv:1803.06336** | Công thức phương sai delta-method cho chỉ số tỷ lệ — **ghi rõ là phương trình (6) bản arXiv** |
-| `analysis/adjust.py:38,377` | arXiv:2608.24038 | CUPED đa biến, chọn ridge-λ |
-| `analysis/robust.py:23–27` | Lin, *Agnostic notes on regression adjustments*, **Ann. Appl. Stat. 7(1) 2013**; Cameron–Gelbach–Miller, **REStat 90(3) 2008**; arXiv:2510.01127 | Hiệp biến tương tác kiểu Lin; **hiệu chỉnh CR1**; cổng ICS |
-| `analysis/estimators.py:10` | **Bojinov & Shephard, JASA 2019** | Phân bố tham chiếu của kiểm định ngẫu nhiên hóa khớp với thiết kế |
-| `analysis/power.py:4` | **J-PAL** | Công thức MDE gốc `(z_{1-α/2}+z_power)·CV·√(2/n)` |
-| `analysis/power.py:16` | Hiệu ứng thiết kế **Moulton** | ⚠️ **Cố ý KHÔNG áp dụng**, tắt mặc định, có ghi lý do dẫn xuất |
-| `core/assigner/outer.py:7` | Bojinov, Simchi-Levi & Zhao, *Design and Analysis of Switchback Experiments*, **Management Science 69(7) 2023 / arXiv:2009.00148** | **Chính thiết kế switchback** — nền tảng phương pháp của sản phẩm |
-| `core/assigner/outer.py:10` | Hu & Wager, **JBES / arXiv:2209.00197** | Cửa sổ burn-in ở khâu phân tích |
-| `core/assigner/outer.py:34` | SRSB, arXiv:2604.02489, Algorithm 3 | ⚠️ **Cân nhắc rồi TỪ CHỐI** (đòi đơn vị song song) — ghi lại quyết định |
-| `core/quality.py:93,541`, `core/click_validity.py:21` | Bakshy–Eckles–Bernstein **WWW 2014**; Fabijan et al. **KDD 2019** | Kiểm tra chất lượng gán, kiểm định SRM, ngưỡng τ lọc bot |
-| `core/features.py:162` | Nguyễn et al., **IMCOM 2026** | Đặc trưng "nhịp like trước khối" liên quan hành vi mua |
-| `sim/report.py:10` | Talts et al. (arXiv:1804.06788); Modrák et al. (arXiv:2211.02383) | SBC — ghi rõ **"adapted from"**: chuyển histogram hạng Bayes sang đại lượng tần suất |
-| `sim/report.py:258` | Aldor-Noiman et al. (2013) | Dải tin cậy đồng thời — **cân nhắc, ghi caveat, không chép thẳng** |
-| `core/moments.py:3` | **Feigua** (sản phẩm thương mại đối thủ) | ⚠️ Kế thừa **ý tưởng UX/thuật toán** (đánh dấu "khoảnh khắc" trên dòng thời gian phát lại bằng phát hiện đỉnh so với trung vị) — không có mã nguồn của Feigua, đội tự cài đặt |
-
-### VI.2. Lược đồ giao thức đọc từ SDK của bên thứ ba
-
-| Vị trí | Nguồn | Kế thừa cái gì |
-|---|---|---|
-| `ingest/shopee.py:66,167` | **SDK TypeScript chính thức của Shopee** (`src/schemas/region.ts`, `src/fetch.ts`), đọc 11/09/2026 | Bảng host theo khu vực + **lược đồ ký HMAC-SHA256**. Đây là **đặc tả giao thức**, đội **viết lại bằng Python**, không chép mã TypeScript |
-| `ingest/youtube_ytdlp.py:19` | `yt_dlp/downloader/youtube_live_chat.py`, hàm `parse_actions_live` | **Đọc để chẩn đoán** nguyên nhân độ trễ giao tin 24s — không chép mã |
-
-### VI.3. Dữ liệu tự biên soạn có kế thừa nội dung thật
-
-`src/livelift/ingest/pii/admin_units.py` — danh sách đơn vị hành chính Việt Nam (**cả 63 tỉnh trước
-2025 và tên sau sáp nhập 2025**), do đội tự gõ, **không dẫn nguồn cụ thể**.
-⚠️ Đề nghị bổ sung dẫn nguồn (Nghị quyết sáp nhập / Tổng cục Thống kê) để hoàn chỉnh.
-
-`src/livelift/nlp/labels.py:186` — ví dụ mồi cho prompt gán nhãn là **trích nguyên văn bình luận
-thật** (đã lọc PII) từ phiên live-fire. Đã ghi chú rõ "trích NGUYÊN VĂN" tại chỗ.
-
----
-
-## VII. PHÂN ĐỊNH: TỰ XÂY DỰNG / AI HỖ TRỢ / KẾ THỪA NGUỒN MỞ
-
-> Đây là mục Điều 5 §5 đòi hỏi trực tiếp. Đội kê khai theo **ước lượng trung thực, có bằng chứng
-> kiểm chứng được**, không làm đẹp con số.
-
-### VII.1. Bức tranh tổng thể — nói thẳng
-
-**Phần lớn mã nguồn của LiveLift do Claude Code soạn nháp.** Đội không né câu này. Ước lượng
-trung thực: **khoảng 90–95% số dòng mã được AI gõ ra đầu tiên.** Nhưng "ai gõ" không phải là
-"ai quyết định" — và thể lệ hỏi về **năng lực làm chủ**, không hỏi về số dòng.
-
-**Bằng chứng định lượng (sinh lại được):**
-
-| Chỉ số | Giá trị |
-|---|---|
-| Commit | 42, trải **14 ngày làm việc riêng biệt** (24/08 → 14/09/2026) |
-| Dòng mã | +79.999 / −5.408, chạm 736 lượt file |
-| File theo dõi trong git | 322 |
-| Hàm test | **890** (58 file) — 993 test nhanh + 16 cổng Monte-Carlo |
-| Câu lệnh của đội gửi cho AI | **1.297** |
-| Sự cố có truy nguyên nhân gốc | **41** (`docs/incident-log.md`) |
-
-### VII.2. Bảng phân định theo từng thành phần
-
-| Thành phần | Tự xây dựng | AI hỗ trợ | Kế thừa nguồn mở |
-|---|---|---|---|
-| **Bài toán, giả thuyết, thiết kế thí nghiệm** (switchback 2 tầng, tiền đăng ký, biên độ đo được) | 🟩 **ĐỘI QUYẾT ĐỊNH HOÀN TOÀN** — AI không chọn phương pháp; đội đọc bài báo, quyết định áp dụng/từ chối và ghi lý do | AI tóm tắt tài liệu, giải thích công thức | Ý tưởng thiết kế từ Bojinov et al. 2023 (bài báo, không phải mã) |
-| **Ước lượng viên & suy diễn thống kê** (`analysis/`) | 🟩 Đội chọn ước lượng viên, chốt ngưỡng nghiệm thu, **từ chối** hiệu chỉnh Moulton, ra lệnh cấm ánh xạ KuaiLive lên phễu | 🟨 AI viết nháp phần lớn thân hàm | Công thức từ bài báo (§VI.1); `numpy`/`scipy`/`statsmodels` |
-| **Bộ gán ngẫu nhiên** (`core/assigner/`) | 🟩 Đội chốt bất biến: ghi propensity chính xác, lưu lịch **trước** phát sóng, seed vào DB | 🟨 AI viết nháp | Thiết kế từ bài báo |
-| **API + CSDL + hạ tầng** (`api/`, `dbops/`, `docker/`) | 🟧 Đội chốt hợp đồng API và mô hình dữ liệu | 🟥 **AI viết gần như trọn vẹn** | FastAPI, psycopg, TimescaleDB, Redis, Caddy |
-| **Giao diện web** (`web/`) | 🟧 Đội chốt ngôn ngữ sản phẩm ("Phòng điều khiển phát sóng"), luồng wizard, quy tắc **host không được thấy nhánh** | 🟥 **AI viết gần như trọn vẹn** | Next.js, React, Recharts, Tailwind |
-| **Bộ lọc PII tiếng Việt** (`ingest/pii/`) | 🟩 Đội định nghĩa "PII trong chat bán hàng VN là gì", chọn thiên lệch **recall hơn precision**, tự gõ danh sách đơn vị hành chính 2 thế hệ | 🟨 AI viết nháp regex | Chỉ `re` chuẩn |
-| **Adapter nền tảng** (`ingest/`) | 🟧 Đội tự đo hạn ngạch thật, tự đọc ToS, tự quyết định giữ/bỏ từng đường | 🟨 AI viết nháp + chẩn đoán | Lược đồ ký của Shopee SDK; `yt-dlp`; `httpx` |
-| **Bộ phân loại ý định** (`nlp/`) | 🟩 **320 câu dữ liệu do 3 thành viên tự viết**; đội tự gán nhãn mù 200 bình luận thật và **tự công bố F1 0,271** | 🟨 AI viết nháp pipeline | `scikit-learn` |
-| **Bộ test (890 hàm)** | 🟩 Đội chốt tiêu chí nghiệm thu & ngưỡng cổng | 🟥 AI viết phần lớn thân test | `pytest` |
-| **Kiểm toán đối kháng & sổ sự cố (41 sự cố)** | 🟩🟩 **HOÀN TOÀN CỦA ĐỘI** — đội đóng vai người dùng, đóng vai giám khảo, tìm ra lỗi mà AI không tự thấy | AI sửa sau khi đội chỉ ra | — |
-| **Vận hành dữ liệu thật** (chọn 16 buổi, gán nhãn tay, live-fire) | 🟩🟩 **HOÀN TOÀN CỦA ĐỘI** — thao tác người, không tự động hóa được | — | — |
-| **Tài liệu (README, HARNESS, PREREGISTRATION, FACT-SHEET)** | 🟩 Đội chốt nội dung, quy tắc, con số | 🟨 AI viết nháp văn bản | — |
-
-🟩 đội chủ đạo · 🟧 chia đôi · 🟨 AI viết nháp, đội sửa & duyệt · 🟥 AI viết gần trọn, đội nghiệm thu
-
-### VII.3. Bằng chứng đội THỰC SỰ làm chủ, không chỉ bấm "chấp nhận"
-
-Bằng chứng mạnh nhất **không phải** là mã chạy được — mà là **những lần đội bắt lỗi của chính AI**.
-Lịch sử commit ghi lại nguyên văn (đây là **tài sản** của đội, sinh lại được bằng `git log`):
-
-| Commit | Điều nó chứng minh |
-|---|---|
-| `e47169e` — *"FATAL x2 tu kiem toan doi khang: sua loi bao 'co y nghia' tren nhieu thuan"* | Đội phát hiện lỗi **báo có ý nghĩa thống kê sai** — lỗi nghiêm trọng nhất một nền tảng thí nghiệm có thể mắc. AI đã viết ra nó; **đội bắt được** |
-| `0969b0f` — *"Sua cong thuc MDE: bo 2 hieu chinh khong thuoc thiet ke"* | Đội đọc lại công thức, phát hiện AI áp 2 hiệu chỉnh không thuộc thiết kế, và **gỡ bỏ** |
-| `665e444` — *"Cong hieu chuan A/A: thay nguong tuy tien bang kiem dinh nhi thuc chinh xac"* | Đội thay ngưỡng tùy tiện bằng kiểm định thống kê đúng |
-| `15745db` — *"Ra soat phuong phap: sua bug phan bo tham chieu"* | Rà soát phương pháp luận chủ động |
-| `e2be454` — *"Sua 8 loi tim duoc khi dong vai nguoi dung"* | Đội tự đóng vai người dùng cuối |
-| `7c30ffe` — *"Sua 3 loi lo ra khi dung kich ban demo cho hoi dong"* | Diễn tập demo và sửa lỗi lộ ra |
-| `fa4d9e4` — *"Kiem toan doi khang dot 2 + 6 goi fix P0"* | Kiểm toán đối kháng có tổ chức, phân loại mức độ |
-| `069c49c` — *"Tra loi cau hoi du lieu bang HANH DONG: train that + calibrate that"* | Không nhận vơ: có nghi vấn thì đi đo thật |
-
-**Ba minh chứng khác về năng lực làm chủ:**
-
-1. **Đội biết mô hình của mình DỞ ở đâu và công bố nó.** F1 0,271 trên chat thật là con số đội tự
-   đo, tự công bố, tự đặt quy tắc "không bao giờ quote riêng số đẹp 0,870". Một đội chỉ biết bấm
-   "chấp nhận" sẽ không bao giờ có con số này.
-2. **Đội mã hóa các lệnh CẤM vào chính mã nguồn.** Ví dụ cấm ánh xạ KuaiLive lên phễu mua hàng
-   (`analysis/power.py:412`), cấm thẻ mô hình hiển thị khoảng tin cậy (có test giao diện chặn),
-   cấm gắn ngôn ngữ thí nghiệm vào phân tích quan sát. Đây là **quyết định phương pháp luận**, chỉ
-   có người hiểu bài toán mới đặt ra được.
-3. **Sổ sự cố 41 mục** (`docs/incident-log.md`) ghi từng lỗi theo cấu trúc: triệu chứng → **nguyên
-   nhân gốc** → cách sửa → **test chặn tái diễn**. Ví dụ sự cố 10/09: hệ thống báo "đủ tín hiệu
-   người xem" trong khi thực tế 1.430 dòng đo đều bằng 0 — đội gọi thẳng đây là lỗi **"nhận vơ
-   năng lực"** và sửa bằng cách buộc mọi caller phải khai đã đo gì.
-
-### VII.4. ⚠️ Điểm yếu đội tự khai về quyền tác giả
-
-**Cả 42 commit đều mang một danh tính CON NGƯỜI duy nhất:** `LiveLift Team <ngobinhminh2322006@gmail.com>`
-(phần đồng tác giả AI thì có đủ 42/42 — xem §I.1).
-Lý do: đội làm chung trên **một máy trạm**. Đây **không phải giả mạo lịch sử commit** (thể lệ cấm
-điều đó) — lịch sử là thật, tăng dần, trải 14 ngày, có cả commit sửa lỗi của chính mình. Nhưng nó
-**không thể hiện được đóng góp riêng của từng thành viên**, và giám khảo có quyền hỏi.
-**Cách xử lý đề xuất:** bổ sung một mục "phân công công việc theo thành viên" vào README hoặc
-thuyết minh, đối chiếu với các mốc trong `docs/incident-log.md`. **Không** viết lại lịch sử git.
-
----
-
-## VIII. QUY TRÌNH KIỂM CHỨNG ĐẦU RA AI
-
-> Điều 5 §6 yêu cầu đội giải thích được **quy trình kiểm chứng đầu ra**. Đây là quy trình đội
-> **thực sự áp dụng**, được mã hóa thành cổng tự động, không phải mô tả lý thuyết.
-
-### VIII.1. Nguyên tắc nền: kiến trúc để kiểm chứng được
-
-`HARNESS.md` quy định: **mọi logic quyết định là hàm thuần** — nhận dữ liệu, trả dữ liệu, không đọc
-CSDL, không đọc đồng hồ, không tự sinh ngẫu nhiên ngoài RNG được truyền vào. I/O nằm ở lớp mỏng bên
-ngoài. Hệ quả: **100% logic cốt lõi test được mà không cần hạ tầng** — điều kiện tiên quyết để kiểm
-chứng bất kỳ đầu ra nào của AI.
-
-### VIII.2. Tám cổng chất lượng tự động — CI đỏ là không merge
-
-| Cổng | Ngưỡng | Kiểm chứng điều gì |
-|---|---|---|
-| `pytest -m "not slow"` | 100% pass (993 test) | Hồi quy cơ bản |
-| `pytest -m slow` (nightly) | 100% pass (16 cổng Monte-Carlo) | **Thẩm định thống kê trên mô phỏng có tác động biết trước** |
-| **Thẩm định ước lượng viên** | bias < 10%; độ phủ KTC 95% ∈ [90%, 98%] | **Cổng quan trọng nhất** — con số sai còn tệ hơn không có số |
-| **Cân bằng gán** | 1000 lịch thử, tỷ lệ BẬT ∈ [0,45; 0,55] | Bộ gán ngẫu nhiên không lệch |
-| **PII recall** | ≥ 95% từng loại | Tuân thủ Luật 91/2025/QH15 · ⚠️ **thiếu loại `social` — xem §III.2** |
-| **Cách ly VLiveBench** | 0 import từ `src/` sang `collectors/` | Bộ thu TikTok hỏng không kéo sập lõi |
-| **Quy tắc nguồn con số** | Thẻ từ mô hình **không bao giờ** hiện "khoảng tin cậy" | Chống overclaim ở cấp giao diện |
-| `ruff check` + `ruff format --check` + migration up/down/up | 0 lỗi | Nhất quán; CSDL đảo ngược được |
-
-Kết quả A/A thực tế: **bác bỏ 4,5% ở mức danh nghĩa 5%** (p nhị thức = 0,872), **độ phủ KTC 95,5%**.
-Nghĩa là ước lượng viên **tự chứng minh** mình không bịa ý nghĩa thống kê.
-
-### VIII.3. Quy trình xử lý lỗi bắt buộc (`HARNESS.md` §3)
-
-1. **Tái hiện tối thiểu** — thu về input nhỏ nhất còn gây lỗi.
-2. **Truy nguyên nhân gốc, không vá triệu chứng** — dùng "5 whys" đến khi chạm quyết định thiết kế
-   hoặc giả định sai. **Cấm** vá kiểu "thêm `if` chặn giá trị lạ" khi chưa biết giá trị lạ từ đâu.
-3. **Test trước, fix sau** — viết test tái hiện (đỏ) → sửa (xanh). Test ở lại vĩnh viễn.
-4. **Ghi sổ** — một dòng vào `docs/incident-log.md`.
-5. **Hỏi lớp phòng thủ** — lỗi này lọt qua cổng nào? Có cần cổng mới không?
-
-**Riêng dữ liệu thí nghiệm:** khối/phiên hỏng bị đánh dấu loại (`excluded_reason`), **KHÔNG sửa số
-liệu**. Không bao giờ "sửa tay" bản ghi thí nghiệm.
-
-### VIII.4. Vòng nghiên cứu → mã nguồn (chống AI bịa công thức)
-
-`HARNESS.md` §4: **phương pháp không được vào code từ trí nhớ.** Bắt buộc: đọc tài liệu gốc → ghi
-5–10 dòng vào `docs/research-log.md` (nguồn / điều dùng được / **điều KHÔNG áp dụng được cho bối
-cảnh mình** / quyết định) → mọi công thức trong `analysis/` phải có docstring dẫn nguồn **tác giả,
-năm, công thức số mấy**. Quy tắc này chính là lý do §VI.1 lập được đầy đủ.
-
-### VIII.5. Kiểm toán đối kháng do người thực hiện
-
-Cổng tự động không bắt được lỗi "đúng cú pháp nhưng sai bản chất". Đội bổ sung 3 vòng người:
-
-| Vòng | Cách làm | Kết quả |
-|---|---|---|
-| **Đóng vai người dùng** | Chạy hết hành trình như người lạ, không dùng lệnh CLI | Commit `e2be454` — tìm 8 lỗi |
-| **Đóng vai giám khảo** | Tự phản biện, soi số nào không đứng vững | `docs/competition/phan-bien-du-kien.md`; FACT-SHEET ra đời sau khi kiểm toán 06/09 phát hiện tài liệu lệch số nhau |
-| **Kiểm toán đối kháng có tổ chức** | Rà soát toàn hệ, phân loại theo mức nghiêm trọng | `audit_findings.txt`: **16 phát hiện** — 2 FATAL, 7 SERIOUS, 6 MODERATE, 1 MINOR — mỗi phát hiện có `FILE:` trỏ đúng dòng mã, `WHY:` cơ chế sinh lỗi, `FIX:` cách sửa. Commit `fa4d9e4` (6 gói fix P0), `e47169e` (2 lỗi FATAL) |
-| **Sáu giám khảo độc lập** (vòng cuối, 14/09) | Đội tự dựng 6 vai chấm độc lập — phương pháp, kinh doanh, dữ liệu, kỹ thuật, hình thức, **phản biện ác ý** — rồi tự phản biện lại từng phát hiện | Commit `dd66b38` (HEAD): **81 điểm yếu · 43 phán quyết ĐÚNG · 38 MỘT-PHẦN · 0 bị bác hoàn toàn** |
-
-**Một phát hiện tự kiểm toán đáng chú ý** (`audit_findings.txt` #9): *"Không có cổng nào chạy với
-carryover > 0, nên các con số bias/coverage đã công bố chỉ đúng dưới giả định KHÔNG có can nhiễu —
-đúng cái giả định mà thiết kế switchback sinh ra để nới lỏng."* Đội tự chỉ ra giới hạn ở **chính
-trụ cột phương pháp của mình** — và sau đó đã đo bổ sung độ phủ dưới hiệu ứng lưu
-(bán rã 0s → 100%; 120s → 84%; 180s → 60%), công bố cả ba con số.
-
-### VIII.6. Chống overclaim ở cấp kiến trúc
-
-Đây là điểm đội tự hào nhất về kiểm soát đầu ra: **một số không hợp lệ không thể hiển thị được**,
-chứ không phải "cố gắng không hiển thị":
-
-- Thẻ dự báo từ mô hình **không thể** mang khoảng tin cậy — validator từ chối.
-- Màn hình host **không thể** rò nhánh thí nghiệm — dùng model riêng chỉ 4 trường.
-- Phân tích từ VOD **không thể** mang ngôn ngữ thí nghiệm — cổng chặn ở `reports.py`.
-- Thiếu tín hiệu đầu vào ⇒ **tuyên bố thiếu**, không âm thầm ra số yếu (ma trận 5 tín hiệu → 5 năng lực).
-- **Khóa kết quả theo tiền đăng ký** (`RESULTS_FREEZE_UNTIL`), fail-closed.
-
-### VIII.7. Làm sạch đầu ra AI trước khi công bố
-
-Nhật ký phiên Claude Code **không được công bố nguyên trạng**. Đội viết
-`scripts/xuat_prompt_log.py` để xuất ra Markdown đọc được **sau khi lọc**: khoá API, token, giá trị
-biến môi trường nhạy cảm, email, số điện thoại, số tài khoản, và **handle mạng xã hội có dấu tiếng
-Việt** (bộ lọc trong script này **đã sửa lỗi ASCII-only** nêu ở §III.2).
-Chạy thử ngày 14/09/2026 trên 3 phiên chính: **185 lần thay thế**, trong đó 92 handle mạng xã hội,
-40 email, 15 số điện thoại/MSSV, 17 giá trị biến môi trường.
-Kết quả kèm `BAO-CAO-LAM-SACH.md` liệt kê đã thay gì, và **ghi rõ giới hạn**: regex không phải NER,
-tên người viết thường không tiền tố vẫn có thể lọt ⇒ **bắt buộc người đọc lại thủ công** trước khi
-tải lên Drive.
-
----
-
-## IX. CAM KẾT CỦA ĐỘI THI
-
-Chúng tôi, đội thi LiveLift, cam kết:
-
-1. **Bản kê khai này trung thực và đầy đủ** theo hiểu biết của chúng tôi tại ngày 14/09/2026.
-   Chúng tôi đã chủ động kê khai cả những điểm bất lợi cho mình — cụ thể là **phương thức thu thập
-   dữ liệu trái điều khoản dịch vụ YouTube** (§III.2, §IV), **lỗi rò rỉ 53 handle mạng xã hội trong
-   dữ liệu đã lưu** (§III.2), **giấy phép KuaiLive còn mâu thuẫn chưa xác minh** (§III.2), **hiệu
-   năng mô hình trên chat thật chỉ đạt F1 0,271** (§II.1), và **toàn bộ commit mang một danh tính**
-   (§VII.4). Chúng tôi hiểu rằng che giấu nguồn mã, dataset hoặc API là hành vi bị nghiêm cấm theo
-   Điều 5 §7 thể lệ.
-
-2. **Chúng tôi hiểu, kiểm chứng được, chỉnh sửa được và chịu trách nhiệm** với toàn bộ sản phẩm —
-   kể cả phần do công cụ AI soạn nháp. Bằng chứng là quy trình ở mục VIII, 890 hàm test, 41 sự cố
-   có truy nguyên nhân gốc, và những lần chúng tôi phát hiện & sửa lỗi nghiêm trọng do chính công
-   cụ AI tạo ra (mục VII.3).
-
-3. **Không có bất kỳ hành vi nào** trong danh sách cấm tại Điều 5: không thi hộ, không thuê làm sản
-   phẩm, không để người ngoài làm thay, không sao chép sản phẩm, **không giả mạo Prompt Log, lịch
-   sử commit, dữ liệu thử nghiệm hay video demo**.
-
-4. **Về dữ liệu cá nhân:** chúng tôi không tuyên bố đã có sự đồng ý của người bình luận. Cơ sở
-   chúng tôi viện dẫn là **khử nhận dạng ngay tại điểm thu thập cộng lợi ích chính đáng cho nghiên
-   cứu học thuật phi thương mại**, theo Nghị định 13/2023/NĐ-CP và Luật 91/2025/QH15. Chúng tôi
-   không tái phân phối dữ liệu thô, không lưu định danh người bình luận, không xây chuỗi hành vi
-   theo từng cá nhân. Lỗi rò rỉ nêu tại §III.2 đang được xử lý theo kế hoạch P0 và chúng tôi sẽ báo
-   cáo kết quả khắc phục.
-
-5. **Chúng tôi sẵn sàng trình bày, phản biện và chứng minh trực tiếp** mọi nội dung trong bản kê
-   khai này trước Ban Giám khảo, bao gồm chạy lại mọi con số bằng lệnh trên kho mã nguồn.
-
-**Đại diện đội thi**
-
-TP. Hồ Chí Minh, ngày ..... tháng ..... năm 2026
-
-*(Ký, ghi rõ họ tên)*
-
-**Ngô Bình Minh** — Đội trưởng
-
----
-
-### Phụ lục: lệnh sinh lại các con số trong bản kê khai
-
-```bash
-# Phụ thuộc Python + phiên bản chính xác
-.venv/Scripts/python -m pip list --format=freeze
-
-# Phụ thuộc JS
-cat web/package.json && cat web/package-lock.json
-
-# Thống kê lịch sử commit
-git log --format="%an <%ae>" | sort | uniq -c
-git log --shortstat --format="" | awk '{f+=$1;i+=$4;d+=$6} END {print f,i,d}'
-
-# Số test
-pytest -m "not slow" -q && pytest -m slow -q
-
-# Huấn luyện lại & đo lại bộ phân loại ý định
-python -m livelift.nlp.train_intent
-
-# Hiệu chỉnh lại theo KuaiLive
-python analysis/calibration/kuailive_calibration.py
-
-# Xuất Prompt Log đã làm sạch (xem trước, không ghi file)
-python scripts/xuat_prompt_log.py --kiem-tra
+# Prompt Log: đếm câu lệnh người gõ theo phiên (không ghi tệp)
+python scripts/xuat_prompt_log.py --kiem-tra --sao-luu D:/AISC2026/prompt-log-goc/2026-09-15
+# Xuất Prompt Log đã làm sạch, rồi quét lại (phải ra 0); tệp băm tên đã biết lưu ngoài kho
+PL=<thư mục xuất Prompt Log>
+BAM=D:/AISC2026/dinh-danh-da-biet.sha256
+python scripts/xuat_prompt_log.py --ra $PL --doi-chieu $BAM --sao-luu D:/AISC2026/prompt-log-goc/2026-09-15
+python scripts/xuat_prompt_log.py --quet $PL --doi-chieu $BAM
+# Commit, dòng đồng tác giả, danh tính
+git rev-list --count main
+git log main --format="%(trailers:key=Co-Authored-By,valueonly)" | sort | uniq -c
+git log --all --format="%an" | sort | uniq -c
+git log main --shortstat --format="" | awk '{i+=$4; d+=$6} END {print i, d}'
+# Quét khóa bí mật trên mọi commit của mọi nhánh (chỉ ra chuỗi giả dùng trong test)
+git grep -I -o -E "AIza[0-9A-Za-z_-]{30,}|EAA[A-Za-z0-9]{60,}|sk-ant-[A-Za-z0-9_-]{30,}|gh[pousr]_[A-Za-z0-9]{30,}|AKIA[0-9A-Z]{16}" $(git rev-list --all)
+# Thư viện Python và giấy phép đã cài; gói JavaScript theo lockfile
+python -m pip list --format=freeze
+node -e "const p=require('./web/package-lock.json').packages; console.log(Object.keys(p).length-1)"
+# Số test, hiệu chuẩn, sổ sự cố
+python scripts/dong_bo_so_test.py --xem-truoc
+python scripts/do_lai_so_hieu_chuan.py --kiem
+grep -cE '^\| [0-9]{2}/[0-9]{2}/[0-9]{4} ' docs/incident-log.md
+# Đánh giá bộ phân loại ý định
+python -m livelift.nlp.eval_intent
+# Dựng lại hồ sơ dự án và bản kê khai này (DOCX và PDF), quét PDF rồi chép vào thư mục nộp
+.venv-docx/Scripts/python docs/competition/sang-tao-tre-2026/hoan_tat_ho_so.py
 ```

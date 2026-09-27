@@ -9,10 +9,9 @@ hành động *tạo ra giá trị* với *sự trùng hợp thời điểm*.
 
 *Causal experimentation infrastructure for live commerce operations.*
 
-[![CI](https://github.com/bminhnemhoi/AISC2026_LIVEFIT/actions/workflows/ci.yml/badge.svg)](https://github.com/bminhnemhoi/AISC2026_LIVEFIT/actions/workflows/ci.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
-[![Tests](https://img.shields.io/badge/tests-1803%20nhanh%20%2B%2017%20Monte--Carlo-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-2089%20nhanh%20%2B%2017%20c%E1%BB%95ng%20ch%E1%BA%ADm-blue)](#-kết-quả-đã-kiểm-chứng)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Next.js 14](https://img.shields.io/badge/Next.js-14-black?logo=next.js)](web/)
 
@@ -26,6 +25,10 @@ hành động *tạo ra giá trị* với *sự trùng hợp thời điểm*.
 [**Đóng góp**](CONTRIBUTING.md)
 
 Dự thi **AISC'26 — Data Driven Business** · Việt Nam · Chung kết 11/2026
+
+**Tình trạng 25/09/2026: 0 phiên thí nghiệm ngẫu nhiên thật.** 16 buổi live đã phân tích
+là VOD YouTube công khai (quan sát, không can thiệp); chưa có khoá API nền tảng nào nên
+các bộ nối chính thức chưa gọi thật lần nào.
 
 </div>
 
@@ -47,10 +50,10 @@ LiveLift nhắm vào: không phải một dashboard đẹp hơn — một **moat
 | | |
 |---|---|
 | 🎲 **Switchback hai tầng** | Khối thời gian gán ngẫu nhiên BẬT/TẮT theo thiết kế tối ưu (Bojinov et al. 2023); tầng trong chỉ khám phá khi mô hình *thật sự* không chắc, ghi propensity chính xác |
-| 📏 **Suy diễn tự chứng minh** | Kiểm định ngẫu nhiên hóa vẽ lại bằng *chính hàm gán production*; A/A 200 lặp: bác bỏ 3,50% (danh nghĩa 5%), độ phủ KTC 96,50% (đo 14/09/2026, `docs/benchmarks/so-hieu-chuan.json`) |
-| 🛡️ **Liêm chính ở cấp kiến trúc** | Số dự báo *không thể* mang khoảng tin cậy (validator từ chối); màn hình host *không thể* rò nhánh thí nghiệm (model riêng 4 trường); lịch gán lưu **trước** phát sóng, seed tái lập |
-| 🇻🇳 **Làm cho live commerce Việt** | Lọc PII tiếng Việt (SĐT viết chữ, teencode, 2 thế hệ đơn vị hành chính) recall ≥95% mỗi loại trên bộ gán nhãn 95 câu (riêng *tên người* ngưỡng ≥70% — trần của luật thuần quy tắc); phân loại ý định F1 **0,870 trên bộ biên soạn nhưng 0,271 trên chat bán hàng thật** — xem cảnh báo ở `docs/benchmarks/intent-classifier.md`; toàn bộ UI tiếng Việt thường |
-| 🔬 **Hiệu chỉnh bằng dữ liệu thật** | Mô phỏng thẩm định hiệu chỉnh theo **KuaiLive** (1,16 triệu phòng shop thật); live-fire trên VOD thật **19.126 bình luận · 16 buổi live · 7 ngành hàng** (lô đo 10/09/2026) |
+| 📏 **Suy diễn tự chứng minh** | Kiểm định ngẫu nhiên hóa vẽ lại bằng *chính hàm gán production*; A/A 200 lặp: bác bỏ 3,50% (danh nghĩa 5%); độ phủ KTC 96,50% là mặt kia của cùng phép đo (193 = 200 − 7), không độc lập — bằng chứng riêng về độ phủ là thu hồi tác động biết trước: 37/40 (đo 14/09 và 25/09/2026, `docs/benchmarks/so-hieu-chuan.json`) |
+| 🛡️ **Liêm chính ở cấp kiến trúc** | Số dự báo *không thể* mang khoảng tin cậy (validator từ chối); màn hình host không nhận lịch, khối hay nhánh (model riêng 4 trường) — làm mù người dẫn chỉ *một phần*: host vẫn thấy sản phẩm đang ghim, mà ở chế độ Tự ghim lệnh ghim chỉ đến trong khối BẬT; lịch gán lưu **trước** phát sóng, seed tái lập |
+| 🇻🇳 **Làm cho live commerce Việt** | Lọc PII tiếng Việt (SĐT viết chữ, teencode, 2 thế hệ đơn vị hành chính) recall ≥95% mỗi loại trên bộ gán nhãn 95 câu (riêng *tên người* ngưỡng ≥70% — trần của luật thuần quy tắc); phân loại ý định macro-F1 **0,870 trên 320 câu do AI soạn**, nhưng trên 393 bình luận thật (nhãn do **tác tử AI** gán) chỉ **0,211 → 0,542** sau nâng cấp (thang 11 lớp; chấm cùng thang 6 lớp của bản cũ: **0,370 → 0,572**; v2 bật bằng `LIVELIFT_INTENT_MODEL=v2`; đo lại 25/09/2026 sau khi lọc lại PII, số 14/09 là 0,565; số 0,271 công bố trước đây không tái lập được); toàn bộ UI tiếng Việt thường |
+| 🔬 **Hiệu chỉnh bằng dữ liệu thật** | Mô phỏng thẩm định hiệu chỉnh theo **KuaiLive** (1,16 triệu phòng shop thật); phân tích quan sát VOD YouTube công khai (chat tải qua yt-dlp, không can thiệp) **19.126 bình luận · 16 buổi live · 7 ngành hàng** (lô đo 10/09/2026) |
 | 🚦 **Ma trận tín hiệu** | "Đo được gì từ nguồn này?" trả lời bằng ma trận 5 tín hiệu → 5 năng lực — thiếu tín hiệu là *tuyên bố*, không âm thầm ra số yếu |
 
 ## 🚀 Khởi động trong 5 phút
@@ -67,7 +70,7 @@ Mọi truy cập đi qua **Caddy** (cổng 80/443) — cổng vào công khai du
 
 | Mở | Để làm gì |
 |---|---|
-| <http://localhost> | Trang chính — bấm **"🔬 Xem thử ngay (30 giây)"** |
+| <http://localhost> | Trang chính — thẻ **"Xem thử 30 giây"**, bấm **"Bắt đầu xem thử"** |
 | <http://localhost/chay-phien> | Chạy một phiên thí nghiệm thật — 4 bước, không cần gõ lệnh |
 | <http://localhost/ket-qua> | Kết quả gộp: tác động, KTC 95%, p-value, bảng MDE |
 | <http://localhost/docs> | Toàn bộ API (OpenAPI, thử trực tiếp; REST đi qua tiền tố `/api`) |
@@ -79,7 +82,7 @@ Mọi truy cập đi qua **Caddy** (cổng 80/443) — cổng vào công khai du
 (không phải app điện thoại), mỗi bước ghi rõ *bấm nút nào · ở góc nào của màn
 hình · chuyện gì sẽ xảy ra · lỗi thì làm sao*, kèm **ảnh chụp thật từng bước**
 của 4 luồng: xem thử 30 giây → phân tích một buổi live YouTube có sẵn → chạy một
-phiên thí nghiệm thật (bàn điều khiển + màn hình host làm mù) → đọc kết quả.
+phiên thí nghiệm thật (bàn điều khiển + màn hình người dẫn không thấy lịch khối — làm mù một phần) → đọc kết quả.
 Có riêng mục **ai dùng màn nào** và mục **giới hạn hiện tại** nói thẳng những gì
 chưa làm được.
 
@@ -92,16 +95,32 @@ chưa làm được.
 <details>
 <summary><b>Phát triển ngoài Docker & chạy kiểm thử</b></summary>
 
-```bash
-python -m venv .venv && .venv\Scripts\activate      # Windows; Linux: source .venv/bin/activate
+Windows PowerShell 5.1 (mỗi lệnh một dòng — PowerShell 5.1 không hiểu `&&`):
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
 pip install -e ".[dev,server,ml]"
-
-pytest -m "not slow"     # 1803 test nhanh (đếm 18/09/2026)
-pytest -m slow           # gate thống kê Monte-Carlo (vài phút)
-ruff check src tests     # lint
-
-cd web && npm ci && npm run dev   # giao diện dev tại :3000
 ```
+
+> PowerShell chặn `Activate.ps1`? Chạy một lần
+> `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, hoặc bỏ bước kích hoạt và gọi
+> thẳng `.venv\Scripts\python -m pytest ...`. Linux/macOS: `source .venv/bin/activate`.
+
+```bash
+pytest -m "not slow"                # 2089 test nhanh (số thu thập — đếm lại: scripts/dong_bo_so_test.py)
+pytest -m "slow and not browser"    # 17 cổng chậm (13 mô phỏng/thống kê · 1 đánh giá NLP · 3 cổng build CSS), ~25 phút
+pytest -m browser                   # 10 test trình duyệt (cần Chromium của Playwright)
+ruff check src tests                # lint
+
+cd web
+npm ci
+npm run dev                         # giao diện dev tại :3000
+```
+
+**CI:** GitHub Actions của kho hiện không chạy được job nào — tài khoản GitHub bị khoá vì
+vấn đề thanh toán, mọi lượt dừng trước bước đầu tiên (kiểm 25/09/2026), không phải do mã.
+Vì vậy mọi con số kiểm thử trong README là **chạy cục bộ** bằng đúng các lệnh trên.
 
 Hướng dẫn kiểm thử **từng khả năng** (mọi lệnh đã chạy thật, ghi sẵn kết quả đúng):
 [docs/HUONG-DAN-TEST.md](docs/HUONG-DAN-TEST.md)
@@ -192,18 +211,18 @@ flowchart LR
 | Hạng mục | Kết quả | Kiểm chứng bằng |
 |---|---|---|
 | **Hiệu chỉnh ước lượng viên (A/A)** | bác bỏ **3,50%** (7/200; danh nghĩa 5%), nhị thức chính xác p = 0,4168 | 200 lặp Monte-Carlo, gate tự động; đo lại 14/09/2026 bằng `scripts/do_lai_so_hieu_chuan.py` |
-| **Độ phủ KTC 95%** | **96,50%** (193/200) | cùng gate |
+| **Độ phủ KTC 95%** | **96,50%** (193/200) — mặt kia của dòng trên (193 = 200 − 7), không độc lập | cùng gate, cùng KTC |
 | **Thu hồi tác động biết trước** | sai lệch **−0,84%**, phủ KTC 92,50% (37/40) | `docs/benchmarks/so-hieu-chuan.json` |
-| **Dưới hiệu ứng lưu** 2ph/3ph | lệch −20%/−30% *về phía 0* (bảo thủ), coverage 84%/60% | đo & ghi trung thực — lý do tuần 3 đo t_mix |
+| **Dưới hiệu ứng lưu** (bán rã 2 phút / 3 phút) | lệch −21,5% / −31,6% *về phía 0* (bảo thủ), độ phủ KTC 95% chỉ còn 76% (57/75) / 57% (43/75); không lưu: 96% (72/75). Mô phỏng, n = 75 mỗi mức (3 seed × 25 lần lặp). Bảng cũ đo 02/09 không tái lập được, đã thay | `python scripts/ve_hinh_ho_so.py --kiem` → `docs/competition/sang-tao-tre-2026/hinh/du-lieu/hieu-ung-luu.json` (Hình 5 hồ sơ) — lý do tuần 3 đo t_mix |
 | **Dưới phân cụm phiên (ICC≈0,05)** | A/A và độ phủ giữ nguyên ngưỡng cũ — switchback không phải trả giá ICC vì redraw diễn ra **trong** phiên | 2 gate slow mới; knob `session_click_sigma` |
 | **Ánh xạ knob → ICC (400 phiên)** | σ=0 → **+0,008**; σ=0,06 → **+0,048**; σ=0,3 → **+0,535**. Frailty có tác dụng phụ ICC (cv=2 → **+0,083**) và *chỉ* nó làm tăng phương sai trong-phiên — cột phân biệt hai cơ chế | `python analysis/calibration/bang_icc_mo_phong.py` → `docs/benchmarks/sim-icc-map.md` |
 | **Lưới SBC (bộ khung)** | 4/4 ô XANH; **cổng có răng**: lỗi tiêm vào làm ô ĐỎ đúng như phải thế | `python -m livelift.sim.cli --grid` → `docs/benchmarks/sim-validation-report.md` |
-| **MDE khớp lực thật** | 20.1% (công thức cũ sai: 30.1%) | sweep tác động × 60 lặp |
-| **Ý định tiếng Việt** | macro-F1 **0,870** trên bộ biên soạn (320 câu, 5-fold) vs baseline 0,653 — **NHƯNG 0,271 trên chat bán hàng thật** (200 câu gán nhãn tay), precision gộp 11%: trên chat kiểu này radar ý định gần như là nhiễu | `python -m livelift.nlp.train_intent` · `docs/benchmarks/intent-classifier.md` |
+| **MDE lượt nhấp (lực 80%)** | **16,4%** ở ~59 người xem đồng thời (40–114), từ CV trong phiên 0,263 đo trên 8 phiên mô phỏng; sàn Poisson cùng chỗ 16,0%. Số 20,1% của phép quét 30/08 (công thức cũ sai: 30,1%) **chưa đo lại** — không lệnh nào trong kho sinh lại được | `python scripts/ve_hinh_ho_so.py` → `docs/competition/sang-tao-tre-2026/hinh/du-lieu/tom-tat.json` (Hình 4 hồ sơ) |
+| **Ý định tiếng Việt** | macro-F1 **0,870** trên 320 câu do AI (Claude) soạn (5-fold) vs baseline 0,653 — **NHƯNG trên 393 bình luận thật chỉ 0,211** (KTC95 [0,172; 0,247], bản v1 đang phục vụ mặc định) → **0,542** với bản v2 (KTC95 [0,478; 0,625]; bật bằng `LIVELIFT_INTENT_MODEL=v2`; đo lại 25/09/2026 trên dữ liệu đã lọc lại tên tài khoản — số 14/09 trước khi lọc là 0,565 [0,491; 0,649]). Nhãn tham chiếu 393 dòng do **tác tử AI** gán, chưa có nhãn người; 3 buổi, leave-one-session-out. Chấm cùng thang 6 lớp của v1 (dòng A9 và A8): **0,370** [0,306; 0,432] → **0,572** [0,471; 0,667]. Số 0,271 công bố trước đây không tái lập được | `python -m livelift.nlp.eval_intent` → `docs/benchmarks/intent-eval/results.json` (tệp nhãn nằm ngoài git theo chính sách PII) · `docs/benchmarks/intent-classifier.md` |
 | **Lọc PII** | recall ≥ 95%/loại | gate `test_pii_filter.py` |
 | **Hiệu chỉnh KuaiLive** | 1,16M phòng shop; đơn vị ms **chứng minh bằng ràng buộc vật lý** | `analysis/calibration/` |
-| **Live-fire VOD thật** | **19.126 bình luận · 16 buổi live · 7 ngành hàng** chạy trọn qua API (lô 10/09/2026 thay lô 06/09 cũ 14.903) | `docs/benchmarks/live-fire-da-nguon.md` |
-| **Kiểm toán đối kháng** | 16/16 phát hiện xử lý (2 FATAL) · đợt 2 (06/09): 5 nhóm lỗi chặn phiên-thật đã sửa | **60 sự cố** đủ root cause + gate (đếm 18/09/2026) |
+| **Live-fire VOD công khai (quan sát)** | **19.126 bình luận · 16 buổi live · 7 ngành hàng** — chat của VOD YouTube công khai tải bằng yt-dlp, nạp qua `POST /replays/youtube` của LiveLift; chỉ phân tích quan sát, không can thiệp, 0 phiên thí nghiệm (lô 10/09/2026 thay lô 06/09 cũ 14.903) | `docs/benchmarks/live-fire-da-nguon.md` |
+| **Kiểm toán đối kháng** | 16/16 phát hiện xử lý (2 FATAL) · đợt 2 (06/09): 5 nhóm lỗi chặn phiên-thật đã sửa | **121 sự cố** đủ root cause + gate (đếm 25/09/2026) |
 
 ## 📁 Cấu trúc kho mã
 
@@ -225,7 +244,7 @@ flowchart LR
 │   ├── nlp/                 # ý định tiếng Việt (đã train) + dataset + trainer
 │   ├── api/                 # FastAPI: sessions/schedule/actions/reports/replays/signals
 │   └── migrations/          # SQL up/down
-├── web/                     # Next.js 14 — desk 3 vùng · host làm mù · replay · kết quả
+├── web/                     # Next.js 14 — desk 3 vùng · host che lịch (làm mù một phần) · replay · kết quả
 ├── collectors/tiktok_public # CÁCH LY — CI chặn import ngược vào lõi
 ├── analysis/                # notebook + script hiệu chỉnh
 ├── ops/                     # runbook phiên live, mẫu nhật ký, thư đối tác
@@ -243,8 +262,8 @@ flowchart LR
 │   ├── nen-tang-ho-tro.md   # "test buổi live X thì làm sao" — bảng khả năng 8 nền tảng
 │   ├── huong-dan-facebook-token.md  # lấy Page token (~25 phút, không cần App Review)
 │   ├── benchmarks/          # số sinh lại được (intent, KuaiLive)
-│   ├── research/            # 7 báo cáo nghiên cứu đa nguồn
-│   └── incident-log.md      # 60 sự cố: root cause + gate chặn tái diễn
+│   ├── research/            # 17 báo cáo nghiên cứu đa nguồn
+│   └── incident-log.md      # 121 sự cố: root cause + gate chặn tái diễn
 ├── PREREGISTRATION.md       # tiền đăng ký — KHÓA trước chuỗi khẳng định
 ├── HARNESS.md               # quy trình phát triển & quality gates   ← đọc thứ ba
 ├── CONTRIBUTING.md · CITATION.cff · LICENSE (AGPL-3.0)
@@ -270,12 +289,12 @@ Chi tiết thành tựu, việc còn lại (P0/P1/P2), nợ kỹ thuật không 
 ## 🧑‍💻 Quy trình & đóng góp
 
 Vòng lặp: *hiểu → nghiên cứu (có trích dẫn) → thiết kế test trước → code thuần ở lõi
-→ gate tự động → root cause mọi lỗi → sổ sự cố*. Quality gates: 1803 test nhanh · gate
-thống kê Monte-Carlo · recall PII · cân bằng gán 1000 lịch · **contract test web↔API**
+→ gate tự động → root cause mọi lỗi → sổ sự cố*. Quality gates: 2089 test nhanh ·
+17 cổng chậm (13 mô phỏng/thống kê · 1 đánh giá NLP · 3 cổng build CSS) · recall PII · cân bằng gán 1000 lịch · **contract test web↔API**
 · cách ly collectors · ruff.
 
-Bắt đầu đóng góp: **[CONTRIBUTING.md](CONTRIBUTING.md)** — kèm lộ trình 90 phút nắm
-toàn dự án cho thành viên mới.
+Bắt đầu đóng góp: **[CONTRIBUTING.md](CONTRIBUTING.md)** — mục *Lộ trình 90 phút cho
+thành viên mới* ở đầu tệp.
 
 ## ⚖️ Pháp lý, quyền riêng tư & đạo đức
 

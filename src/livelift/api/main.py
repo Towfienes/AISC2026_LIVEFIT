@@ -232,6 +232,11 @@ def create_app(
             # provenance: which intent classifier is live (trained model vs
             # keyword baseline) — numbers must carry their source
             "intent_backend": info["backend"],
+            # Kiểm toán 25/09/2026: artifact CÓ mà không dùng được (lệch
+            # scikit-learn, tệp hỏng) ⇒ intent_backend="keyword_fallback" và
+            # lý do ở đây; None khi không có sự cố. Khoá THÊM theo hợp đồng
+            # C-4 — không đổi tên hay xoá khoá cũ.
+            "intent_fallback_reason": info.get("fallback_reason"),
             **storage,
             **data_mode,
         }

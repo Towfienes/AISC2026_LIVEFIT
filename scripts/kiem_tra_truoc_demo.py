@@ -58,6 +58,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -82,12 +83,19 @@ from livelift.console import configure  # noqa: E402
 #   đứng vững. Sao lưu cũ hơn thế thì không còn là lưới an toàn cho kỳ chấm.
 # TRE_CHAM_MS — người xem bỏ trang khi chờ quá ~1 giây; 1500 ms là mốc "vẫn
 #   dùng được nhưng phải xem lại" cho một VPS 1 vCPU ở xa.
+# CHO_NAP_MO_HINH_S — /health khai intent_backend="dang_nap" khi luồng khởi động
+#   đang nạp mô hình ý định. Nạp đo được 4,7 s trên máy dev đang thiếu RAM
+#   (25/09/2026, gồm cả import scikit-learn — src/livelift/nlp/intent.py); 30 s là
+#   hơn 6 lần số đó. Quá 30 s mà vẫn nạp thì máy thiếu RAM nặng hoặc luồng nạp
+#   treo, và bình luận đến lúc ấy phải xếp hàng chờ khoá nạp.
 CSS_TOI_THIEU_BYTE = 10 * 1024
 CSS_TOKEN_BAT_BUOC = ("--canvas", "--brand")
 BACKUP_CU_CANH_BAO_GIO = 36
 BACKUP_CU_CHAN_GIO = 48
 TRE_CHAM_MS = 1500
 HET_GIO_S = 10
+CHO_NAP_MO_HINH_S = 30
+NHIP_HOI_LAI_S = 2
 
 # Mọi cách một lần gọi HTTP có thể hỏng, gom một chỗ.
 #
@@ -288,6 +296,122 @@ def thu_health(s: Soat, api: str) -> dict:
         )
 
     return doc
+
+
+def _hoi_lai_health(api: str) -> Callable[[], dict]:
+    """Hàm hỏi lại ``/health`` một lần (lỗi mạng để người gọi xử lý)."""
+
+    def hoi() -> dict:
+        status, _, body, _ = _mo(f"{api}/health")
+        return _json(body) if status == 200 else {}
+
+    return hoi
+
+
+def thu_bo_phan_loai(
+    s: Soat,
+    doc: dict,
+    hoi_lai: Callable[[], dict] | None = None,
+    *,
+    cho_toi_da_s: float = CHO_NAP_MO_HINH_S,
+    nhip_s: float = NHIP_HOI_LAI_S,
+    dong_ho: Callable[[], float] = time.monotonic,
+    ngu: Callable[[float], None] = time.sleep,
+) -> None:
+    """Nhãn ý định đang do MÔ HÌNH gán, hay đã âm thầm rơi về bộ từ khoá?
+
+    Kiểm toán 25/09/2026: scikit-learn lệch bản làm ``predict_proba`` vỡ, và
+    393/393 bình luận bị gán bằng từ khoá trong khi /health vẫn khai mô hình.
+    Máy chủ nay nói thật qua ``intent_backend`` (``src/livelift/nlp/intent.py``,
+    ``classifier_info``); phép soát này đọc nó:
+
+    * ``tfidf_logreg``     — ĐẠT;
+    * ``keyword_fallback`` — TRƯỢT, CHẶN: artifact có mà không dùng được (sự cố);
+    * ``dang_nap``         — hỏi lại tới ``cho_toi_da_s`` giây; còn nạp ⇒ TRƯỢT;
+    * ``keyword_baseline`` — CẢNH BÁO: cài không kèm [ml], cấu hình hợp lệ nhưng
+      màn hình ý định lúc demo sẽ là từ khoá;
+    * không có trường     — KHÔNG ĐO ĐƯỢC (API cũ).
+    """
+    ten = "Bộ phân loại ý định"
+    backend = doc.get("intent_backend")
+    da_cho = 0.0
+    if backend == "dang_nap" and hoi_lai is not None:
+        t0 = dong_ho()
+        while backend == "dang_nap" and dong_ho() - t0 < cho_toi_da_s:
+            ngu(nhip_s)
+            try:
+                moi = hoi_lai()
+            except LOI_MANG:
+                moi = {}
+            if moi.get("intent_backend") is not None:
+                doc = moi
+                backend = moi["intent_backend"]
+        da_cho = dong_ho() - t0
+    kem_cho = f" (sau {da_cho:.0f} s chờ nạp)" if da_cho else ""
+    ly_do = doc.get("intent_fallback_reason") or "máy chủ không nêu lý do"
+
+    if backend == "tfidf_logreg":
+        s.them(ten, DAT, f"intent_backend=tfidf_logreg — nhãn ý định do mô hình gán{kem_cho}")
+    elif backend == "keyword_fallback":
+        s.them(
+            ten,
+            TRUOT,
+            f"intent_backend=keyword_fallback{kem_cho} — artifact mô hình CÓ nhưng không dùng "
+            f"được ({ly_do}); mọi bình luận đang bị gán nhãn bằng TỪ KHOÁ",
+            cach_sua="Cài đúng bản scikit-learn mà artifact ghi trong "
+            "src/livelift/nlp/model/*.meta.json (pyproject ghim scikit-learn==1.9.0): "
+            '`pip install -e ".[server,ml]"`, hoặc dựng lại ảnh `docker compose up -d --build '
+            "api`; rồi khởi động lại api — tiến trình đã rơi về từ khoá giữ nguyên tới khi "
+            "khởi động lại. Lý do cụ thể: dòng 'Không dùng được artifact ý định' trong "
+            "`docker compose logs --tail=100 api`. Tệp artifact hỏng thì khôi phục nó từ git.",
+        )
+    elif backend == "dang_nap":
+        if hoi_lai is None:
+            s.them(
+                ten,
+                KHONG_DO,
+                "intent_backend=dang_nap — mô hình đang nạp, phép soát không hỏi lại được",
+                chan=False,
+                cach_sua="Chạy lại phép soát sau vài giây.",
+            )
+        else:
+            s.them(
+                ten,
+                TRUOT,
+                f"intent_backend=dang_nap sau {da_cho:.0f} s chờ (ngưỡng {cho_toi_da_s:.0f} s) "
+                "— mô hình ý định chưa nạp xong; bình luận đến lúc này phải xếp hàng chờ",
+                cach_sua="Nạp bình thường mất vài giây (đo 4,7 s ngày 25/09/2026); quá 30 s "
+                "thường là máy thiếu RAM hoặc luồng nạp treo. Xem `docker compose logs "
+                "--tail=100 api` và RAM trống (`docker stats`), khởi động lại api, rồi chạy "
+                "lại phép soát.",
+            )
+    elif backend == "keyword_baseline":
+        s.them(
+            ten,
+            CANH_BAO,
+            "intent_backend=keyword_baseline — không có mô hình (cài không kèm [ml] hoặc "
+            "thiếu artifact); nhãn ý định lúc demo sẽ là bộ từ khoá",
+            chan=False,
+            cach_sua='Cài extra ml: `pip install -e ".[server,ml]"` (ảnh Docker api đã cài '
+            "sẵn), rồi khởi động lại api.",
+        )
+    elif backend is None:
+        s.them(
+            ten,
+            KHONG_DO,
+            "/health không có trường intent_backend",
+            chan=False,
+            cach_sua="Bản API đang chạy quá cũ — dựng lại: `docker compose up -d --build api`",
+        )
+    else:
+        s.them(
+            ten,
+            CANH_BAO,
+            f"intent_backend={backend!r} — giá trị lạ, không biết nhãn ý định từ đâu ra",
+            chan=False,
+            cach_sua="Đối chiếu classifier_info() trong src/livelift/nlp/intent.py với bản "
+            "API đang chạy.",
+        )
 
 
 def thu_che_do_du_lieu(s: Soat, doc: dict) -> None:
@@ -757,6 +881,7 @@ def main(argv: list[str] | None = None) -> int:
         print()
         print("  Không hỏi được API. Mọi phép thử sau đều vô nghĩa — dừng ở đây.")
         return 2
+    thu_bo_phan_loai(s, doc, _hoi_lai_health(api))
     print()
 
     print("-- Dữ liệu và nhãn DEMO/THẬT --")

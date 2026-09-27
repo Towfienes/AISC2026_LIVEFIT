@@ -10,9 +10,23 @@ tài liệu đó là luật. Trang này chỉ là bản đồ nhanh.
 > ai sở hữu thư mục nào, việc nào trước 30/09, hợp đồng giữa các làn, và 48 giờ đầu.
 > Mẫu PR ở `.github/pull_request_template.md` được GitHub điền sẵn khi mở PR.
 
-1. Đi hết **lộ trình 90 phút cho thành viên mới** trong [README](README.md).
+1. Đi hết **lộ trình 90 phút cho thành viên mới** ngay dưới đây.
 2. Nhận việc theo mã trong `09-PHAN-CONG.md` (ví dụ `K-06`, `T-01`).
 3. Tạo nhánh `<ten>/<MA-VIEC>-mo-ta`, ví dụ `khanh/K-06-xuat-prompt-log`. Mở Draft PR ngay ngày đầu.
+
+## Lộ trình 90 phút cho thành viên mới
+
+Mục tiêu: sau 90 phút bạn chạy được hệ thống, đi hết một phiên chạy thử và biết
+việc đầu tiên của mình nằm ở đâu. Mỗi bước là một tệp có thật trong kho.
+
+| Phút | Làm gì | Đọc / chạy |
+|---|---|---|
+| 0–15 | Bài toán và ranh giới trung thực: đo được gì, **chưa** có gì (0 phiên thí nghiệm ngẫu nhiên thật) | [README](README.md): dòng *Tình trạng* ở đầu tệp và mục *Kết quả đã kiểm chứng* · [docs/competition/FACT-SHEET.md](docs/competition/FACT-SHEET.md) |
+| 15–30 | Luật làm việc: test trước, root cause, sổ sự cố | [HARNESS.md](HARNESS.md) · 5 dòng mới nhất của [docs/incident-log.md](docs/incident-log.md) |
+| 30–45 | Cài môi trường, chạy bộ test nhanh (khoảng 4 phút), bật hệ thống | README mục *Phát triển ngoài Docker* · `python scripts/chay_local.py` |
+| 45–65 | Đi một vòng như người bán: Xem thử 30 giây → Chuẩn bị phiên (chọn **Chạy thử**) → Bàn trợ live → Màn người dẫn → Kết quả | [docs/HUONG-DAN-SU-DUNG.md](docs/HUONG-DAN-SU-DUNG.md) · [docs/demo-vang.md](docs/demo-vang.md) |
+| 65–80 | Trái tim khoa học: lịch gán lưu trước giờ phát, kiểm định ngẫu nhiên hóa | [PREREGISTRATION.md](PREREGISTRATION.md) · `src/livelift/core/assigner/outer.py` · `src/livelift/analysis/estimators.py` |
+| 80–90 | Nhận việc | [docs/VIEC-CAN-LAM.md](docs/VIEC-CAN-LAM.md) · [09-PHAN-CONG.md](docs/competition/sang-tao-tre-2026/09-PHAN-CONG.md) |
 
 ## Trước khi mở PR — checklist bắt buộc
 

@@ -87,24 +87,43 @@ def test_so_binh_luan_live_fire_trong_readme_khop_bao_cao_lo_do(readme: str) -> 
     )
 
 
+F1_BIEN_SOAN_RE = re.compile(r"0[.,]870?\b")
+# Số trên chat thật. 0,211 là số "trước" CHÍNH THỨC, chạy lại được
+# (``python -m livelift.nlp.eval_intent``, 393 dòng nhãn do tác tử AI gán); 0,271
+# (live-fire 08/09) KHÔNG tái lập được. Phản biện 25/09/2026: gate cũ chỉ nhận
+# 0,271, tức là ép README trích lại đúng con số không tái lập được — nay nhận cả hai.
+F1_CHAT_THAT_RE = re.compile(r"0[.,](?:211|271)\b")
+
+
+def _dong_neu_f1_bien_soan_mot_minh(text: str) -> list[str]:
+    return [
+        f"dòng {i}: {d.strip()[:110]}"
+        for i, d in enumerate(text.splitlines(), 1)
+        if F1_BIEN_SOAN_RE.search(d) and not F1_CHAT_THAT_RE.search(d)
+    ]
+
+
 def test_readme_khong_bao_gio_neu_f1_bo_bien_soan_mot_minh(readme: str) -> None:
     """Quy tắc của chính docs/benchmarks/intent-classifier.md, nâng lên thành gate.
 
     Con số đẹp (bộ biên soạn) và con số thật (chat bán hàng) phải đi CẶP trên
     cùng một dòng — một giám khảo đọc lướt chỉ thấy dòng đó.
     """
-    dep = re.compile(r"0[.,]870?\b")
-    that = re.compile(r"0[.,]271\b")
-    vi_pham = [
-        f"dòng {i}: {d.strip()[:110]}"
-        for i, d in enumerate(readme.splitlines(), 1)
-        if dep.search(d) and not that.search(d)
-    ]
+    vi_pham = _dong_neu_f1_bien_soan_mot_minh(readme)
     assert not vi_pham, (
         "README nêu macro-F1 bộ biên soạn (0,870) mà không kèm số trên chat thật "
-        "(0,271) trên cùng dòng — đúng điều docs/benchmarks/intent-classifier.md "
-        "in đậm cấm ('Không được nêu 0.870 một mình'):\n  " + "\n  ".join(vi_pham)
+        "(0,211 chính thức; 0,271 cũ, không tái lập được) trên cùng dòng — đúng điều "
+        "docs/benchmarks/intent-classifier.md in đậm cấm ('Không được nêu 0.870 một "
+        "mình'):\n  " + "\n  ".join(vi_pham)
     )
+
+
+def test_gate_f1_nhan_so_chinh_thuc_0_211_khong_ep_trich_0_271() -> None:
+    """Dòng chỉ ghép 0,870 với số chính thức 0,211 là HỢP LỆ; 0,870 một mình vẫn đỏ."""
+    assert not _dong_neu_f1_bien_soan_mot_minh(
+        "macro-F1 0,870 trên 320 câu do AI soạn, nhưng trên 393 bình luận thật chỉ 0,211"
+    )
+    assert _dong_neu_f1_bien_soan_mot_minh("macro-F1 0,870 trên 320 câu do AI soạn")
 
 
 def _ten_configure(cay: ast.Module) -> set[str]:
@@ -203,3 +222,106 @@ def test_readme_khong_con_bo_so_hieu_chuan_cu_khong_tai_lap_duoc(readme: str) ->
         if so in d and "cũ" not in d and "không tái lập" not in d
     ]
     assert not con_lai, f"README còn trích bộ số hiệu chuẩn cũ: {con_lai}"
+    # Hội đồng thử 25/09/2026: độ phủ A/A 96,50% và tỷ lệ bác bỏ 3,50% tính từ CÙNG một KTC
+    # (validate.py: phủ = không bác bỏ, 193 = 200 − 7) — hồ sơ đã sửa (Bảng 4, Tóm tắt) mà
+    # README, FACT-SHEET, TONG-KET vẫn trình bày 96,50% như bằng chứng thứ hai. Dòng nào nêu
+    # 96,50% phải nói nó không độc lập.
+    for ten, van_ban in (
+        ("README.md", readme),
+        ("FACT-SHEET.md", FACT_SHEET.read_text(encoding="utf-8")),
+        ("TONG-KET-DU-AN.md", (GOC / "docs" / "TONG-KET-DU-AN.md").read_text(encoding="utf-8")),
+    ):
+        doc_lap = [
+            (i, d.strip()[:120])
+            for i, d in enumerate(van_ban.splitlines(), 1)
+            if "96,50%" in d and "không độc lập" not in d
+        ]
+        assert not doc_lap, f"{ten} nêu độ phủ A/A như bằng chứng độc lập: {doc_lap}"
+
+
+# ---------------------------------------------------------------------------
+# Tích hợp 25/09/2026 tối: tài liệu nộp phải khớp NGUỒN, không chỉ README
+# ---------------------------------------------------------------------------
+FACT_SHEET = GOC / "docs" / "competition" / "FACT-SHEET.md"
+HO_SO = GOC / "docs" / "competition" / "sang-tao-tre-2026" / "noi-dung.md"
+KE_KHAI = GOC / "docs" / "competition" / "sang-tao-tre-2026" / "05-BAN-KE-KHAI.md"
+KICH_BAN = GOC / "docs" / "competition" / "sang-tao-tre-2026" / "07-KICH-BAN-2-VIDEO.md"
+NLP_NANG_CAP = GOC / "docs" / "competition" / "sang-tao-tre-2026" / "03-NLP-NANG-CAP.md"
+MO_HINH = GOC / "src" / "livelift" / "nlp" / "model"
+
+
+def _dong_bang(van_ban: str, dau: str) -> str:
+    dong = [d for d in van_ban.splitlines() if d.startswith(dau)]
+    assert len(dong) == 1, f"phải có đúng một dòng bảng bắt đầu bằng {dau!r}, có {len(dong)}"
+    return dong[0]
+
+
+def test_so_su_co_o_fact_sheet_va_ho_so_khop_so_hang_cua_so_su_co() -> None:
+    """Gate README ở trên không quét FACT-SHEET hay hồ sơ: tối 25/09/2026 sổ thêm hàng mà
+    hai tệp nộp này vẫn có thể ghi số cũ."""
+    so = SO_SU_CO.read_text(encoding="utf-8")
+    that = len(HANG_SU_CO_RE.findall(so))
+    ngay_25 = len(re.findall(r"^\| 25/09/2026 \|", so, re.M))
+    dong = _dong_bang(FACT_SHEET.read_text(encoding="utf-8"), "| Sổ sự cố |")
+    assert f"**{that} sự cố có nguyên nhân gốc**" in dong, dong[:160]
+    assert f"{that} hàng, trong đó {ngay_25} hàng ngày 25/09" in dong, dong[:220]
+    trich = {int(m) for m in re.findall(r"\*\*(\d+)\*\* sự cố", HO_SO.read_text("utf-8"))}
+    assert trich == {that}, f"hồ sơ ghi {sorted(trich)} sự cố, sổ có {that} hàng"
+    # Phần việc 3 (tối 25/09/2026): mẫu "**N** sự cố" ở trên không quét dòng BẢNG, nên Bảng 5
+    # của hồ sơ và bảng "Số được phép nói" của kịch bản video còn ghi 99 sau khi sổ lên 109.
+    # Quét mọi dạng trích trong cả ba tệp nộp: "N sự cố", "**N** sự cố", "| Sự cố … | N |".
+    # Phần việc 2 (wf6, 25/09/2026): TONG-KET-DU-AN.md vẫn ghi "**99** sự cố ghi sổ" và 06 ghi
+    # 109 khi sổ đã khác — hai tệp này (không nộp nhưng nằm trong gói Drive) ngoài vùng quét.
+    kho_ma = HO_SO.parent / "06-KHO-MA-VA-MINH-CHUNG.md"
+    for tep in (HO_SO, KE_KHAI, KICH_BAN, GOC / "docs" / "TONG-KET-DU-AN.md", kho_ma):
+        t = tep.read_text(encoding="utf-8")
+        so = [int(m) for m in re.findall(r"(\d+)(?:\*\*)? sự cố", t)]
+        so += [int(m) for m in re.findall(r"^\| Sự cố[^|]*\| (\d+) \|", t, re.M)]
+        assert so, f"{tep.name}: không thấy chỗ trích số sự cố nào"
+        assert set(so) == {that}, f"{tep.name} ghi {so} sự cố, sổ có {that} hàng"
+    assert f"gồm {ngay_25} dòng thêm ngày 25/09" in KE_KHAI.read_text(encoding="utf-8")
+
+
+def test_fact_sheet_hieu_chuan_trich_dung_lan_do_ghi_trong_json() -> None:
+    """V3 (25/09/2026) đo lại hiệu chuẩn trên 17c3ee1 và ghi ``ban_git``/``ngay_do`` vào
+    JSON, nhưng dòng A/A của FACT-SHEET vẫn nói "đo 14/09 … chạy lại trên 390027b" — không
+    script đồng bộ nào chạm phần chữ của dòng này."""
+    import json
+
+    so = json.loads((GOC / "docs" / "benchmarks" / "so-hieu-chuan.json").read_text("utf-8"))
+    dong = _dong_bang(FACT_SHEET.read_text(encoding="utf-8"), "| Hiệu chuẩn A/A")
+    assert so["ban_git"] in dong, f"dòng A/A không nêu bản git của lần đo ({so['ban_git']})"
+    ngay = "/".join(reversed(so["ngay_do"].split("-")))
+    assert ngay in dong, f"dòng A/A không nêu ngày đo {ngay}"
+
+
+def test_kich_thuoc_artifact_trong_03_nlp_khop_tep_that() -> None:
+    """03-NLP ghi "Tăng gấp đôi kích thước artifact … ≈ 921 KB so với 86 KB": 921 là KiB,
+    86 là kB, và tỷ lệ thật khoảng 10,9 lần chứ không phải gấp đôi."""
+    v2 = (MO_HINH / "intent_clf_v2.joblib").stat().st_size
+    v1 = (MO_HINH / "intent_clf.joblib").stat().st_size
+    t = NLP_NANG_CAP.read_text(encoding="utf-8")
+    assert "gấp đôi kích thước" not in t.lower()
+    for n in (v1, v2):
+        assert f"{n:,} byte".replace(",", ".") in t, f"thiếu kích thước thật {n} byte"
+        assert f"≈ {round(n / 1024)} KiB" in t, f"thiếu {round(n / 1024)} KiB"
+    ti_le = f"{v2 / v1:.1f}".replace(".", ",")
+    assert f"{ti_le} lần" in t, f"tỷ lệ v2/v1 thật là {ti_le} lần"
+
+
+def test_ho_so_khong_con_noi_ten_dinh_lien_lot_bo_loc() -> None:
+    """Hồ sơ §3.2 ghi "Còn mở: … ``chữ@tên`` vẫn lọt bộ lọc" và §3.3 "lọc nốt 6 dòng" sau
+    khi bộ lọc đã vá (b331076, 16 dòng, 8 tên). Câu chữ phải theo hành vi thật của mã."""
+    from livelift.ingest.pii import scrub
+
+    for tho in ("cảm ơn bạn@minhthu8106 nhiều", "đẹp quá@@kimchi_88"):  # tên BỊA
+        assert scrub(tho).counts.get("social", 0) == 1, "tiền đề: bộ lọc bắt dạng dính liền"
+    # Phần việc 3: bản kê khai (mục I.3, IX) còn "Còn mở: … vẫn lọt bộ lọc" và "bản xuất 25/09
+    # còn lọt 2 handle" sau khi bộ lọc đã vá và Prompt Log đã xuất lại (quét 0, đối chiếu 0).
+    for tep in (HO_SO, KE_KHAI):
+        t = re.sub(r"\s+", " ", tep.read_text(encoding="utf-8"))
+        assert "vẫn lọt bộ lọc" not in t, f"{tep.name} còn nói tên dính liền lọt bộ lọc"
+        assert "lọc nốt 6 dòng" not in t, tep.name
+        assert "còn lọt" not in t, f"{tep.name} còn nói bản xuất Prompt Log lọt tên tài khoản"
+        assert "16 dòng" in t, tep.name
+        assert "8 tên" in t, tep.name

@@ -553,6 +553,17 @@ def test_k4_wizard_gui_dry_run_va_giai_thich_o_buoc_4():
         card = s2[s2.rindex("<ChoiceCard", 0, at) : at]
         assert f"onClick={{() => setForm({{ ...form, chayThu: {value} }})}}" in card, title
 
+    # Kiểm độc lập 25/09/2026 (wf6-5): thẻ "Tự ghim" hứa "tự ghim sản phẩm tốt nhất; bạn chỉ
+    # theo dõi" — hồ sơ 11.2 và bản kê khai nói thao tác ghim trên ứng dụng của nền tảng vẫn do
+    # người làm, và khi khoảng tin cậy chồng lấn hệ thống bốc đều (xác suất 1/k), không chọn
+    # "tốt nhất". Màn này lên video demo, nên chữ trên thẻ phải khớp hai văn bản nộp kèm.
+    tu_ghim = raw[raw.index('title="Tự ghim"') :]
+    note = " ".join(re.search(r'note="([^"]*)"', tu_ghim).group(1).split())
+    for sai in ("bạn chỉ theo dõi", "sản phẩm tốt nhất"):
+        assert sai not in note, f"thẻ Tự ghim còn nói quá: {sai!r}"
+    assert "người trợ live vẫn bấm ghim trên ứng dụng của nền tảng" in note, note
+    assert "trong khối BẬT" in note, note
+
     body_ts = code(read(API_TS))
     create = body_ts[body_ts.index("export function createSession") :][:400]
     assert "dry_run?: boolean;" in create

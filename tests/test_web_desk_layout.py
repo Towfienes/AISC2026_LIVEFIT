@@ -23,8 +23,13 @@ operator, and the blinding boundary (rule L6) still intact.
 
 from __future__ import annotations
 
+import json
 import re
+import shutil
+import subprocess
 from pathlib import Path
+
+import pytest
 
 WEB = Path(__file__).resolve().parents[1] / "web"
 SRC = WEB / "src"
@@ -381,3 +386,150 @@ def test_the_operating_clock_is_documented_as_operator_only():
     head = src[: re.search(r"(?m)^import ", src).start()]
     assert "OPERATOR" in head, "BlockClock thiếu ghi chú ranh giới làm mù ở đầu file"
     assert "HostView" in head, "ghi chú phải nêu đích danh file không được import nó"
+
+
+# --------------------------------------------------------------------------
+# kiểm toán thử thật 25/09/2026 — feed bình luận co về 55px
+# --------------------------------------------------------------------------
+#: Hai số đo DOM trong đợt thử thật 25/09/2026 (runtime.md §3.1, Chromium,
+#: 1366×768 và 1920×1080): với sàn 6rem (96px), vùng cuộn của feed chỉ còn
+#: ``clientHeight=55`` — tức phần tiêu đề "Bình luận trực tiếp" + nút tạm dừng +
+#: ``pt-2`` ăn 41px — và mỗi dòng bình luận cao 32px.
+FEED_TIEU_DE_PX = 41
+FEED_DONG_PX = 32
+COMMENT_FEED = SRC / "components" / "CommentFeed.tsx"
+
+
+def _khoang_cach_dong_feed_px() -> float:
+    """Khoảng cách giữa hai dòng bình luận, đọc từ lớp ``gap-*`` của danh sách
+    trong CommentFeed.tsx (Tailwind: 1 đơn vị = 0,25rem = 4px).
+
+    Đo lại 25/09/2026 (làn F, ``docs/img/v2/chup.json`` › kiem.feed_1366x768):
+    sau khi nâng sàn lên 20rem, ``clientHeight`` = 279px nhưng chỉ thấy trọn
+    **7** dòng — bước dòng thật là 32px + ``gap-1`` 4px = 36px. Bản test trước
+    chia cho 32px nên tính ra 8,7 dòng và xanh SAI.
+    """
+    src = code(COMMENT_FEED.read_text(encoding="utf-8"))
+    i = src.index('aria-label="Danh sách bình luận"')
+    ds = _opening_tag(src, src.rindex("<ul", 0, i))
+    m = re.search(r"\bgap-(?:y-)?([\d.]+)\b", ds)
+    return float(m.group(1)) * 4 if m else 0.0
+
+
+def test_feed_binh_luan_du_cao_cho_tam_dong():
+    """Feed định vị tuyệt đối (CommentFeed.tsx) nên co ĐÚNG về sàn chiều cao của
+    khung bọc nó. Sàn 6rem cho 1,7 dòng: giám khảo không đọc được bình luận và
+    không thấy PII đã bị che — đúng thứ bàn trợ live sinh ra để cho thấy.
+
+    Công thức tính cả khoảng cách giữa các dòng: cần ``41 + 8 × (32 + gap)`` px
+    (= 329px với ``gap-1``) để thấy trọn 8 dòng ở 1366×768 và 1920×1080."""
+    buoc = FEED_DONG_PX + _khoang_cach_dong_feed_px()
+    # Hiệu chuẩn công thức bằng chính số đo làn F: sàn 20rem ⇒ vùng cuộn 279px
+    # ⇒ công thức phải ra đúng 7 dòng thấy trọn như trình duyệt đã thấy.
+    assert int((20 * 16 - FEED_TIEU_DE_PX) / buoc) == 7, (
+        "công thức không tái hiện được số đo thật 25/09 (sàn 20rem → 7 dòng thấy trọn)"
+    )
+    src = code(DESK_PAGE.read_text(encoding="utf-8"))
+    i = src.index("<CommentFeed")
+    boc = _opening_tag(src, src.rindex("<div", 0, i))
+    m = re.search(r"min-h-\[([\d.]+)rem\]", boc)
+    assert m, f"khung bọc feed phải có sàn chiều cao riêng: {boc}"
+    so_dong = (float(m.group(1)) * 16 - FEED_TIEU_DE_PX) / buoc
+    assert so_dong >= 8, (
+        f"sàn feed chỉ đủ {so_dong:.2f} dòng bình luận (bước dòng {buoc:g}px, tính cả "
+        "khoảng cách) — cần tối thiểu 8"
+    )
+    # Khung xương lúc tải phải giữ cùng sàn, nếu không bố cục nhảy khi dữ liệu về.
+    san = m.group(0)
+    assert src.count(san) >= 2, "khung xương của feed phải dùng cùng sàn chiều cao"
+
+
+# --------------------------------------------------------------------------
+# kiểm toán thử thật 25/09/2026 — bàn vừa tải lại in "NGOÀI KHỐI · 00:00:00"
+# --------------------------------------------------------------------------
+USE_DESK = SRC / "lib" / "useDesk.ts"
+
+
+def _chay_node(tmp_path: Path, module: str, expr: str):
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("không có node — bỏ qua phần chạy thử hàm thuần")
+    script = tmp_path / "desk_tai_lai.mts"
+    script.write_text(module + f"\nconsole.log(JSON.stringify({expr}));\n", encoding="utf-8")
+    out = subprocess.run(
+        [node, "--experimental-strip-types", "--no-warnings", str(script)],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=60,
+    )
+    if out.returncode != 0 and "strip-types" in out.stderr and "bad option" in out.stderr:
+        pytest.skip("node quá cũ, chưa bỏ được chú thích kiểu")
+    assert out.returncode == 0, out.stderr
+    return json.loads(out.stdout.strip().splitlines()[-1])
+
+
+def test_ban_hien_khung_xuong_toi_khi_trang_thai_dau_tien_cua_phien_ve(tmp_path):
+    """Video demo thô 25/09 (làn F, mục 5.8): tải lại /desk thì khoảng 1 giây bàn in
+    "NGOÀI KHỐI · 00:00:00 · Chưa nhận được lịch khối" trên một phiên ĐANG ở khối
+    BẬT — vì bàn hiện ngay khi danh sách phiên về, trước lần hỏi trạng thái đầu
+    tiên (lịch rỗng, elapsed 0). Ba câu đó là câu SAI, không phải câu "đang tải".
+
+    Luật: bàn giữ khung xương cho tới khi lần hỏi đầu tiên CỦA ĐÚNG PHIÊN ĐANG XEM
+    đã xong (kể cả khi một nguồn hỏng — lúc đó dải "Dữ liệu suy giảm" nói thật).
+    Khi phiên thật sự ở ngoài khối, "NGOÀI KHỐI" vẫn hiện như cũ."""
+    from tests.test_web_desk_v3 import extract
+
+    module = "\n\n".join(
+        [
+            extract(USE_DESK.read_text(encoding="utf-8"), "firstStateReady"),
+            extract(DESK_PAGE.read_text(encoding="utf-8"), "deskScreen"),
+        ]
+    )
+    got = _chay_node(
+        tmp_path,
+        module,
+        "["
+        " firstStateReady('connecting', null, null),"
+        " firstStateReady('live', 'A', null),"
+        " firstStateReady('live', 'A', 'A'),"
+        " firstStateReady('live', 'B', 'A'),"
+        " firstStateReady('live', null, null),"
+        " firstStateReady('mock', 'M', null),"
+        " deskScreen('connecting', false, false),"
+        " deskScreen('live', false, false),"
+        " deskScreen('live', false, true),"
+        " deskScreen('live', true, false),"
+        " deskScreen('mock', false, true),"
+        "]",
+    )
+    assert got[:6] == [False, False, True, False, True, True], (
+        "trạng thái đầu tiên: chỉ 'đã có' khi lần hỏi đầu của ĐÚNG phiên đang xem đã xong "
+        f"(vừa đổi phiên B thì trạng thái của A không tính); mock có ngay — được {got[:6]}"
+    )
+    assert got[6:] == ["khung-xuong", "khung-xuong", "ban", "trong", "ban"], (
+        f"màn của bàn theo (kết nối, rỗng, đã có trạng thái) sai: {got[6:]}"
+    )
+
+    # Nối dây: useDesk đánh dấu phiên sau khi lần hỏi allSettled xong, trang dùng cờ đó.
+    hook = code(USE_DESK.read_text(encoding="utf-8"))
+    dau = hook.index("const pull = async () =>")
+    pull = hook[dau : hook.index("const timer = setInterval(pull", dau)]
+    assert "setPolledFor(sessionId)" in pull, "lần hỏi trạng thái phải đánh dấu phiên đã về"
+    assert pull.index("if (cancelled) return;") < pull.index("setPolledFor(sessionId)"), (
+        "câu trả lời của phiên cũ (đã đổi phiên) không được đánh dấu phiên mới là đã có trạng thái"
+    )
+    assert "stateReady: firstStateReady(connection, sessionId, polledFor)" in hook
+    dat_lai = hook[hook.index("setSkippedIds(new Set());") :]
+    dat_lai = dat_lai[: dat_lai.index("}, [sessionId]);")]
+    assert "setPolledFor(null)" in dat_lai, (
+        "đổi phiên xoá lịch/ghim/đồng hồ thì cờ 'đã có trạng thái' cũng phải về null — "
+        "A → B → A trước khi B trả lời không được hiện hero trống của A"
+    )
+    page = code(DESK_PAGE.read_text(encoding="utf-8"))
+    assert "deskScreen(desk.connection, showEmpty, desk.stateReady)" in page
+    assert re.search(r'screen === "khung-xuong" \? \(\s*<DeskSkeleton />', page), (
+        "chưa có trạng thái đầu tiên thì vẽ khung xương, không vẽ hero NGOÀI KHỐI"
+    )
+    # Hành vi khi THẬT SỰ ngoài khối không đổi.
+    assert ': "NGOÀI KHỐI"' in code(BLOCK_CLOCK.read_text(encoding="utf-8"))

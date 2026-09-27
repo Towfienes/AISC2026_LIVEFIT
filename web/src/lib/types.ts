@@ -506,6 +506,13 @@ export interface BaoCao {
    * mang nhãn/watermark DEMO trên mọi con số. */
   is_demo: boolean;
   /**
+   * Cờ CHẠY THỬ (máy chủ từ 25/09/2026, xem SessionSummary.dry_run). Phiên chạy
+   * thử là phiên thật (`is_demo=false`) nhưng không được tính vào kết quả
+   * (PREREGISTRATION §8.2) — con số của nó không bao giờ mang chữ "THẬT".
+   * Tuỳ chọn: máy chủ cũ không gửi ⇒ coi là KHÔNG phải chạy thử (`=== true`).
+   */
+  dry_run?: boolean;
+  /**
    * Số bình luận TỔNG HỢP (nguồn Mô phỏng) trong phiên. Nguồn Mô phỏng bật trên
    * phiên CHẠY THỬ — mà phiên chạy thử có `is_demo=false` — nên riêng `is_demo`
    * không đủ nói báo cáo đang đếm câu do máy soạn. > 0 ⇒ trang phải dán nhãn
@@ -547,7 +554,12 @@ export interface HealthInfo {
   status: string;
   store_backend: string;
   mode: "demo" | "real" | "mixed";
-  mode_counts: { demo: number; real: number };
+  /** `dry_run` (máy chủ từ 25/09/2026): số phiên CHẠY THỬ, nằm TRONG `real`.
+   *  `da_huy` (máy chủ từ 25/09/2026): số phiên thật ĐÃ HUỶ không phải chạy thử,
+   *  cũng nằm TRONG `real` và rời với `dry_run` — phiên thí nghiệm thật =
+   *  `real - dry_run - da_huy`. Cả hai tuỳ chọn — máy chủ cũ không gửi; ModeChip
+   *  chịu được mọi tổ hợp. */
+  mode_counts: { demo: number; real: number; dry_run?: number; da_huy?: number };
   /** Câu giải thích tiếng Việt, hiển thị được nguyên văn trong tooltip chip. */
   mode_note: string;
   /** Các trường an toàn dữ liệu khác của /health (durable, storage_mode, ...). */
@@ -614,6 +626,13 @@ export interface IngestStatus {
   pending_writes?: number;
   /** Bản ghi đã MẤT vì hàng đợi chờ ghi lại bị đầy. */
   dropped_writes?: number;
+  /**
+   * Kiểm toán 25/09/2026 (routes/ingest.py): câu tiếng Việt khi bộ thu đã bật mà
+   * phiên CHƯA lên sóng — bình luận ghi lúc đó không thuộc khối nào; nguồn Mô
+   * phỏng phát ngay chứ không chờ nút Bắt đầu phát sóng. `null` khi phiên đã
+   * lên sóng/đã đóng hoặc chưa bật bộ thu; thiếu hẳn ở máy chủ cũ.
+   */
+  ghi_chu_truoc_len_song?: string | null;
 }
 
 /** Một đơn hàng (`OrderOut`). Không có trường người mua nào (quy tắc cứng 1). */

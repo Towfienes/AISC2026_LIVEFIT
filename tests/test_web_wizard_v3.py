@@ -778,3 +778,80 @@ def test_poll_bo_thu_giu_ca_trang_thai():
         "poll phải giữ st.state — chỉ giữ running thì lỗi và đã tắt đều thành 'chưa bật'"
     )
     assert "const ingestRunning = ingest?.running ?? null;" in src
+
+
+# ===========================================================================
+# Kiểm toán thử thật 25/09/2026 — câu "bật trước giờ phát" và ghi chú của máy chủ
+# ===========================================================================
+def _chu(src: str) -> str:
+    """Chữ JSX gom khoảng trắng — prettier ngắt dòng giữa câu, `{" "}` là dấu cách."""
+    return re.sub(r"\s+", " ", re.sub(r'\{" "\}', " ", src))
+
+
+def test_h4_cau_bat_bo_thu_truoc_gio_phat_dung_hop_dong_may_chu():
+    """Bước 4 từng hứa "Bật trước giờ phát cũng được — bộ thu sẽ chờ buổi live bắt
+    đầu" (thấy rõ trong video demo thô 25/09). Máy chủ làm KHÁC:
+
+    - YouTube/Facebook chờ NỀN TẢNG báo buổi live đang phát, KHÔNG chờ nút
+      "Bắt đầu phát sóng" — phiên 80da23ab ghi 78 bình luận khi còn
+      ``status=scheduled``; bình luận đó không thuộc khối nào.
+    - Nguồn Mô phỏng phát kịch bản NGAY khi bật: bật trước giờ phát là đốt kịch
+      bản ngoài mọi khối.
+
+    Câu trên trang phải neo vào đúng câu của máy chủ (``CHO_NEN_TANG`` và ghi chú
+    của mục Mô phỏng trong ``/platforms``), không phải một lời hứa tự viết."""
+    from livelift.api.ingest_jobs import CHO_NEN_TANG, NEN_TANG_MO_PHONG, muc_san_sang_nen_tang
+    from livelift.config import get_settings
+
+    s4 = _chu(code(step_section(raw(), 4)))
+    assert "bộ thu sẽ chờ buổi live bắt đầu" not in s4, "câu hứa cũ sai với nguồn Mô phỏng"
+
+    cho = "chờ nền tảng báo buổi live đang phát"
+    assert cho in CHO_NEN_TANG.lower(), "máy chủ đổi câu CHO_NEN_TANG — xem lại câu bước 4"
+    assert cho in s4.lower(), "bước 4 phải nói bộ thu chờ NỀN TẢNG báo đang phát"
+    assert "không thuộc khối nào" in CHO_NEN_TANG
+    assert "không thuộc khối nào" in s4, "phải nói bình luận ghi trước lúc lên sóng không vào khối"
+
+    mo_phong = {r["platform"]: r for r in muc_san_sang_nen_tang(get_settings())}[NEN_TANG_MO_PHONG]
+    assert "ngay khi bật" in mo_phong["note"].lower()
+    # Câu Mô phỏng nằm ĐÚNG nhánh phiên được chọn Mô phỏng (chạy thử / dữ liệu mẫu).
+    at = s4.index("choPhepMoPhong(session) ? (")
+    nhanh = s4[at : s4.index(") : (", at)]
+    assert "ngay khi bật" in nhanh, "nhánh Mô phỏng phải nói nguồn này phát NGAY khi bật"
+    assert "SAU khi bấm “Bắt đầu phát sóng”" in nhanh, (
+        "nhánh Mô phỏng phải dặn bật SAU khi bấm “Bắt đầu phát sóng”"
+    )
+
+
+def test_h4_bo_thu_hien_nguyen_van_ghi_chu_truoc_len_song():
+    """Máy chủ (25/09) THÊM ``ghi_chu_truoc_len_song`` vào trạng thái bộ thu: câu
+    tiếng Việt khi bộ thu đã bật mà phiên CHƯA lên sóng, ``null`` khi đã lên sóng.
+    Web phải khai trường đó và in NGUYÊN VĂN — ở cả bước 4 lẫn bàn trợ live
+    (``compact``), kể cả lúc bộ thu đang chạy (form bật đã ẩn)."""
+    from livelift.api.routes.ingest import IngestStatus
+
+    assert "ghi_chu_truoc_len_song" in IngestStatus.model_fields
+    types = TYPES_TS.read_text(encoding="utf-8")
+    khai = types[types.index("export interface IngestStatus") :]
+    khai = khai[: khai.index("\n}\n")]
+    assert re.search(r"\bghi_chu_truoc_len_song\?: string \| null;", khai), (
+        "types.ts: IngestStatus chưa khai ghi_chu_truoc_len_song"
+    )
+
+    panel = code(INGEST_PANEL.read_text(encoding="utf-8"))
+    m = re.search(r"const (\w+) = status\?\.ghi_chu_truoc_len_song\b", panel)
+    assert m, "IngestPanel chưa đọc ghi_chu_truoc_len_song của máy chủ"
+    ten = m.group(1)
+    hien = re.search(rf"\{{{ten} \? \(\s*<p\b[^>]*>(.*?)</p>", panel, re.S)
+    assert hien, "IngestPanel phải in ghi chú trong một đoạn <p> riêng"
+    assert "{" + ten + "}" in hien.group(1), "phải in NGUYÊN VĂN câu của máy chủ"
+    truoc = panel[max(0, hien.start() - 120) : hien.start()]
+    giau = "ghi chú không được giấu theo form bật hay chế độ gọn — lúc đang thu mới cần nó nhất"
+    assert "hienForm" not in truoc, giau
+    assert "compact" not in truoc, giau
+    # Phản biện 25/09: cửa sổ 120 ký tự không thấy một `{hienForm && (` bọc từ xa
+    # hơn (vd bọc từ dòng ⚠ "Hai phút…"). Đoạn <p> phải là con TRỰC TIẾP của
+    # <section>: từ `return (` tới nó, mọi dấu `{` đều đã đóng.
+    doan = panel[panel.rindex("return (", 0, hien.start()) : hien.start()]
+    assert "<section" in doan, giau
+    assert doan.count("{") == doan.count("}"), giau

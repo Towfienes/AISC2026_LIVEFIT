@@ -1,8 +1,11 @@
 """Chuẩn hoá văn bản chat livestream tiếng Việt + đặc trưng phong cách.
 
 Vì sao module này tồn tại — nói bằng số: bộ phân loại TF-IDF huấn luyện trên
-320 câu **tự biên soạn** đạt macro-F1 0,870 trên chính bộ đó nhưng chỉ 0,271
-trên chat bán hàng THẬT (``docs/benchmarks/live-fire-achan.md``). Một phần
+320 câu **tự biên soạn** đạt macro-F1 0,870 trên chính bộ đó nhưng chỉ 0,211
+trên chat bán hàng THẬT (đo lại chạy lại được bằng ``python -m
+livelift.nlp.eval_intent`` trên 393 dòng có nhãn do tác tử AI gán — chưa có nhãn
+người; con số 0,271 công bố ngày 08/09 trong ``docs/benchmarks/live-fire-achan.md``
+KHÔNG tái lập được). Một phần
 khoảng cách đó là **hình thái bề mặt**: chat thật có ``CHỮ IN HOA CẢ CÂU``,
 ``kéeeeeo dàiii``, emoji xen chữ, dấu câu lặp, ký tự full-width, teencode
 (``k``, ``bn``, ``dc``, ``j``), và bảng giá do shop tự dán. Bộ biên soạn có

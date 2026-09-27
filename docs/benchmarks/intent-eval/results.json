@@ -1,23 +1,37 @@
 {
-  "generated_at": "2026-09-14T14:19:29+07:00",
+  "generated_at": "2026-09-25T21:10:16+07:00",
   "seed": 2026,
   "n_bootstrap": 2000,
+  "label_provenance": {
+    "test": "Nhãn tham chiếu của 393 dòng test do một tác tử AI (Claude) gán ngày 09/09/2026 trên bảng xáo trộn — chưa có nhãn người",
+    "meaning": "mọi con số là mức đồng thuận với nhãn tham chiếu do AI gán, chưa phải độ chính xác so với con người",
+    "train_llm": "1.800 nhãn train buổi thứ tư do LLM (Claude) gán, không có người duyệt",
+    "authored": "320 câu mẫu do AI (Claude) soạn ngày 01/09/2026",
+    "data": "Bình luận công khai của các buổi live phát lại (VOD YouTube), lấy qua yt-dlp (dữ liệu quan sát, không phải API chính thức), đã lọc PII; lọc lại bằng bộ lọc hiện hành ngày 25/09/2026"
+  },
+  "du_lieu": "data/labeling",
+  "b2_classifier_info": {
+    "backend": "tfidf_logreg",
+    "model_file": "intent_clf.joblib",
+    "fallback_reason": null,
+    "sklearn_version": "1.9.0"
+  },
   "inventory": {
     "sources": [
       {
-        "name": "`data/labeling/lot2-da-nguon-10-09` — gán nhãn TAY, mù, 11 lớp",
+        "name": "`data/labeling/lot2-da-nguon-10-09` — nhãn do tác tử AI gán, bảng xáo trộn, 11 lớp (chưa có nhãn người)",
         "n": 393,
-        "note": "3 buổi live · CHỈ dùng làm TEST"
+        "note": "3 buổi live · TEST theo leave-one-session-out; C1–C3 dùng hai buổi còn lại của mỗi fold làm train"
       },
       {
         "name": "`authored_11`",
         "n": 320,
-        "note": "tự biên soạn, đã gán lại theo 11 lớp — CHỈ train"
+        "note": "câu mẫu do AI (Claude) soạn 01/09, gán lại 11 lớp bằng bảng trong mã — CHỈ train"
       },
       {
         "name": "`llm_lot1`",
         "n": 1800,
-        "note": "bình luận thật buổi thứ tư, nhãn do LLM sinh — CHỈ train"
+        "note": "bình luận thật buổi thứ tư, nhãn do LLM (Claude) gán, không người duyệt — CHỈ train"
       }
     ],
     "gold_label_counts": {
@@ -41,17 +55,35 @@
       "1NMt8BChQrI": {
         "n": 147,
         "n_random": 72,
-        "action_prevalence_random": "0/72 = 0,0%"
+        "action_prevalence_random": "0/72 = 0,0%",
+        "action_k_random": 0,
+        "action_rate_random": 0.0,
+        "action_rate_random_ci95": [
+          0.0,
+          0.0507
+        ]
       },
       "47oGShxf80A": {
         "n": 78,
         "n_random": 25,
-        "action_prevalence_random": "12/25 = 48,0%"
+        "action_prevalence_random": "12/25 = 48,0%",
+        "action_k_random": 12,
+        "action_rate_random": 0.48,
+        "action_rate_random_ci95": [
+          0.3003,
+          0.665
+        ]
       },
       "gT0LDiBta2k": {
         "n": 168,
         "n_random": 103,
-        "action_prevalence_random": "7/103 = 6,8%"
+        "action_prevalence_random": "7/103 = 6,8%",
+        "action_k_random": 7,
+        "action_rate_random": 0.068,
+        "action_rate_random_ci95": [
+          0.0333,
+          0.1337
+        ]
       }
     },
     "extra_label_counts": {
@@ -71,7 +103,7 @@
   "tables": [
     {
       "title": "2. Baseline trên chat thật (test = buổi live mô hình chưa từng thấy)",
-      "note": "Ba baseline bắt buộc + artifact đang chạy. Cột `n test` = 393 dòng gán nhãn tay, gộp từ ba fold leave-one-session-out.",
+      "note": "Ba baseline bắt buộc + artifact đang chạy. Tập test = 393 dòng có nhãn tham chiếu do tác tử AI gán, gộp từ ba fold leave-one-session-out.",
       "rows": [
         {
           "name": "B0 · luôn đoán lớp đa số `khac`",
@@ -89,6 +121,16 @@
             "precision": null,
             "ci95": null
           },
+          "action_recall": {
+            "k": 0,
+            "n": 69,
+            "recall": 0.0,
+            "ci95": [
+              0.0,
+              0.0527
+            ]
+          },
+          "scale": "11_lop",
           "n_labels_scored": 10,
           "phantom_labels": [],
           "per_class": {
@@ -205,6 +247,15 @@
                 "n": 0,
                 "precision": null,
                 "ci95": null
+              },
+              "action_recall": {
+                "k": 0,
+                "n": 1,
+                "recall": 0.0,
+                "ci95": [
+                  0.0,
+                  0.7935
+                ]
               }
             },
             "47oGShxf80A": {
@@ -216,6 +267,15 @@
                 "n": 0,
                 "precision": null,
                 "ci95": null
+              },
+              "action_recall": {
+                "k": 0,
+                "n": 51,
+                "recall": 0.0,
+                "ci95": [
+                  0.0,
+                  0.07
+                ]
               }
             },
             "gT0LDiBta2k": {
@@ -227,6 +287,15 @@
                 "n": 0,
                 "precision": null,
                 "ci95": null
+              },
+              "action_recall": {
+                "k": 0,
+                "n": 17,
+                "recall": 0.0,
+                "ci95": [
+                  0.0,
+                  0.1843
+                ]
               }
             }
           },
@@ -245,6 +314,15 @@
               "n": 0,
               "precision": null,
               "ci95": null
+            },
+            "action_recall": {
+              "k": 0,
+              "n": 19,
+              "recall": 0.0,
+              "ci95": [
+                0.0,
+                0.1682
+              ]
             }
           },
           "predictions": [
@@ -2627,6 +2705,16 @@
               0.3068
             ]
           },
+          "action_recall": {
+            "k": 18,
+            "n": 69,
+            "recall": 0.2609,
+            "ci95": [
+              0.1719,
+              0.3751
+            ]
+          },
+          "scale": "11_lop",
           "n_labels_scored": 10,
           "phantom_labels": [],
           "per_class": {
@@ -2763,6 +2851,15 @@
                   0.0,
                   0.138
                 ]
+              },
+              "action_recall": {
+                "k": 0,
+                "n": 1,
+                "recall": 0.0,
+                "ci95": [
+                  0.0,
+                  0.7935
+                ]
               }
             },
             "47oGShxf80A": {
@@ -2777,6 +2874,15 @@
                   0.3466,
                   0.7308
                 ]
+              },
+              "action_recall": {
+                "k": 12,
+                "n": 51,
+                "recall": 0.2353,
+                "ci95": [
+                  0.14,
+                  0.3676
+                ]
               }
             },
             "gT0LDiBta2k": {
@@ -2790,6 +2896,15 @@
                 "ci95": [
                   0.0706,
                   0.2907
+                ]
+              },
+              "action_recall": {
+                "k": 6,
+                "n": 17,
+                "recall": 0.3529,
+                "ci95": [
+                  0.1731,
+                  0.587
                 ]
               }
             }
@@ -2811,6 +2926,15 @@
               "ci95": [
                 0.09,
                 0.4522
+              ]
+            },
+            "action_recall": {
+              "k": 4,
+              "n": 19,
+              "recall": 0.2105,
+              "ci95": [
+                0.0851,
+                0.4333
               ]
             }
           },
@@ -5194,6 +5318,16 @@
               0.2877
             ]
           },
+          "action_recall": {
+            "k": 54,
+            "n": 69,
+            "recall": 0.7826,
+            "ci95": [
+              0.6718,
+              0.8636
+            ]
+          },
+          "scale": "11_lop",
           "n_labels_scored": 10,
           "phantom_labels": [],
           "per_class": {
@@ -5337,6 +5471,15 @@
                   0.002,
                   0.0616
                 ]
+              },
+              "action_recall": {
+                "k": 1,
+                "n": 1,
+                "recall": 1.0,
+                "ci95": [
+                  0.2065,
+                  1.0
+                ]
               }
             },
             "47oGShxf80A": {
@@ -5351,6 +5494,15 @@
                   0.5641,
                   0.7906
                 ]
+              },
+              "action_recall": {
+                "k": 42,
+                "n": 51,
+                "recall": 0.8235,
+                "ci95": [
+                  0.6975,
+                  0.9043
+                ]
               }
             },
             "gT0LDiBta2k": {
@@ -5364,6 +5516,15 @@
                 "ci95": [
                   0.0729,
                   0.2147
+                ]
+              },
+              "action_recall": {
+                "k": 11,
+                "n": 17,
+                "recall": 0.6471,
+                "ci95": [
+                  0.413,
+                  0.8269
                 ]
               }
             }
@@ -5385,6 +5546,15 @@
               "ci95": [
                 0.1171,
                 0.3594
+              ]
+            },
+            "action_recall": {
+              "k": 9,
+              "n": 19,
+              "recall": 0.4737,
+              "ci95": [
+                0.2733,
+                0.6829
               ]
             }
           },
@@ -7768,6 +7938,16 @@
               0.2734
             ]
           },
+          "action_recall": {
+            "k": 57,
+            "n": 69,
+            "recall": 0.8261,
+            "ci95": [
+              0.7202,
+              0.8976
+            ]
+          },
+          "scale": "11_lop",
           "n_labels_scored": 10,
           "phantom_labels": [],
           "per_class": {
@@ -7911,6 +8091,15 @@
                   0.0018,
                   0.0556
                 ]
+              },
+              "action_recall": {
+                "k": 1,
+                "n": 1,
+                "recall": 1.0,
+                "ci95": [
+                  0.2065,
+                  1.0
+                ]
               }
             },
             "47oGShxf80A": {
@@ -7925,6 +8114,15 @@
                   0.55,
                   0.7743
                 ]
+              },
+              "action_recall": {
+                "k": 43,
+                "n": 51,
+                "recall": 0.8431,
+                "ci95": [
+                  0.7199,
+                  0.9183
+                ]
               }
             },
             "gT0LDiBta2k": {
@@ -7938,6 +8136,15 @@
                 "ci95": [
                   0.0792,
                   0.2138
+                ]
+              },
+              "action_recall": {
+                "k": 13,
+                "n": 17,
+                "recall": 0.7647,
+                "ci95": [
+                  0.5274,
+                  0.9045
                 ]
               }
             }
@@ -7959,6 +8166,15 @@
               "ci95": [
                 0.1055,
                 0.2875
+              ]
+            },
+            "action_recall": {
+              "k": 12,
+              "n": 19,
+              "recall": 0.6316,
+              "ci95": [
+                0.4104,
+                0.8085
               ]
             }
           },
@@ -10332,22 +10548,32 @@
         {
           "name": "C1 · TF-IDF 11 lớp, train = biên soạn(11) + gold 2 buổi",
           "n_test": 393,
-          "macro_f1": 0.557,
+          "macro_f1": 0.5632,
           "macro_f1_ci95": [
-            0.4868,
-            0.6142
+            0.4907,
+            0.6206
           ],
-          "macro_f1_support_only": 0.557,
-          "accuracy": 0.6081,
+          "macro_f1_support_only": 0.5632,
+          "accuracy": 0.6107,
           "action_precision": {
             "k": 43,
-            "n": 93,
-            "precision": 0.4624,
+            "n": 91,
+            "precision": 0.4725,
             "ci95": [
-              0.3645,
-              0.5632
+              0.3732,
+              0.5741
             ]
           },
+          "action_recall": {
+            "k": 43,
+            "n": 69,
+            "recall": 0.6232,
+            "ci95": [
+              0.5052,
+              0.7282
+            ]
+          },
+          "scale": "11_lop",
           "n_labels_scored": 10,
           "phantom_labels": [],
           "per_class": {
@@ -10359,11 +10585,11 @@
               "n_pred": 17
             },
             "hoi_size": {
-              "precision": 0.3333,
+              "precision": 0.375,
               "recall": 1.0,
-              "f1": 0.5,
+              "f1": 0.5455,
               "support": 3,
-              "n_pred": 9
+              "n_pred": 8
             },
             "che_dat": {
               "precision": 0.1176,
@@ -10373,11 +10599,11 @@
               "n_pred": 17
             },
             "chot_don": {
-              "precision": 0.6923,
+              "precision": 0.72,
               "recall": 0.5455,
-              "f1": 0.6102,
+              "f1": 0.6207,
               "support": 33,
-              "n_pred": 26
+              "n_pred": 25
             },
             "van_chuyen": {
               "precision": 0.3333,
@@ -10394,11 +10620,11 @@
               "n_pred": 55
             },
             "cam_on_khen": {
-              "precision": 0.6094,
-              "recall": 0.4535,
-              "f1": 0.52,
+              "precision": 0.6061,
+              "recall": 0.4651,
+              "f1": 0.5263,
               "support": 86,
-              "n_pred": 64
+              "n_pred": 66
             },
             "hoi_sanpham": {
               "precision": 0.2727,
@@ -10427,8 +10653,8 @@
               "che_dat": 12,
               "khac": 87,
               "chao_hoi": 2,
-              "cam_on_khen": 22,
-              "hoi_size": 2,
+              "cam_on_khen": 23,
+              "hoi_size": 1,
               "van_chuyen": 16,
               "hoi_sanpham": 8,
               "chot_don": 2,
@@ -10436,9 +10662,9 @@
               "hoi_gia": 1
             },
             "cam_on_khen": {
-              "cam_on_khen": 39,
+              "cam_on_khen": 40,
               "khac": 23,
-              "chot_don": 5,
+              "chot_don": 4,
               "hoi_size": 4,
               "che_dat": 2,
               "chao_hoi": 12,
@@ -10489,15 +10715,24 @@
           "per_session": {
             "1NMt8BChQrI": {
               "n": 147,
-              "macro_f1": 0.3257,
-              "accuracy": 0.5782,
+              "macro_f1": 0.3272,
+              "accuracy": 0.585,
               "action_precision": {
                 "k": 0,
-                "n": 31,
+                "n": 29,
                 "precision": 0.0,
                 "ci95": [
                   0.0,
-                  0.1103
+                  0.117
+                ]
+              },
+              "action_recall": {
+                "k": 0,
+                "n": 1,
+                "recall": 0.0,
+                "ci95": [
+                  0.0,
+                  0.7935
                 ]
               }
             },
@@ -10513,6 +10748,15 @@
                   0.6804,
                   0.9049
                 ]
+              },
+              "action_recall": {
+                "k": 36,
+                "n": 51,
+                "recall": 0.7059,
+                "ci95": [
+                  0.57,
+                  0.8129
+                ]
               }
             },
             "gT0LDiBta2k": {
@@ -10527,6 +10771,15 @@
                   0.203,
                   0.6138
                 ]
+              },
+              "action_recall": {
+                "k": 7,
+                "n": 17,
+                "recall": 0.4118,
+                "ci95": [
+                  0.2161,
+                  0.6399
+                ]
               }
             }
           },
@@ -10534,19 +10787,28 @@
           "chosen_thresholds": [],
           "random_stratum": {
             "n": 200,
-            "macro_f1": 0.4506,
+            "macro_f1": 0.4547,
             "macro_f1_ci95": [
-              0.3257,
-              0.54
+              0.33,
+              0.5448
             ],
-            "accuracy": 0.57,
+            "accuracy": 0.575,
             "action_precision": {
               "k": 9,
-              "n": 25,
-              "precision": 0.36,
+              "n": 24,
+              "precision": 0.375,
               "ci95": [
-                0.2025,
-                0.5548
+                0.2116,
+                0.5729
+              ]
+            },
+            "action_recall": {
+              "k": 9,
+              "n": 19,
+              "recall": 0.4737,
+              "ci95": [
+                0.2733,
+                0.6829
               ]
             }
           },
@@ -10909,7 +11171,7 @@
               "1NMt8BChQrI",
               "predicted",
               "khac",
-              "hoi_size"
+              "cam_on_khen"
             ],
             [
               "1NMt8BChQrI",
@@ -11317,7 +11579,7 @@
               "1NMt8BChQrI",
               "random",
               "cam_on_khen",
-              "chot_don"
+              "cam_on_khen"
             ],
             [
               "1NMt8BChQrI",
@@ -12914,22 +13176,32 @@
         {
           "name": "C2 · C1 + nhãn LLM trên buổi thứ tư",
           "n_test": 393,
-          "macro_f1": 0.5645,
+          "macro_f1": 0.5423,
           "macro_f1_ci95": [
-            0.4908,
-            0.6492
+            0.4782,
+            0.6245
           ],
-          "macro_f1_support_only": 0.621,
-          "accuracy": 0.7405,
+          "macro_f1_support_only": 0.5966,
+          "accuracy": 0.7303,
           "action_precision": {
-            "k": 40,
-            "n": 60,
-            "precision": 0.6667,
+            "k": 38,
+            "n": 58,
+            "precision": 0.6552,
             "ci95": [
-              0.5406,
-              0.7727
+              0.5267,
+              0.7644
             ]
           },
+          "action_recall": {
+            "k": 38,
+            "n": 69,
+            "recall": 0.5507,
+            "ci95": [
+              0.4338,
+              0.6623
+            ]
+          },
+          "scale": "11_lop",
           "n_labels_scored": 11,
           "phantom_labels": [
             "hoi_daily"
@@ -12943,11 +13215,11 @@
               "n_pred": 16
             },
             "hoi_size": {
-              "precision": 0.3333,
-              "recall": 0.6667,
-              "f1": 0.4444,
+              "precision": 0.2,
+              "recall": 0.3333,
+              "f1": 0.25,
               "support": 3,
-              "n_pred": 6
+              "n_pred": 5
             },
             "che_dat": {
               "precision": 0.1667,
@@ -12957,11 +13229,11 @@
               "n_pred": 6
             },
             "chot_don": {
-              "precision": 0.8333,
-              "recall": 0.4545,
-              "f1": 0.5882,
+              "precision": 0.8235,
+              "recall": 0.4242,
+              "f1": 0.56,
               "support": 33,
-              "n_pred": 18
+              "n_pred": 17
             },
             "van_chuyen": {
               "precision": 0.6429,
@@ -12978,11 +13250,11 @@
               "n_pred": 44
             },
             "cam_on_khen": {
-              "precision": 0.7129,
+              "precision": 0.699,
               "recall": 0.8372,
-              "f1": 0.7701,
+              "f1": 0.7619,
               "support": 86,
-              "n_pred": 101
+              "n_pred": 103
             },
             "hoi_sanpham": {
               "precision": 0.3333,
@@ -13006,20 +13278,20 @@
               "n_pred": 32
             },
             "khac": {
-              "precision": 0.75,
-              "recall": 0.7255,
-              "f1": 0.7375,
+              "precision": 0.7365,
+              "recall": 0.7124,
+              "f1": 0.7243,
               "support": 153,
               "n_pred": 148
             }
           },
           "confusion": {
             "khac": {
-              "khac": 111,
+              "khac": 109,
               "bao_gia_shop": 1,
               "chao_hoi": 4,
               "che_dat": 2,
-              "cam_on_khen": 25,
+              "cam_on_khen": 27,
               "van_chuyen": 5,
               "hoi_sanpham": 3,
               "chot_don": 1,
@@ -13054,8 +13326,8 @@
               "cam_on_khen": 1
             },
             "chot_don": {
-              "khac": 14,
-              "chot_don": 15,
+              "khac": 15,
+              "chot_don": 14,
               "bao_gia_shop": 4
             },
             "che_dat": {
@@ -13070,15 +13342,15 @@
               "khac": 1
             },
             "hoi_size": {
-              "hoi_size": 2,
-              "khac": 1
+              "hoi_size": 1,
+              "khac": 2
             }
           },
           "per_session": {
             "1NMt8BChQrI": {
               "n": 147,
-              "macro_f1": 0.3718,
-              "accuracy": 0.7755,
+              "macro_f1": 0.3677,
+              "accuracy": 0.7619,
               "action_precision": {
                 "k": 0,
                 "n": 11,
@@ -13087,19 +13359,37 @@
                   0.0,
                   0.2588
                 ]
+              },
+              "action_recall": {
+                "k": 0,
+                "n": 1,
+                "recall": 0.0,
+                "ci95": [
+                  0.0,
+                  0.7935
+                ]
               }
             },
             "47oGShxf80A": {
               "n": 78,
-              "macro_f1": 0.6348,
-              "accuracy": 0.6282,
+              "macro_f1": 0.5991,
+              "accuracy": 0.6026,
               "action_precision": {
-                "k": 34,
-                "n": 41,
-                "precision": 0.8293,
+                "k": 32,
+                "n": 39,
+                "precision": 0.8205,
                 "ci95": [
-                  0.6874,
-                  0.9147
+                  0.6733,
+                  0.9102
+                ]
+              },
+              "action_recall": {
+                "k": 32,
+                "n": 51,
+                "recall": 0.6275,
+                "ci95": [
+                  0.4902,
+                  0.7468
                 ]
               }
             },
@@ -13115,6 +13405,15 @@
                   0.4093,
                   0.9285
                 ]
+              },
+              "action_recall": {
+                "k": 6,
+                "n": 17,
+                "recall": 0.3529,
+                "ci95": [
+                  0.1731,
+                  0.587
+                ]
               }
             }
           },
@@ -13122,12 +13421,12 @@
           "chosen_thresholds": [],
           "random_stratum": {
             "n": 200,
-            "macro_f1": 0.5192,
+            "macro_f1": 0.5162,
             "macro_f1_ci95": [
-              0.3765,
-              0.664
+              0.3752,
+              0.6602
             ],
-            "accuracy": 0.745,
+            "accuracy": 0.735,
             "action_precision": {
               "k": 6,
               "n": 9,
@@ -13135,6 +13434,15 @@
               "ci95": [
                 0.3542,
                 0.8794
+              ]
+            },
+            "action_recall": {
+              "k": 6,
+              "n": 19,
+              "recall": 0.3158,
+              "ci95": [
+                0.1536,
+                0.5399
               ]
             }
           },
@@ -13707,7 +14015,7 @@
               "1NMt8BChQrI",
               "random",
               "khac",
-              "khac"
+              "cam_on_khen"
             ],
             [
               "1NMt8BChQrI",
@@ -13785,7 +14093,7 @@
               "1NMt8BChQrI",
               "random",
               "khac",
-              "khac"
+              "cam_on_khen"
             ],
             [
               "1NMt8BChQrI",
@@ -14097,7 +14405,7 @@
               "47oGShxf80A",
               "predicted",
               "chot_don",
-              "chot_don"
+              "khac"
             ],
             [
               "47oGShxf80A",
@@ -14241,7 +14549,7 @@
               "47oGShxf80A",
               "predicted",
               "hoi_size",
-              "hoi_size"
+              "khac"
             ],
             [
               "47oGShxf80A",
@@ -15497,38 +15805,49 @@
               "khac",
               "khac"
             ]
-          ]
+          ],
+          "packaged_as": "intent_clf_v2.joblib"
         },
         {
           "name": "C3 · C2 + từ chối trả lời, ngưỡng chọn TRONG tập train",
           "n_test": 393,
-          "macro_f1": 0.4917,
+          "macro_f1": 0.4927,
           "macro_f1_ci95": [
-            0.4397,
-            0.5625
+            0.441,
+            0.5624
           ],
-          "macro_f1_support_only": 0.5408,
-          "accuracy": 0.7125,
+          "macro_f1_support_only": 0.542,
+          "accuracy": 0.7074,
           "action_precision": {
             "k": 30,
-            "n": 46,
-            "precision": 0.6522,
+            "n": 45,
+            "precision": 0.6667,
             "ci95": [
-              0.5077,
-              0.7732
+              0.5207,
+              0.7864
             ]
           },
+          "action_recall": {
+            "k": 30,
+            "n": 69,
+            "recall": 0.4348,
+            "ci95": [
+              0.3243,
+              0.5521
+            ]
+          },
+          "scale": "11_lop",
           "n_labels_scored": 11,
           "phantom_labels": [
             "hoi_daily"
           ],
           "per_class": {
             "hoi_gia": {
-              "precision": 0.8,
+              "precision": 0.8571,
               "recall": 0.8571,
-              "f1": 0.8276,
+              "f1": 0.8571,
               "support": 14,
-              "n_pred": 15
+              "n_pred": 14
             },
             "hoi_size": {
               "precision": 0.0,
@@ -15566,11 +15885,11 @@
               "n_pred": 41
             },
             "cam_on_khen": {
-              "precision": 0.72,
+              "precision": 0.7059,
               "recall": 0.8372,
-              "f1": 0.7742,
+              "f1": 0.766,
               "support": 86,
-              "n_pred": 100
+              "n_pred": 102
             },
             "hoi_sanpham": {
               "precision": 0.2,
@@ -15594,20 +15913,20 @@
               "n_pred": 28
             },
             "khac": {
-              "precision": 0.6667,
-              "recall": 0.7451,
-              "f1": 0.7037,
+              "precision": 0.6588,
+              "recall": 0.732,
+              "f1": 0.6935,
               "support": 153,
-              "n_pred": 171
+              "n_pred": 170
             }
           },
           "confusion": {
             "khac": {
-              "khac": 114,
+              "khac": 112,
               "bao_gia_shop": 1,
               "chao_hoi": 4,
               "che_dat": 2,
-              "cam_on_khen": 24,
+              "cam_on_khen": 26,
               "van_chuyen": 3,
               "hoi_sanpham": 3,
               "chot_don": 1,
@@ -15627,8 +15946,7 @@
             "bao_gia_shop": {
               "bao_gia_shop": 26,
               "che_dat": 3,
-              "khac": 2,
-              "hoi_gia": 1
+              "khac": 3
             },
             "van_chuyen": {
               "khac": 5,
@@ -15663,8 +15981,8 @@
           "per_session": {
             "1NMt8BChQrI": {
               "n": 147,
-              "macro_f1": 0.3718,
-              "accuracy": 0.7755,
+              "macro_f1": 0.3677,
+              "accuracy": 0.7619,
               "action_precision": {
                 "k": 0,
                 "n": 11,
@@ -15673,19 +15991,37 @@
                   0.0,
                   0.2588
                 ]
+              },
+              "action_recall": {
+                "k": 0,
+                "n": 1,
+                "recall": 0.0,
+                "ci95": [
+                  0.0,
+                  0.7935
+                ]
               }
             },
             "47oGShxf80A": {
               "n": 78,
-              "macro_f1": 0.4453,
+              "macro_f1": 0.449,
               "accuracy": 0.4872,
               "action_precision": {
                 "k": 24,
-                "n": 27,
-                "precision": 0.8889,
+                "n": 26,
+                "precision": 0.9231,
                 "ci95": [
-                  0.7194,
-                  0.9615
+                  0.7586,
+                  0.9786
+                ]
+              },
+              "action_recall": {
+                "k": 24,
+                "n": 51,
+                "recall": 0.4706,
+                "ci95": [
+                  0.3405,
+                  0.6048
                 ]
               }
             },
@@ -15701,6 +16037,15 @@
                   0.4093,
                   0.9285
                 ]
+              },
+              "action_recall": {
+                "k": 6,
+                "n": 17,
+                "recall": 0.3529,
+                "ci95": [
+                  0.1731,
+                  0.587
+                ]
               }
             }
           },
@@ -15712,12 +16057,12 @@
           ],
           "random_stratum": {
             "n": 200,
-            "macro_f1": 0.5407,
+            "macro_f1": 0.5377,
             "macro_f1_ci95": [
-              0.3859,
-              0.6822
+              0.382,
+              0.6787
             ],
-            "accuracy": 0.75,
+            "accuracy": 0.74,
             "action_precision": {
               "k": 5,
               "n": 6,
@@ -15725,6 +16070,15 @@
               "ci95": [
                 0.4365,
                 0.9699
+              ]
+            },
+            "action_recall": {
+              "k": 5,
+              "n": 19,
+              "recall": 0.2632,
+              "ci95": [
+                0.1181,
+                0.4879
               ]
             }
           },
@@ -16297,7 +16651,7 @@
               "1NMt8BChQrI",
               "random",
               "khac",
-              "khac"
+              "cam_on_khen"
             ],
             [
               "1NMt8BChQrI",
@@ -16375,7 +16729,7 @@
               "1NMt8BChQrI",
               "random",
               "khac",
-              "khac"
+              "cam_on_khen"
             ],
             [
               "1NMt8BChQrI",
@@ -16813,7 +17167,7 @@
               "47oGShxf80A",
               "predicted",
               "bao_gia_shop",
-              "hoi_gia"
+              "khac"
             ],
             [
               "47oGShxf80A",
@@ -18097,22 +18451,32 @@
         {
           "name": "A0 · đầy đủ (chuẩn hoá + phong cách + 11 lớp + mọi nguồn)",
           "n_test": 393,
-          "macro_f1": 0.5645,
+          "macro_f1": 0.5423,
           "macro_f1_ci95": [
-            0.4908,
-            0.6492
+            0.4782,
+            0.6245
           ],
-          "macro_f1_support_only": 0.621,
-          "accuracy": 0.7405,
+          "macro_f1_support_only": 0.5966,
+          "accuracy": 0.7303,
           "action_precision": {
-            "k": 40,
-            "n": 60,
-            "precision": 0.6667,
+            "k": 38,
+            "n": 58,
+            "precision": 0.6552,
             "ci95": [
-              0.5406,
-              0.7727
+              0.5267,
+              0.7644
             ]
           },
+          "action_recall": {
+            "k": 38,
+            "n": 69,
+            "recall": 0.5507,
+            "ci95": [
+              0.4338,
+              0.6623
+            ]
+          },
+          "scale": "11_lop",
           "n_labels_scored": 11,
           "phantom_labels": [
             "hoi_daily"
@@ -18126,11 +18490,11 @@
               "n_pred": 16
             },
             "hoi_size": {
-              "precision": 0.3333,
-              "recall": 0.6667,
-              "f1": 0.4444,
+              "precision": 0.2,
+              "recall": 0.3333,
+              "f1": 0.25,
               "support": 3,
-              "n_pred": 6
+              "n_pred": 5
             },
             "che_dat": {
               "precision": 0.1667,
@@ -18140,11 +18504,11 @@
               "n_pred": 6
             },
             "chot_don": {
-              "precision": 0.8333,
-              "recall": 0.4545,
-              "f1": 0.5882,
+              "precision": 0.8235,
+              "recall": 0.4242,
+              "f1": 0.56,
               "support": 33,
-              "n_pred": 18
+              "n_pred": 17
             },
             "van_chuyen": {
               "precision": 0.6429,
@@ -18161,11 +18525,11 @@
               "n_pred": 44
             },
             "cam_on_khen": {
-              "precision": 0.7129,
+              "precision": 0.699,
               "recall": 0.8372,
-              "f1": 0.7701,
+              "f1": 0.7619,
               "support": 86,
-              "n_pred": 101
+              "n_pred": 103
             },
             "hoi_sanpham": {
               "precision": 0.3333,
@@ -18189,20 +18553,20 @@
               "n_pred": 32
             },
             "khac": {
-              "precision": 0.75,
-              "recall": 0.7255,
-              "f1": 0.7375,
+              "precision": 0.7365,
+              "recall": 0.7124,
+              "f1": 0.7243,
               "support": 153,
               "n_pred": 148
             }
           },
           "confusion": {
             "khac": {
-              "khac": 111,
+              "khac": 109,
               "bao_gia_shop": 1,
               "chao_hoi": 4,
               "che_dat": 2,
-              "cam_on_khen": 25,
+              "cam_on_khen": 27,
               "van_chuyen": 5,
               "hoi_sanpham": 3,
               "chot_don": 1,
@@ -18237,8 +18601,8 @@
               "cam_on_khen": 1
             },
             "chot_don": {
-              "khac": 14,
-              "chot_don": 15,
+              "khac": 15,
+              "chot_don": 14,
               "bao_gia_shop": 4
             },
             "che_dat": {
@@ -18253,15 +18617,15 @@
               "khac": 1
             },
             "hoi_size": {
-              "hoi_size": 2,
-              "khac": 1
+              "hoi_size": 1,
+              "khac": 2
             }
           },
           "per_session": {
             "1NMt8BChQrI": {
               "n": 147,
-              "macro_f1": 0.3718,
-              "accuracy": 0.7755,
+              "macro_f1": 0.3677,
+              "accuracy": 0.7619,
               "action_precision": {
                 "k": 0,
                 "n": 11,
@@ -18270,19 +18634,37 @@
                   0.0,
                   0.2588
                 ]
+              },
+              "action_recall": {
+                "k": 0,
+                "n": 1,
+                "recall": 0.0,
+                "ci95": [
+                  0.0,
+                  0.7935
+                ]
               }
             },
             "47oGShxf80A": {
               "n": 78,
-              "macro_f1": 0.6348,
-              "accuracy": 0.6282,
+              "macro_f1": 0.5991,
+              "accuracy": 0.6026,
               "action_precision": {
-                "k": 34,
-                "n": 41,
-                "precision": 0.8293,
+                "k": 32,
+                "n": 39,
+                "precision": 0.8205,
                 "ci95": [
-                  0.6874,
-                  0.9147
+                  0.6733,
+                  0.9102
+                ]
+              },
+              "action_recall": {
+                "k": 32,
+                "n": 51,
+                "recall": 0.6275,
+                "ci95": [
+                  0.4902,
+                  0.7468
                 ]
               }
             },
@@ -18298,6 +18680,15 @@
                   0.4093,
                   0.9285
                 ]
+              },
+              "action_recall": {
+                "k": 6,
+                "n": 17,
+                "recall": 0.3529,
+                "ci95": [
+                  0.1731,
+                  0.587
+                ]
               }
             }
           },
@@ -18305,12 +18696,12 @@
           "chosen_thresholds": [],
           "random_stratum": {
             "n": 200,
-            "macro_f1": 0.5192,
+            "macro_f1": 0.5162,
             "macro_f1_ci95": [
-              0.3765,
-              0.664
+              0.3752,
+              0.6602
             ],
-            "accuracy": 0.745,
+            "accuracy": 0.735,
             "action_precision": {
               "k": 6,
               "n": 9,
@@ -18318,6 +18709,15 @@
               "ci95": [
                 0.3542,
                 0.8794
+              ]
+            },
+            "action_recall": {
+              "k": 6,
+              "n": 19,
+              "recall": 0.3158,
+              "ci95": [
+                0.1536,
+                0.5399
               ]
             }
           },
@@ -18890,7 +19290,7 @@
               "1NMt8BChQrI",
               "random",
               "khac",
-              "khac"
+              "cam_on_khen"
             ],
             [
               "1NMt8BChQrI",
@@ -18968,7 +19368,7 @@
               "1NMt8BChQrI",
               "random",
               "khac",
-              "khac"
+              "cam_on_khen"
             ],
             [
               "1NMt8BChQrI",
@@ -19280,7 +19680,7 @@
               "47oGShxf80A",
               "predicted",
               "chot_don",
-              "chot_don"
+              "khac"
             ],
             [
               "47oGShxf80A",
@@ -19424,7 +19824,7 @@
               "47oGShxf80A",
               "predicted",
               "hoi_size",
-              "hoi_size"
+              "khac"
             ],
             [
               "47oGShxf80A",
@@ -20685,22 +21085,32 @@
         {
           "name": "A1 · − chuẩn hoá văn bản (NFKC/teencode/emoji)",
           "n_test": 393,
-          "macro_f1": 0.5639,
+          "macro_f1": 0.5588,
           "macro_f1_ci95": [
-            0.489,
-            0.6503
+            0.4885,
+            0.6429
           ],
-          "macro_f1_support_only": 0.6203,
+          "macro_f1_support_only": 0.6147,
           "accuracy": 0.7354,
           "action_precision": {
             "k": 39,
-            "n": 57,
-            "precision": 0.6842,
+            "n": 60,
+            "precision": 0.65,
             "ci95": [
-              0.5552,
-              0.79
+              0.5236,
+              0.7583
             ]
           },
+          "action_recall": {
+            "k": 39,
+            "n": 69,
+            "recall": 0.5652,
+            "ci95": [
+              0.4479,
+              0.6757
+            ]
+          },
+          "scale": "11_lop",
           "n_labels_scored": 11,
           "phantom_labels": [
             "hoi_daily"
@@ -20721,11 +21131,11 @@
               "n_pred": 6
             },
             "che_dat": {
-              "precision": 0.3333,
+              "precision": 0.1667,
               "recall": 0.2,
-              "f1": 0.25,
+              "f1": 0.1818,
               "support": 5,
-              "n_pred": 3
+              "n_pred": 6
             },
             "chot_don": {
               "precision": 0.8235,
@@ -20749,11 +21159,11 @@
               "n_pred": 44
             },
             "cam_on_khen": {
-              "precision": 0.6923,
+              "precision": 0.7129,
               "recall": 0.8372,
-              "f1": 0.7579,
+              "f1": 0.7701,
               "support": 86,
-              "n_pred": 104
+              "n_pred": 101
             },
             "hoi_sanpham": {
               "precision": 0.3333,
@@ -20809,7 +21219,8 @@
             },
             "bao_gia_shop": {
               "bao_gia_shop": 26,
-              "cam_on_khen": 4,
+              "che_dat": 3,
+              "cam_on_khen": 1,
               "hoi_gia": 1,
               "khac": 1
             },
@@ -20848,15 +21259,24 @@
           "per_session": {
             "1NMt8BChQrI": {
               "n": 147,
-              "macro_f1": 0.3666,
+              "macro_f1": 0.3695,
               "accuracy": 0.7687,
               "action_precision": {
                 "k": 0,
-                "n": 8,
+                "n": 11,
                 "precision": 0.0,
                 "ci95": [
                   0.0,
-                  0.3244
+                  0.2588
+                ]
+              },
+              "action_recall": {
+                "k": 0,
+                "n": 1,
+                "recall": 0.0,
+                "ci95": [
+                  0.0,
+                  0.7935
                 ]
               }
             },
@@ -20872,6 +21292,15 @@
                   0.6805,
                   0.9125
                 ]
+              },
+              "action_recall": {
+                "k": 33,
+                "n": 51,
+                "recall": 0.6471,
+                "ci95": [
+                  0.5099,
+                  0.7637
+                ]
               }
             },
             "gT0LDiBta2k": {
@@ -20885,6 +21314,15 @@
                 "ci95": [
                   0.3542,
                   0.8794
+                ]
+              },
+              "action_recall": {
+                "k": 6,
+                "n": 17,
+                "recall": 0.3529,
+                "ci95": [
+                  0.1731,
+                  0.587
                 ]
               }
             }
@@ -20906,6 +21344,15 @@
               "ci95": [
                 0.3127,
                 0.8318
+              ]
+            },
+            "action_recall": {
+              "k": 6,
+              "n": 19,
+              "recall": 0.3158,
+              "ci95": [
+                0.1536,
+                0.5399
               ]
             }
           },
@@ -21160,19 +21607,19 @@
               "1NMt8BChQrI",
               "predicted",
               "bao_gia_shop",
-              "cam_on_khen"
+              "che_dat"
             ],
             [
               "1NMt8BChQrI",
               "predicted",
               "bao_gia_shop",
-              "cam_on_khen"
+              "che_dat"
             ],
             [
               "1NMt8BChQrI",
               "predicted",
               "bao_gia_shop",
-              "cam_on_khen"
+              "che_dat"
             ],
             [
               "1NMt8BChQrI",
@@ -23273,13 +23720,13 @@
         {
           "name": "A2 · − đặc trưng phong cách (caps/giá/‖ → mô hình người nói)",
           "n_test": 393,
-          "macro_f1": 0.5755,
+          "macro_f1": 0.5764,
           "macro_f1_ci95": [
-            0.5117,
+            0.5126,
             0.682
           ],
-          "macro_f1_support_only": 0.6331,
-          "accuracy": 0.7354,
+          "macro_f1_support_only": 0.634,
+          "accuracy": 0.7379,
           "action_precision": {
             "k": 45,
             "n": 70,
@@ -23289,6 +23736,16 @@
               0.745
             ]
           },
+          "action_recall": {
+            "k": 45,
+            "n": 69,
+            "recall": 0.6522,
+            "ci95": [
+              0.5345,
+              0.7538
+            ]
+          },
+          "scale": "11_lop",
           "n_labels_scored": 11,
           "phantom_labels": [
             "hoi_daily"
@@ -23337,11 +23794,11 @@
               "n_pred": 44
             },
             "cam_on_khen": {
-              "precision": 0.7143,
-              "recall": 0.7558,
-              "f1": 0.7345,
+              "precision": 0.7174,
+              "recall": 0.7674,
+              "f1": 0.7416,
               "support": 86,
-              "n_pred": 91
+              "n_pred": 92
             },
             "hoi_sanpham": {
               "precision": 0.3333,
@@ -23365,11 +23822,11 @@
               "n_pred": 21
             },
             "khac": {
-              "precision": 0.7389,
+              "precision": 0.7436,
               "recall": 0.7582,
-              "f1": 0.7484,
+              "f1": 0.7508,
               "support": 153,
-              "n_pred": 157
+              "n_pred": 156
             }
           },
           "confusion": {
@@ -23384,8 +23841,8 @@
               "hoi_daily": 1
             },
             "cam_on_khen": {
-              "cam_on_khen": 65,
-              "khac": 15,
+              "cam_on_khen": 66,
+              "khac": 14,
               "hoi_size": 5,
               "che_dat": 1
             },
@@ -23435,8 +23892,8 @@
           "per_session": {
             "1NMt8BChQrI": {
               "n": 147,
-              "macro_f1": 0.4191,
-              "accuracy": 0.7551,
+              "macro_f1": 0.4216,
+              "accuracy": 0.7619,
               "action_precision": {
                 "k": 1,
                 "n": 16,
@@ -23444,6 +23901,15 @@
                 "ci95": [
                   0.0111,
                   0.2833
+                ]
+              },
+              "action_recall": {
+                "k": 1,
+                "n": 1,
+                "recall": 1.0,
+                "ci95": [
+                  0.2065,
+                  1.0
                 ]
               }
             },
@@ -23459,6 +23925,15 @@
                   0.6874,
                   0.9147
                 ]
+              },
+              "action_recall": {
+                "k": 34,
+                "n": 51,
+                "recall": 0.6667,
+                "ci95": [
+                  0.5297,
+                  0.7803
+                ]
               }
             },
             "gT0LDiBta2k": {
@@ -23473,6 +23948,15 @@
                   0.4974,
                   0.9182
                 ]
+              },
+              "action_recall": {
+                "k": 10,
+                "n": 17,
+                "recall": 0.5882,
+                "ci95": [
+                  0.3601,
+                  0.7839
+                ]
               }
             }
           },
@@ -23480,12 +23964,12 @@
           "chosen_thresholds": [],
           "random_stratum": {
             "n": 200,
-            "macro_f1": 0.5448,
+            "macro_f1": 0.5465,
             "macro_f1_ci95": [
-              0.3967,
-              0.7036
+              0.3984,
+              0.7051
             ],
-            "accuracy": 0.72,
+            "accuracy": 0.725,
             "action_precision": {
               "k": 7,
               "n": 9,
@@ -23493,6 +23977,15 @@
               "ci95": [
                 0.4526,
                 0.9368
+              ]
+            },
+            "action_recall": {
+              "k": 7,
+              "n": 19,
+              "recall": 0.3684,
+              "ci95": [
+                0.1915,
+                0.5896
               ]
             }
           },
@@ -24197,7 +24690,7 @@
               "1NMt8BChQrI",
               "random",
               "cam_on_khen",
-              "khac"
+              "cam_on_khen"
             ],
             [
               "1NMt8BChQrI",
@@ -25860,22 +26353,32 @@
         {
           "name": "A3 · − nhãn LLM buổi thứ tư",
           "n_test": 393,
-          "macro_f1": 0.557,
+          "macro_f1": 0.5632,
           "macro_f1_ci95": [
-            0.4868,
-            0.6142
+            0.4907,
+            0.6206
           ],
-          "macro_f1_support_only": 0.557,
-          "accuracy": 0.6081,
+          "macro_f1_support_only": 0.5632,
+          "accuracy": 0.6107,
           "action_precision": {
             "k": 43,
-            "n": 93,
-            "precision": 0.4624,
+            "n": 91,
+            "precision": 0.4725,
             "ci95": [
-              0.3645,
-              0.5632
+              0.3732,
+              0.5741
             ]
           },
+          "action_recall": {
+            "k": 43,
+            "n": 69,
+            "recall": 0.6232,
+            "ci95": [
+              0.5052,
+              0.7282
+            ]
+          },
+          "scale": "11_lop",
           "n_labels_scored": 10,
           "phantom_labels": [],
           "per_class": {
@@ -25887,11 +26390,11 @@
               "n_pred": 17
             },
             "hoi_size": {
-              "precision": 0.3333,
+              "precision": 0.375,
               "recall": 1.0,
-              "f1": 0.5,
+              "f1": 0.5455,
               "support": 3,
-              "n_pred": 9
+              "n_pred": 8
             },
             "che_dat": {
               "precision": 0.1176,
@@ -25901,11 +26404,11 @@
               "n_pred": 17
             },
             "chot_don": {
-              "precision": 0.6923,
+              "precision": 0.72,
               "recall": 0.5455,
-              "f1": 0.6102,
+              "f1": 0.6207,
               "support": 33,
-              "n_pred": 26
+              "n_pred": 25
             },
             "van_chuyen": {
               "precision": 0.3333,
@@ -25922,11 +26425,11 @@
               "n_pred": 55
             },
             "cam_on_khen": {
-              "precision": 0.6094,
-              "recall": 0.4535,
-              "f1": 0.52,
+              "precision": 0.6061,
+              "recall": 0.4651,
+              "f1": 0.5263,
               "support": 86,
-              "n_pred": 64
+              "n_pred": 66
             },
             "hoi_sanpham": {
               "precision": 0.2727,
@@ -25955,8 +26458,8 @@
               "che_dat": 12,
               "khac": 87,
               "chao_hoi": 2,
-              "cam_on_khen": 22,
-              "hoi_size": 2,
+              "cam_on_khen": 23,
+              "hoi_size": 1,
               "van_chuyen": 16,
               "hoi_sanpham": 8,
               "chot_don": 2,
@@ -25964,9 +26467,9 @@
               "hoi_gia": 1
             },
             "cam_on_khen": {
-              "cam_on_khen": 39,
+              "cam_on_khen": 40,
               "khac": 23,
-              "chot_don": 5,
+              "chot_don": 4,
               "hoi_size": 4,
               "che_dat": 2,
               "chao_hoi": 12,
@@ -26017,15 +26520,24 @@
           "per_session": {
             "1NMt8BChQrI": {
               "n": 147,
-              "macro_f1": 0.3257,
-              "accuracy": 0.5782,
+              "macro_f1": 0.3272,
+              "accuracy": 0.585,
               "action_precision": {
                 "k": 0,
-                "n": 31,
+                "n": 29,
                 "precision": 0.0,
                 "ci95": [
                   0.0,
-                  0.1103
+                  0.117
+                ]
+              },
+              "action_recall": {
+                "k": 0,
+                "n": 1,
+                "recall": 0.0,
+                "ci95": [
+                  0.0,
+                  0.7935
                 ]
               }
             },
@@ -26041,6 +26553,15 @@
                   0.6804,
                   0.9049
                 ]
+              },
+              "action_recall": {
+                "k": 36,
+                "n": 51,
+                "recall": 0.7059,
+                "ci95": [
+                  0.57,
+                  0.8129
+                ]
               }
             },
             "gT0LDiBta2k": {
@@ -26055,6 +26576,15 @@
                   0.203,
                   0.6138
                 ]
+              },
+              "action_recall": {
+                "k": 7,
+                "n": 17,
+                "recall": 0.4118,
+                "ci95": [
+                  0.2161,
+                  0.6399
+                ]
               }
             }
           },
@@ -26062,19 +26592,28 @@
           "chosen_thresholds": [],
           "random_stratum": {
             "n": 200,
-            "macro_f1": 0.4506,
+            "macro_f1": 0.4547,
             "macro_f1_ci95": [
-              0.3257,
-              0.54
+              0.33,
+              0.5448
             ],
-            "accuracy": 0.57,
+            "accuracy": 0.575,
             "action_precision": {
               "k": 9,
-              "n": 25,
-              "precision": 0.36,
+              "n": 24,
+              "precision": 0.375,
               "ci95": [
-                0.2025,
-                0.5548
+                0.2116,
+                0.5729
+              ]
+            },
+            "action_recall": {
+              "k": 9,
+              "n": 19,
+              "recall": 0.4737,
+              "ci95": [
+                0.2733,
+                0.6829
               ]
             }
           },
@@ -26437,7 +26976,7 @@
               "1NMt8BChQrI",
               "predicted",
               "khac",
-              "hoi_size"
+              "cam_on_khen"
             ],
             [
               "1NMt8BChQrI",
@@ -26845,7 +27384,7 @@
               "1NMt8BChQrI",
               "random",
               "cam_on_khen",
-              "chot_don"
+              "cam_on_khen"
             ],
             [
               "1NMt8BChQrI",
@@ -28442,13 +28981,13 @@
         {
           "name": "A4 · − bộ biên soạn (chỉ dữ liệu thật)",
           "n_test": 393,
-          "macro_f1": 0.3655,
+          "macro_f1": 0.3618,
           "macro_f1_ci95": [
-            0.3208,
-            0.4254
+            0.3165,
+            0.4226
           ],
-          "macro_f1_support_only": 0.402,
-          "accuracy": 0.6768,
+          "macro_f1_support_only": 0.398,
+          "accuracy": 0.6718,
           "action_precision": {
             "k": 7,
             "n": 8,
@@ -28458,6 +28997,16 @@
               0.9776
             ]
           },
+          "action_recall": {
+            "k": 7,
+            "n": 69,
+            "recall": 0.1014,
+            "ci95": [
+              0.05,
+              0.1949
+            ]
+          },
+          "scale": "11_lop",
           "n_labels_scored": 11,
           "phantom_labels": [
             "hoi_daily"
@@ -28527,18 +29076,18 @@
               "n_pred": 2
             },
             "bao_gia_shop": {
-              "precision": 0.75,
-              "recall": 0.8438,
-              "f1": 0.7941,
+              "precision": 0.7353,
+              "recall": 0.7812,
+              "f1": 0.7576,
               "support": 32,
-              "n_pred": 36
+              "n_pred": 34
             },
             "khac": {
-              "precision": 0.6134,
+              "precision": 0.6071,
               "recall": 0.7778,
-              "f1": 0.6859,
+              "f1": 0.6819,
               "support": 153,
-              "n_pred": 194
+              "n_pred": 196
             }
           },
           "confusion": {
@@ -28562,9 +29111,9 @@
               "khac": 1
             },
             "bao_gia_shop": {
-              "bao_gia_shop": 27,
-              "cam_on_khen": 3,
-              "khac": 2
+              "khac": 4,
+              "bao_gia_shop": 25,
+              "cam_on_khen": 3
             },
             "van_chuyen": {
               "khac": 12,
@@ -28598,12 +29147,21 @@
           "per_session": {
             "1NMt8BChQrI": {
               "n": 147,
-              "macro_f1": 0.4124,
-              "accuracy": 0.7959,
+              "macro_f1": 0.4016,
+              "accuracy": 0.7823,
               "action_precision": {
                 "k": 0,
                 "n": 1,
                 "precision": 0.0,
+                "ci95": [
+                  0.0,
+                  0.7935
+                ]
+              },
+              "action_recall": {
+                "k": 0,
+                "n": 1,
+                "recall": 0.0,
                 "ci95": [
                   0.0,
                   0.7935
@@ -28622,6 +29180,15 @@
                   0.5101,
                   1.0
                 ]
+              },
+              "action_recall": {
+                "k": 4,
+                "n": 51,
+                "recall": 0.0784,
+                "ci95": [
+                  0.0309,
+                  0.185
+                ]
               }
             },
             "gT0LDiBta2k": {
@@ -28635,6 +29202,15 @@
                 "ci95": [
                   0.4385,
                   1.0
+                ]
+              },
+              "action_recall": {
+                "k": 3,
+                "n": 17,
+                "recall": 0.1765,
+                "ci95": [
+                  0.0619,
+                  0.4103
                 ]
               }
             }
@@ -28654,6 +29230,15 @@
               "n": 0,
               "precision": null,
               "ci95": null
+            },
+            "action_recall": {
+              "k": 0,
+              "n": 19,
+              "recall": 0.0,
+              "ci95": [
+                0.0,
+                0.1682
+              ]
             }
           },
           "predictions": [
@@ -28811,7 +29396,7 @@
               "1NMt8BChQrI",
               "predicted",
               "bao_gia_shop",
-              "bao_gia_shop"
+              "khac"
             ],
             [
               "1NMt8BChQrI",
@@ -28823,7 +29408,7 @@
               "1NMt8BChQrI",
               "predicted",
               "bao_gia_shop",
-              "bao_gia_shop"
+              "khac"
             ],
             [
               "1NMt8BChQrI",
@@ -31020,13 +31605,13 @@
         {
           "name": "A5 · − gold 2 buổi train (chỉ biên soạn + LLM)",
           "n_test": 393,
-          "macro_f1": 0.5822,
+          "macro_f1": 0.5802,
           "macro_f1_ci95": [
-            0.505,
-            0.6456
+            0.5045,
+            0.6656
           ],
-          "macro_f1_support_only": 0.6404,
-          "accuracy": 0.7303,
+          "macro_f1_support_only": 0.6382,
+          "accuracy": 0.7277,
           "action_precision": {
             "k": 44,
             "n": 62,
@@ -31036,6 +31621,16 @@
               0.8078
             ]
           },
+          "action_recall": {
+            "k": 44,
+            "n": 69,
+            "recall": 0.6377,
+            "ci95": [
+              0.5198,
+              0.741
+            ]
+          },
+          "scale": "11_lop",
           "n_labels_scored": 11,
           "phantom_labels": [
             "hoi_daily"
@@ -31077,18 +31672,18 @@
               "n_pred": 13
             },
             "chao_hoi": {
-              "precision": 0.8864,
-              "recall": 0.9286,
-              "f1": 0.907,
+              "precision": 0.8837,
+              "recall": 0.9048,
+              "f1": 0.8941,
               "support": 42,
-              "n_pred": 44
+              "n_pred": 43
             },
             "cam_on_khen": {
-              "precision": 0.6699,
+              "precision": 0.6635,
               "recall": 0.8023,
-              "f1": 0.7302,
+              "f1": 0.7263,
               "support": 86,
-              "n_pred": 103
+              "n_pred": 104
             },
             "hoi_sanpham": {
               "precision": 0.4,
@@ -31102,7 +31697,7 @@
               "recall": 0.0,
               "f1": 0.0,
               "support": 0,
-              "n_pred": 4
+              "n_pred": 2
             },
             "bao_gia_shop": {
               "precision": 0.8214,
@@ -31112,11 +31707,11 @@
               "n_pred": 28
             },
             "khac": {
-              "precision": 0.7483,
+              "precision": 0.7383,
               "recall": 0.719,
-              "f1": 0.7333,
+              "f1": 0.7285,
               "support": 153,
-              "n_pred": 147
+              "n_pred": 149
             }
           },
           "confusion": {
@@ -31141,14 +31736,13 @@
               "chao_hoi": 1
             },
             "chao_hoi": {
-              "cam_on_khen": 3,
-              "chao_hoi": 39
+              "cam_on_khen": 4,
+              "chao_hoi": 38
             },
             "bao_gia_shop": {
-              "hoi_daily": 2,
+              "khac": 5,
               "bao_gia_shop": 23,
               "cam_on_khen": 3,
-              "khac": 3,
               "hoi_gia": 1
             },
             "van_chuyen": {
@@ -31186,8 +31780,8 @@
           "per_session": {
             "1NMt8BChQrI": {
               "n": 147,
-              "macro_f1": 0.3522,
-              "accuracy": 0.7483,
+              "macro_f1": 0.3466,
+              "accuracy": 0.7415,
               "action_precision": {
                 "k": 0,
                 "n": 6,
@@ -31195,6 +31789,15 @@
                 "ci95": [
                   0.0,
                   0.3903
+                ]
+              },
+              "action_recall": {
+                "k": 0,
+                "n": 1,
+                "recall": 0.0,
+                "ci95": [
+                  0.0,
+                  0.7935
                 ]
               }
             },
@@ -31210,6 +31813,15 @@
                   0.6804,
                   0.9049
                 ]
+              },
+              "action_recall": {
+                "k": 36,
+                "n": 51,
+                "recall": 0.7059,
+                "ci95": [
+                  0.57,
+                  0.8129
+                ]
               }
             },
             "gT0LDiBta2k": {
@@ -31224,6 +31836,15 @@
                   0.3906,
                   0.8619
                 ]
+              },
+              "action_recall": {
+                "k": 8,
+                "n": 17,
+                "recall": 0.4706,
+                "ci95": [
+                  0.2616,
+                  0.6904
+                ]
               }
             }
           },
@@ -31231,12 +31852,12 @@
           "chosen_thresholds": [],
           "random_stratum": {
             "n": 200,
-            "macro_f1": 0.4295,
+            "macro_f1": 0.4269,
             "macro_f1_ci95": [
-              0.3168,
-              0.5842
+              0.3136,
+              0.5817
             ],
-            "accuracy": 0.725,
+            "accuracy": 0.72,
             "action_precision": {
               "k": 6,
               "n": 11,
@@ -31244,6 +31865,15 @@
               "ci95": [
                 0.2801,
                 0.7873
+              ]
+            },
+            "action_recall": {
+              "k": 6,
+              "n": 19,
+              "recall": 0.3158,
+              "ci95": [
+                0.1536,
+                0.5399
               ]
             }
           },
@@ -31402,7 +32032,7 @@
               "1NMt8BChQrI",
               "predicted",
               "bao_gia_shop",
-              "hoi_daily"
+              "khac"
             ],
             [
               "1NMt8BChQrI",
@@ -31414,7 +32044,7 @@
               "1NMt8BChQrI",
               "predicted",
               "bao_gia_shop",
-              "hoi_daily"
+              "khac"
             ],
             [
               "1NMt8BChQrI",
@@ -31810,7 +32440,7 @@
               "1NMt8BChQrI",
               "random",
               "chao_hoi",
-              "chao_hoi"
+              "cam_on_khen"
             ],
             [
               "1NMt8BChQrI",
@@ -33611,33 +34241,43 @@
         {
           "name": "A6 · + từ chối trả lời (ngưỡng chọn trong train)",
           "n_test": 393,
-          "macro_f1": 0.4917,
+          "macro_f1": 0.4927,
           "macro_f1_ci95": [
-            0.4397,
-            0.5625
+            0.441,
+            0.5624
           ],
-          "macro_f1_support_only": 0.5408,
-          "accuracy": 0.7125,
+          "macro_f1_support_only": 0.542,
+          "accuracy": 0.7074,
           "action_precision": {
             "k": 30,
-            "n": 46,
-            "precision": 0.6522,
+            "n": 45,
+            "precision": 0.6667,
             "ci95": [
-              0.5077,
-              0.7732
+              0.5207,
+              0.7864
             ]
           },
+          "action_recall": {
+            "k": 30,
+            "n": 69,
+            "recall": 0.4348,
+            "ci95": [
+              0.3243,
+              0.5521
+            ]
+          },
+          "scale": "11_lop",
           "n_labels_scored": 11,
           "phantom_labels": [
             "hoi_daily"
           ],
           "per_class": {
             "hoi_gia": {
-              "precision": 0.8,
+              "precision": 0.8571,
               "recall": 0.8571,
-              "f1": 0.8276,
+              "f1": 0.8571,
               "support": 14,
-              "n_pred": 15
+              "n_pred": 14
             },
             "hoi_size": {
               "precision": 0.0,
@@ -33675,11 +34315,11 @@
               "n_pred": 41
             },
             "cam_on_khen": {
-              "precision": 0.72,
+              "precision": 0.7059,
               "recall": 0.8372,
-              "f1": 0.7742,
+              "f1": 0.766,
               "support": 86,
-              "n_pred": 100
+              "n_pred": 102
             },
             "hoi_sanpham": {
               "precision": 0.2,
@@ -33703,20 +34343,20 @@
               "n_pred": 28
             },
             "khac": {
-              "precision": 0.6667,
-              "recall": 0.7451,
-              "f1": 0.7037,
+              "precision": 0.6588,
+              "recall": 0.732,
+              "f1": 0.6935,
               "support": 153,
-              "n_pred": 171
+              "n_pred": 170
             }
           },
           "confusion": {
             "khac": {
-              "khac": 114,
+              "khac": 112,
               "bao_gia_shop": 1,
               "chao_hoi": 4,
               "che_dat": 2,
-              "cam_on_khen": 24,
+              "cam_on_khen": 26,
               "van_chuyen": 3,
               "hoi_sanpham": 3,
               "chot_don": 1,
@@ -33736,8 +34376,7 @@
             "bao_gia_shop": {
               "bao_gia_shop": 26,
               "che_dat": 3,
-              "khac": 2,
-              "hoi_gia": 1
+              "khac": 3
             },
             "van_chuyen": {
               "khac": 5,
@@ -33772,8 +34411,8 @@
           "per_session": {
             "1NMt8BChQrI": {
               "n": 147,
-              "macro_f1": 0.3718,
-              "accuracy": 0.7755,
+              "macro_f1": 0.3677,
+              "accuracy": 0.7619,
               "action_precision": {
                 "k": 0,
                 "n": 11,
@@ -33782,19 +34421,37 @@
                   0.0,
                   0.2588
                 ]
+              },
+              "action_recall": {
+                "k": 0,
+                "n": 1,
+                "recall": 0.0,
+                "ci95": [
+                  0.0,
+                  0.7935
+                ]
               }
             },
             "47oGShxf80A": {
               "n": 78,
-              "macro_f1": 0.4453,
+              "macro_f1": 0.449,
               "accuracy": 0.4872,
               "action_precision": {
                 "k": 24,
-                "n": 27,
-                "precision": 0.8889,
+                "n": 26,
+                "precision": 0.9231,
                 "ci95": [
-                  0.7194,
-                  0.9615
+                  0.7586,
+                  0.9786
+                ]
+              },
+              "action_recall": {
+                "k": 24,
+                "n": 51,
+                "recall": 0.4706,
+                "ci95": [
+                  0.3405,
+                  0.6048
                 ]
               }
             },
@@ -33810,6 +34467,15 @@
                   0.4093,
                   0.9285
                 ]
+              },
+              "action_recall": {
+                "k": 6,
+                "n": 17,
+                "recall": 0.3529,
+                "ci95": [
+                  0.1731,
+                  0.587
+                ]
               }
             }
           },
@@ -33821,12 +34487,12 @@
           ],
           "random_stratum": {
             "n": 200,
-            "macro_f1": 0.5407,
+            "macro_f1": 0.5377,
             "macro_f1_ci95": [
-              0.3859,
-              0.6822
+              0.382,
+              0.6787
             ],
-            "accuracy": 0.75,
+            "accuracy": 0.74,
             "action_precision": {
               "k": 5,
               "n": 6,
@@ -33834,6 +34500,15 @@
               "ci95": [
                 0.4365,
                 0.9699
+              ]
+            },
+            "action_recall": {
+              "k": 5,
+              "n": 19,
+              "recall": 0.2632,
+              "ci95": [
+                0.1181,
+                0.4879
               ]
             }
           },
@@ -34406,7 +35081,7 @@
               "1NMt8BChQrI",
               "random",
               "khac",
-              "khac"
+              "cam_on_khen"
             ],
             [
               "1NMt8BChQrI",
@@ -34484,7 +35159,7 @@
               "1NMt8BChQrI",
               "random",
               "khac",
-              "khac"
+              "cam_on_khen"
             ],
             [
               "1NMt8BChQrI",
@@ -34922,7 +35597,7 @@
               "47oGShxf80A",
               "predicted",
               "bao_gia_shop",
-              "hoi_gia"
+              "khac"
             ],
             [
               "47oGShxf80A",
@@ -36201,22 +36876,32 @@
         {
           "name": "A7 · bộ nhãn 6 lớp (chấm trên không gian 6 lớp)",
           "n_test": 393,
-          "macro_f1": 0.5743,
+          "macro_f1": 0.5791,
           "macro_f1_ci95": [
-            0.4627,
-            0.6639
+            0.4652,
+            0.6694
           ],
-          "macro_f1_support_only": 0.5743,
-          "accuracy": 0.8499,
+          "macro_f1_support_only": 0.5791,
+          "accuracy": 0.8524,
           "action_precision": {
-            "k": 40,
-            "n": 73,
-            "precision": 0.5479,
+            "k": 41,
+            "n": 74,
+            "precision": 0.5541,
             "ci95": [
-              0.4342,
-              0.6569
+              0.4409,
+              0.6618
             ]
           },
+          "action_recall": {
+            "k": 41,
+            "n": 69,
+            "recall": 0.5942,
+            "ci95": [
+              0.4764,
+              0.7021
+            ]
+          },
+          "scale": "6_lop_gop",
           "n_labels_scored": 6,
           "phantom_labels": [],
           "per_class": {
@@ -36235,18 +36920,18 @@
               "n_pred": 6
             },
             "che_dat": {
-              "precision": 0.1,
+              "precision": 0.125,
               "recall": 0.2,
-              "f1": 0.1333,
+              "f1": 0.1538,
               "support": 5,
-              "n_pred": 10
+              "n_pred": 8
             },
             "chot_don": {
-              "precision": 0.6522,
-              "recall": 0.4545,
-              "f1": 0.5357,
+              "precision": 0.6154,
+              "recall": 0.4848,
+              "f1": 0.5424,
               "support": 33,
-              "n_pred": 23
+              "n_pred": 26
             },
             "van_chuyen": {
               "precision": 0.5294,
@@ -36256,20 +36941,20 @@
               "n_pred": 17
             },
             "khac": {
-              "precision": 0.9187,
+              "precision": 0.9216,
               "recall": 0.9074,
-              "f1": 0.913,
+              "f1": 0.9145,
               "support": 324,
-              "n_pred": 320
+              "n_pred": 319
             }
           },
           "confusion": {
             "khac": {
               "khac": 294,
-              "che_dat": 8,
+              "che_dat": 6,
+              "chot_don": 10,
               "hoi_size": 4,
               "van_chuyen": 8,
-              "chot_don": 8,
               "hoi_gia": 2
             },
             "van_chuyen": {
@@ -36279,8 +36964,8 @@
               "che_dat": 1
             },
             "chot_don": {
-              "khac": 18,
-              "chot_don": 15
+              "khac": 17,
+              "chot_don": 16
             },
             "che_dat": {
               "che_dat": 1,
@@ -36299,43 +36984,70 @@
           "per_session": {
             "1NMt8BChQrI": {
               "n": 147,
-              "macro_f1": 0.1892,
-              "accuracy": 0.898,
+              "macro_f1": 0.19,
+              "accuracy": 0.9048,
               "action_precision": {
                 "k": 0,
-                "n": 14,
+                "n": 13,
                 "precision": 0.0,
                 "ci95": [
                   0.0,
-                  0.2153
+                  0.2281
+                ]
+              },
+              "action_recall": {
+                "k": 0,
+                "n": 1,
+                "recall": 0.0,
+                "ci95": [
+                  0.0,
+                  0.7935
                 ]
               }
             },
             "47oGShxf80A": {
               "n": 78,
-              "macro_f1": 0.7083,
-              "accuracy": 0.6667,
+              "macro_f1": 0.7155,
+              "accuracy": 0.6795,
               "action_precision": {
-                "k": 34,
-                "n": 45,
-                "precision": 0.7556,
+                "k": 35,
+                "n": 46,
+                "precision": 0.7609,
                 "ci95": [
-                  0.6133,
-                  0.8576
+                  0.6206,
+                  0.8609
+                ]
+              },
+              "action_recall": {
+                "k": 35,
+                "n": 51,
+                "recall": 0.6863,
+                "ci95": [
+                  0.5497,
+                  0.7967
                 ]
               }
             },
             "gT0LDiBta2k": {
               "n": 168,
-              "macro_f1": 0.5127,
-              "accuracy": 0.8929,
+              "macro_f1": 0.5082,
+              "accuracy": 0.8869,
               "action_precision": {
                 "k": 6,
-                "n": 14,
-                "precision": 0.4286,
+                "n": 15,
+                "precision": 0.4,
                 "ci95": [
-                  0.2138,
-                  0.6741
+                  0.1982,
+                  0.6425
+                ]
+              },
+              "action_recall": {
+                "k": 6,
+                "n": 17,
+                "recall": 0.3529,
+                "ci95": [
+                  0.1731,
+                  0.587
                 ]
               }
             }
@@ -36344,19 +37056,28 @@
           "chosen_thresholds": [],
           "random_stratum": {
             "n": 200,
-            "macro_f1": 0.4546,
+            "macro_f1": 0.4552,
             "macro_f1_ci95": [
-              0.2404,
-              0.6829
+              0.2456,
+              0.73
             ],
-            "accuracy": 0.89,
+            "accuracy": 0.895,
             "action_precision": {
               "k": 6,
-              "n": 15,
-              "precision": 0.4,
+              "n": 14,
+              "precision": 0.4286,
               "ci95": [
-                0.1982,
-                0.6425
+                0.2138,
+                0.6741
+              ]
+            },
+            "action_recall": {
+              "k": 6,
+              "n": 19,
+              "recall": 0.3158,
+              "ci95": [
+                0.1536,
+                0.5399
               ]
             }
           },
@@ -36587,13 +37308,13 @@
               "1NMt8BChQrI",
               "predicted",
               "khac",
-              "che_dat"
+              "khac"
             ],
             [
               "1NMt8BChQrI",
               "predicted",
               "khac",
-              "khac"
+              "chot_don"
             ],
             [
               "1NMt8BChQrI",
@@ -37175,7 +37896,7 @@
               "1NMt8BChQrI",
               "random",
               "khac",
-              "che_dat"
+              "khac"
             ],
             [
               "1NMt8BChQrI",
@@ -37337,7 +38058,7 @@
               "47oGShxf80A",
               "predicted",
               "chot_don",
-              "khac"
+              "chot_don"
             ],
             [
               "47oGShxf80A",
@@ -37847,7 +38568,7 @@
               "gT0LDiBta2k",
               "predicted",
               "khac",
-              "khac"
+              "chot_don"
             ],
             [
               "gT0LDiBta2k",
@@ -38724,22 +39445,32 @@
         {
           "name": "A8 · bộ nhãn 11 lớp, gộp về 6 khi chấm (cùng thang với A7)",
           "n_test": 393,
-          "macro_f1": 0.6092,
+          "macro_f1": 0.5717,
           "macro_f1_ci95": [
-            0.4903,
-            0.7002
+            0.4712,
+            0.6668
           ],
-          "macro_f1_support_only": 0.6092,
-          "accuracy": 0.8804,
+          "macro_f1_support_only": 0.5717,
+          "accuracy": 0.8753,
           "action_precision": {
-            "k": 40,
-            "n": 60,
-            "precision": 0.6667,
+            "k": 38,
+            "n": 58,
+            "precision": 0.6552,
             "ci95": [
-              0.5406,
-              0.7727
+              0.5267,
+              0.7644
             ]
           },
+          "action_recall": {
+            "k": 38,
+            "n": 69,
+            "recall": 0.5507,
+            "ci95": [
+              0.4338,
+              0.6623
+            ]
+          },
+          "scale": "6_lop_gop",
           "n_labels_scored": 6,
           "phantom_labels": [],
           "per_class": {
@@ -38751,11 +39482,11 @@
               "n_pred": 16
             },
             "hoi_size": {
-              "precision": 0.3333,
-              "recall": 0.6667,
-              "f1": 0.4444,
+              "precision": 0.2,
+              "recall": 0.3333,
+              "f1": 0.25,
               "support": 3,
-              "n_pred": 6
+              "n_pred": 5
             },
             "che_dat": {
               "precision": 0.1667,
@@ -38765,11 +39496,11 @@
               "n_pred": 6
             },
             "chot_don": {
-              "precision": 0.8333,
-              "recall": 0.4545,
-              "f1": 0.5882,
+              "precision": 0.8235,
+              "recall": 0.4242,
+              "f1": 0.56,
               "support": 33,
-              "n_pred": 18
+              "n_pred": 17
             },
             "van_chuyen": {
               "precision": 0.6429,
@@ -38779,11 +39510,11 @@
               "n_pred": 14
             },
             "khac": {
-              "precision": 0.9189,
+              "precision": 0.9134,
               "recall": 0.9444,
-              "f1": 0.9315,
+              "f1": 0.9287,
               "support": 324,
-              "n_pred": 333
+              "n_pred": 335
             }
           },
           "confusion": {
@@ -38801,8 +39532,8 @@
               "van_chuyen": 9
             },
             "chot_don": {
-              "khac": 18,
-              "chot_don": 15
+              "khac": 19,
+              "chot_don": 14
             },
             "che_dat": {
               "che_dat": 1,
@@ -38814,8 +39545,8 @@
               "khac": 1
             },
             "hoi_size": {
-              "hoi_size": 2,
-              "khac": 1
+              "hoi_size": 1,
+              "khac": 2
             }
           },
           "per_session": {
@@ -38831,19 +39562,37 @@
                   0.0,
                   0.2588
                 ]
+              },
+              "action_recall": {
+                "k": 0,
+                "n": 1,
+                "recall": 0.0,
+                "ci95": [
+                  0.0,
+                  0.7935
+                ]
               }
             },
             "47oGShxf80A": {
               "n": 78,
-              "macro_f1": 0.7878,
-              "accuracy": 0.7051,
+              "macro_f1": 0.7288,
+              "accuracy": 0.6795,
               "action_precision": {
-                "k": 34,
-                "n": 41,
-                "precision": 0.8293,
+                "k": 32,
+                "n": 39,
+                "precision": 0.8205,
                 "ci95": [
-                  0.6874,
-                  0.9147
+                  0.6733,
+                  0.9102
+                ]
+              },
+              "action_recall": {
+                "k": 32,
+                "n": 51,
+                "recall": 0.6275,
+                "ci95": [
+                  0.4902,
+                  0.7468
                 ]
               }
             },
@@ -38858,6 +39607,15 @@
                 "ci95": [
                   0.4093,
                   0.9285
+                ]
+              },
+              "action_recall": {
+                "k": 6,
+                "n": 17,
+                "recall": 0.3529,
+                "ci95": [
+                  0.1731,
+                  0.587
                 ]
               }
             }
@@ -38879,6 +39637,15 @@
               "ci95": [
                 0.3542,
                 0.8794
+              ]
+            },
+            "action_recall": {
+              "k": 6,
+              "n": 19,
+              "recall": 0.3158,
+              "ci95": [
+                0.1536,
+                0.5399
               ]
             }
           },
@@ -39841,7 +40608,7 @@
               "47oGShxf80A",
               "predicted",
               "chot_don",
-              "chot_don"
+              "khac"
             ],
             [
               "47oGShxf80A",
@@ -39985,7 +40752,7 @@
               "47oGShxf80A",
               "predicted",
               "hoi_size",
-              "hoi_size"
+              "khac"
             ],
             [
               "47oGShxf80A",
@@ -41242,6 +42009,2573 @@
               "khac"
             ]
           ]
+        },
+        {
+          "name": "A9 · v1 đang chạy (B2), chấm trên thang 6 lớp gộp (cùng thang với A7, A8)",
+          "n_test": 393,
+          "macro_f1": 0.3701,
+          "macro_f1_ci95": [
+            0.3064,
+            0.4324
+          ],
+          "macro_f1_support_only": 0.3701,
+          "accuracy": 0.514,
+          "action_precision": {
+            "k": 54,
+            "n": 235,
+            "precision": 0.2298,
+            "ci95": [
+              0.1806,
+              0.2877
+            ]
+          },
+          "action_recall": {
+            "k": 54,
+            "n": 69,
+            "recall": 0.7826,
+            "ci95": [
+              0.6718,
+              0.8636
+            ]
+          },
+          "scale": "6_lop_gop",
+          "n_labels_scored": 6,
+          "phantom_labels": [],
+          "per_class": {
+            "hoi_gia": {
+              "precision": 0.2979,
+              "recall": 1.0,
+              "f1": 0.459,
+              "support": 14,
+              "n_pred": 47
+            },
+            "hoi_size": {
+              "precision": 0.12,
+              "recall": 1.0,
+              "f1": 0.2143,
+              "support": 3,
+              "n_pred": 25
+            },
+            "che_dat": {
+              "precision": 0.0698,
+              "recall": 0.6,
+              "f1": 0.125,
+              "support": 5,
+              "n_pred": 43
+            },
+            "chot_don": {
+              "precision": 0.3014,
+              "recall": 0.6667,
+              "f1": 0.4151,
+              "support": 33,
+              "n_pred": 73
+            },
+            "van_chuyen": {
+              "precision": 0.2553,
+              "recall": 0.8571,
+              "f1": 0.3934,
+              "support": 14,
+              "n_pred": 47
+            },
+            "khac": {
+              "precision": 0.9367,
+              "recall": 0.4568,
+              "f1": 0.6141,
+              "support": 324,
+              "n_pred": 158
+            }
+          },
+          "confusion": {
+            "khac": {
+              "che_dat": 39,
+              "chot_don": 51,
+              "hoi_gia": 29,
+              "hoi_size": 22,
+              "van_chuyen": 35,
+              "khac": 148
+            },
+            "van_chuyen": {
+              "van_chuyen": 12,
+              "hoi_gia": 1,
+              "khac": 1
+            },
+            "chot_don": {
+              "che_dat": 1,
+              "chot_don": 22,
+              "hoi_gia": 1,
+              "khac": 9
+            },
+            "che_dat": {
+              "che_dat": 3,
+              "hoi_gia": 2
+            },
+            "hoi_gia": {
+              "hoi_gia": 14
+            },
+            "hoi_size": {
+              "hoi_size": 3
+            }
+          },
+          "per_session": {
+            "1NMt8BChQrI": {
+              "n": 147,
+              "macro_f1": 0.1168,
+              "accuracy": 0.4082,
+              "action_precision": {
+                "k": 1,
+                "n": 88,
+                "precision": 0.0114,
+                "ci95": [
+                  0.002,
+                  0.0616
+                ]
+              },
+              "action_recall": {
+                "k": 1,
+                "n": 1,
+                "recall": 1.0,
+                "ci95": [
+                  0.2065,
+                  1.0
+                ]
+              }
+            },
+            "47oGShxf80A": {
+              "n": 78,
+              "macro_f1": 0.6833,
+              "accuracy": 0.6795,
+              "action_precision": {
+                "k": 42,
+                "n": 61,
+                "precision": 0.6885,
+                "ci95": [
+                  0.5641,
+                  0.7906
+                ]
+              },
+              "action_recall": {
+                "k": 42,
+                "n": 51,
+                "recall": 0.8235,
+                "ci95": [
+                  0.6975,
+                  0.9043
+                ]
+              }
+            },
+            "gT0LDiBta2k": {
+              "n": 168,
+              "macro_f1": 0.2574,
+              "accuracy": 0.5298,
+              "action_precision": {
+                "k": 11,
+                "n": 86,
+                "precision": 0.1279,
+                "ci95": [
+                  0.0729,
+                  0.2147
+                ]
+              },
+              "action_recall": {
+                "k": 11,
+                "n": 17,
+                "recall": 0.6471,
+                "ci95": [
+                  0.413,
+                  0.8269
+                ]
+              }
+            }
+          },
+          "n_train_rows_dropped_as_leak": 62,
+          "chosen_thresholds": [],
+          "random_stratum": {
+            "n": 200,
+            "macro_f1": 0.3865,
+            "macro_f1_ci95": [
+              0.2015,
+              0.53
+            ],
+            "accuracy": 0.785,
+            "action_precision": {
+              "k": 9,
+              "n": 42,
+              "precision": 0.2143,
+              "ci95": [
+                0.1171,
+                0.3594
+              ]
+            },
+            "action_recall": {
+              "k": 9,
+              "n": 19,
+              "recall": 0.4737,
+              "ci95": [
+                0.2733,
+                0.6829
+              ]
+            }
+          },
+          "predictions": [
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "hoi_gia"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "hoi_gia"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "hoi_gia"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "hoi_gia"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "hoi_gia"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "hoi_gia"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "hoi_gia"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "hoi_gia"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "hoi_gia"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "hoi_gia"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "hoi_gia"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "hoi_gia"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "hoi_gia"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "hoi_gia"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "hoi_gia"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "hoi_size"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "hoi_size"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "hoi_size"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "hoi_size"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "hoi_size"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "hoi_size"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "hoi_size"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "hoi_size"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "hoi_size"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "hoi_size"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "hoi_size"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "hoi_size"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "hoi_size"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "hoi_size"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "hoi_size"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "van_chuyen",
+              "van_chuyen"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "1NMt8BChQrI",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "hoi_size"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "1NMt8BChQrI",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "chot_don",
+              "che_dat"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "che_dat",
+              "che_dat"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "chot_don",
+              "chot_don"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "chot_don",
+              "chot_don"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "chot_don",
+              "chot_don"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "chot_don",
+              "chot_don"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "chot_don",
+              "chot_don"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "chot_don",
+              "chot_don"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "chot_don",
+              "chot_don"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "chot_don",
+              "chot_don"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "chot_don",
+              "chot_don"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "chot_don",
+              "chot_don"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "chot_don",
+              "chot_don"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "chot_don",
+              "chot_don"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "chot_don",
+              "chot_don"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "hoi_gia",
+              "hoi_gia"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "hoi_gia",
+              "hoi_gia"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "hoi_gia",
+              "hoi_gia"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "van_chuyen",
+              "hoi_gia"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "hoi_gia",
+              "hoi_gia"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "hoi_gia",
+              "hoi_gia"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "hoi_gia",
+              "hoi_gia"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "hoi_gia",
+              "hoi_gia"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "hoi_gia",
+              "hoi_gia"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "hoi_gia",
+              "hoi_gia"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "chot_don",
+              "hoi_gia"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "khac",
+              "hoi_gia"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "hoi_gia",
+              "hoi_gia"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "hoi_size",
+              "hoi_size"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "hoi_size",
+              "hoi_size"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "hoi_size",
+              "hoi_size"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "van_chuyen",
+              "van_chuyen"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "van_chuyen",
+              "van_chuyen"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "van_chuyen",
+              "van_chuyen"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "van_chuyen",
+              "van_chuyen"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "van_chuyen",
+              "van_chuyen"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "van_chuyen",
+              "van_chuyen"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "van_chuyen",
+              "van_chuyen"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "van_chuyen",
+              "van_chuyen"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "van_chuyen",
+              "van_chuyen"
+            ],
+            [
+              "47oGShxf80A",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "47oGShxf80A",
+              "random",
+              "chot_don",
+              "khac"
+            ],
+            [
+              "47oGShxf80A",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "47oGShxf80A",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "47oGShxf80A",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "47oGShxf80A",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "47oGShxf80A",
+              "random",
+              "chot_don",
+              "khac"
+            ],
+            [
+              "47oGShxf80A",
+              "random",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "47oGShxf80A",
+              "random",
+              "chot_don",
+              "khac"
+            ],
+            [
+              "47oGShxf80A",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "47oGShxf80A",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "47oGShxf80A",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "47oGShxf80A",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "47oGShxf80A",
+              "random",
+              "chot_don",
+              "chot_don"
+            ],
+            [
+              "47oGShxf80A",
+              "random",
+              "chot_don",
+              "khac"
+            ],
+            [
+              "47oGShxf80A",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "47oGShxf80A",
+              "random",
+              "chot_don",
+              "chot_don"
+            ],
+            [
+              "47oGShxf80A",
+              "random",
+              "chot_don",
+              "chot_don"
+            ],
+            [
+              "47oGShxf80A",
+              "random",
+              "van_chuyen",
+              "van_chuyen"
+            ],
+            [
+              "47oGShxf80A",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "47oGShxf80A",
+              "random",
+              "chot_don",
+              "chot_don"
+            ],
+            [
+              "47oGShxf80A",
+              "random",
+              "chot_don",
+              "khac"
+            ],
+            [
+              "47oGShxf80A",
+              "random",
+              "chot_don",
+              "khac"
+            ],
+            [
+              "47oGShxf80A",
+              "random",
+              "chot_don",
+              "chot_don"
+            ],
+            [
+              "47oGShxf80A",
+              "random",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "47oGShxf80A",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "che_dat",
+              "che_dat"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "che_dat",
+              "che_dat"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "chot_don",
+              "chot_don"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "chot_don",
+              "chot_don"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "chot_don",
+              "chot_don"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "hoi_gia",
+              "hoi_gia"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "hoi_gia"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "hoi_gia"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "hoi_gia"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "hoi_gia"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "che_dat",
+              "hoi_gia"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "hoi_gia"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "hoi_gia"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "hoi_gia",
+              "hoi_gia"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "hoi_gia"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "hoi_gia"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "che_dat",
+              "hoi_gia"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "hoi_gia"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "hoi_gia"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "hoi_gia"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "hoi_size"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "hoi_size"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "hoi_size"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "hoi_size"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "hoi_size"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "van_chuyen",
+              "van_chuyen"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "gT0LDiBta2k",
+              "predicted",
+              "khac",
+              "van_chuyen"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "hoi_gia"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "hoi_size"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "hoi_gia",
+              "hoi_gia"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "chot_don",
+              "chot_don"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "hoi_gia"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "chot_don",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "hoi_gia",
+              "hoi_gia"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "chot_don",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "chot_don",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "van_chuyen",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "che_dat"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "chot_don"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "khac"
+            ],
+            [
+              "gT0LDiBta2k",
+              "random",
+              "khac",
+              "che_dat"
+            ]
+          ]
         }
       ]
     }
@@ -41249,52 +44583,52 @@
   "coverage": [
     {
       "threshold": 0.0,
-      "macro_f1": 0.5645,
-      "accuracy": 0.7405,
-      "action_coverage": 0.1527,
-      "action_precision": 0.6667,
+      "macro_f1": 0.5423,
+      "accuracy": 0.7303,
+      "action_coverage": 0.1476,
+      "action_precision": 0.6552,
       "action_ci95": [
-        0.5406,
-        0.7727
+        0.5267,
+        0.7644
       ]
     },
     {
       "threshold": 0.3,
-      "macro_f1": 0.5701,
-      "accuracy": 0.7405,
-      "action_coverage": 0.145,
-      "action_precision": 0.7018,
+      "macro_f1": 0.5486,
+      "accuracy": 0.7328,
+      "action_coverage": 0.1399,
+      "action_precision": 0.6909,
       "action_ci95": [
-        0.5734,
-        0.8047
+        0.5597,
+        0.7972
       ]
     },
     {
       "threshold": 0.4,
-      "macro_f1": 0.5867,
-      "accuracy": 0.7405,
-      "action_coverage": 0.1323,
-      "action_precision": 0.75,
+      "macro_f1": 0.5221,
+      "accuracy": 0.7303,
+      "action_coverage": 0.1247,
+      "action_precision": 0.7347,
       "action_ci95": [
-        0.6179,
-        0.8477
+        0.5974,
+        0.8379
       ]
     },
     {
       "threshold": 0.45,
-      "macro_f1": 0.5597,
-      "accuracy": 0.7405,
-      "action_coverage": 0.1196,
-      "action_precision": 0.7447,
+      "macro_f1": 0.5231,
+      "accuracy": 0.7379,
+      "action_coverage": 0.117,
+      "action_precision": 0.7391,
       "action_ci95": [
-        0.6049,
-        0.8475
+        0.5974,
+        0.844
       ]
     },
     {
       "threshold": 0.5,
-      "macro_f1": 0.5227,
-      "accuracy": 0.7328,
+      "macro_f1": 0.5754,
+      "accuracy": 0.7354,
       "action_coverage": 0.112,
       "action_precision": 0.75,
       "action_ci95": [
@@ -41315,13 +44649,13 @@
     },
     {
       "threshold": 0.7,
-      "macro_f1": 0.5455,
+      "macro_f1": 0.5477,
       "accuracy": 0.6997,
-      "action_coverage": 0.0763,
-      "action_precision": 0.9,
+      "action_coverage": 0.0789,
+      "action_precision": 0.9032,
       "action_ci95": [
-        0.7438,
-        0.9654
+        0.751,
+        0.9665
       ]
     },
     {
@@ -41337,26 +44671,38 @@
     }
   ],
   "best": {
-    "name": "A8 · bộ nhãn 11 lớp, gộp về 6 khi chấm (cùng thang với A7)",
+    "name": "C2 · C1 + nhãn LLM trên buổi thứ tư",
     "n_test": 393,
-    "macro_f1": 0.6092,
+    "macro_f1": 0.5423,
     "macro_f1_ci95": [
-      0.4903,
-      0.7002
+      0.4782,
+      0.6245
     ],
-    "macro_f1_support_only": 0.6092,
-    "accuracy": 0.8804,
+    "macro_f1_support_only": 0.5966,
+    "accuracy": 0.7303,
     "action_precision": {
-      "k": 40,
-      "n": 60,
-      "precision": 0.6667,
+      "k": 38,
+      "n": 58,
+      "precision": 0.6552,
       "ci95": [
-        0.5406,
-        0.7727
+        0.5267,
+        0.7644
       ]
     },
-    "n_labels_scored": 6,
-    "phantom_labels": [],
+    "action_recall": {
+      "k": 38,
+      "n": 69,
+      "recall": 0.5507,
+      "ci95": [
+        0.4338,
+        0.6623
+      ]
+    },
+    "scale": "11_lop",
+    "n_labels_scored": 11,
+    "phantom_labels": [
+      "hoi_daily"
+    ],
     "per_class": {
       "hoi_gia": {
         "precision": 0.8125,
@@ -41366,11 +44712,11 @@
         "n_pred": 16
       },
       "hoi_size": {
-        "precision": 0.3333,
-        "recall": 0.6667,
-        "f1": 0.4444,
+        "precision": 0.2,
+        "recall": 0.3333,
+        "f1": 0.25,
         "support": 3,
-        "n_pred": 6
+        "n_pred": 5
       },
       "che_dat": {
         "precision": 0.1667,
@@ -41380,11 +44726,11 @@
         "n_pred": 6
       },
       "chot_don": {
-        "precision": 0.8333,
-        "recall": 0.4545,
-        "f1": 0.5882,
+        "precision": 0.8235,
+        "recall": 0.4242,
+        "f1": 0.56,
         "support": 33,
-        "n_pred": 18
+        "n_pred": 17
       },
       "van_chuyen": {
         "precision": 0.6429,
@@ -41393,51 +44739,115 @@
         "support": 14,
         "n_pred": 14
       },
+      "chao_hoi": {
+        "precision": 0.9091,
+        "recall": 0.9524,
+        "f1": 0.9302,
+        "support": 42,
+        "n_pred": 44
+      },
+      "cam_on_khen": {
+        "precision": 0.699,
+        "recall": 0.8372,
+        "f1": 0.7619,
+        "support": 86,
+        "n_pred": 103
+      },
+      "hoi_sanpham": {
+        "precision": 0.3333,
+        "recall": 0.1818,
+        "f1": 0.2353,
+        "support": 11,
+        "n_pred": 6
+      },
+      "hoi_daily": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 0,
+        "n_pred": 2
+      },
+      "bao_gia_shop": {
+        "precision": 0.8125,
+        "recall": 0.8125,
+        "f1": 0.8125,
+        "support": 32,
+        "n_pred": 32
+      },
       "khac": {
-        "precision": 0.9189,
-        "recall": 0.9444,
-        "f1": 0.9315,
-        "support": 324,
-        "n_pred": 333
+        "precision": 0.7365,
+        "recall": 0.7124,
+        "f1": 0.7243,
+        "support": 153,
+        "n_pred": 148
       }
     },
     "confusion": {
       "khac": {
-        "khac": 306,
-        "che_dat": 5,
-        "hoi_size": 4,
+        "khac": 109,
+        "bao_gia_shop": 1,
+        "chao_hoi": 4,
+        "che_dat": 2,
+        "cam_on_khen": 27,
         "van_chuyen": 5,
-        "chot_don": 3,
+        "hoi_sanpham": 3,
+        "chot_don": 1,
+        "hoi_daily": 1
+      },
+      "cam_on_khen": {
+        "cam_on_khen": 72,
+        "hoi_daily": 1,
+        "khac": 9,
+        "hoi_size": 4
+      },
+      "chao_hoi": {
+        "chao_hoi": 40,
+        "cam_on_khen": 2
+      },
+      "bao_gia_shop": {
+        "bao_gia_shop": 26,
+        "che_dat": 3,
+        "khac": 2,
         "hoi_gia": 1
       },
       "van_chuyen": {
-        "khac": 4,
+        "khac": 3,
         "hoi_gia": 1,
-        "van_chuyen": 9
+        "van_chuyen": 9,
+        "bao_gia_shop": 1
+      },
+      "hoi_sanpham": {
+        "khac": 6,
+        "hoi_sanpham": 2,
+        "chot_don": 2,
+        "cam_on_khen": 1
       },
       "chot_don": {
-        "khac": 18,
-        "chot_don": 15
+        "khac": 15,
+        "chot_don": 14,
+        "bao_gia_shop": 4
       },
       "che_dat": {
         "che_dat": 1,
-        "khac": 3,
-        "hoi_gia": 1
+        "hoi_sanpham": 1,
+        "cam_on_khen": 1,
+        "hoi_gia": 1,
+        "khac": 1
       },
       "hoi_gia": {
         "hoi_gia": 13,
         "khac": 1
       },
       "hoi_size": {
-        "hoi_size": 2,
-        "khac": 1
+        "hoi_size": 1,
+        "khac": 2
       }
     },
     "per_session": {
       "1NMt8BChQrI": {
         "n": 147,
-        "macro_f1": 0.2394,
-        "accuracy": 0.9184,
+        "macro_f1": 0.3677,
+        "accuracy": 0.7619,
         "action_precision": {
           "k": 0,
           "n": 11,
@@ -41446,26 +44856,44 @@
             0.0,
             0.2588
           ]
+        },
+        "action_recall": {
+          "k": 0,
+          "n": 1,
+          "recall": 0.0,
+          "ci95": [
+            0.0,
+            0.7935
+          ]
         }
       },
       "47oGShxf80A": {
         "n": 78,
-        "macro_f1": 0.7878,
-        "accuracy": 0.7051,
+        "macro_f1": 0.5991,
+        "accuracy": 0.6026,
         "action_precision": {
-          "k": 34,
-          "n": 41,
-          "precision": 0.8293,
+          "k": 32,
+          "n": 39,
+          "precision": 0.8205,
           "ci95": [
-            0.6874,
-            0.9147
+            0.6733,
+            0.9102
+          ]
+        },
+        "action_recall": {
+          "k": 32,
+          "n": 51,
+          "recall": 0.6275,
+          "ci95": [
+            0.4902,
+            0.7468
           ]
         }
       },
       "gT0LDiBta2k": {
         "n": 168,
-        "macro_f1": 0.5563,
-        "accuracy": 0.9286,
+        "macro_f1": 0.5248,
+        "accuracy": 0.7619,
         "action_precision": {
           "k": 6,
           "n": 8,
@@ -41474,6 +44902,15 @@
             0.4093,
             0.9285
           ]
+        },
+        "action_recall": {
+          "k": 6,
+          "n": 17,
+          "recall": 0.3529,
+          "ci95": [
+            0.1731,
+            0.587
+          ]
         }
       }
     },
@@ -41481,12 +44918,12 @@
     "chosen_thresholds": [],
     "random_stratum": {
       "n": 200,
-      "macro_f1": 0.6262,
+      "macro_f1": 0.5162,
       "macro_f1_ci95": [
-        0.3165,
-        0.8226
+        0.3752,
+        0.6602
       ],
-      "accuracy": 0.92,
+      "accuracy": 0.735,
       "action_precision": {
         "k": 6,
         "n": 9,
@@ -41494,6 +44931,15 @@
         "ci95": [
           0.3542,
           0.8794
+        ]
+      },
+      "action_recall": {
+        "k": 6,
+        "n": 19,
+        "recall": 0.3158,
+        "ci95": [
+          0.1536,
+          0.5399
         ]
       }
     },
@@ -41508,7 +44954,19 @@
         "1NMt8BChQrI",
         "predicted",
         "khac",
+        "bao_gia_shop"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "khac",
         "khac"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
@@ -41532,181 +44990,7 @@
         "1NMt8BChQrI",
         "predicted",
         "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "che_dat"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
+        "chao_hoi"
       ],
       [
         "1NMt8BChQrI",
@@ -41723,8 +45007,116 @@
       [
         "1NMt8BChQrI",
         "predicted",
+        "cam_on_khen",
+        "cam_on_khen"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "khac",
+        "cam_on_khen"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
         "khac",
         "khac"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "cam_on_khen",
+        "cam_on_khen"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "khac",
+        "cam_on_khen"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "cam_on_khen",
+        "hoi_daily"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "chao_hoi",
+        "chao_hoi"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "cam_on_khen",
+        "cam_on_khen"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "cam_on_khen",
+        "cam_on_khen"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "chao_hoi",
+        "chao_hoi"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "cam_on_khen",
+        "cam_on_khen"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "chao_hoi",
+        "chao_hoi"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "chao_hoi",
+        "chao_hoi"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "khac",
+        "cam_on_khen"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "chao_hoi",
+        "chao_hoi"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "bao_gia_shop",
+        "bao_gia_shop"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "khac",
+        "khac"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "bao_gia_shop",
+        "bao_gia_shop"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "bao_gia_shop",
+        "bao_gia_shop"
       ],
       [
         "1NMt8BChQrI",
@@ -41736,13 +45128,37 @@
         "1NMt8BChQrI",
         "predicted",
         "khac",
-        "khac"
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
         "predicted",
-        "khac",
-        "khac"
+        "bao_gia_shop",
+        "bao_gia_shop"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "bao_gia_shop",
+        "bao_gia_shop"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "bao_gia_shop",
+        "bao_gia_shop"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "bao_gia_shop",
+        "bao_gia_shop"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "bao_gia_shop",
+        "bao_gia_shop"
       ],
       [
         "1NMt8BChQrI",
@@ -41753,20 +45169,74 @@
       [
         "1NMt8BChQrI",
         "predicted",
-        "khac",
+        "bao_gia_shop",
+        "bao_gia_shop"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "bao_gia_shop",
+        "bao_gia_shop"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "bao_gia_shop",
+        "bao_gia_shop"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "bao_gia_shop",
+        "bao_gia_shop"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "bao_gia_shop",
         "che_dat"
       ],
       [
         "1NMt8BChQrI",
         "predicted",
-        "khac",
+        "bao_gia_shop",
         "che_dat"
       ],
       [
         "1NMt8BChQrI",
         "predicted",
-        "khac",
+        "bao_gia_shop",
+        "che_dat"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "bao_gia_shop",
+        "bao_gia_shop"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "cam_on_khen",
         "khac"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "cam_on_khen",
+        "cam_on_khen"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "cam_on_khen",
+        "cam_on_khen"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
@@ -41777,86 +45247,62 @@
       [
         "1NMt8BChQrI",
         "predicted",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
         "predicted",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
         "predicted",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
         "predicted",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "hoi_size"
       ],
       [
         "1NMt8BChQrI",
         "predicted",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
         "predicted",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "hoi_size"
       ],
       [
         "1NMt8BChQrI",
         "predicted",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "hoi_size"
       ],
       [
         "1NMt8BChQrI",
         "predicted",
-        "khac",
+        "cam_on_khen",
+        "cam_on_khen"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "cam_on_khen",
         "hoi_size"
       ],
       [
         "1NMt8BChQrI",
         "predicted",
         "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "hoi_size"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "hoi_size"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "hoi_size"
-      ],
-      [
-        "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
@@ -41909,8 +45355,14 @@
       [
         "1NMt8BChQrI",
         "predicted",
-        "khac",
+        "hoi_sanpham",
         "khac"
+      ],
+      [
+        "1NMt8BChQrI",
+        "predicted",
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
@@ -41944,12 +45396,6 @@
       ],
       [
         "1NMt8BChQrI",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "1NMt8BChQrI",
         "random",
         "khac",
         "khac"
@@ -41963,20 +45409,20 @@
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "chao_hoi",
+        "chao_hoi"
       ],
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
@@ -41988,13 +45434,13 @@
         "1NMt8BChQrI",
         "random",
         "khac",
-        "khac"
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
@@ -42005,26 +45451,26 @@
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "chao_hoi",
+        "chao_hoi"
       ],
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "chao_hoi",
+        "chao_hoi"
       ],
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "chao_hoi",
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
@@ -42035,8 +45481,8 @@
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
@@ -42059,32 +45505,32 @@
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "chao_hoi",
+        "chao_hoi"
       ],
       [
         "1NMt8BChQrI",
         "random",
         "khac",
-        "khac"
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
         "random",
         "khac",
-        "khac"
+        "hoi_sanpham"
       ],
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "chao_hoi",
+        "chao_hoi"
       ],
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "chao_hoi",
+        "chao_hoi"
       ],
       [
         "1NMt8BChQrI",
@@ -42095,8 +45541,8 @@
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
@@ -42113,8 +45559,8 @@
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
@@ -42126,7 +45572,7 @@
         "1NMt8BChQrI",
         "random",
         "khac",
-        "khac"
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
@@ -42137,14 +45583,14 @@
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "chao_hoi",
+        "chao_hoi"
       ],
       [
         "1NMt8BChQrI",
         "random",
         "khac",
-        "khac"
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
@@ -42155,14 +45601,14 @@
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
         "random",
         "khac",
-        "khac"
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
@@ -42173,8 +45619,8 @@
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
@@ -42186,7 +45632,7 @@
         "1NMt8BChQrI",
         "random",
         "khac",
-        "khac"
+        "chao_hoi"
       ],
       [
         "1NMt8BChQrI",
@@ -42197,7 +45643,7 @@
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
+        "cam_on_khen",
         "khac"
       ],
       [
@@ -42210,7 +45656,7 @@
         "1NMt8BChQrI",
         "random",
         "khac",
-        "khac"
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
@@ -42227,68 +45673,68 @@
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "chao_hoi",
+        "chao_hoi"
       ],
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "chao_hoi",
+        "chao_hoi"
       ],
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "chao_hoi",
+        "chao_hoi"
       ],
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
         "random",
         "khac",
-        "khac"
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
+        "cam_on_khen",
         "khac"
       ],
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "chao_hoi",
+        "chao_hoi"
       ],
       [
         "1NMt8BChQrI",
@@ -42311,8 +45757,8 @@
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "bao_gia_shop",
+        "bao_gia_shop"
       ],
       [
         "1NMt8BChQrI",
@@ -42323,8 +45769,8 @@
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "chao_hoi",
+        "chao_hoi"
       ],
       [
         "1NMt8BChQrI",
@@ -42353,20 +45799,20 @@
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "chao_hoi",
+        "chao_hoi"
       ],
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "1NMt8BChQrI",
@@ -42377,7 +45823,7 @@
       [
         "1NMt8BChQrI",
         "random",
-        "khac",
+        "bao_gia_shop",
         "khac"
       ],
       [
@@ -42389,7 +45835,19 @@
       [
         "47oGShxf80A",
         "predicted",
-        "khac",
+        "cam_on_khen",
+        "khac"
+      ],
+      [
+        "47oGShxf80A",
+        "predicted",
+        "hoi_sanpham",
+        "hoi_sanpham"
+      ],
+      [
+        "47oGShxf80A",
+        "predicted",
+        "cam_on_khen",
         "khac"
       ],
       [
@@ -42401,20 +45859,8 @@
       [
         "47oGShxf80A",
         "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "47oGShxf80A",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "47oGShxf80A",
-        "predicted",
-        "khac",
-        "khac"
+        "hoi_sanpham",
+        "hoi_sanpham"
       ],
       [
         "47oGShxf80A",
@@ -42431,7 +45877,7 @@
       [
         "47oGShxf80A",
         "predicted",
-        "khac",
+        "hoi_sanpham",
         "chot_don"
       ],
       [
@@ -42456,24 +45902,6 @@
         "47oGShxf80A",
         "predicted",
         "chot_don",
-        "chot_don"
-      ],
-      [
-        "47oGShxf80A",
-        "predicted",
-        "chot_don",
-        "chot_don"
-      ],
-      [
-        "47oGShxf80A",
-        "predicted",
-        "chot_don",
-        "chot_don"
-      ],
-      [
-        "47oGShxf80A",
-        "predicted",
-        "chot_don",
         "khac"
       ],
       [
@@ -42486,7 +45914,25 @@
         "47oGShxf80A",
         "predicted",
         "chot_don",
-        "khac"
+        "chot_don"
+      ],
+      [
+        "47oGShxf80A",
+        "predicted",
+        "chot_don",
+        "bao_gia_shop"
+      ],
+      [
+        "47oGShxf80A",
+        "predicted",
+        "chot_don",
+        "chot_don"
+      ],
+      [
+        "47oGShxf80A",
+        "predicted",
+        "chot_don",
+        "bao_gia_shop"
       ],
       [
         "47oGShxf80A",
@@ -42576,12 +46022,12 @@
         "47oGShxf80A",
         "predicted",
         "chot_don",
-        "khac"
+        "bao_gia_shop"
       ],
       [
         "47oGShxf80A",
         "predicted",
-        "khac",
+        "bao_gia_shop",
         "hoi_gia"
       ],
       [
@@ -42600,7 +46046,7 @@
         "47oGShxf80A",
         "predicted",
         "hoi_size",
-        "hoi_size"
+        "khac"
       ],
       [
         "47oGShxf80A",
@@ -42611,8 +46057,8 @@
       [
         "47oGShxf80A",
         "predicted",
-        "khac",
-        "khac"
+        "chao_hoi",
+        "chao_hoi"
       ],
       [
         "47oGShxf80A",
@@ -42636,7 +46082,7 @@
         "47oGShxf80A",
         "predicted",
         "khac",
-        "khac"
+        "hoi_sanpham"
       ],
       [
         "47oGShxf80A",
@@ -42647,26 +46093,8 @@
       [
         "47oGShxf80A",
         "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "47oGShxf80A",
-        "predicted",
-        "van_chuyen",
-        "van_chuyen"
-      ],
-      [
-        "47oGShxf80A",
-        "predicted",
-        "van_chuyen",
-        "van_chuyen"
-      ],
-      [
-        "47oGShxf80A",
-        "predicted",
-        "van_chuyen",
-        "khac"
+        "chao_hoi",
+        "chao_hoi"
       ],
       [
         "47oGShxf80A",
@@ -42683,8 +46111,26 @@
       [
         "47oGShxf80A",
         "predicted",
-        "khac",
-        "khac"
+        "van_chuyen",
+        "bao_gia_shop"
+      ],
+      [
+        "47oGShxf80A",
+        "predicted",
+        "van_chuyen",
+        "van_chuyen"
+      ],
+      [
+        "47oGShxf80A",
+        "predicted",
+        "van_chuyen",
+        "van_chuyen"
+      ],
+      [
+        "47oGShxf80A",
+        "predicted",
+        "chao_hoi",
+        "chao_hoi"
       ],
       [
         "47oGShxf80A",
@@ -42708,13 +46154,13 @@
         "47oGShxf80A",
         "random",
         "khac",
-        "khac"
+        "cam_on_khen"
       ],
       [
         "47oGShxf80A",
         "random",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "47oGShxf80A",
@@ -42732,12 +46178,12 @@
         "47oGShxf80A",
         "random",
         "chot_don",
-        "khac"
+        "bao_gia_shop"
       ],
       [
         "47oGShxf80A",
         "random",
-        "khac",
+        "hoi_sanpham",
         "chot_don"
       ],
       [
@@ -42768,7 +46214,7 @@
         "47oGShxf80A",
         "random",
         "khac",
-        "khac"
+        "cam_on_khen"
       ],
       [
         "47oGShxf80A",
@@ -42785,8 +46231,8 @@
       [
         "47oGShxf80A",
         "random",
-        "khac",
-        "khac"
+        "chao_hoi",
+        "chao_hoi"
       ],
       [
         "47oGShxf80A",
@@ -42845,6 +46291,36 @@
       [
         "47oGShxf80A",
         "random",
+        "hoi_sanpham",
+        "khac"
+      ],
+      [
+        "gT0LDiBta2k",
+        "predicted",
+        "cam_on_khen",
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "predicted",
+        "cam_on_khen",
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "predicted",
+        "chao_hoi",
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "predicted",
+        "che_dat",
+        "hoi_sanpham"
+      ],
+      [
+        "gT0LDiBta2k",
+        "predicted",
         "khac",
         "khac"
       ],
@@ -42853,6 +46329,12 @@
         "predicted",
         "khac",
         "khac"
+      ],
+      [
+        "gT0LDiBta2k",
+        "predicted",
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "gT0LDiBta2k",
@@ -42870,7 +46352,13 @@
         "gT0LDiBta2k",
         "predicted",
         "che_dat",
-        "khac"
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "predicted",
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "gT0LDiBta2k",
@@ -42881,56 +46369,14 @@
       [
         "gT0LDiBta2k",
         "predicted",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "gT0LDiBta2k",
         "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "predicted",
-        "che_dat",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "predicted",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "gT0LDiBta2k",
@@ -42947,8 +46393,8 @@
       [
         "gT0LDiBta2k",
         "predicted",
-        "khac",
-        "khac"
+        "chao_hoi",
+        "chao_hoi"
       ],
       [
         "gT0LDiBta2k",
@@ -42960,7 +46406,7 @@
         "gT0LDiBta2k",
         "predicted",
         "khac",
-        "khac"
+        "cam_on_khen"
       ],
       [
         "gT0LDiBta2k",
@@ -42971,8 +46417,8 @@
       [
         "gT0LDiBta2k",
         "predicted",
-        "khac",
-        "khac"
+        "chao_hoi",
+        "chao_hoi"
       ],
       [
         "gT0LDiBta2k",
@@ -42989,8 +46435,20 @@
       [
         "gT0LDiBta2k",
         "predicted",
-        "khac",
-        "khac"
+        "chao_hoi",
+        "chao_hoi"
+      ],
+      [
+        "gT0LDiBta2k",
+        "predicted",
+        "chao_hoi",
+        "chao_hoi"
+      ],
+      [
+        "gT0LDiBta2k",
+        "predicted",
+        "chao_hoi",
+        "chao_hoi"
       ],
       [
         "gT0LDiBta2k",
@@ -43007,26 +46465,14 @@
       [
         "gT0LDiBta2k",
         "predicted",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "gT0LDiBta2k",
         "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "predicted",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "gT0LDiBta2k",
@@ -43037,26 +46483,26 @@
       [
         "gT0LDiBta2k",
         "predicted",
-        "khac",
-        "khac"
+        "bao_gia_shop",
+        "bao_gia_shop"
       ],
       [
         "gT0LDiBta2k",
         "predicted",
-        "khac",
-        "khac"
+        "bao_gia_shop",
+        "bao_gia_shop"
       ],
       [
         "gT0LDiBta2k",
         "predicted",
-        "khac",
-        "khac"
+        "bao_gia_shop",
+        "bao_gia_shop"
       ],
       [
         "gT0LDiBta2k",
         "predicted",
-        "khac",
-        "khac"
+        "bao_gia_shop",
+        "bao_gia_shop"
       ],
       [
         "gT0LDiBta2k",
@@ -43067,14 +46513,14 @@
       [
         "gT0LDiBta2k",
         "predicted",
-        "khac",
-        "khac"
+        "bao_gia_shop",
+        "bao_gia_shop"
       ],
       [
         "gT0LDiBta2k",
         "predicted",
-        "khac",
-        "khac"
+        "bao_gia_shop",
+        "bao_gia_shop"
       ],
       [
         "gT0LDiBta2k",
@@ -43085,14 +46531,14 @@
       [
         "gT0LDiBta2k",
         "predicted",
-        "khac",
-        "khac"
+        "bao_gia_shop",
+        "bao_gia_shop"
       ],
       [
         "gT0LDiBta2k",
         "predicted",
-        "khac",
-        "khac"
+        "chao_hoi",
+        "chao_hoi"
       ],
       [
         "gT0LDiBta2k",
@@ -43103,7 +46549,67 @@
       [
         "gT0LDiBta2k",
         "predicted",
+        "bao_gia_shop",
+        "bao_gia_shop"
+      ],
+      [
+        "gT0LDiBta2k",
+        "predicted",
+        "bao_gia_shop",
+        "bao_gia_shop"
+      ],
+      [
+        "gT0LDiBta2k",
+        "predicted",
+        "bao_gia_shop",
+        "bao_gia_shop"
+      ],
+      [
+        "gT0LDiBta2k",
+        "predicted",
         "khac",
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "predicted",
+        "cam_on_khen",
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "predicted",
+        "cam_on_khen",
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "predicted",
+        "khac",
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "predicted",
+        "khac",
+        "khac"
+      ],
+      [
+        "gT0LDiBta2k",
+        "predicted",
+        "khac",
+        "khac"
+      ],
+      [
+        "gT0LDiBta2k",
+        "predicted",
+        "khac",
+        "khac"
+      ],
+      [
+        "gT0LDiBta2k",
+        "predicted",
+        "hoi_sanpham",
         "khac"
       ],
       [
@@ -43127,67 +46633,7 @@
       [
         "gT0LDiBta2k",
         "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "predicted",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "predicted",
-        "khac",
+        "hoi_sanpham",
         "khac"
       ],
       [
@@ -43230,7 +46676,7 @@
         "gT0LDiBta2k",
         "predicted",
         "khac",
-        "khac"
+        "hoi_sanpham"
       ],
       [
         "gT0LDiBta2k",
@@ -43241,7 +46687,25 @@
       [
         "gT0LDiBta2k",
         "random",
+        "cam_on_khen",
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
         "khac",
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "hoi_sanpham",
+        "khac"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "cam_on_khen",
         "khac"
       ],
       [
@@ -43253,8 +46717,32 @@
       [
         "gT0LDiBta2k",
         "random",
-        "khac",
-        "khac"
+        "bao_gia_shop",
+        "bao_gia_shop"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "chao_hoi",
+        "chao_hoi"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "chao_hoi",
+        "chao_hoi"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "hoi_sanpham",
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "chao_hoi",
+        "chao_hoi"
       ],
       [
         "gT0LDiBta2k",
@@ -43265,8 +46753,56 @@
       [
         "gT0LDiBta2k",
         "random",
+        "chao_hoi",
+        "chao_hoi"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "cam_on_khen",
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "chao_hoi",
+        "chao_hoi"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "chao_hoi",
+        "chao_hoi"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "chao_hoi",
+        "chao_hoi"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
         "khac",
-        "khac"
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "khac",
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "khac",
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "khac",
+        "cam_on_khen"
       ],
       [
         "gT0LDiBta2k",
@@ -43277,8 +46813,8 @@
       [
         "gT0LDiBta2k",
         "random",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "gT0LDiBta2k",
@@ -43289,98 +46825,8 @@
       [
         "gT0LDiBta2k",
         "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "gT0LDiBta2k",
@@ -43391,8 +46837,14 @@
       [
         "gT0LDiBta2k",
         "random",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "gT0LDiBta2k",
@@ -43404,25 +46856,19 @@
         "gT0LDiBta2k",
         "random",
         "khac",
-        "khac"
+        "cam_on_khen"
       ],
       [
         "gT0LDiBta2k",
         "random",
-        "khac",
-        "khac"
+        "bao_gia_shop",
+        "bao_gia_shop"
       ],
       [
         "gT0LDiBta2k",
         "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "gT0LDiBta2k",
@@ -43433,8 +46879,212 @@
       [
         "gT0LDiBta2k",
         "random",
+        "chao_hoi",
+        "chao_hoi"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "cam_on_khen",
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "cam_on_khen",
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "cam_on_khen",
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "cam_on_khen",
+        "khac"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "cam_on_khen",
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
         "khac",
         "khac"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "cam_on_khen",
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "cam_on_khen",
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "khac",
+        "khac"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "khac",
+        "khac"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "cam_on_khen",
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "khac",
+        "chao_hoi"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "chao_hoi",
+        "chao_hoi"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "cam_on_khen",
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "cam_on_khen",
+        "khac"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "khac",
+        "khac"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "cam_on_khen",
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "khac",
+        "khac"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "khac",
+        "khac"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "cam_on_khen",
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "khac",
+        "khac"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "cam_on_khen",
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "chao_hoi",
+        "chao_hoi"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "khac",
+        "khac"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "khac",
+        "khac"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "cam_on_khen",
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "khac",
+        "khac"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "cam_on_khen",
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "khac",
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "cam_on_khen",
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "chao_hoi",
+        "chao_hoi"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "cam_on_khen",
+        "cam_on_khen"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "chao_hoi",
+        "chao_hoi"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "gT0LDiBta2k",
@@ -43458,7 +47108,7 @@
         "gT0LDiBta2k",
         "random",
         "khac",
-        "khac"
+        "cam_on_khen"
       ],
       [
         "gT0LDiBta2k",
@@ -43482,211 +47132,7 @@
         "gT0LDiBta2k",
         "random",
         "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
+        "cam_on_khen"
       ],
       [
         "gT0LDiBta2k",
@@ -43721,7 +47167,7 @@
       [
         "gT0LDiBta2k",
         "random",
-        "khac",
+        "hoi_sanpham",
         "khac"
       ],
       [
@@ -43734,7 +47180,7 @@
         "gT0LDiBta2k",
         "random",
         "khac",
-        "khac"
+        "chao_hoi"
       ],
       [
         "gT0LDiBta2k",
@@ -43751,8 +47197,8 @@
       [
         "gT0LDiBta2k",
         "random",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "gT0LDiBta2k",
@@ -43763,13 +47209,13 @@
       [
         "gT0LDiBta2k",
         "random",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "gT0LDiBta2k",
         "random",
-        "khac",
+        "bao_gia_shop",
         "khac"
       ],
       [
@@ -43805,50 +47251,50 @@
       [
         "gT0LDiBta2k",
         "random",
-        "khac",
+        "cam_on_khen",
         "khac"
       ],
       [
         "gT0LDiBta2k",
         "random",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "gT0LDiBta2k",
         "random",
         "khac",
-        "khac"
+        "hoi_daily"
+      ],
+      [
+        "gT0LDiBta2k",
+        "random",
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "gT0LDiBta2k",
         "random",
         "khac",
-        "khac"
+        "cam_on_khen"
       ],
       [
         "gT0LDiBta2k",
         "random",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "gT0LDiBta2k",
         "random",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "gT0LDiBta2k",
         "random",
-        "khac",
-        "khac"
-      ],
-      [
-        "gT0LDiBta2k",
-        "random",
-        "khac",
-        "khac"
+        "cam_on_khen",
+        "cam_on_khen"
       ],
       [
         "gT0LDiBta2k",
@@ -43856,6 +47302,8 @@
         "khac",
         "khac"
       ]
-    ]
-  }
+    ],
+    "packaged_as": "intent_clf_v2.joblib"
+  },
+  "best_rule": "Chọn TRƯỚC, không chọn theo điểm trên tập test: mục này trình bày C2 — đúng cấu hình được đóng gói thành `intent_clf_v2.joblib`. Dòng ablation nào có điểm cao hơn thì đọc kèm khoảng tin cậy ở mục 4; lấy nó làm \"tốt nhất\" là chọn trên chính tập test. A7–A9 chấm trên thang 6 lớp gộp, không so được với thang 11 lớp."
 }

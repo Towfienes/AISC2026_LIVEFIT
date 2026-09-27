@@ -3,6 +3,15 @@
 *Viết ngày 14/09/2026. Mọi bước dưới đây đã bấm thật trên máy và chụp màn hình
 lại; không bước nào là dự định.*
 
+*Cập nhật 25/09/2026 sau kiểm toán thử thật: số liệu theo `docs/competition/FACT-SHEET.md`
+(bỏ 993, 0,271 — không tái lập được, 41 sự cố, "thực đo 5–15" — thật ra là ước tính CPM); gieo phiên đang phát 90 phút; câu trả lời
+TikTok theo đường API chính thức cho người bán. Các bước bấm chưa diễn tập lại sau lần
+cập nhật này — diễn tập một lần trước hôm thi.*
+
+> **Vòng 2 AISC'26 (15/10/2026, UIT): 15 phút gồm cả hỏi đáp.** Bảy phút dưới đây không
+> vừa khung. Bản rút gọn khoảng 90 giây demo: mục 3 (lịch đã bốc + màn người dẫn bị làm
+> mù) rồi mục 4c (hệ thống từ chối kết luận). Quay sẵn một video dự phòng.
+
 Bài này trả lời đúng ba câu: **bấm gì**, **nói gì**, và **nếu hỏng thì làm gì**.
 Đọc một lần trước hôm thi, in ra một trang, để cạnh bàn phím.
 
@@ -24,16 +33,22 @@ Bốn lệnh, theo đúng thứ tự. Đừng bỏ lệnh nào, kể cả khi "h
 curl -X POST http://127.0.0.1:8000/demo/seed-vang
 
 # (4) Gieo một phiên ĐANG PHÁT mới, để đồng hồ nằm trong lịch khối.
+#     90 phút: phiên bắt đầu từ 45 phút trước nên còn 45 phút mới quá hạn
+#     (gieo 60 phút thì chỉ còn 30 phút).
 curl -X POST http://127.0.0.1:8000/demo/seed \
      -H "Content-Type: application/json" \
-     -d '{"n_sessions":1,"duration_min":60}'
+     -d '{"n_sessions":1,"duration_min":90}'
 ```
 
 Bước (4) quan trọng hơn vẻ ngoài của nó. Phiên đang phát gieo từ hôm trước sẽ
 hiện `04:33:44 / 01:00:00` và khối hiện tại là **NGOÀI KHỐI** — người dẫn nhìn
-vào tưởng hệ thống hỏng. Gieo mới thì đồng hồ nằm giữa lịch khối, và mọi thứ
-trên bàn trợ live động đậy đúng như buổi live thật. Tên phiên có kèm giờ gieo
-nên trong danh sách cứ chọn cái mới nhất.
+vào tưởng hệ thống hỏng. Gieo mới thì đồng hồ nằm giữa lịch khối. Tên phiên có
+kèm giờ gieo nên trong danh sách cứ chọn cái mới nhất.
+
+Phiên gieo là dữ liệu **đóng băng** tới lúc gieo: khoảng 5 phút sau, radar báo
+"Chưa có bình luận nào trong 5 phút gần nhất". Muốn feed bình luận chạy trong lúc
+trình bày, bật **Bộ thu bình luận** nguồn **Mô phỏng** trên chính phiên demo (được
+phép vì là phiên mẫu), và nói rõ đó là bình luận tổng hợp.
 
 Mở sẵn **ba tab** và đừng mở thêm tab nào trong lúc trình bày:
 
@@ -63,10 +78,12 @@ bấm nhầm.
 > Chanmama — đều trả lời được câu "phiên vừa rồi bán được bao nhiêu". Không công
 > cụ nào trả lời được câu "bao nhiêu trong số đó là do hành động của bạn".
 
-Chỉ tay lên ba ô số trên trang chủ (19.126 · 16 · 993) và nói một câu:
+Chỉ tay lên ba ô số trên trang chủ (19.126 · 16 · số kiểm thử tự động — con số
+do `scripts/dong_bo_so_test.py` ghi, đọc đúng số đang hiện) và nói một câu:
 
-> Ba con số này là số liệu nhóm em đo được, không phải số quảng cáo. Mỗi con số
-> truy về được đúng một tệp trong kho mã.
+> 19.126 bình luận từ 16 buổi live công khai là dữ liệu nhóm em phân tích quan
+> sát — chưa phải phiên thí nghiệm. Số thứ ba là số kiểm thử tự động. Mỗi con số truy
+> về được đúng một tệp trong kho mã.
 
 **Không** đọc to phần giới thiệu tính năng. Hội đồng tự đọc được.
 
@@ -85,9 +102,9 @@ một màn hình:
 > Nên phải chia thời gian thay vì chia người. Muốn biết cái quạt có làm mát
 > phòng không mà chỉ có một cái quạt và một căn phòng, ta bật 5 phút, tắt 5
 > phút, bốc thăm thứ tự để không tự lừa mình, rồi so nhiệt độ khoảng bật với
-> khoảng tắt. LiveLift làm đúng vậy với phiên live: cắt 90 phút thành 16 khối 5
-> phút, mỗi khối bốc thăm bật hoặc tắt, và **lịch bốc thăm lưu lại trước khi lên
-> sóng**.
+> khoảng tắt. LiveLift làm đúng vậy với phiên live: cắt 90 phút thành 16 khối —
+> khối đầu và khối cuối 10 phút, 14 khối giữa 5 phút — mỗi khối bốc thăm bật hoặc
+> tắt, và **lịch bốc thăm lưu lại trước khi lên sóng**.
 
 Câu cuối là câu phải nhấn. Nó là ranh giới giữa thí nghiệm và quan sát.
 
@@ -97,8 +114,8 @@ Câu cuối là câu phải nhấn. Nó là ranh giới giữa thí nghiệm và
 
 Chuyển sang **tab 2** (`/desk`). Ô chọn phiên tự chọn phiên đang phát mới nhất,
 nên bình thường không phải bấm gì — chỉ liếc xem đồng hồ có nằm trong thời
-lượng phiên không (đúng thì nó hiện kiểu `00:30:31 / 01:00:00` kèm
-`KHỐI HIỆN TẠI · #6/10`). Nếu thấy **NGOÀI KHỐI** thì mở ô chọn và lấy phiên có
+lượng phiên không (gieo 90 phút thì nó hiện kiểu `00:45:12 / 01:30:00` kèm
+`KHỐI HIỆN TẠI · #9/16`). Nếu thấy **NGOÀI KHỐI** thì mở ô chọn và lấy phiên có
 giờ gieo mới nhất.
 
 **Bấm và nói theo thứ tự này:**
@@ -158,18 +175,20 @@ rơi vào. Mở theo đúng thứ tự này — thứ tự là một lập luậ
 
 ### 4a. Mở "Demo vàng · DƯƠNG rõ #1" (bấm **Kết quả**)
 
-> Tác động +1,224, khoảng tin cậy 95% từ +0,932 đến +1,498. Khoảng này không
-> chứa 0, nên có bằng chứng thí nghiệm rằng hệ thống làm tăng lượt nhấp.
+> Đây là dữ liệu MẪU, có tác động cài sẵn trong mô phỏng — màn hình dán nhãn DEMO
+> và con dấu ghi "HIỆU ỨNG RÕ", không ghi "thật". Nó cho thấy hệ thống trình bày
+> một kết quả dương thế nào: tác động +1,224, khoảng tin cậy 95% từ 0,932 đến
+> 1,498. Khoảng này không chứa 0.
 >
-> Con số này không tính bằng công thức tiệm cận. Hệ thống bốc lại lịch gán mười
+> Con số này không tính bằng công thức tiệm cận. Hệ thống bốc lại lịch gán một
 > nghìn lần bằng **chính hàm bốc thăm đang chạy thật**, rồi xem chênh lệch thật
 > nằm ở đâu trong phân bố đó. Làm vậy vì một phiên chỉ có 16 đến 24 khối, cỡ mẫu
 > đó quá nhỏ để công thức thông thường cho sai số đúng.
 
 ### 4b. Mở "Demo vàng · NULL (KTC chứa 0) #1"
 
-> Tác động −0,173, khoảng tin cậy từ −0,490 đến +0,181. Khoảng này chứa 0, nên
-> **không** kết luận được là có tác động.
+> Vẫn là dữ liệu mẫu. Tác động −0,173, khoảng tin cậy từ −0,490 đến 0,181.
+> Khoảng này chứa 0, nên **không** kết luận được là có tác động.
 >
 > Nhóm em dựng màn hình cho trạng thái này công phu ngang trạng thái đẹp, và đó
 > là chủ ý. Null là kết cục dễ xảy ra nhất trong thí nghiệm thật. Một công cụ
@@ -212,21 +231,22 @@ Không mở thêm màn hình nào. Nói thẳng:
 >
 > Thứ nhất: **chưa chạy phiên thí nghiệm ngẫu nhiên thật nào**. Mọi con số ở
 > trên hoặc từ dữ liệu mô phỏng có tác động biết trước, hoặc từ 16 buổi live
-> thật nhưng là phân tích hồi cứu, không có bốc thăm. Phiên khẳng định đầu tiên
-> nhóm em đặt lịch ngày 06/10.
+> công khai nhưng là phân tích quan sát, không có bốc thăm. Phiên thật đầu tiên
+> chưa có ngày chốt: việc trước hết là lấy khoá YouTube Data API và phát thử.
 >
-> Thứ hai: **bộ phân loại ý định bình luận chưa dùng được**. Trên bộ tự biên
-> soạn nó đạt macro-F1 0,870, nhưng trên chat bán hàng thật chỉ còn 0,271 — thua
-> cả cách đoán bừa một nhãn. Nhóm em công bố con số đó thay vì giấu, và xếp radar
+> Thứ hai: **bộ phân loại ý định bình luận còn yếu**. Trên 320 câu do AI soạn nó
+> đạt macro-F1 0,870, nhưng trên 393 bình luận thật chỉ 0,211; bản nâng cấp lên
+> 0,542 và chưa bật mặc định. Cả hai số đo so với nhãn do tác tử AI gán, chưa có
+> nhãn người, trên 3 buổi. Nhóm em công bố con số đó thay vì giấu, và xếp radar
 > ý định xuống biến thứ cấp.
 >
 > Thứ ba: **chưa đo được tới đơn hàng**. Biến chính là lượt nhấp hợp lệ qua link
 > đo của chính nhà bán. Đơn hàng nằm trong app của nền tảng, và ở quy mô dưới 50
 > người xem đồng thời thì cỡ mẫu cũng chưa đủ để nói gì về nó.
 >
-> Cả 41 sự cố trong sổ đều do chính nhóm em tìm ra, không phải do người ngoài
-> chỉ. Nhóm em tin một đội dám nói giới hạn của mình bằng số thì đáng tin hơn
-> một đội khẳng định mọi thứ đều tốt.
+> Cả 121 sự cố trong sổ đều ghi nguyên nhân gốc và cổng kiểm thử chặn tái diễn.
+> Nhóm em tin một đội dám nói giới hạn của mình bằng số thì đáng tin hơn một đội
+> khẳng định mọi thứ đều tốt.
 
 ---
 
@@ -259,20 +279,23 @@ giải quyết được, vì cái thiếu không phải tiền mà là quyền c
 **"Đo lượt nhấp thì có ý nghĩa gì với nhà bán? Họ cần doanh thu."**
 Đúng, và nhóm em nói thẳng là chưa đo tới đó. Lý do là cỡ mẫu: ở quy mô không
 quá 50 người xem đồng thời, hiệu ứng nhỏ nhất mà thiết kế đủ sức phát hiện với
-biến đơn hàng vẫn khoảng 79%, còn với biến nhấp là 20,1%. Đo một thứ không đủ
+biến đơn hàng vẫn khoảng 79%, còn với biến nhấp, điểm mô phỏng gần nhất (khoảng 59
+người xem) là 16,4% — số tính từ mô phỏng, chưa phải đo thật. Đo một thứ không đủ
 sức phát hiện thì báo cáo sẽ luôn nói "không có tác động", bất kể sự thật.
 
 **"Sao chưa chạy phiên thật nào mà đã đi thi?"**
 Vì thứ nhóm em mang đi thi là phương pháp đo và hạ tầng thực hiện nó, cộng bằng
 chứng rằng bộ ước lượng đã hiệu chỉnh đúng: A/A 200 lần lặp cho tỷ lệ bác bỏ
-3,50% so với mức danh nghĩa 5%, độ phủ khoảng tin cậy 96,50%, thu hồi tác động
-biết trước lệch −0,84%. Chạy phiên thật trước khi bộ ước lượng hiệu chỉnh xong
+3,50% so với mức danh nghĩa 5%; với tác động biết trước, ước lượng lệch −0,84% và
+khoảng tin cậy chứa giá trị thật 37 trên 40 lần. Chạy phiên thật trước khi bộ ước lượng hiệu chỉnh xong
 thì con số đầu tiên thu được cũng không tin được.
 
 **"TikTok là nền tảng lớn nhất, sao không làm TikTok?"**
-Nhóm em đã thử và thất bại, có ghi lại: Cloudflare từ chối bắt tay WebSocket
-10/10 lần, và yt-dlp không có bộ trích bình luận cho TikTok — kiểm trong mã
-nguồn của họ chứ không đoán. Nên hệ thống chỉ dùng API chính thức: YouTube,
-Facebook Graph, Shopee Open Platform. Bộ thu TikTok để riêng ngoài lõi và có
-cổng CI chặn mọi lệnh import ngược vào lõi, để một ngày nó hỏng thì không kéo
-theo phần đo lường.
+Nhóm em chỉ dùng API chính thức. TikTok có API cho người bán qua TikTok Shop
+Open Platform: số liệu phiên live theo từng phút, nhưng chỉ có **sau** khi phiên
+kết thúc, không có nội dung bình luận, và shop phải có Account Manager. Nên với
+TikTok, LiveLift chạy chế độ đối chiếu sau phiên: lịch BẬT/TẮT vẫn bốc và niêm
+phong trước giờ phát, kết quả so theo phút từ số liệu của chính shop. Bộ nối đã
+viết theo tài liệu chính thức nhưng chưa gọi thật, vì nhóm chưa có shop đủ điều
+kiện. Bình luận thời gian thực qua API chính thức thì có ở YouTube, Facebook
+Page của chính mình và Shopee Live. Phương pháp không phụ thuộc nền tảng.

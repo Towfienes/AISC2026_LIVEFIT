@@ -109,6 +109,10 @@ def _find_spans(text: str) -> list[PIIMatch]:
         spans.append(PIIMatch("social", m.start(), m.end()))
     for m in P.SOCIAL_HANDLE_RE.finditer(text):
         spans.append(PIIMatch("social", m.start(), m.end()))
+    # "chữ@tên8106": handle glued to the preceding word (leaked until 25/09/2026)
+    for m in P.SOCIAL_HANDLE_GLUED_RE.finditer(text):
+        if P.is_glued_handle(m.group("body")):
+            spans.append(PIIMatch("social", m.start(), m.end()))
 
     for m in P.BANK_CONTEXT_RE.finditer(text):
         spans.append(PIIMatch("bank", m.start("acct"), m.end("acct")))

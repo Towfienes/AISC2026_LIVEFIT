@@ -18,14 +18,19 @@ classifier itself never stores or logs its input.
 The keyword baseline and the DEFAULT artifact emit only
 :data:`~livelift.nlp.labels.TRAINED_LABELS` (the six pre-registered classes).
 
-Since 14/09/2026 there is a second artifact, ``intent_clf_v2.joblib``, trained on
-2,513 rows (393 human-labelled real comments + 320 re-labelled authored rows +
-1,800 LLM-labelled real comments) that DOES produce all eleven annotation
-classes. It is selected with ``LIVELIFT_INTENT_MODEL=v2`` and is deliberately
-not the default yet — promoting it changes ``TRAINED_LABELS`` from 6 to 11,
-which several gates still encode. Honest measurement on real chat
-(leave-one-session-out over three live sessions): macro-F1 0.211 -> 0.565,
-accuracy 0.338 -> 0.741, action-label precision 23.0% -> 66.7%. Method,
+Since 14/09/2026 there is a second artifact, ``intent_clf_v2.joblib`` (repackaged
+25/09/2026 on the re-scrubbed data — the 14/09 build carried a token derived from
+a user's account handle; gate: tests/test_artifact_khong_pii.py), trained on
+2,513 rows (393 real comments whose labels were assigned by an AI agent — no
+human labels yet — + 320 re-labelled authored rows + 1,800 LLM-labelled real
+comments) that DOES produce all eleven annotation classes. It is selected with
+``LIVELIFT_INTENT_MODEL=v2`` and is deliberately not the default yet — promoting
+it changes ``TRAINED_LABELS`` from 6 to 11, which several gates still encode.
+Honest measurement on real chat (leave-one-session-out over three live
+sessions; the test labels were assigned by an AI agent): macro-F1 0.211 -> 0.542
+[0.478; 0.625], accuracy 0.338 -> 0.730, action-label precision 23.0% -> 65.5%
+(38/58), action-label recall 78.3% -> 55.1% (re-measured 25/09/2026 after the PII
+re-scrub; 0.565 was the 14/09 figure). Method,
 ablation and remaining limitations:
 docs/competition/sang-tao-tre-2026/03-NLP-NANG-CAP.md.
 """
@@ -181,11 +186,15 @@ INTENT_MODEL_ENV = "LIVELIFT_INTENT_MODEL"
 **baseline tiền đăng ký**: mọi con số cũ đo trên nó, nên nó vẫn là mặc định và
 không bao giờ bị ghi đè.
 
-``v2`` — ``intent_clf_v2.joblib``, **11 lớp**, huấn luyện trên 2.513 mẫu (393 nhãn
-người gán + 320 câu biên soạn đã gán lại + 1.800 nhãn LLM trên bình luận thật).
-Đo bằng leave-one-session-out trên chat thật: macro-F1 **0,211 → 0,565**, accuracy
-**0,338 → 0,741**, precision nhãn hành động **23,0% → 66,7%**
-(``docs/competition/sang-tao-tre-2026/03-NLP-NANG-CAP.md``).
+``v2`` — ``intent_clf_v2.joblib``, **11 lớp**, huấn luyện trên 2.513 mẫu (393 bình
+luận thật có nhãn do TÁC TỬ AI gán — chưa có nhãn người + 320 câu biên soạn đã gán
+lại + 1.800 nhãn LLM trên bình luận thật).
+Đo bằng leave-one-session-out trên chat thật: macro-F1 **0,211 → 0,542** [0,478; 0,625],
+accuracy **0,338 → 0,730**, precision nhãn hành động **23,0% → 65,5%** (38/58) — nhưng
+recall nhãn hành động **78,3% → 55,1%** (đo lại 25/09/2026 sau khi lọc lại PII; 0,565
+là số 14/09). Chạy lại: ``python -m livelift.nlp.eval_intent`` · chi tiết:
+``docs/competition/sang-tao-tre-2026/03-NLP-NANG-CAP.md``. Artifact đóng gói lại
+25/09/2026 trên dữ liệu đã lọc (cổng ``tests/test_artifact_khong_pii.py``).
 
 Vì sao là **cờ bật tay** chứ không phải mặc định: đổi mặc định kéo theo đổi
 ``TRAINED_LABELS`` (6 → 11) và mọi cổng đang khoá con số cũ theo bộ 6 lớp. Đó là
@@ -199,6 +208,57 @@ _MODEL_PATH = __import__("pathlib").Path(__file__).parent / "model" / _MODEL_FIL
 _META_PATH = _MODEL_PATH.with_suffix(".meta.json")
 _model = None
 _model_tried = False
+_model_fallback_reason: str | None = None
+"""Vì sao artifact CÓ trên đĩa mà không được dùng (None = không có sự cố).
+
+Tách hai trường hợp mà trước 25/09/2026 bị gộp làm một (hoặc tệ hơn, bị báo là
+mô hình đang chạy): ``keyword_baseline`` là cấu hình hợp lệ (cài server-only,
+không có artifact), còn ``keyword_fallback`` là SỰ CỐ — artifact có mà không
+dùng được (lệch sklearn, tệp hỏng, dự đoán lỗi). Chỉ chứa tên lớp ngoại lệ,
+không bao giờ chứa văn bản bình luận (quy tắc cứng 1)."""
+
+_SELF_TEST_TEXT = "giá bao nhiêu vậy shop"
+"""Câu mẫu cố định cho lần tự kiểm lúc nạp — không phải dữ liệu người dùng."""
+
+_model_lock = __import__("threading").Lock()
+"""Một luồng nạp tại một thời điểm (kiểm toán 25/09/2026).
+
+``api/main.py`` nạp sẵn mô hình ở LUỒNG PHỤ lúc khởi động. Trước bản vá,
+``_model_tried`` được bật TRƯỚC khi nạp xong, nên trong cửa sổ nạp (vài giây —
+đo 25/09/2026 trên máy dev đang thiếu RAM: 4,7 s gồm cả import scikit-learn)
+mọi luồng khác thấy ``_model is None``: ``/health`` khai ``keyword_baseline`` và
+bình luận vào lúc đó bị gán nhãn bằng từ khoá mà không ai biết. Nay cờ chỉ bật
+khi nạp XONG, trong khoá: đường phân loại chờ khoá (nhãn luôn từ đúng một bộ),
+còn :func:`classifier_info` không chờ — nó nói ``dang_nap``."""
+
+
+def _ten_loi(exc: BaseException) -> str:
+    """Tên lớp ngoại lệ đọc được ("UnpicklingError", không phải "error")."""
+    t = type(exc)
+    return t.__name__ if t.__module__ == "builtins" else f"{t.__module__}.{t.__qualname__}"
+
+
+def _disable_model(reason: str) -> None:
+    """Chuyển HẲN sang bộ từ khoá và ghi lý do cho classifier_info()/health.
+
+    Hẳn, không nửa vời: một luồng nhãn trộn nhãn mô hình với nhãn từ khoá mà
+    nhãn nguồn chỉ nói một bộ là một tuyên bố sai về nguồn gốc số liệu.
+    """
+    global _model, _model_fallback_reason
+    first = _model_fallback_reason is None
+    _model = None
+    _model_fallback_reason = reason
+    if first:
+        import logging
+
+        logging.getLogger(__name__).error(
+            "Không dùng được artifact ý định %s (%s) — chuyển HẲN sang bộ từ khoá; "
+            "/health báo intent_backend=keyword_fallback. Kiểm tra bản scikit-learn "
+            "khớp *.meta.json (pyproject ghim ==) hoặc huấn luyện lại: "
+            "python -m livelift.nlp.train_intent",
+            _MODEL_PATH.name,
+            reason,
+        )
 
 
 def _check_artifact_sklearn_version() -> None:
@@ -233,50 +293,91 @@ def _check_artifact_sklearn_version() -> None:
         pass
 
 
-def _load_model():
+def _load_model(wait: bool = True):
     """Lazily load the trained pipeline; never raises.
 
     sklearn/joblib live in the [ml] extra — a server-only install, or a
     missing artifact, must degrade to the keyword baseline instead of taking
     the ingest path down.
+
+    SELF-TEST (kiểm toán 25/09/2026): loading is not the same as working. With
+    scikit-learn 1.7.2 (the old ``<1.8`` pin, i.e. every Docker image and CI
+    run) ``joblib.load`` of the 1.9.0 artifact SUCCEEDS with only a warning,
+    but ``predict_proba`` raises ``AttributeError`` — and the old code then
+    labelled 393/393 comments with keywords while ``/health`` claimed
+    ``tfidf_logreg``. The artifact must now answer one real ``predict_proba``
+    call before it is trusted; if it cannot, the process switches hard to the
+    keyword baseline and :func:`classifier_info` says ``keyword_fallback``
+    with the reason.
+
+    ``wait=False`` (chỉ :func:`classifier_info` dùng): đang có luồng khác nạp
+    thì trả ``None`` ngay thay vì chờ — ``/health`` có hạn giờ, không được treo
+    theo việc đọc đĩa.
     """
     global _model, _model_tried
     if _model_tried:
         return _model
-    _model_tried = True
+    if not _model_lock.acquire(blocking=wait):
+        return None  # luồng khác đang nạp — classifier_info() nói "dang_nap"
+    try:
+        if _model_tried:
+            return _model
+        _model = _nap_va_tu_kiem()
+        return _model
+    finally:
+        _model_tried = True
+        _model_lock.release()
+
+
+def _nap_va_tu_kiem():
+    """Nạp artifact rồi bắt nó dự đoán thật một câu; mọi lỗi ⇒ None (+ lý do)."""
     try:
         import joblib
+    except Exception:  # noqa: BLE001 — server-only install: baseline by design, quietly
+        return None
+    if not _MODEL_PATH.exists():
+        return None
+    try:
+        model = joblib.load(_MODEL_PATH)
+        _check_artifact_sklearn_version()
+        proba = model.predict_proba([_SELF_TEST_TEXT])
+        import numpy as np
 
-        if _MODEL_PATH.exists():
-            _model = joblib.load(_MODEL_PATH)
-            _check_artifact_sklearn_version()
-    except Exception:  # noqa: BLE001 — any failure means "use the baseline"
-        _model = None
-    return _model
-
-
-_model_failure_logged = False
-
-
-def _log_once_model_failure() -> None:
-    """Log the first prediction failure (not every comment) then stay quiet."""
-    global _model_failure_logged
-    if not _model_failure_logged:
-        _model_failure_logged = True
-        import logging
-
-        logging.getLogger(__name__).warning(
-            "intent model prediction failed — falling back to keyword baseline"
-        )
+        proba = np.asarray(proba, dtype=float)
+        if proba.shape != (1, len(model.classes_)) or not np.isfinite(proba).all():
+            raise ValueError(f"predict_proba trả dạng lạ {proba.shape}")
+    except Exception as exc:  # noqa: BLE001 — any failure means "use the baseline"
+        _disable_model(f"tự kiểm lúc nạp thất bại: {_ten_loi(exc)}")
+        return None
+    return model
 
 
 def classifier_info() -> dict:
     """Which classifier is live — surfaced in reports so numbers carry their
-    provenance (trained model vs keyword baseline)."""
-    model = _load_model()
+    provenance (trained model vs keyword baseline).
+
+    ``backend``:
+
+    * ``tfidf_logreg``     — the artifact loaded AND answered a real prediction;
+    * ``keyword_baseline`` — no artifact / no [ml] extra: baseline by design;
+    * ``keyword_fallback`` — an artifact exists but could not be used (version
+      skew, corrupt file, prediction error): an INCIDENT, reason in
+      ``fallback_reason``;
+    * ``dang_nap``         — another thread (the startup warm-up) is loading it
+      right now; ask again in a moment. Never blocks: /health has a time budget.
+    """
+    _load_model(wait=False)
+    if not _model_tried:
+        return {"backend": "dang_nap", "model_file": None, "fallback_reason": None}
+    # Đọc lại sau khi cờ bật: luồng nạp gán _model TRƯỚC khi bật _model_tried,
+    # nên ở đây _model đã là kết quả cuối (kể cả khi luồng kia vừa nạp xong).
+    model = _model
+    if model is not None:
+        return {"backend": "tfidf_logreg", "model_file": _MODEL_PATH.name, "fallback_reason": None}
     return {
-        "backend": "tfidf_logreg" if model is not None else "keyword_baseline",
-        "model_file": _MODEL_PATH.name if model is not None else None,
+        "backend": "keyword_fallback" if _model_fallback_reason else "keyword_baseline",
+        "model_file": None,
+        "fallback_reason": _model_fallback_reason,
     }
 
 
@@ -317,6 +418,9 @@ def classify_with_confidence(text: str) -> tuple[str, float | None]:
             if confidence >= MIN_CONFIDENCE and label in INTENT_LABELS:
                 return label, confidence
             return "khac", confidence
-        except Exception:  # noqa: BLE001, S110 — any failure -> keyword baseline
-            _log_once_model_failure()
+        except Exception as exc:  # noqa: BLE001 — any failure -> keyword baseline, HARD
+            # Chuyển hẳn (không thử lại mô hình ở câu sau) và ghi lý do để
+            # classifier_info()/health nói đúng bộ đang chạy. Chỉ tên lớp lỗi —
+            # văn bản bình luận không bao giờ vào log (quy tắc cứng 1).
+            _disable_model(f"dự đoán lỗi lúc chạy: {_ten_loi(exc)}")
     return classify_keywords(text), None

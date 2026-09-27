@@ -1,6 +1,11 @@
 {
+  "artifact": "intent_clf_v2.joblib",
+  "packaged_by": "python -m livelift.nlp.eval_intent --save-model",
   "sklearn_version": "1.9.0",
-  "trained_at_utc": "2026-09-14T07:21:26+00:00",
+  "joblib_version": "1.5.3",
+  "numpy_version": "2.5.2",
+  "python_version": "3.12.6",
+  "trained_at_utc": "2026-09-25T09:09:25+00:00",
   "n_samples": 2513,
   "labels": [
     "hoi_gia",
@@ -16,10 +21,11 @@
     "khac"
   ],
   "sources": {
-    "gold_human": 393,
+    "gold_ai": 393,
     "authored_11": 320,
     "llm_lot1": 1800
   },
+  "du_lieu_train_sha256": "b95a0eee9a4cccb79ee4e12196688a994a32136bb57f61bd119531f88089005f",
   "seed": 2026,
   "style_features": [
     "caps_ratio",
@@ -32,5 +38,12 @@
     "has_question_mark",
     "n_pii_placeholders"
   ],
-  "eval": "leave-one-session-out trên data/labeling/lot2-da-nguon-10-09"
+  "eval": "leave-one-session-out trên data/labeling/lot2-da-nguon-10-09 (nhãn tham chiếu do tác tử AI gán, chưa có nhãn người)",
+  "label_provenance": {
+    "test": "Nhãn tham chiếu của 393 dòng test do một tác tử AI (Claude) gán ngày 09/09/2026 trên bảng xáo trộn — chưa có nhãn người",
+    "meaning": "mọi con số là mức đồng thuận với nhãn tham chiếu do AI gán, chưa phải độ chính xác so với con người",
+    "train_llm": "1.800 nhãn train buổi thứ tư do LLM (Claude) gán, không có người duyệt",
+    "authored": "320 câu mẫu do AI (Claude) soạn ngày 01/09/2026",
+    "data": "Bình luận công khai của các buổi live phát lại (VOD YouTube), lấy qua yt-dlp (dữ liệu quan sát, không phải API chính thức), đã lọc PII; lọc lại bằng bộ lọc hiện hành ngày 25/09/2026"
+  }
 }

@@ -189,16 +189,41 @@ def data_mode(store: Store) -> dict[str, Any]:
     Phiên ``dry_run`` là phiên THẬT (chạy thử ≠ dữ liệu mẫu) nên đếm bên
     "real". Đây là mô tả DỮ LIỆU đang có, phía server; nó không thay thế công
     tắc chế độ phía client (localStorage ``ll.mode`` — UX spec B-1).
+
+    ``mode_counts.dry_run`` (kiểm toán 25/09/2026, runtime.md 3.2): sau một lần
+    tập dượt, ``mode_counts.real`` đếm cả phiên chạy thử nên web hiện "KHO: THẬT
+    + MẪU" trong khi chưa có phiên thí nghiệm thật nào. Khoá con THÊM (hợp đồng
+    C-4: chỉ thêm, ``demo``/``real`` giữ nguyên tên và nghĩa): số phiên chạy thử
+    (``dry_run``, không phải demo), NẰM TRONG ``real``. Phiên thật không chạy
+    thử = ``real - dry_run`` (kể cả phiên đã huỷ và phiên quan sát).
+
+    ``mode_counts.da_huy`` (THÊM 25/09/2026, cùng hợp đồng C-4): số phiên thật
+    ĐÃ HUỶ (``status='cancelled'``) mà KHÔNG phải chạy thử, NẰM TRONG ``real``.
+    Phiên huỷ chỉ đến từ planned/scheduled — chưa từng lên sóng, không có dữ liệu
+    — nên web phải trừ nó như trừ phiên chạy thử; trước bản vá một bản nháp đã
+    huỷ đủ làm chip in "KHO: DỮ LIỆU THẬT". Ba nhóm trong ``real`` RỜI nhau (phiên
+    chạy thử đã huỷ chỉ đếm ở ``dry_run``) để client trừ ``real - dry_run -
+    da_huy`` không trừ một phiên hai lần.
     """
     sessions = store.list_sessions()
     n_demo = sum(1 for s in sessions if s.get("is_demo"))
     n_real = len(sessions) - n_demo
+    n_chay_thu = sum(1 for s in sessions if not s.get("is_demo") and s.get("dry_run"))
+    n_da_huy = sum(
+        1
+        for s in sessions
+        if not s.get("is_demo") and not s.get("dry_run") and s.get("status") == "cancelled"
+    )
+    phan = [f"{n_chay_thu} phiên chạy thử"] if n_chay_thu else []
+    if n_da_huy:
+        phan.append(f"{n_da_huy} phiên đã huỷ (chưa lên sóng)")
+    kem_chay_thu = f" — trong đó {', '.join(phan)}" if phan else ""
     if n_demo and n_real:
         mode = "mixed"
         note = (
             f"Kho đang chứa CẢ dữ liệu mẫu ({n_demo} phiên demo) lẫn dữ liệu thật "
-            f"({n_real} phiên) — giao diện phải dán nhãn từng phiên; kết quả thật "
-            "vẫn tự loại demo."
+            f"({n_real} phiên{kem_chay_thu}) — giao diện phải dán nhãn từng phiên; "
+            "kết quả thật vẫn tự loại demo, chạy thử và phiên đã huỷ."
         )
     elif n_demo:
         mode = "demo"
@@ -206,11 +231,26 @@ def data_mode(store: Store) -> dict[str, Any]:
     else:
         mode = "real"
         note = (
-            f"Kho chứa {n_real} phiên dữ liệu thật, không có phiên demo nào."
+            f"Kho chứa {n_real} phiên dữ liệu thật{kem_chay_thu}, không có phiên demo nào."
             if n_real
             else "Kho trống — chế độ thật, đang chờ dữ liệu."
         )
-    return {"mode": mode, "mode_counts": {"demo": n_demo, "real": n_real}, "mode_note": note}
+        if n_chay_thu and n_da_huy:
+            note += " Phiên chạy thử và phiên đã huỷ không bao giờ vào kết quả thật."
+        elif n_chay_thu:
+            note += " Phiên chạy thử không bao giờ vào kết quả thật."
+        elif n_da_huy:
+            note += " Phiên đã huỷ không bao giờ vào kết quả thật."
+    return {
+        "mode": mode,
+        "mode_counts": {
+            "demo": n_demo,
+            "real": n_real,
+            "dry_run": n_chay_thu,
+            "da_huy": n_da_huy,
+        },
+        "mode_note": note,
+    }
 
 
 def is_analysis_only(session: dict[str, Any]) -> bool:

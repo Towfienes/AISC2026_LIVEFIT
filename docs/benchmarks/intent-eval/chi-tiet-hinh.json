@@ -1,0 +1,2401 @@
+{
+  "mo_ta": "Số liệu cho hình minh hoạ bộ phân loại ý định. Sinh tự động cùng results.json; không chứa văn bản bình luận.",
+  "lenh_tai_lap": "python -m livelift.nlp.eval_intent --ablation --coverage",
+  "generated_at": "2026-09-25T21:10:16+07:00",
+  "seed": 2026,
+  "n_bootstrap": 2000,
+  "nguon_nhan": {
+    "test": "Nhãn tham chiếu của 393 dòng test do một tác tử AI (Claude) gán ngày 09/09/2026 trên bảng xáo trộn — chưa có nhãn người",
+    "meaning": "mọi con số là mức đồng thuận với nhãn tham chiếu do AI gán, chưa phải độ chính xác so với con người",
+    "train_llm": "1.800 nhãn train buổi thứ tư do LLM (Claude) gán, không có người duyệt",
+    "authored": "320 câu mẫu do AI (Claude) soạn ngày 01/09/2026",
+    "data": "Bình luận công khai của các buổi live phát lại (VOD YouTube), lấy qua yt-dlp (dữ liệu quan sát, không phải API chính thức), đã lọc PII; lọc lại bằng bộ lọc hiện hành ngày 25/09/2026"
+  },
+  "nhan_hanh_dong": [
+    "hoi_gia",
+    "hoi_size",
+    "che_dat",
+    "chot_don",
+    "van_chuyen"
+  ],
+  "dinh_nghia": {
+    "precision_nhan_hanh_dong": "trong các dòng được đoán là một nhãn hành động, tỷ lệ đoán đúng lớp",
+    "recall_nhan_hanh_dong": "trong các dòng có nhãn tham chiếu thuộc nhóm hành động, tỷ lệ đoán đúng lớp",
+    "ty_le_nen": "tỷ lệ dòng có nhãn tham chiếu thuộc nhóm hành động trên tầng mẫu ngẫu nhiên của buổi (ước lượng không chệch cho buổi đó, theo nhãn AI)",
+    "tang_ngau_nhien": "200 dòng rút ngẫu nhiên đơn giản; 193 dòng còn lại rút theo nhãn v1 dự đoán nên giàu nhãn hành động một cách nhân tạo"
+  },
+  "ma_tran_nham_lan": {
+    "he_thong": "C2 · C1 + nhãn LLM trên buổi thứ tư",
+    "quy_tac_chon": "Chọn TRƯỚC, không chọn theo điểm trên tập test: mục này trình bày C2 — đúng cấu hình được đóng gói thành `intent_clf_v2.joblib`. Dòng ablation nào có điểm cao hơn thì đọc kèm khoảng tin cậy ở mục 4; lấy nó làm \"tốt nhất\" là chọn trên chính tập test. A7–A9 chấm trên thang 6 lớp gộp, không so được với thang 11 lớp.",
+    "hang": "nhãn tham chiếu (tác tử AI gán)",
+    "cot": "nhãn mô hình đoán",
+    "nhan": [
+      "hoi_gia",
+      "hoi_size",
+      "che_dat",
+      "chot_don",
+      "van_chuyen",
+      "chao_hoi",
+      "cam_on_khen",
+      "hoi_sanpham",
+      "hoi_daily",
+      "bao_gia_shop",
+      "khac"
+    ],
+    "ma_tran": [
+      [
+        13,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2
+      ],
+      [
+        1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        15
+      ],
+      [
+        1,
+        0,
+        0,
+        0,
+        9,
+        0,
+        0,
+        0,
+        0,
+        1,
+        3
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        40,
+        2,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        4,
+        0,
+        0,
+        0,
+        0,
+        72,
+        0,
+        1,
+        0,
+        9
+      ],
+      [
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        1,
+        2,
+        0,
+        0,
+        6
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        1,
+        0,
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        26,
+        2
+      ],
+      [
+        0,
+        0,
+        2,
+        1,
+        5,
+        4,
+        27,
+        3,
+        1,
+        1,
+        109
+      ]
+    ],
+    "tong_hang": [
+      14,
+      3,
+      5,
+      33,
+      14,
+      42,
+      86,
+      11,
+      0,
+      32,
+      153
+    ],
+    "tong_cot": [
+      16,
+      5,
+      6,
+      17,
+      14,
+      44,
+      103,
+      6,
+      2,
+      32,
+      148
+    ]
+  },
+  "macro_f1": [
+    {
+      "ma": "B0",
+      "ten": "B0 · luôn đoán lớp đa số `khac`",
+      "bang": "2. Baseline trên chat thật (test = buổi live mô hình chưa từng thấy)",
+      "thang": "11_lop",
+      "n_test": 393,
+      "macro_f1": 0.056,
+      "macro_f1_ktc95_bootstrap": [
+        0.0506,
+        0.0631
+      ],
+      "macro_f1_chi_lop_co_trong_nhan_tham_chieu": 0.056,
+      "accuracy": 0.3893,
+      "tang_ngau_nhien": {
+        "n": 200,
+        "macro_f1": 0.0782,
+        "macro_f1_ktc95_bootstrap": [
+          0.0702,
+          0.099
+        ]
+      },
+      "macro_f1_theo_buoi": {
+        "1NMt8BChQrI": 0.1065,
+        "47oGShxf80A": 0.0304,
+        "gT0LDiBta2k": 0.0654
+      }
+    },
+    {
+      "ma": "B1",
+      "ten": "B1 · từ khoá (tiền đăng ký)",
+      "bang": "2. Baseline trên chat thật (test = buổi live mô hình chưa từng thấy)",
+      "thang": "11_lop",
+      "n_test": 393,
+      "macro_f1": 0.1461,
+      "macro_f1_ktc95_bootstrap": [
+        0.1088,
+        0.1797
+      ],
+      "macro_f1_chi_lop_co_trong_nhan_tham_chieu": 0.1461,
+      "accuracy": 0.3868,
+      "tang_ngau_nhien": {
+        "n": 200,
+        "macro_f1": 0.1784,
+        "macro_f1_ktc95_bootstrap": [
+          0.086,
+          0.2457
+        ]
+      },
+      "macro_f1_theo_buoi": {
+        "1NMt8BChQrI": 0.0807,
+        "47oGShxf80A": 0.1623,
+        "gT0LDiBta2k": 0.1704
+      }
+    },
+    {
+      "ma": "B2",
+      "ten": "B2 · TF-IDF+LogReg ĐANG CHẠY (`intent_clf.joblib`, abstain 0,45)",
+      "bang": "2. Baseline trên chat thật (test = buổi live mô hình chưa từng thấy)",
+      "thang": "11_lop",
+      "n_test": 393,
+      "macro_f1": 0.2115,
+      "macro_f1_ktc95_bootstrap": [
+        0.1723,
+        0.247
+      ],
+      "macro_f1_chi_lop_co_trong_nhan_tham_chieu": 0.2115,
+      "accuracy": 0.3384,
+      "tang_ngau_nhien": {
+        "n": 200,
+        "macro_f1": 0.208,
+        "macro_f1_ktc95_bootstrap": [
+          0.0954,
+          0.2862
+        ]
+      },
+      "macro_f1_theo_buoi": {
+        "1NMt8BChQrI": 0.0641,
+        "47oGShxf80A": 0.4116,
+        "gT0LDiBta2k": 0.1375
+      }
+    },
+    {
+      "ma": "B3",
+      "ten": "B3 · TF-IDF+LogReg train lại trên 320 câu biên soạn (6 lớp, không abstain)",
+      "bang": "2. Baseline trên chat thật (test = buổi live mô hình chưa từng thấy)",
+      "thang": "11_lop",
+      "n_test": 393,
+      "macro_f1": 0.1993,
+      "macro_f1_ktc95_bootstrap": [
+        0.1627,
+        0.2339
+      ],
+      "macro_f1_chi_lop_co_trong_nhan_tham_chieu": 0.1993,
+      "accuracy": 0.3028,
+      "tang_ngau_nhien": {
+        "n": 200,
+        "macro_f1": 0.1625,
+        "macro_f1_ktc95_bootstrap": [
+          0.0886,
+          0.2269
+        ]
+      },
+      "macro_f1_theo_buoi": {
+        "1NMt8BChQrI": 0.0541,
+        "47oGShxf80A": 0.4094,
+        "gT0LDiBta2k": 0.1329
+      }
+    },
+    {
+      "ma": "C1",
+      "ten": "C1 · TF-IDF 11 lớp, train = biên soạn(11) + gold 2 buổi",
+      "bang": "3. Sau cải tiến",
+      "thang": "11_lop",
+      "n_test": 393,
+      "macro_f1": 0.5632,
+      "macro_f1_ktc95_bootstrap": [
+        0.4907,
+        0.6206
+      ],
+      "macro_f1_chi_lop_co_trong_nhan_tham_chieu": 0.5632,
+      "accuracy": 0.6107,
+      "tang_ngau_nhien": {
+        "n": 200,
+        "macro_f1": 0.4547,
+        "macro_f1_ktc95_bootstrap": [
+          0.33,
+          0.5448
+        ]
+      },
+      "macro_f1_theo_buoi": {
+        "1NMt8BChQrI": 0.3272,
+        "47oGShxf80A": 0.6229,
+        "gT0LDiBta2k": 0.497
+      }
+    },
+    {
+      "ma": "C2",
+      "ten": "C2 · C1 + nhãn LLM trên buổi thứ tư",
+      "bang": "3. Sau cải tiến",
+      "thang": "11_lop",
+      "n_test": 393,
+      "macro_f1": 0.5423,
+      "macro_f1_ktc95_bootstrap": [
+        0.4782,
+        0.6245
+      ],
+      "macro_f1_chi_lop_co_trong_nhan_tham_chieu": 0.5966,
+      "accuracy": 0.7303,
+      "tang_ngau_nhien": {
+        "n": 200,
+        "macro_f1": 0.5162,
+        "macro_f1_ktc95_bootstrap": [
+          0.3752,
+          0.6602
+        ]
+      },
+      "macro_f1_theo_buoi": {
+        "1NMt8BChQrI": 0.3677,
+        "47oGShxf80A": 0.5991,
+        "gT0LDiBta2k": 0.5248
+      }
+    },
+    {
+      "ma": "C3",
+      "ten": "C3 · C2 + từ chối trả lời, ngưỡng chọn TRONG tập train",
+      "bang": "3. Sau cải tiến",
+      "thang": "11_lop",
+      "n_test": 393,
+      "macro_f1": 0.4927,
+      "macro_f1_ktc95_bootstrap": [
+        0.441,
+        0.5624
+      ],
+      "macro_f1_chi_lop_co_trong_nhan_tham_chieu": 0.542,
+      "accuracy": 0.7074,
+      "tang_ngau_nhien": {
+        "n": 200,
+        "macro_f1": 0.5377,
+        "macro_f1_ktc95_bootstrap": [
+          0.382,
+          0.6787
+        ]
+      },
+      "macro_f1_theo_buoi": {
+        "1NMt8BChQrI": 0.3677,
+        "47oGShxf80A": 0.449,
+        "gT0LDiBta2k": 0.5248
+      }
+    },
+    {
+      "ma": "A0",
+      "ten": "A0 · đầy đủ (chuẩn hoá + phong cách + 11 lớp + mọi nguồn)",
+      "bang": "4. Ablation",
+      "thang": "11_lop",
+      "n_test": 393,
+      "macro_f1": 0.5423,
+      "macro_f1_ktc95_bootstrap": [
+        0.4782,
+        0.6245
+      ],
+      "macro_f1_chi_lop_co_trong_nhan_tham_chieu": 0.5966,
+      "accuracy": 0.7303,
+      "tang_ngau_nhien": {
+        "n": 200,
+        "macro_f1": 0.5162,
+        "macro_f1_ktc95_bootstrap": [
+          0.3752,
+          0.6602
+        ]
+      },
+      "macro_f1_theo_buoi": {
+        "1NMt8BChQrI": 0.3677,
+        "47oGShxf80A": 0.5991,
+        "gT0LDiBta2k": 0.5248
+      }
+    },
+    {
+      "ma": "A1",
+      "ten": "A1 · − chuẩn hoá văn bản (NFKC/teencode/emoji)",
+      "bang": "4. Ablation",
+      "thang": "11_lop",
+      "n_test": 393,
+      "macro_f1": 0.5588,
+      "macro_f1_ktc95_bootstrap": [
+        0.4885,
+        0.6429
+      ],
+      "macro_f1_chi_lop_co_trong_nhan_tham_chieu": 0.6147,
+      "accuracy": 0.7354,
+      "tang_ngau_nhien": {
+        "n": 200,
+        "macro_f1": 0.4999,
+        "macro_f1_ktc95_bootstrap": [
+          0.3686,
+          0.6512
+        ]
+      },
+      "macro_f1_theo_buoi": {
+        "1NMt8BChQrI": 0.3695,
+        "47oGShxf80A": 0.6302,
+        "gT0LDiBta2k": 0.5176
+      }
+    },
+    {
+      "ma": "A2",
+      "ten": "A2 · − đặc trưng phong cách (caps/giá/‖ → mô hình người nói)",
+      "bang": "4. Ablation",
+      "thang": "11_lop",
+      "n_test": 393,
+      "macro_f1": 0.5764,
+      "macro_f1_ktc95_bootstrap": [
+        0.5126,
+        0.682
+      ],
+      "macro_f1_chi_lop_co_trong_nhan_tham_chieu": 0.634,
+      "accuracy": 0.7379,
+      "tang_ngau_nhien": {
+        "n": 200,
+        "macro_f1": 0.5465,
+        "macro_f1_ktc95_bootstrap": [
+          0.3984,
+          0.7051
+        ]
+      },
+      "macro_f1_theo_buoi": {
+        "1NMt8BChQrI": 0.4216,
+        "47oGShxf80A": 0.6422,
+        "gT0LDiBta2k": 0.5919
+      }
+    },
+    {
+      "ma": "A3",
+      "ten": "A3 · − nhãn LLM buổi thứ tư",
+      "bang": "4. Ablation",
+      "thang": "11_lop",
+      "n_test": 393,
+      "macro_f1": 0.5632,
+      "macro_f1_ktc95_bootstrap": [
+        0.4907,
+        0.6206
+      ],
+      "macro_f1_chi_lop_co_trong_nhan_tham_chieu": 0.5632,
+      "accuracy": 0.6107,
+      "tang_ngau_nhien": {
+        "n": 200,
+        "macro_f1": 0.4547,
+        "macro_f1_ktc95_bootstrap": [
+          0.33,
+          0.5448
+        ]
+      },
+      "macro_f1_theo_buoi": {
+        "1NMt8BChQrI": 0.3272,
+        "47oGShxf80A": 0.6229,
+        "gT0LDiBta2k": 0.497
+      }
+    },
+    {
+      "ma": "A4",
+      "ten": "A4 · − bộ biên soạn (chỉ dữ liệu thật)",
+      "bang": "4. Ablation",
+      "thang": "11_lop",
+      "n_test": 393,
+      "macro_f1": 0.3618,
+      "macro_f1_ktc95_bootstrap": [
+        0.3165,
+        0.4226
+      ],
+      "macro_f1_chi_lop_co_trong_nhan_tham_chieu": 0.398,
+      "accuracy": 0.6718,
+      "tang_ngau_nhien": {
+        "n": 200,
+        "macro_f1": 0.331,
+        "macro_f1_ktc95_bootstrap": [
+          0.2883,
+          0.4465
+        ]
+      },
+      "macro_f1_theo_buoi": {
+        "1NMt8BChQrI": 0.4016,
+        "47oGShxf80A": 0.2598,
+        "gT0LDiBta2k": 0.4794
+      }
+    },
+    {
+      "ma": "A5",
+      "ten": "A5 · − gold 2 buổi train (chỉ biên soạn + LLM)",
+      "bang": "4. Ablation",
+      "thang": "11_lop",
+      "n_test": 393,
+      "macro_f1": 0.5802,
+      "macro_f1_ktc95_bootstrap": [
+        0.5045,
+        0.6656
+      ],
+      "macro_f1_chi_lop_co_trong_nhan_tham_chieu": 0.6382,
+      "accuracy": 0.7277,
+      "tang_ngau_nhien": {
+        "n": 200,
+        "macro_f1": 0.4269,
+        "macro_f1_ktc95_bootstrap": [
+          0.3136,
+          0.5817
+        ]
+      },
+      "macro_f1_theo_buoi": {
+        "1NMt8BChQrI": 0.3466,
+        "47oGShxf80A": 0.6105,
+        "gT0LDiBta2k": 0.5546
+      }
+    },
+    {
+      "ma": "A6",
+      "ten": "A6 · + từ chối trả lời (ngưỡng chọn trong train)",
+      "bang": "4. Ablation",
+      "thang": "11_lop",
+      "n_test": 393,
+      "macro_f1": 0.4927,
+      "macro_f1_ktc95_bootstrap": [
+        0.441,
+        0.5624
+      ],
+      "macro_f1_chi_lop_co_trong_nhan_tham_chieu": 0.542,
+      "accuracy": 0.7074,
+      "tang_ngau_nhien": {
+        "n": 200,
+        "macro_f1": 0.5377,
+        "macro_f1_ktc95_bootstrap": [
+          0.382,
+          0.6787
+        ]
+      },
+      "macro_f1_theo_buoi": {
+        "1NMt8BChQrI": 0.3677,
+        "47oGShxf80A": 0.449,
+        "gT0LDiBta2k": 0.5248
+      }
+    },
+    {
+      "ma": "A7",
+      "ten": "A7 · bộ nhãn 6 lớp (chấm trên không gian 6 lớp)",
+      "bang": "4. Ablation",
+      "thang": "6_lop_gop",
+      "n_test": 393,
+      "macro_f1": 0.5791,
+      "macro_f1_ktc95_bootstrap": [
+        0.4652,
+        0.6694
+      ],
+      "macro_f1_chi_lop_co_trong_nhan_tham_chieu": 0.5791,
+      "accuracy": 0.8524,
+      "tang_ngau_nhien": {
+        "n": 200,
+        "macro_f1": 0.4552,
+        "macro_f1_ktc95_bootstrap": [
+          0.2456,
+          0.73
+        ]
+      },
+      "macro_f1_theo_buoi": {
+        "1NMt8BChQrI": 0.19,
+        "47oGShxf80A": 0.7155,
+        "gT0LDiBta2k": 0.5082
+      }
+    },
+    {
+      "ma": "A8",
+      "ten": "A8 · bộ nhãn 11 lớp, gộp về 6 khi chấm (cùng thang với A7)",
+      "bang": "4. Ablation",
+      "thang": "6_lop_gop",
+      "n_test": 393,
+      "macro_f1": 0.5717,
+      "macro_f1_ktc95_bootstrap": [
+        0.4712,
+        0.6668
+      ],
+      "macro_f1_chi_lop_co_trong_nhan_tham_chieu": 0.5717,
+      "accuracy": 0.8753,
+      "tang_ngau_nhien": {
+        "n": 200,
+        "macro_f1": 0.6262,
+        "macro_f1_ktc95_bootstrap": [
+          0.3165,
+          0.8226
+        ]
+      },
+      "macro_f1_theo_buoi": {
+        "1NMt8BChQrI": 0.2394,
+        "47oGShxf80A": 0.7288,
+        "gT0LDiBta2k": 0.5563
+      }
+    },
+    {
+      "ma": "A9",
+      "ten": "A9 · v1 đang chạy (B2), chấm trên thang 6 lớp gộp (cùng thang với A7, A8)",
+      "bang": "4. Ablation",
+      "thang": "6_lop_gop",
+      "n_test": 393,
+      "macro_f1": 0.3701,
+      "macro_f1_ktc95_bootstrap": [
+        0.3064,
+        0.4324
+      ],
+      "macro_f1_chi_lop_co_trong_nhan_tham_chieu": 0.3701,
+      "accuracy": 0.514,
+      "tang_ngau_nhien": {
+        "n": 200,
+        "macro_f1": 0.3865,
+        "macro_f1_ktc95_bootstrap": [
+          0.2015,
+          0.53
+        ]
+      },
+      "macro_f1_theo_buoi": {
+        "1NMt8BChQrI": 0.1168,
+        "47oGShxf80A": 0.6833,
+        "gT0LDiBta2k": 0.2574
+      }
+    }
+  ],
+  "nhan_hanh_dong_precision_recall": [
+    {
+      "ma": "B0",
+      "thang": "11_lop",
+      "precision": {
+        "k": 0,
+        "n": 0,
+        "precision": null,
+        "ci95": null
+      },
+      "recall": {
+        "k": 0,
+        "n": 69,
+        "recall": 0.0,
+        "ci95": [
+          0.0,
+          0.0527
+        ]
+      },
+      "tang_ngau_nhien": {
+        "precision": {
+          "k": 0,
+          "n": 0,
+          "precision": null,
+          "ci95": null
+        },
+        "recall": {
+          "k": 0,
+          "n": 19,
+          "recall": 0.0,
+          "ci95": [
+            0.0,
+            0.1682
+          ]
+        }
+      }
+    },
+    {
+      "ma": "B1",
+      "thang": "11_lop",
+      "precision": {
+        "k": 18,
+        "n": 86,
+        "precision": 0.2093,
+        "ci95": [
+          0.1367,
+          0.3068
+        ]
+      },
+      "recall": {
+        "k": 18,
+        "n": 69,
+        "recall": 0.2609,
+        "ci95": [
+          0.1719,
+          0.3751
+        ]
+      },
+      "tang_ngau_nhien": {
+        "precision": {
+          "k": 4,
+          "n": 18,
+          "precision": 0.2222,
+          "ci95": [
+            0.09,
+            0.4522
+          ]
+        },
+        "recall": {
+          "k": 4,
+          "n": 19,
+          "recall": 0.2105,
+          "ci95": [
+            0.0851,
+            0.4333
+          ]
+        }
+      }
+    },
+    {
+      "ma": "B2",
+      "thang": "11_lop",
+      "precision": {
+        "k": 54,
+        "n": 235,
+        "precision": 0.2298,
+        "ci95": [
+          0.1806,
+          0.2877
+        ]
+      },
+      "recall": {
+        "k": 54,
+        "n": 69,
+        "recall": 0.7826,
+        "ci95": [
+          0.6718,
+          0.8636
+        ]
+      },
+      "tang_ngau_nhien": {
+        "precision": {
+          "k": 9,
+          "n": 42,
+          "precision": 0.2143,
+          "ci95": [
+            0.1171,
+            0.3594
+          ]
+        },
+        "recall": {
+          "k": 9,
+          "n": 19,
+          "recall": 0.4737,
+          "ci95": [
+            0.2733,
+            0.6829
+          ]
+        }
+      }
+    },
+    {
+      "ma": "B3",
+      "thang": "11_lop",
+      "precision": {
+        "k": 57,
+        "n": 260,
+        "precision": 0.2192,
+        "ci95": [
+          0.1732,
+          0.2734
+        ]
+      },
+      "recall": {
+        "k": 57,
+        "n": 69,
+        "recall": 0.8261,
+        "ci95": [
+          0.7202,
+          0.8976
+        ]
+      },
+      "tang_ngau_nhien": {
+        "precision": {
+          "k": 12,
+          "n": 67,
+          "precision": 0.1791,
+          "ci95": [
+            0.1055,
+            0.2875
+          ]
+        },
+        "recall": {
+          "k": 12,
+          "n": 19,
+          "recall": 0.6316,
+          "ci95": [
+            0.4104,
+            0.8085
+          ]
+        }
+      }
+    },
+    {
+      "ma": "C1",
+      "thang": "11_lop",
+      "precision": {
+        "k": 43,
+        "n": 91,
+        "precision": 0.4725,
+        "ci95": [
+          0.3732,
+          0.5741
+        ]
+      },
+      "recall": {
+        "k": 43,
+        "n": 69,
+        "recall": 0.6232,
+        "ci95": [
+          0.5052,
+          0.7282
+        ]
+      },
+      "tang_ngau_nhien": {
+        "precision": {
+          "k": 9,
+          "n": 24,
+          "precision": 0.375,
+          "ci95": [
+            0.2116,
+            0.5729
+          ]
+        },
+        "recall": {
+          "k": 9,
+          "n": 19,
+          "recall": 0.4737,
+          "ci95": [
+            0.2733,
+            0.6829
+          ]
+        }
+      }
+    },
+    {
+      "ma": "C2",
+      "thang": "11_lop",
+      "precision": {
+        "k": 38,
+        "n": 58,
+        "precision": 0.6552,
+        "ci95": [
+          0.5267,
+          0.7644
+        ]
+      },
+      "recall": {
+        "k": 38,
+        "n": 69,
+        "recall": 0.5507,
+        "ci95": [
+          0.4338,
+          0.6623
+        ]
+      },
+      "tang_ngau_nhien": {
+        "precision": {
+          "k": 6,
+          "n": 9,
+          "precision": 0.6667,
+          "ci95": [
+            0.3542,
+            0.8794
+          ]
+        },
+        "recall": {
+          "k": 6,
+          "n": 19,
+          "recall": 0.3158,
+          "ci95": [
+            0.1536,
+            0.5399
+          ]
+        }
+      }
+    },
+    {
+      "ma": "C3",
+      "thang": "11_lop",
+      "precision": {
+        "k": 30,
+        "n": 45,
+        "precision": 0.6667,
+        "ci95": [
+          0.5207,
+          0.7864
+        ]
+      },
+      "recall": {
+        "k": 30,
+        "n": 69,
+        "recall": 0.4348,
+        "ci95": [
+          0.3243,
+          0.5521
+        ]
+      },
+      "tang_ngau_nhien": {
+        "precision": {
+          "k": 5,
+          "n": 6,
+          "precision": 0.8333,
+          "ci95": [
+            0.4365,
+            0.9699
+          ]
+        },
+        "recall": {
+          "k": 5,
+          "n": 19,
+          "recall": 0.2632,
+          "ci95": [
+            0.1181,
+            0.4879
+          ]
+        }
+      }
+    },
+    {
+      "ma": "A0",
+      "thang": "11_lop",
+      "precision": {
+        "k": 38,
+        "n": 58,
+        "precision": 0.6552,
+        "ci95": [
+          0.5267,
+          0.7644
+        ]
+      },
+      "recall": {
+        "k": 38,
+        "n": 69,
+        "recall": 0.5507,
+        "ci95": [
+          0.4338,
+          0.6623
+        ]
+      },
+      "tang_ngau_nhien": {
+        "precision": {
+          "k": 6,
+          "n": 9,
+          "precision": 0.6667,
+          "ci95": [
+            0.3542,
+            0.8794
+          ]
+        },
+        "recall": {
+          "k": 6,
+          "n": 19,
+          "recall": 0.3158,
+          "ci95": [
+            0.1536,
+            0.5399
+          ]
+        }
+      }
+    },
+    {
+      "ma": "A1",
+      "thang": "11_lop",
+      "precision": {
+        "k": 39,
+        "n": 60,
+        "precision": 0.65,
+        "ci95": [
+          0.5236,
+          0.7583
+        ]
+      },
+      "recall": {
+        "k": 39,
+        "n": 69,
+        "recall": 0.5652,
+        "ci95": [
+          0.4479,
+          0.6757
+        ]
+      },
+      "tang_ngau_nhien": {
+        "precision": {
+          "k": 6,
+          "n": 10,
+          "precision": 0.6,
+          "ci95": [
+            0.3127,
+            0.8318
+          ]
+        },
+        "recall": {
+          "k": 6,
+          "n": 19,
+          "recall": 0.3158,
+          "ci95": [
+            0.1536,
+            0.5399
+          ]
+        }
+      }
+    },
+    {
+      "ma": "A2",
+      "thang": "11_lop",
+      "precision": {
+        "k": 45,
+        "n": 70,
+        "precision": 0.6429,
+        "ci95": [
+          0.5259,
+          0.745
+        ]
+      },
+      "recall": {
+        "k": 45,
+        "n": 69,
+        "recall": 0.6522,
+        "ci95": [
+          0.5345,
+          0.7538
+        ]
+      },
+      "tang_ngau_nhien": {
+        "precision": {
+          "k": 7,
+          "n": 9,
+          "precision": 0.7778,
+          "ci95": [
+            0.4526,
+            0.9368
+          ]
+        },
+        "recall": {
+          "k": 7,
+          "n": 19,
+          "recall": 0.3684,
+          "ci95": [
+            0.1915,
+            0.5896
+          ]
+        }
+      }
+    },
+    {
+      "ma": "A3",
+      "thang": "11_lop",
+      "precision": {
+        "k": 43,
+        "n": 91,
+        "precision": 0.4725,
+        "ci95": [
+          0.3732,
+          0.5741
+        ]
+      },
+      "recall": {
+        "k": 43,
+        "n": 69,
+        "recall": 0.6232,
+        "ci95": [
+          0.5052,
+          0.7282
+        ]
+      },
+      "tang_ngau_nhien": {
+        "precision": {
+          "k": 9,
+          "n": 24,
+          "precision": 0.375,
+          "ci95": [
+            0.2116,
+            0.5729
+          ]
+        },
+        "recall": {
+          "k": 9,
+          "n": 19,
+          "recall": 0.4737,
+          "ci95": [
+            0.2733,
+            0.6829
+          ]
+        }
+      }
+    },
+    {
+      "ma": "A4",
+      "thang": "11_lop",
+      "precision": {
+        "k": 7,
+        "n": 8,
+        "precision": 0.875,
+        "ci95": [
+          0.5291,
+          0.9776
+        ]
+      },
+      "recall": {
+        "k": 7,
+        "n": 69,
+        "recall": 0.1014,
+        "ci95": [
+          0.05,
+          0.1949
+        ]
+      },
+      "tang_ngau_nhien": {
+        "precision": {
+          "k": 0,
+          "n": 0,
+          "precision": null,
+          "ci95": null
+        },
+        "recall": {
+          "k": 0,
+          "n": 19,
+          "recall": 0.0,
+          "ci95": [
+            0.0,
+            0.1682
+          ]
+        }
+      }
+    },
+    {
+      "ma": "A5",
+      "thang": "11_lop",
+      "precision": {
+        "k": 44,
+        "n": 62,
+        "precision": 0.7097,
+        "ci95": [
+          0.5871,
+          0.8078
+        ]
+      },
+      "recall": {
+        "k": 44,
+        "n": 69,
+        "recall": 0.6377,
+        "ci95": [
+          0.5198,
+          0.741
+        ]
+      },
+      "tang_ngau_nhien": {
+        "precision": {
+          "k": 6,
+          "n": 11,
+          "precision": 0.5455,
+          "ci95": [
+            0.2801,
+            0.7873
+          ]
+        },
+        "recall": {
+          "k": 6,
+          "n": 19,
+          "recall": 0.3158,
+          "ci95": [
+            0.1536,
+            0.5399
+          ]
+        }
+      }
+    },
+    {
+      "ma": "A6",
+      "thang": "11_lop",
+      "precision": {
+        "k": 30,
+        "n": 45,
+        "precision": 0.6667,
+        "ci95": [
+          0.5207,
+          0.7864
+        ]
+      },
+      "recall": {
+        "k": 30,
+        "n": 69,
+        "recall": 0.4348,
+        "ci95": [
+          0.3243,
+          0.5521
+        ]
+      },
+      "tang_ngau_nhien": {
+        "precision": {
+          "k": 5,
+          "n": 6,
+          "precision": 0.8333,
+          "ci95": [
+            0.4365,
+            0.9699
+          ]
+        },
+        "recall": {
+          "k": 5,
+          "n": 19,
+          "recall": 0.2632,
+          "ci95": [
+            0.1181,
+            0.4879
+          ]
+        }
+      }
+    },
+    {
+      "ma": "A7",
+      "thang": "6_lop_gop",
+      "precision": {
+        "k": 41,
+        "n": 74,
+        "precision": 0.5541,
+        "ci95": [
+          0.4409,
+          0.6618
+        ]
+      },
+      "recall": {
+        "k": 41,
+        "n": 69,
+        "recall": 0.5942,
+        "ci95": [
+          0.4764,
+          0.7021
+        ]
+      },
+      "tang_ngau_nhien": {
+        "precision": {
+          "k": 6,
+          "n": 14,
+          "precision": 0.4286,
+          "ci95": [
+            0.2138,
+            0.6741
+          ]
+        },
+        "recall": {
+          "k": 6,
+          "n": 19,
+          "recall": 0.3158,
+          "ci95": [
+            0.1536,
+            0.5399
+          ]
+        }
+      }
+    },
+    {
+      "ma": "A8",
+      "thang": "6_lop_gop",
+      "precision": {
+        "k": 38,
+        "n": 58,
+        "precision": 0.6552,
+        "ci95": [
+          0.5267,
+          0.7644
+        ]
+      },
+      "recall": {
+        "k": 38,
+        "n": 69,
+        "recall": 0.5507,
+        "ci95": [
+          0.4338,
+          0.6623
+        ]
+      },
+      "tang_ngau_nhien": {
+        "precision": {
+          "k": 6,
+          "n": 9,
+          "precision": 0.6667,
+          "ci95": [
+            0.3542,
+            0.8794
+          ]
+        },
+        "recall": {
+          "k": 6,
+          "n": 19,
+          "recall": 0.3158,
+          "ci95": [
+            0.1536,
+            0.5399
+          ]
+        }
+      }
+    },
+    {
+      "ma": "A9",
+      "thang": "6_lop_gop",
+      "precision": {
+        "k": 54,
+        "n": 235,
+        "precision": 0.2298,
+        "ci95": [
+          0.1806,
+          0.2877
+        ]
+      },
+      "recall": {
+        "k": 54,
+        "n": 69,
+        "recall": 0.7826,
+        "ci95": [
+          0.6718,
+          0.8636
+        ]
+      },
+      "tang_ngau_nhien": {
+        "precision": {
+          "k": 9,
+          "n": 42,
+          "precision": 0.2143,
+          "ci95": [
+            0.1171,
+            0.3594
+          ]
+        },
+        "recall": {
+          "k": 9,
+          "n": 19,
+          "recall": 0.4737,
+          "ci95": [
+            0.2733,
+            0.6829
+          ]
+        }
+      }
+    }
+  ],
+  "precision_theo_buoi_va_ty_le_nen": [
+    {
+      "buoi": "1NMt8BChQrI",
+      "n_dong": 147,
+      "ty_le_nen_nhan_hanh_dong_tang_ngau_nhien": {
+        "k": 0,
+        "n": 72,
+        "ty_le": 0.0,
+        "ktc95_wilson": [
+          0.0,
+          0.0507
+        ]
+      },
+      "he_thong": {
+        "B0": {
+          "toan_bo_dong_cua_buoi": {
+            "n": 147,
+            "precision": {
+              "k": 0,
+              "n": 0,
+              "precision": null,
+              "ci95": null
+            },
+            "recall": {
+              "k": 0,
+              "n": 1,
+              "recall": 0.0,
+              "ci95": [
+                0.0,
+                0.7935
+              ]
+            }
+          },
+          "tang_ngau_nhien": {
+            "n": 72,
+            "precision": {
+              "k": 0,
+              "n": 0,
+              "precision": null,
+              "ci95": null
+            },
+            "recall": {
+              "k": 0,
+              "n": 0,
+              "recall": null,
+              "ci95": null
+            }
+          }
+        },
+        "B1": {
+          "toan_bo_dong_cua_buoi": {
+            "n": 147,
+            "precision": {
+              "k": 0,
+              "n": 24,
+              "precision": 0.0,
+              "ci95": [
+                0.0,
+                0.138
+              ]
+            },
+            "recall": {
+              "k": 0,
+              "n": 1,
+              "recall": 0.0,
+              "ci95": [
+                0.0,
+                0.7935
+              ]
+            }
+          },
+          "tang_ngau_nhien": {
+            "n": 72,
+            "precision": {
+              "k": 0,
+              "n": 3,
+              "precision": 0.0,
+              "ci95": [
+                0.0,
+                0.5615
+              ]
+            },
+            "recall": {
+              "k": 0,
+              "n": 0,
+              "recall": null,
+              "ci95": null
+            }
+          }
+        },
+        "B2": {
+          "toan_bo_dong_cua_buoi": {
+            "n": 147,
+            "precision": {
+              "k": 1,
+              "n": 88,
+              "precision": 0.0114,
+              "ci95": [
+                0.002,
+                0.0616
+              ]
+            },
+            "recall": {
+              "k": 1,
+              "n": 1,
+              "recall": 1.0,
+              "ci95": [
+                0.2065,
+                1.0
+              ]
+            }
+          },
+          "tang_ngau_nhien": {
+            "n": 72,
+            "precision": {
+              "k": 0,
+              "n": 13,
+              "precision": 0.0,
+              "ci95": [
+                0.0,
+                0.2281
+              ]
+            },
+            "recall": {
+              "k": 0,
+              "n": 0,
+              "recall": null,
+              "ci95": null
+            }
+          }
+        },
+        "B3": {
+          "toan_bo_dong_cua_buoi": {
+            "n": 147,
+            "precision": {
+              "k": 1,
+              "n": 98,
+              "precision": 0.0102,
+              "ci95": [
+                0.0018,
+                0.0556
+              ]
+            },
+            "recall": {
+              "k": 1,
+              "n": 1,
+              "recall": 1.0,
+              "ci95": [
+                0.2065,
+                1.0
+              ]
+            }
+          },
+          "tang_ngau_nhien": {
+            "n": 72,
+            "precision": {
+              "k": 0,
+              "n": 23,
+              "precision": 0.0,
+              "ci95": [
+                0.0,
+                0.1431
+              ]
+            },
+            "recall": {
+              "k": 0,
+              "n": 0,
+              "recall": null,
+              "ci95": null
+            }
+          }
+        },
+        "C1": {
+          "toan_bo_dong_cua_buoi": {
+            "n": 147,
+            "precision": {
+              "k": 0,
+              "n": 29,
+              "precision": 0.0,
+              "ci95": [
+                0.0,
+                0.117
+              ]
+            },
+            "recall": {
+              "k": 0,
+              "n": 1,
+              "recall": 0.0,
+              "ci95": [
+                0.0,
+                0.7935
+              ]
+            }
+          },
+          "tang_ngau_nhien": {
+            "n": 72,
+            "precision": {
+              "k": 0,
+              "n": 8,
+              "precision": 0.0,
+              "ci95": [
+                0.0,
+                0.3244
+              ]
+            },
+            "recall": {
+              "k": 0,
+              "n": 0,
+              "recall": null,
+              "ci95": null
+            }
+          }
+        },
+        "C2": {
+          "toan_bo_dong_cua_buoi": {
+            "n": 147,
+            "precision": {
+              "k": 0,
+              "n": 11,
+              "precision": 0.0,
+              "ci95": [
+                0.0,
+                0.2588
+              ]
+            },
+            "recall": {
+              "k": 0,
+              "n": 1,
+              "recall": 0.0,
+              "ci95": [
+                0.0,
+                0.7935
+              ]
+            }
+          },
+          "tang_ngau_nhien": {
+            "n": 72,
+            "precision": {
+              "k": 0,
+              "n": 0,
+              "precision": null,
+              "ci95": null
+            },
+            "recall": {
+              "k": 0,
+              "n": 0,
+              "recall": null,
+              "ci95": null
+            }
+          }
+        },
+        "C3": {
+          "toan_bo_dong_cua_buoi": {
+            "n": 147,
+            "precision": {
+              "k": 0,
+              "n": 11,
+              "precision": 0.0,
+              "ci95": [
+                0.0,
+                0.2588
+              ]
+            },
+            "recall": {
+              "k": 0,
+              "n": 1,
+              "recall": 0.0,
+              "ci95": [
+                0.0,
+                0.7935
+              ]
+            }
+          },
+          "tang_ngau_nhien": {
+            "n": 72,
+            "precision": {
+              "k": 0,
+              "n": 0,
+              "precision": null,
+              "ci95": null
+            },
+            "recall": {
+              "k": 0,
+              "n": 0,
+              "recall": null,
+              "ci95": null
+            }
+          }
+        }
+      }
+    },
+    {
+      "buoi": "47oGShxf80A",
+      "n_dong": 78,
+      "ty_le_nen_nhan_hanh_dong_tang_ngau_nhien": {
+        "k": 12,
+        "n": 25,
+        "ty_le": 0.48,
+        "ktc95_wilson": [
+          0.3003,
+          0.665
+        ]
+      },
+      "he_thong": {
+        "B0": {
+          "toan_bo_dong_cua_buoi": {
+            "n": 78,
+            "precision": {
+              "k": 0,
+              "n": 0,
+              "precision": null,
+              "ci95": null
+            },
+            "recall": {
+              "k": 0,
+              "n": 51,
+              "recall": 0.0,
+              "ci95": [
+                0.0,
+                0.07
+              ]
+            }
+          },
+          "tang_ngau_nhien": {
+            "n": 25,
+            "precision": {
+              "k": 0,
+              "n": 0,
+              "precision": null,
+              "ci95": null
+            },
+            "recall": {
+              "k": 0,
+              "n": 12,
+              "recall": 0.0,
+              "ci95": [
+                0.0,
+                0.2425
+              ]
+            }
+          }
+        },
+        "B1": {
+          "toan_bo_dong_cua_buoi": {
+            "n": 78,
+            "precision": {
+              "k": 12,
+              "n": 22,
+              "precision": 0.5455,
+              "ci95": [
+                0.3466,
+                0.7308
+              ]
+            },
+            "recall": {
+              "k": 12,
+              "n": 51,
+              "recall": 0.2353,
+              "ci95": [
+                0.14,
+                0.3676
+              ]
+            }
+          },
+          "tang_ngau_nhien": {
+            "n": 25,
+            "precision": {
+              "k": 1,
+              "n": 3,
+              "precision": 0.3333,
+              "ci95": [
+                0.0615,
+                0.7923
+              ]
+            },
+            "recall": {
+              "k": 1,
+              "n": 12,
+              "recall": 0.0833,
+              "ci95": [
+                0.0149,
+                0.3539
+              ]
+            }
+          }
+        },
+        "B2": {
+          "toan_bo_dong_cua_buoi": {
+            "n": 78,
+            "precision": {
+              "k": 42,
+              "n": 61,
+              "precision": 0.6885,
+              "ci95": [
+                0.5641,
+                0.7906
+              ]
+            },
+            "recall": {
+              "k": 42,
+              "n": 51,
+              "recall": 0.8235,
+              "ci95": [
+                0.6975,
+                0.9043
+              ]
+            }
+          },
+          "tang_ngau_nhien": {
+            "n": 25,
+            "precision": {
+              "k": 6,
+              "n": 8,
+              "precision": 0.75,
+              "ci95": [
+                0.4093,
+                0.9285
+              ]
+            },
+            "recall": {
+              "k": 6,
+              "n": 12,
+              "recall": 0.5,
+              "ci95": [
+                0.2538,
+                0.7462
+              ]
+            }
+          }
+        },
+        "B3": {
+          "toan_bo_dong_cua_buoi": {
+            "n": 78,
+            "precision": {
+              "k": 43,
+              "n": 64,
+              "precision": 0.6719,
+              "ci95": [
+                0.55,
+                0.7743
+              ]
+            },
+            "recall": {
+              "k": 43,
+              "n": 51,
+              "recall": 0.8431,
+              "ci95": [
+                0.7199,
+                0.9183
+              ]
+            }
+          },
+          "tang_ngau_nhien": {
+            "n": 25,
+            "precision": {
+              "k": 7,
+              "n": 11,
+              "precision": 0.6364,
+              "ci95": [
+                0.3538,
+                0.8483
+              ]
+            },
+            "recall": {
+              "k": 7,
+              "n": 12,
+              "recall": 0.5833,
+              "ci95": [
+                0.3195,
+                0.8067
+              ]
+            }
+          }
+        },
+        "C1": {
+          "toan_bo_dong_cua_buoi": {
+            "n": 78,
+            "precision": {
+              "k": 36,
+              "n": 44,
+              "precision": 0.8182,
+              "ci95": [
+                0.6804,
+                0.9049
+              ]
+            },
+            "recall": {
+              "k": 36,
+              "n": 51,
+              "recall": 0.7059,
+              "ci95": [
+                0.57,
+                0.8129
+              ]
+            }
+          },
+          "tang_ngau_nhien": {
+            "n": 25,
+            "precision": {
+              "k": 7,
+              "n": 8,
+              "precision": 0.875,
+              "ci95": [
+                0.5291,
+                0.9776
+              ]
+            },
+            "recall": {
+              "k": 7,
+              "n": 12,
+              "recall": 0.5833,
+              "ci95": [
+                0.3195,
+                0.8067
+              ]
+            }
+          }
+        },
+        "C2": {
+          "toan_bo_dong_cua_buoi": {
+            "n": 78,
+            "precision": {
+              "k": 32,
+              "n": 39,
+              "precision": 0.8205,
+              "ci95": [
+                0.6733,
+                0.9102
+              ]
+            },
+            "recall": {
+              "k": 32,
+              "n": 51,
+              "recall": 0.6275,
+              "ci95": [
+                0.4902,
+                0.7468
+              ]
+            }
+          },
+          "tang_ngau_nhien": {
+            "n": 25,
+            "precision": {
+              "k": 4,
+              "n": 6,
+              "precision": 0.6667,
+              "ci95": [
+                0.3,
+                0.9032
+              ]
+            },
+            "recall": {
+              "k": 4,
+              "n": 12,
+              "recall": 0.3333,
+              "ci95": [
+                0.1381,
+                0.6094
+              ]
+            }
+          }
+        },
+        "C3": {
+          "toan_bo_dong_cua_buoi": {
+            "n": 78,
+            "precision": {
+              "k": 24,
+              "n": 26,
+              "precision": 0.9231,
+              "ci95": [
+                0.7586,
+                0.9786
+              ]
+            },
+            "recall": {
+              "k": 24,
+              "n": 51,
+              "recall": 0.4706,
+              "ci95": [
+                0.3405,
+                0.6048
+              ]
+            }
+          },
+          "tang_ngau_nhien": {
+            "n": 25,
+            "precision": {
+              "k": 3,
+              "n": 3,
+              "precision": 1.0,
+              "ci95": [
+                0.4385,
+                1.0
+              ]
+            },
+            "recall": {
+              "k": 3,
+              "n": 12,
+              "recall": 0.25,
+              "ci95": [
+                0.0889,
+                0.5323
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "buoi": "gT0LDiBta2k",
+      "n_dong": 168,
+      "ty_le_nen_nhan_hanh_dong_tang_ngau_nhien": {
+        "k": 7,
+        "n": 103,
+        "ty_le": 0.068,
+        "ktc95_wilson": [
+          0.0333,
+          0.1337
+        ]
+      },
+      "he_thong": {
+        "B0": {
+          "toan_bo_dong_cua_buoi": {
+            "n": 168,
+            "precision": {
+              "k": 0,
+              "n": 0,
+              "precision": null,
+              "ci95": null
+            },
+            "recall": {
+              "k": 0,
+              "n": 17,
+              "recall": 0.0,
+              "ci95": [
+                0.0,
+                0.1843
+              ]
+            }
+          },
+          "tang_ngau_nhien": {
+            "n": 103,
+            "precision": {
+              "k": 0,
+              "n": 0,
+              "precision": null,
+              "ci95": null
+            },
+            "recall": {
+              "k": 0,
+              "n": 7,
+              "recall": 0.0,
+              "ci95": [
+                0.0,
+                0.3543
+              ]
+            }
+          }
+        },
+        "B1": {
+          "toan_bo_dong_cua_buoi": {
+            "n": 168,
+            "precision": {
+              "k": 6,
+              "n": 40,
+              "precision": 0.15,
+              "ci95": [
+                0.0706,
+                0.2907
+              ]
+            },
+            "recall": {
+              "k": 6,
+              "n": 17,
+              "recall": 0.3529,
+              "ci95": [
+                0.1731,
+                0.587
+              ]
+            }
+          },
+          "tang_ngau_nhien": {
+            "n": 103,
+            "precision": {
+              "k": 3,
+              "n": 12,
+              "precision": 0.25,
+              "ci95": [
+                0.0889,
+                0.5323
+              ]
+            },
+            "recall": {
+              "k": 3,
+              "n": 7,
+              "recall": 0.4286,
+              "ci95": [
+                0.1582,
+                0.7495
+              ]
+            }
+          }
+        },
+        "B2": {
+          "toan_bo_dong_cua_buoi": {
+            "n": 168,
+            "precision": {
+              "k": 11,
+              "n": 86,
+              "precision": 0.1279,
+              "ci95": [
+                0.0729,
+                0.2147
+              ]
+            },
+            "recall": {
+              "k": 11,
+              "n": 17,
+              "recall": 0.6471,
+              "ci95": [
+                0.413,
+                0.8269
+              ]
+            }
+          },
+          "tang_ngau_nhien": {
+            "n": 103,
+            "precision": {
+              "k": 3,
+              "n": 21,
+              "precision": 0.1429,
+              "ci95": [
+                0.0498,
+                0.3464
+              ]
+            },
+            "recall": {
+              "k": 3,
+              "n": 7,
+              "recall": 0.4286,
+              "ci95": [
+                0.1582,
+                0.7495
+              ]
+            }
+          }
+        },
+        "B3": {
+          "toan_bo_dong_cua_buoi": {
+            "n": 168,
+            "precision": {
+              "k": 13,
+              "n": 98,
+              "precision": 0.1327,
+              "ci95": [
+                0.0792,
+                0.2138
+              ]
+            },
+            "recall": {
+              "k": 13,
+              "n": 17,
+              "recall": 0.7647,
+              "ci95": [
+                0.5274,
+                0.9045
+              ]
+            }
+          },
+          "tang_ngau_nhien": {
+            "n": 103,
+            "precision": {
+              "k": 5,
+              "n": 33,
+              "precision": 0.1515,
+              "ci95": [
+                0.0665,
+                0.3092
+              ]
+            },
+            "recall": {
+              "k": 5,
+              "n": 7,
+              "recall": 0.7143,
+              "ci95": [
+                0.3589,
+                0.9178
+              ]
+            }
+          }
+        },
+        "C1": {
+          "toan_bo_dong_cua_buoi": {
+            "n": 168,
+            "precision": {
+              "k": 7,
+              "n": 18,
+              "precision": 0.3889,
+              "ci95": [
+                0.203,
+                0.6138
+              ]
+            },
+            "recall": {
+              "k": 7,
+              "n": 17,
+              "recall": 0.4118,
+              "ci95": [
+                0.2161,
+                0.6399
+              ]
+            }
+          },
+          "tang_ngau_nhien": {
+            "n": 103,
+            "precision": {
+              "k": 2,
+              "n": 8,
+              "precision": 0.25,
+              "ci95": [
+                0.0715,
+                0.5907
+              ]
+            },
+            "recall": {
+              "k": 2,
+              "n": 7,
+              "recall": 0.2857,
+              "ci95": [
+                0.0822,
+                0.6411
+              ]
+            }
+          }
+        },
+        "C2": {
+          "toan_bo_dong_cua_buoi": {
+            "n": 168,
+            "precision": {
+              "k": 6,
+              "n": 8,
+              "precision": 0.75,
+              "ci95": [
+                0.4093,
+                0.9285
+              ]
+            },
+            "recall": {
+              "k": 6,
+              "n": 17,
+              "recall": 0.3529,
+              "ci95": [
+                0.1731,
+                0.587
+              ]
+            }
+          },
+          "tang_ngau_nhien": {
+            "n": 103,
+            "precision": {
+              "k": 2,
+              "n": 3,
+              "precision": 0.6667,
+              "ci95": [
+                0.2077,
+                0.9385
+              ]
+            },
+            "recall": {
+              "k": 2,
+              "n": 7,
+              "recall": 0.2857,
+              "ci95": [
+                0.0822,
+                0.6411
+              ]
+            }
+          }
+        },
+        "C3": {
+          "toan_bo_dong_cua_buoi": {
+            "n": 168,
+            "precision": {
+              "k": 6,
+              "n": 8,
+              "precision": 0.75,
+              "ci95": [
+                0.4093,
+                0.9285
+              ]
+            },
+            "recall": {
+              "k": 6,
+              "n": 17,
+              "recall": 0.3529,
+              "ci95": [
+                0.1731,
+                0.587
+              ]
+            }
+          },
+          "tang_ngau_nhien": {
+            "n": 103,
+            "precision": {
+              "k": 2,
+              "n": 3,
+              "precision": 0.6667,
+              "ci95": [
+                0.2077,
+                0.9385
+              ]
+            },
+            "recall": {
+              "k": 2,
+              "n": 7,
+              "recall": 0.2857,
+              "ci95": [
+                0.0822,
+                0.6411
+              ]
+            }
+          }
+        }
+      }
+    }
+  ],
+  "duong_do_phu": [
+    {
+      "threshold": 0.0,
+      "macro_f1": 0.5423,
+      "accuracy": 0.7303,
+      "action_coverage": 0.1476,
+      "action_precision": 0.6552,
+      "action_ci95": [
+        0.5267,
+        0.7644
+      ]
+    },
+    {
+      "threshold": 0.3,
+      "macro_f1": 0.5486,
+      "accuracy": 0.7328,
+      "action_coverage": 0.1399,
+      "action_precision": 0.6909,
+      "action_ci95": [
+        0.5597,
+        0.7972
+      ]
+    },
+    {
+      "threshold": 0.4,
+      "macro_f1": 0.5221,
+      "accuracy": 0.7303,
+      "action_coverage": 0.1247,
+      "action_precision": 0.7347,
+      "action_ci95": [
+        0.5974,
+        0.8379
+      ]
+    },
+    {
+      "threshold": 0.45,
+      "macro_f1": 0.5231,
+      "accuracy": 0.7379,
+      "action_coverage": 0.117,
+      "action_precision": 0.7391,
+      "action_ci95": [
+        0.5974,
+        0.844
+      ]
+    },
+    {
+      "threshold": 0.5,
+      "macro_f1": 0.5754,
+      "accuracy": 0.7354,
+      "action_coverage": 0.112,
+      "action_precision": 0.75,
+      "action_ci95": [
+        0.6056,
+        0.8543
+      ]
+    },
+    {
+      "threshold": 0.6,
+      "macro_f1": 0.5772,
+      "accuracy": 0.7303,
+      "action_coverage": 0.084,
+      "action_precision": 0.8788,
+      "action_ci95": [
+        0.7267,
+        0.9518
+      ]
+    },
+    {
+      "threshold": 0.7,
+      "macro_f1": 0.5477,
+      "accuracy": 0.6997,
+      "action_coverage": 0.0789,
+      "action_precision": 0.9032,
+      "action_ci95": [
+        0.751,
+        0.9665
+      ]
+    },
+    {
+      "threshold": 0.8,
+      "macro_f1": 0.4885,
+      "accuracy": 0.6743,
+      "action_coverage": 0.056,
+      "action_precision": 0.9091,
+      "action_ci95": [
+        0.7218,
+        0.9747
+      ]
+    }
+  ]
+}

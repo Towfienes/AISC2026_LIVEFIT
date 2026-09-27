@@ -1,465 +1,414 @@
-<!-- NGUỒN NỘI DUNG HỒ SƠ DỰ ÁN BẢNG C — Cuộc thi Sáng tạo trẻ Quốc gia về AI 2026 -->
-<!-- Sửa ở đây rồi chạy: .venv-docx/Scripts/python docs/competition/sang-tao-tre-2026/dung_ho_so.py -->
-<!-- Giới hạn CỨNG 20 trang. Mọi con số phải khớp docs/competition/FACT-SHEET.md -->
-<!-- Dòng bắt đầu bằng <!-- là chú thích, không ra bản nộp -->
+<!-- NGUỒN NỘI DUNG HỒ SƠ DỰ ÁN BẢNG C, Cuộc thi Sáng tạo trẻ Quốc gia về AI 2026 -->
+<!--
+DỰNG BẢN NỘP CHÍNH THỨC (cần .venv-docx có python-docx và Word để đếm trang):
+  .venv-docx/Scripts/python docs/competition/sang-tao-tre-2026/hoan_tat_ho_so.py
+  (dựng cả hồ sơ lẫn bản kê khai, quét chữ của PDF, rồi mới chép vào thư mục nộp)
+Bản nháp: .venv-docx/Scripts/python docs/competition/sang-tao-tre-2026/dung_ho_so.py \
+            --out-dir <thư mục> --cho-phep-o-trong
+Giới hạn CỨNG 20 trang, Word đếm; trang cuối không được trống quá nửa. Mọi con số phải khớp
+docs/competition/FACT-SHEET.md và nguồn ghi ngay cạnh số. Số test đồng bộ bằng
+scripts/dong_bo_so_test.py --xem-truoc. Số NLP lấy từ docs/benchmarks/intent-eval/results.md
+(sinh lại 25/09/2026, sau khi lọc lại PII).
+
+VĂN PHONG (trưởng nhóm chốt 27/09/2026): câu ngắn, dễ hiểu với giám khảo; không dùng gạch
+ngang dài hay ngắn và các ký hiệu mũi tên, chấm giữa, dấu nhân, dấu lớn hơn hoặc bằng trong
+câu văn (tests/test_hoan_tat_ho_so.py kiểm); giải thích thuật ngữ bằng lời thường; KHÔNG nhắc
+Google Drive ở đâu cả; tên sản phẩm luôn viết "LiveLift - Nền tảng thí nghiệm vận hành và hỗ
+trợ ra quyết định cho livestream thương mại"; câu "Xuất phát từ những lý do trên, …" là đoạn
+KẾT của mục 1, nguyên văn. Giữ nguyên mọi con số, nguồn, căn cứ pháp lý và giới hạn tự khai.
+
+CÚ PHÁP MÀ BỘ DỰNG HIỂU:
+  # 1. Tiêu đề                 mục cấp 1, phải đủ 1..13 đúng thứ tự MẪU 3
+  # Tên không số               mục cấp 1 KHÔNG đánh số: được phép (Tóm tắt, Tài liệu tham khảo)
+  ## 1.1 Tiêu đề / ### …       mục cấp 2 / cấp 3; không được trùng số mục
+  một dòng văn                 một đoạn văn canh đều
+  - nội dung / 1. nội dung     gạch đầu dòng / danh sách số (thụt treo)
+  > dòng                       khung nền nhạt một ô (Tóm tắt dự án); "> - " là gạch đầu dòng trong khung
+  : Bảng N. Chú thích          đặt NGAY TRÊN một bảng
+  | ô | ô |                    bảng; hàng đầu là tiêu đề; |---:| canh phải
+  ![Hình N. Chú thích](hinh/tep.png){width=16cm}
+  **đậm**, *nghiêng*, `mã`     trong câu, lồng được
+  ⬜ hoặc [[TEN]]              chỗ chưa điền: còn thì bộ dựng KHÔNG ra bản nộp
+Hình và Bảng đánh số liên tục 1..n theo thứ tự xuất hiện. "mục X.Y", "Hình N", "Bảng N"
+phải trỏ tới thứ có thật (bộ dựng kiểm). Muốn nhắc mục của tài liệu KHÁC thì viết "phần".
+Tài liệu tham khảo đánh [n] thủ công theo danh mục cuối tệp.
+-->
+
+# Tóm tắt dự án
+
+> **LiveLift - Nền tảng thí nghiệm vận hành và hỗ trợ ra quyết định cho livestream thương mại** là phần mềm mã nguồn mở (AGPL-3.0) giúp người bán hàng qua livestream biết một quyết định trong phiên, như ghim sản phẩm hay nhắc mã giảm giá, có thật sự làm khách bấm vào sản phẩm nhiều hơn không. Phiên live được chia thành các khoảng thời gian ngắn gọi là khối. Trước giờ phát, hệ thống bốc thăm khối nào áp dụng quyết định và khóa lịch lại. Sau phiên, hệ thống so hai nhóm khối và báo chênh lệch kèm khoảng tin cậy. Kèm theo là bộ lọc dữ liệu cá nhân và bộ phân loại ý định mua cho bình luận tiếng Việt.
+> - Trên mô phỏng đã biết đáp án, khi không có tác động, hệ thống chỉ báo nhầm 3,50% số lần (7/200), dưới mức cho phép 5%. Với tác động biết trước, ước lượng lệch −0,84% và khoảng tin cậy 95% chứa giá trị thật 37/40 lần, tức 92,50% (đo lại ngày 25/09/2026, Bảng 4).
+> - Trên 393 bình luận thật, điểm macro-F1 của bộ phân loại ý định tăng từ 0,211 (bản v1, mặc định) lên 0,542 (bản v2, bật bằng biến môi trường) trên thang 11 lớp, và từ 0,370 lên 0,572 nếu chấm cùng thang 6 lớp cũ. Nhãn tham chiếu do tác tử AI gán, chưa có nhãn do người gán.
+> - Hệ thống đã nạp 19.126 bình luận quan sát từ 16 buổi phát lại trên YouTube, tải bằng yt-dlp, không qua API chính thức và chưa có sự đồng ý của người bình luận. Nhóm đã dừng thu từ ngày 17/09/2026 (mục 3.3).
+> - Bộ mã có **2.116** kiểm thử tự động. Lần chạy đầy đủ ngày 27/09/2026 cho 2.114 đạt, 2 bỏ qua có lý do. Sổ sự cố ghi **121** sự cố, mỗi sự cố có phân tích nguyên nhân gốc.
+> **Chưa có:** phiên thí nghiệm ngẫu nhiên thật nào, khóa API nền tảng nào, hay nhà bán nào ngoài nhóm dùng thử.
+
+**Viết tắt.** KTC: khoảng tin cậy. A/A: thí nghiệm có hai nhóm như nhau, để kiểm tra hệ thống có báo nhầm không. MDE: tác động nhỏ nhất phát hiện được. PII: dữ liệu cá nhân. NLP: xử lý ngôn ngữ tự nhiên. LLM: mô hình ngôn ngữ lớn. VOD: bản phát lại. Macro-F1: trung bình điểm F1 các lớp, từ 0 đến 1, càng cao càng tốt. LOSO: lần lượt giữ riêng từng buổi live để kiểm tra. Burn-in: phần đầu mỗi khối bị bỏ khi phân tích.
 
 # 1. Bài toán hoặc vấn đề thực tiễn cần giải quyết
 
-**Tên sản phẩm: LiveLift — nền tảng đo lường nhân quả cho phiên livestream bán hàng.**
+**Tên sản phẩm: LiveLift - Nền tảng thí nghiệm vận hành và hỗ trợ ra quyết định cho livestream thương mại.**
 
-Việt Nam có khoảng 2,5 triệu phiên livestream bán hàng mỗi tháng với hơn 50.000 nhà bán. Mỗi phiên là hàng chục quyết định: ghim sản phẩm nào, ghim lúc nào, giữ bao lâu, tung mã giảm giá ở phút thứ mấy. Gần như toàn bộ số quyết định đó hôm nay ra bằng kinh nghiệm truyền miệng.
+Ở Việt Nam, AccessTrade ước tính có khoảng 2,5 triệu phiên livestream bán hàng mỗi tháng với hơn 50.000 nhà bán [10] (số thứ cấp năm 2024, nhóm chưa truy được báo cáo gốc). Mỗi phiên có hàng chục quyết định: ghim sản phẩm nào, lúc nào, giữ bao lâu, khi nào nhắc mã giảm giá. Phần lớn các quyết định này dựa vào kinh nghiệm. Công cụ của nền tảng như TikTok LIVE Manager trả lời “phiên vừa rồi bán được bao nhiêu”. Theo rà soát công cụ và tài liệu của nhóm (tháng 9/2026), chưa có công cụ nào nhà bán tự dùng được để trả lời “**bao nhiêu trong số đó là do hành động của mình**”.
 
-Lý do không phải vì nhà bán lười nhìn số. Lý do là **số liệu họ có không trả lời được câu họ cần hỏi**. TikTok LIVE Manager cho GMV, hoa hồng, lượt xem sản phẩm, người xem đồng thời — miễn phí, chi tiết theo phút. Tất cả trả lời "phiên vừa rồi bán được bao nhiêu". Không công cụ nào trả lời "**bao nhiêu trong số đó là do hành động của bạn**".
+Ví dụ, ở phút 30 người trợ live ghim sản phẩm B, đến phút 35 lượt nhấp vào B tăng. Có thể vì vừa ghim B, vì nền tảng vừa đẩy thêm người vào phòng, hoặc vì người dẫn vừa kể một câu chuyện hay. Số liệu sau phiên không tách được ba khả năng này. Muốn tách phải so ngay trong buổi live đó, giữa lúc có ghim và lúc không ghim.
 
-Một tình huống điển hình: phút 30 người trợ live ghim sản phẩm B; phút 35 doanh thu nhích lên. Ít nhất ba lời giải thích cùng khớp về thời điểm — vì vừa ghim B, vì thuật toán nền tảng vừa đẩy thêm người vào phòng, hoặc vì người dẫn vừa kể xong một câu chuyện hay. Nhìn số liệu sau phiên thì cả ba đều đúng như nhau. Muốn tách được nguyên nhân thật cần một thứ mà quan sát không bao giờ có: **một phiên bản của chính buổi live đó, trong đó bạn không ghim**.
+## 1.1 Vì sao A/B test thông thường không dùng được
 
-## 1.1 Vì sao A/B test thông thường không giải được
+A/B test chia người dùng thành hai nhóm. Trong livestream, cả phòng nhìn **cùng một màn hình** nên không chia được. Thứ chia được là **thời gian**, gọi là thiết kế luân phiên theo thời gian (**switchback**, Hình 1). Phiên 90 phút chia thành 16 khối (khối đầu và cuối 10 phút, 14 khối giữa 5 phút). Mỗi khối được bốc thăm bật hoặc tắt can thiệp, lịch khóa trước giờ phát.
 
-A/B test chia người dùng thành hai nửa. Trong livestream thì không chia được: cả phòng nhìn **cùng một màn hình**. Thứ duy nhất chia được là **thời gian** — đó chính là thiết kế **switchback**: cắt phiên 90 phút thành 16 khối 5 phút, mỗi khối bốc thăm bật hoặc tắt can thiệp, lịch bốc thăm khóa lại trước khi lên sóng, rồi so kết quả hai nhóm khối. Ví von: muốn biết cái quạt có làm mát phòng không mà chỉ có một quạt và một phòng, ta bật 5 phút — tắt 5 phút — bốc thăm thứ tự, rồi so nhiệt độ hai bên.
+**Mô hình hóa.** Gọi *Y*(1), *Y*(0) là số lượt nhấp hợp lệ trên 1.000 giây xem (tổng số giây mọi người xem có mặt trong phòng) của một khối, sau burn-in, khi khối bật và khi khối tắt. Đại lượng cần ước lượng là τ, tức chênh lệch trung bình giữa *Y*(1) và *Y*(0) trên các khối, với bật hay tắt tính theo lịch gán. Mỗi khối chỉ quan sát được một trong hai giá trị, nên τ được ước lượng bằng hiệu trung bình của nhóm khối bật và nhóm khối tắt. Giá trị p và KTC lấy từ kiểm định ngẫu nhiên hóa (mục 5.1). Giả định then chốt là tác động không kéo sang khối sau quá thời gian burn-in (mục 7.1).
 
-## 1.2 Vì sao bài toán này cấp thiết và ai đang bị bỏ lại
+![Hình 1. Lịch 16 khối của một phiên 90 phút, sinh bằng chính hàm gán của sản phẩm (seed 42). 60 giây đầu mỗi khối bị bỏ khi phân tích; lịch và `design_hash` được lưu trước giờ phát.](hinh/h1-switchback.png){width=15cm}
 
-Switchback không mới — Uber, DoorDash, Lyft đều dùng. Nhưng **năng lực chạy thí nghiệm hôm nay là đặc quyền của bên sở hữu nền tảng**: Statsig, Eppo, GrowthBook đều giả định bạn sở hữu nơi thí nghiệm diễn ra để nhúng SDK và chia luồng người dùng. Giá là rào chắn thứ hai — Eppo báo giá 15.050–87.250 USD/năm, phần lớn khách trả khoảng 42.000 USD/năm, tức khoảng 1,1 tỷ đồng (tỷ giá 26.200 đ/USD ngày 11/09/2026).
+## 1.2 Vì sao cấp thiết và ai đang bị bỏ lại
 
-Nhà bán livestream Việt Nam **không sở hữu TikTok hay Facebook**, và không có 1,1 tỷ đồng một năm. Thứ duy nhất họ kiểm soát là **hành động của chính mình theo thời gian** — LiveLift biến đúng thứ đó thành đơn vị bốc thăm, để **hạ chi phí của một năng lực khoa học xuống mức một tổ ba người dùng được**. Sai một quyết định vận hành thì nhân với 2,5 triệu phiên mỗi tháng.
+Thí nghiệm ngẫu nhiên trong livestream cho thấy quyết định trong phiên tác động thật tới doanh số. Cho người dẫn xem số bán theo thời gian thực làm doanh số hàng đặt trước tăng khoảng 40% [7]. Trợ lý AI cho người mua làm doanh số tăng 3,00% và trả hàng giảm 12,55% [6]. Nhưng các thí nghiệm đó do **nền tảng** chạy, và công cụ thí nghiệm chuyên nghiệp (Statsig, Eppo, GrowthBook) cũng giả định người dùng sở hữu nơi thí nghiệm diễn ra. Rào cản chính vì vậy là **quyền sở hữu nền tảng**, không phải giá tiền. Nhà bán chỉ kiểm soát được hành động của chính mình theo thời gian. LiveLift lấy đúng điều đó làm đơn vị bốc thăm và mở mã nguồn cho mọi người.
 
-**Nghị quyết số 57-NQ/TW ngày 22/12/2024 của Bộ Chính trị** xác định đột phá phát triển khoa học, công nghệ, đổi mới sáng tạo và chuyển đổi số quốc gia là nhiệm vụ chiến lược. Thương mại qua livestream đang là một trong những mũi tăng trưởng nhanh nhất của kinh tế số Việt Nam. Nhưng một ngành tăng trưởng bằng kinh nghiệm truyền miệng thì **không tăng được năng suất** — không đo được nhân quả thì không tối ưu được gì, chỉ lặp lại may rủi ở quy mô lớn hơn.
+**Nghị quyết 57-NQ/TW ngày 22/12/2024 của Bộ Chính trị** coi khoa học, công nghệ, đổi mới sáng tạo và chuyển đổi số là “đột phá quan trọng hàng đầu” [15]. Không đo được tác động thì không biết thay đổi nào đáng giữ.
 
-LiveLift xây đúng lớp hạ tầng còn thiếu đó — lớp đo lường — và **mở mã nguồn theo giấy phép AGPL-3.0** để nó là hạ tầng dùng chung, không phải công cụ độc quyền của một công ty. Nhóm chọn làm điều này ở phía **hộ kinh doanh nhỏ**, nhóm thường bị bỏ lại sau cùng trong mọi làn sóng công nghệ.
+## 1.3 Gốc học thuật và khoảng trống
 
-## 1.3 Bài toán có gốc học thuật, không phải nhóm tự nghĩ ra
+Xie, Sharma và Mehra [5] chỉ ra một **sự đánh đổi**: trình bày một sản phẩm lâu hơn thì doanh thu sản phẩm đó cao hơn, nhưng thời lượng trình bày trung bình tăng thì doanh thu cả phiên giảm. Không có đáp án chung nên mỗi phòng live phải tự đo, trong khi nghiên cứu đó chỉ dùng dữ liệu có sẵn. Trong phạm vi rà soát tài liệu và công cụ của nhóm (tháng 9/2026), **chưa tìm thấy công bố hay công cụ nào cho người bán tự chạy switchback trong phiên livestream của mình**.
 
-Xie, Sharma và Mehra (*Production and Operations Management* 34(12), 2025) nghiên cứu đúng câu hỏi vận hành này — trình bày một sản phẩm bao lâu thì bán tốt hơn — và tìm ra một **đánh đổi**: trình bày một sản phẩm lâu hơn thì doanh thu của sản phẩm đó cao hơn, nhưng thời lượng trình bày trung bình tăng thì doanh thu cả phiên lại giảm. Một đánh đổi như vậy không có đáp án chung — mỗi nhà bán phải tự đo trên phòng live của mình. Nhưng dữ liệu của họ là **hồi cứu** từ hai nền tảng Trung Quốc, không gán ngẫu nhiên. Wang và cộng sự (*Information Systems Research* 36(4), 2025) có thí nghiệm ngẫu nhiên thật, đo được doanh số tăng 3,00% và tỷ lệ trả hàng giảm 12,55% — nhưng họ bốc thăm theo người dùng và chạy **từ bên trong nền tảng**.
-
-Khoảng trống: **chưa có công bố nào làm thí nghiệm ngẫu nhiên bên trong một phiên live, từ phía người đi thuê sân.** Đó là chỗ LiveLift đứng.
-
-## 1.4 Vì sao bài toán này đáng làm trong thời đại AI
-
-Trong thời đại AI, cái nguy hiểm không phải là thiếu số liệu — mà là **có số liệu sai mà vẫn tin**. Khoảng trống đó đang được lấp bằng một nền kinh tế "bí kíp livestream" mua đi bán lại, mà phần lớn là sự trùng hợp được đặt tên.
-
-Xây một sản phẩm đo lường thì dễ; xây một sản phẩm **chịu được việc người khác kiểm chứng** mới khó. Vì vậy dự án này tự chứng minh trước, rồi mới nói về dữ liệu thật — và để chứng minh nhóm nói thật, chính hệ thống này đã **tự bác bỏ một con số đẹp của chính nhóm**: bộ phân loại ý định đạt macro-F1 0,870 trên bộ câu mẫu do AI soạn nhưng chỉ còn **0,211** trên chat thật, thua cả cách đoán bừa. Nhóm đã đo, đã ghi vào sổ sự cố công khai, và không giấu. Toàn bộ hồ sơ này viết theo nguyên tắc đó.
+Xuất phát từ những lý do trên, nhóm nghiên cứu quyết định lựa chọn và tiến hành nghiên cứu, phát triển giải pháp “LiveLift - Nền tảng thí nghiệm vận hành và hỗ trợ ra quyết định cho livestream thương mại”, hướng tới việc hỗ trợ đội ngũ vận hành đánh giá có hệ thống tác động của các quyết định trong phiên live và từng bước chuyển từ ra quyết định chủ yếu dựa trên kinh nghiệm sang ra quyết định dựa trên bằng chứng.
 
 # 2. Mục tiêu, phạm vi và đối tượng ứng dụng của sản phẩm
 
 ## 2.1 Mục tiêu
 
-**Mục tiêu tổng quát:** xây hạ tầng đo lường nhân quả cho phiên livestream bán hàng dành cho bên **không sở hữu nền tảng** — mỗi quyết định trong phiên thành một thí nghiệm có xác suất gán ghi trước khi lên sóng, kết quả trả về kèm khoảng tin cậy, và bộ ước lượng phải **tự chứng minh được là nó đúng** trước khi nói về dữ liệu thật.
+**Mục tiêu tổng quát:** giúp nhà bán không sở hữu nền tảng phát sóng biến mỗi quyết định trong phiên thành một thí nghiệm có xác suất gán ghi sẵn trước giờ phát, kết quả kèm KTC. Bộ ước lượng phải được kiểm chứng trên mô phỏng có đáp án trước khi dùng cho dữ liệu thật.
 
-Sáu mục tiêu cụ thể và trạng thái trung thực tại ngày nộp hồ sơ:
+: Bảng 1. Mục tiêu cụ thể và trạng thái tại ngày 27/09/2026
 
 | Mục tiêu | Chỉ số nghiệm thu | Trạng thái |
 |---|---|---|
-| MT1. Bộ ước lượng đạt mức ý nghĩa danh nghĩa | A/A 200 lần lặp: bác bỏ 3,50% (7/200) so với danh nghĩa 5%, p nhị thức 0,4168; phủ KTC 95% đo được 96,50% | **Đạt** |
-| MT2. MDE đo được bằng mô phỏng, không suy từ công thức | MDE 20,1% (sweep 4 mức tác động × 60 lặp); công thức giải tích cho 30,1% và công thức đó sai | **Một phần** — đo ở điều kiện 45–62 người xem đồng thời |
-| MT3. Chạy ≥18 phiên thí nghiệm thật có gán ngẫu nhiên | **0 phiên** tính đến 14/09/2026 | **Chưa đạt** — khoảng cách lớn nhất của dự án |
-| MT4. Hạ tầng nạp dữ liệu thật chạy đúng, tái lập được | 19.126 bình luận · 16 buổi live · 7 ngành hàng; chạy lại sau 2 ngày trùng từng con số | **Đạt** |
-| MT5. Quyền riêng tư và liêm chính cưỡng chế bằng máy | Cổng tự động đòi recall ≥95% cho số điện thoại, email, địa chỉ và ≥70% cho tên người; phiên chưa có lịch gán kèm `design_hash` bị API chặn HTTP 409 | **Một phần** — mẫu thử của cổng không có handle có dấu nên bỏ lọt; đã sửa 15/09 (mục 3.2) |
-| MT6. Tự bác bỏ số của chính mình | Phân loại ý định macro-F1 0,870 trên bộ câu mẫu do AI soạn nhưng **0,211 trên chat thật** — công bố cả hai, rồi nâng lên 0,565 (mục 8.3) | **Đạt** |
-
-MT3 là mục tiêu chưa đạt và nhóm nêu nó ở ngay trang đầu thay vì giấu xuống mục hạn chế. Lý do trình bày ở mục 11.
+| MT1. Bộ ước lượng đạt mức danh nghĩa | A/A 200 lần: bác bỏ 3,50% (7/200), p = 0,4168; thu hồi 40 lần: KTC phủ 92,50% | **Đạt nếu tác động không kéo sang khối sau**; nếu có, độ phủ giảm (Hình 3) |
+| MT2. Đo MDE bằng mô phỏng | 16,4% ở khoảng 59 người xem, 8 phiên, tính từ hệ số biến thiên mô phỏng (Hình 4) | **Một phần**: lần quét lực trực tiếp ngày 30/08 không sinh lại được |
+| MT3. Ít nhất 18 phiên thí nghiệm thật có gán ngẫu nhiên | **0 phiên** | **Chưa đạt**, khoảng cách lớn nhất (mục 8.5, 12) |
+| MT4. Hạ tầng nạp đúng, tái lập được | VOD qua yt-dlp: 19.126 bình luận; chạy lại 1 buổi sau 2 ngày trùng từng con số; API chính thức **chưa chạy với khóa thật** | **Một phần** |
+| MT5. Quyền riêng tư, liêm chính thực thi bằng mã | Cổng kiểm tra bộ lọc PII; phiên chưa có lịch gán bị chặn phát sóng (HTTP 409) | **Một phần** (mục 3.2) |
+| MT6. Kiểm chứng mô hình AI trên chat thật | 0,870 trên câu mẫu AI soạn, 0,211 trên chat thật, 0,542 sau cải tiến | **Một phần**: nhãn do AI gán |
 
 ## 2.2 Phạm vi
 
-**Trong phạm vi:** phiên livestream bán hàng tiếng Việt trên Facebook và YouTube; can thiệp thuộc quyền của nhà bán (ghim sản phẩm, nhắc mã giảm giá, đổi kịch bản thoại); biến kết quả đo qua link rút gọn có gắn tham số đo của chính nhà bán.
-
-**Ngoài phạm vi, có chủ ý:** không can thiệp vào thuật toán phân phối của nền tảng (không làm được và không được phép); không dự đoán doanh thu (dự báo không có khoảng tin cậy nhân quả là thứ nhóm cố ý từ chối làm); không phục vụ phiên đấu giá (chat toàn chữ số, hệ thống mù hoàn toàn — đã đo và ghi nhận).
+**Trong phạm vi:** phiên livestream bán hàng tiếng Việt mà nhà bán là chủ kênh hoặc được ủy quyền, đọc qua API chính thức (YouTube, Facebook, Shopee). Can thiệp thuộc quyền nhà bán: ghim sản phẩm, nhắc mã giảm giá đã công bố cho mọi người xem, đổi kịch bản lời nói. Biến kết quả chính là lượt nhấp hợp lệ qua link đo, biến phụ là đơn hàng nhập từ tệp CSV. **Cố ý để ngoài phạm vi:** đọc bình luận bằng cách giả làm người xem (quyết định ngày 17/09/2026), bình luận TikTok LIVE (không có API chính thức), can thiệp thuật toán phân phối, dự báo doanh thu và phiên đấu giá.
 
 ## 2.3 Đối tượng ứng dụng
 
-| Nhóm | Mô tả | Vì sao khớp | Điều kiện bắt buộc |
-|---|---|---|---|
-| Nhà bán vừa | Tổ vận hành 1–3 người, bán qua website riêng hoặc inbox Messenger/Zalo | Khách vốn đã phải rời nền tảng để chốt đơn, nên link đo ghi đúng một cú nhấp thật | Có tên miền thật; tạo link đo trước phiên |
-| KOL có người trợ live | Một người dẫn, một người trợ live | Đủ người để giữ giao thức làm mù người dẫn | Bắt buộc hai người; phiên từ 90 phút |
-| Agency nhiều phòng live | Nhiều phòng, so sánh chéo | Nhiều phòng = nhiều cụm, lực thống kê tốt hơn | Chưa phục vụ được hôm nay |
+Phù hợp nhất là **nhà bán tự phát sóng trên Facebook hoặc YouTube, có lượng người xem ổn định**, chốt đơn qua website riêng hoặc tin nhắn. Phiên của họ dài, đều nên đủ khối, link đo trỏ tới trang sản phẩm hoặc `m.me`, `zalo.me` nên ghi được cú nhấp thật. **KOL có người trợ live** cũng phù hợp, vì cách làm cần hai người: một người nắm lịch, người dẫn không biết lịch (mục 5.3). Nhà bán chốt đơn bằng giỏ hàng trong ứng dụng (TikTok Shop, Shopee Live) **chưa dùng được biến kết quả chính**, nên 2,5 triệu phiên ở mục 1 là quy mô ngành, không phải quy mô LiveLift phục vụ được hôm nay.
 
-Nhóm khớp nhất là **nhà bán vừa**. Ngoài thương mại, phương pháp và phần lõi kỹ thuật chuyển giao được sang mọi bối cảnh "một kênh phát, nhiều người xem, muốn biết cách nói nào hiệu quả hơn": truyền thông chiến dịch cộng đồng, phổ biến pháp luật, tư vấn tuyển sinh trực tuyến.
+**Lực thống kê (khả năng phát hiện tác động thật) quyết định ai dùng được.** Với lượt nhấp, MDE tỷ lệ nghịch với căn bậc hai của số người xem nhân số phiên (Hình 4). Theo ước tính của nhóm từ giá quảng cáo (CPM), **chưa đo**, 300.000 đồng quảng cáo chỉ kéo được 5 đến 15 người xem đồng thời. Ở mức đó, với 18 phiên, MDE của lượt nhấp ít nhất khoảng 21% đến 67% (cận dưới Poisson, lực 80%, Hình 4), còn MDE của đơn hàng ở 15 người xem là 179% đến 327%. Vì vậy LiveLift nhắm tới nhà bán có vài chục người xem trở lên, hoặc gộp nhiều phiên cho một câu hỏi. Đây là giả thuyết thiết kế: nhóm **chưa phỏng vấn hay thử với nhà bán nào ngoài đội**.
 
 # 3. Dữ liệu sử dụng, nguồn dữ liệu và tính hợp lệ của dữ liệu
 
 ## 3.1 Các loại dữ liệu
 
-| Loại dữ liệu | Nguồn | Cách thu thập | Quy mô | Cơ sở được phép dùng |
-|---|---|---|---|---|
-| Bình luận livestream tiếng Việt | **Chat replay của các buổi phát trực tiếp công khai đã kết thúc (VOD) trên YouTube** | Tải bằng **yt-dlp** (mã nguồn mở), nạp qua `POST /replays/youtube` | 19.126 bình luận · 16 buổi · 7 ngành hàng | Nội dung công khai, dùng **phi thương mại** cho đánh giá; đã ẩn danh; **không phát hành lại**. Hạn chế pháp lý nêu ở 3.3 |
-| Câu mẫu ý định mua (do AI soạn) | Claude (Anthropic) | AI soạn ngày 01/09/2026 theo bộ nhãn nhóm thiết kế; nhóm rà soát | 320 câu, 5-fold CV | Dữ liệu tổng hợp, không chứa dữ liệu cá nhân; kê khai là sản phẩm AI |
-| Nhãn tham chiếu trên chat thật | Bình luận thật đã qua bộ lọc PII | **Tác tử AI (Claude) gán ngày 09/09/2026**; chưa có nhãn người độc lập | 393 bình luận, 3 buổi (tập kiểm tra giữ riêng) | Kê khai là nhãn do AI gán; gán lại bằng người là việc đang làm |
-| Sự kiện nhấp link đo | Hệ thống của chính nhóm | Endpoint `GET /r/{code}` tự vận hành | Theo phiên | Dữ liệu do hệ thống sinh ra |
-| Dữ liệu mô phỏng | Bộ mô phỏng của nhóm | Sinh bằng `livelift.sim` | Hàng trăm nghìn khối | Hoàn toàn tổng hợp |
-| KuaiLive (hiệu chỉnh mô phỏng) | Bộ dữ liệu công bố kèm bài SIGIR 2026 | Dùng để hiệu chỉnh tham số mô phỏng | 1,16 triệu phòng live | Bộ dữ liệu nghiên cứu công khai |
+: Bảng 2. Các loại dữ liệu, nguồn và cơ sở sử dụng
 
-Nhóm **chưa thu thập được dữ liệu Facebook nào**: đường nạp Facebook Graph API đã viết xong và kiểm thử nhưng chưa có Page đối tác cấp token, nên không có con số nào trong hồ sơ này đến từ Facebook.
+| Loại dữ liệu | Nguồn, cách thu | Quy mô | Cơ sở sử dụng, giới hạn |
+|---|---|---|---|
+| Bình luận 16 buổi live đã kết thúc (YouTube, kênh bên thứ ba) | **yt-dlp, không qua API chính thức**, ngày 10/09/2026 | 19.126 bình luận, 7 ngành hàng; 3 buổi chiếm 84,5% | Dữ liệu **quan sát**, chỉ để đánh giá; **không có sự đồng ý** của người bình luận |
+| Câu mẫu ý định | Claude (Anthropic) soạn ngày 01/09/2026 theo bộ nhãn của nhóm | 320 câu | Tổng hợp, không chứa dữ liệu cá nhân |
+| Nhãn ý định trên bình luận thật | **Tác tử AI (Claude) gán**; nhóm quyết định bộ nhãn | 393 dòng kiểm tra (3 buổi), 1.800 dòng huấn luyện | Chưa có nhãn người (mục 6) |
+| Lượt nhấp, đơn hàng | Link đo `/r/{code}`; đơn do nhà bán tự xuất CSV | Chưa có phiên thật | Nhấp: chỉ lưu mã băm có muối theo phiên; đơn: không đọc người mua |
+| Dữ liệu tổng hợp | Bộ mô phỏng; 200 bình luận do tác tử AI soạn ngày 17/09 | 38.848 khối (Bảng 4, Hình 2 đến 4) | Chỉ trên phiên chạy thử, phiên mẫu |
+| KuaiLive [8] | 21 ngày dữ liệu Kuaishou | 1,16 triệu phòng live | Phi thương mại; chỉ hiệu chỉnh hình dạng mô phỏng |
 
 ## 3.2 Bảo vệ dữ liệu cá nhân
 
-Bình luận livestream **công khai vẫn chứa dữ liệu cá nhân** — người xem bình luận kèm số điện thoại, địa chỉ, tên thật để đặt hàng. Nhóm coi đây là rủi ro pháp lý hạng nhất, xử lý theo **Luật Bảo vệ dữ liệu cá nhân số 91/2025/QH15** (hiệu lực 01/01/2026) và **Nghị định 356/2025/NĐ-CP** (thay thế Nghị định 13/2023/NĐ-CP) bằng ba lớp cưỡng chế bằng máy:
+Bình luận công khai vẫn chứa dữ liệu cá nhân: người xem hay ghi số điện thoại, địa chỉ để đặt hàng. Để giảm rủi ro theo Luật 91/2025/QH15 [11] và Nghị định 356/2025/NĐ-CP [12], sản phẩm có ba lớp bảo vệ trong mã. Chúng không thay cho căn cứ pháp lý để xử lý (mục 3.3).
 
-1. **Khử nhận dạng ngay tại cổng nạp**, trước khi ghi xuống đĩa — không có đường nào ghi dữ liệu chưa lọc. Bộ lọc nhận diện số điện thoại (nhiều kiểu phân tách), email, địa chỉ, tên người, số tài khoản ngân hàng, tài khoản mạng xã hội; chuẩn hóa NFKC và xử lý ký tự keycap để chống né bằng emoji chữ số.
-2. **Cổng chất lượng tự động**: recall từng loại PII phải đạt ≥95%, không đạt thì mã không vào được nhánh chính.
-3. **Không lưu định danh người bình luận**: chỉ giữ mã băm theo phiên để chống trùng lặp.
+1. **Lọc định danh trước khi truyền hoặc lưu.** Bộ thu lọc trước khi gửi đi hay ghi nhật ký, API lọc lần hai trước khi ghi kho. Bộ lọc nhận diện số điện thoại (kể cả số viết bằng chữ, emoji chữ số), email, mã đơn, địa chỉ, tên người, số tài khoản, tài khoản mạng xã hội. **Ngoại lệ:** khi tải bằng yt-dlp, tệp chat thô nằm trong thư mục tạm, đọc xong thì bị xóa.
+2. **Cổng kiểm thử.** Bộ lọc phải bắt được ít nhất 95% ở sáu loại và 70% với tên người, trên 95 câu dữ liệu giả do Claude soạn ngày 24/08/2026 (email và số tài khoản mới có 4 mẫu mỗi loại). CI trên GitHub chưa chạy được nên cổng này đang chạy tay.
+3. **Không lưu định danh người bình luận, kể cả dạng băm.** Chống trùng bằng mã bình luận của nền tảng. Lượt nhấp chỉ lưu mã băm dấu vân tay thiết bị trộn mã phiên và một chuỗi ngẫu nhiên, nên không nối được một người qua hai phiên.
 
-**Một lỗ hổng nhóm tự phát hiện khi kiểm toán hồ sơ này:** biểu thức nhận diện tài khoản mạng xã hội chỉ khớp ký tự ASCII, nên **bỏ lọt tên tài khoản YouTube có dấu tiếng Việt hoặc gạch nối**. Mở dữ liệu gán nhãn lưu cục bộ ra đếm còn 57 lượt nhắc tên tài khoản trong nội dung bình luận; các tệp này không nằm trong kho mã công khai. Nguyên nhân gốc: cổng kiểm thử **có** đo loại `social`, nhưng **mọi mẫu thử đều là handle ASCII**, nên cổng xanh trong khi dạng handle thật đi qua — cổng chỉ bảo vệ được đúng những gì mẫu thử của nó chứa. Nhóm đã sửa biểu thức (15/09/2026) và thêm mẫu thử theo đúng hình dạng handle thật; việc lọc lại dữ liệu đã lưu và đo lại mô hình đang được thực hiện. Sự cố ghi trong sổ sự cố của dự án.
+**Lỗ hổng tự phát hiện.** Bộ lọc từng bỏ sót tên tài khoản YouTube có dấu (thấy ngày 14/09) và tên viết dính liền `chữ@tên`, `@@tên` (vá ngày 25/09, commit `b331076`). Dữ liệu gán nhãn lưu cục bộ đã được lọc lại (`scripts/gan_mu/loc_lai_pii.py`: 57 lượt tên tài khoản, rồi 16 dòng của 8 tên), quét lại còn 0, và mọi số NLP ở mục 8, 9 đã đo lại. Từ vựng tệp mô hình v2 ngày 14/09 có một từ sinh từ tên tài khoản. Tệp đã đóng gói lại (bản cũ còn trong lịch sử git của kho công khai), và bài kiểm thử `tests/test_artifact_khong_pii.py` nay kiểm cả từ vựng.
 
-Nhóm nêu lỗi này thay vì im lặng, vì đó chính là bằng chứng cho cơ chế mà nhóm đang trình bày: cổng tự động chỉ bảo vệ được thứ nó có đo, và một dự án trung thực phải công bố cả chỗ nó đo thiếu.
+## 3.3 Tính hợp lệ của nguồn dữ liệu
 
-## 3.3 Tính hợp lệ của nguồn dữ liệu — nêu rõ hạn chế
+**Nguồn không chính thức.** YouTube Data API v3 chỉ trả bình luận khi buổi phát đang diễn ra, nên 19.126 bình luận ở Bảng 2 được tải bằng yt-dlp. Đây là cách truy cập tự động mà điều khoản dịch vụ và `robots.txt` của YouTube không cho phép khi chưa được đồng ý. Dữ liệu này không có can thiệp hay bốc thăm nên không sinh con số nhân quả nào.
 
-**YouTube Data API v3 không cung cấp chat replay của buổi phát đã kết thúc** (endpoint `liveChatMessages` chỉ phục vụ buổi đang phát). Vì vậy dữ liệu đánh giá của nhóm được tải bằng `yt-dlp`. Nhóm nêu rõ hai điều:
+**Sự đồng ý và vai trò pháp lý.** Điều 5 khoản 8 Thể lệ không cho đội thi thu thập, xử lý dữ liệu cá nhân khi chưa có sự đồng ý hợp lệ [16]. Luật 91/2025/QH15 đòi sự đồng ý trước khi thu thập (Điều 11 khoản 1), không coi im lặng là đồng ý (Điều 9 khoản 4 điểm d), và Điều 19 không có trường hợp miễn đồng ý nào dành riêng cho nghiên cứu. Người bình luận trong 16 buổi không được hỏi ý kiến, nên nhóm **không tự nhận có căn cứ pháp lý để xử lý** tập này. Với tập đó, nhóm là bên kiểm soát và xử lý dữ liệu cá nhân (Điều 2 khoản 9) và chỉ giảm thiểu rủi ro: lọc định danh trước khi lưu, không lưu tên hay mã người bình luận, không công bố nguyên văn, không đưa lên kho mã hay hồ sơ nộp (trừ vài dòng chat đã thay danh tính và lọc, dùng làm dữ liệu kiểm thử, và vài câu ví dụ đã lọc trong `nlp/labels.py`). Khi gán nhãn và rà dữ liệu (từ 09 đến 15/09), bình luận được đưa vào Claude (Anthropic, ngoài Việt Nam) lúc bộ lọc chưa bắt được tên tài khoản có dấu (mục 3.2). Đó là xử lý dữ liệu cá nhân thu tại Việt Nam trên nền tảng ở nước ngoài (Điều 20 khoản 1 điểm c), và nhóm chưa lập hồ sơ đánh giá tác động theo khoản 2. Khi LiveLift chạy cho một nhà bán, nhà bán là **bên kiểm soát** (Điều 2 khoản 7), đơn vị vận hành là **bên xử lý** theo hợp đồng (khoản 8). Mẫu thỏa thuận xử lý dữ liệu (Điều 37 khoản 2 điểm a) và căn cứ xử lý lượt nhấp của người bấm link đo **chưa có**, phải có trước phiên thật đầu tiên (Bảng 10).
 
-- **Cách này không đi qua API chính thức**, do đó không phù hợp với điều khoản dịch vụ của YouTube về truy cập tự động. Nhóm phát hiện điều này trong kiểm toán nội bộ và ghi nhận công khai thay vì bỏ qua.
-- **Xử lý:** (a) dữ liệu VOD chỉ dùng **offline, phi thương mại, để đánh giá mô hình**, đã ẩn danh, không phát hành lại và không nằm trong kho mã công khai; (b) **đường chạy của sản phẩm thật chỉ dùng API chính thức** — YouTube Data API v3 cho buổi đang phát và Facebook Graph API cho Page có token; (c) hướng đi đúng về lâu dài là dữ liệu từ chính phiên live của nhóm và của nhà bán đối tác **có sự đồng ý**, và đó là ưu tiên số một sau vòng này (mục 12).
+**Lưu và xóa tập 16 buổi.** Bản đầy đủ 19.126 bình luận không được lưu thành tệp sau lần chạy ngày 10/09. Chỉ còn giữ cục bộ, đã lọc định danh, 6.586 bình luận của 1 buổi và 393 bình luận của 3 buổi dùng cho mục 8, 9. Kiểm kê ngày 25/09 còn thấy định danh ở ba nơi ngoài kho mã: bản sao lưu dữ liệu gán nhãn trước khi lọc lại (33 tên tài khoản), 16 dòng có tên dính liền (đã lọc, mục 3.2), và bản lưu nhật ký gốc của công cụ AI (có trích bình luận còn tên tài khoản). Prompt Log đã xuất lại; quét bộ lọc và đối chiếu băm độc lập đều ra 0. Chậm nhất ngày 29/09/2026, trước khi nộp, nhóm xóa an toàn bản sao lưu (ghi đè rồi xóa) và che tên tài khoản người bình luận trong bản lưu nhật ký gốc. Nhóm không coi phần còn giữ là đã khử nhận dạng (Luật 91/2025/QH15 Điều 2 khoản 11), vì câu nguyên văn vẫn tra ngược được người viết qua bản phát lại công khai và bộ lọc bằng biểu thức chính quy không bảo đảm bắt hết. Phần này được bảo vệ như dữ liệu cá nhân, chỉ dùng để kiểm lại mục 8, 9, không cung cấp cho ai, và bị xóa khi có tập thay thế qua API chính thức, chậm nhất ngày 22/11/2026, hoặc ngay khi Ban Tổ chức hay cơ quan có thẩm quyền yêu cầu. Bình luận và lượt nhấp trong kho dữ liệu chưa có thời hạn xóa tự động. Bản sao lưu cơ sở dữ liệu tự xóa sau 14 ngày.
 
-Đây là một hạn chế thật của dự án. Nhóm trình bày nó ở mục "tính hợp lệ của dữ liệu" chứ không giấu xuống phụ lục, vì Điều 5 Thể lệ coi việc che giấu nguồn dữ liệu và API là hành vi bị nghiêm cấm, và vì một hồ sơ khoa học phải chịu được việc người khác mở kho mã ra kiểm.
+**Đường chuyển sang API chính thức.** Từ ngày 17/09/2026, nhóm dừng thu mới từ kênh không thuộc nhóm hay đối tác. Hai đường tải bằng yt-dlp còn trong mã (kể cả tùy chọn đọc cookie trình duyệt để vượt kiểm tra chống robot) và bộ thu TikTok dùng thư viện dịch ngược (`collectors/tiktok_public`, tách khỏi lõi) chỉ giữ tạm tới khi khóa chính thức chạy được. Phiên thí nghiệm và tập đánh giá mới chỉ lấy qua API chính thức, trên kênh của nhóm hoặc nhà bán đối tác có văn bản đồng ý.
 
 # 4. Quy trình tiền xử lý, làm sạch, chuẩn hóa hoặc tổ chức dữ liệu
 
-```
-Bình luận thô  →  Khử PII  →  Chuẩn hóa  →  Khử trùng  →  Gắn khối thời gian  →  Kho
-   (API)         (bắt buộc)    (NFKC,        (platform,     (block_id theo lịch     (Postgres)
-                               teencode,      ext_id)        gán đã khóa)
-                               emoji)
-```
+1. **Chọn dữ liệu.** 17 video được chọn theo quy trình ghi sẵn trong `docs/benchmarks/live-fire-da-nguon.md`, nạp được 16 video. Buổi dưới 30 bình luận không dùng cho kết luận nào. Tập kiểm tra NLP rút từ 3 buổi (có seed): 193 dòng theo lớp mô hình cũ dự đoán (để đo precision, tức tỷ lệ báo đúng) và 200 dòng ngẫu nhiên (để ước tỷ lệ thật).
+2. **Lọc định danh** trước mọi bước khác, kể cả ghi nhật ký (mục 3.2). Đặt sau bước lưu thì dữ liệu thô vẫn nằm trên đĩa.
+3. **Loại bản trùng:** bình luận theo khóa `(platform, ext_id)`, đơn hàng theo mã đơn. Lô huấn luyện loại thêm 1.246 dòng trùng. Nhờ vậy, chạy lại một buổi sau hai ngày vẫn ra đúng từng con số.
+4. **Gắn khối** theo lịch đã khóa (Hình 1): bình luận theo giờ nền tảng, lượt nhấp theo giờ máy chủ, đơn theo thời điểm đặt. Đơn ngoài khung giờ phiên bị từ chối và đếm riêng. Phiên phân tích VOD không có lịch gán nên không vào phân tích nhân quả.
+5. **Chuẩn hóa cho mô hình**, chỉ ở nhánh NLP: chuẩn hóa Unicode NFKC, rút gọn chữ kéo dài, tách emoji, viết đầy đủ teencode, không tự thêm dấu. Đo ngày 25/09, bỏ bước này không làm giảm macro-F1 (mục 9.4).
+6. **Tổ chức để phân tích:** đơn vị là khối, cụm là phiên. Bảng `assignment_event` (lệnh gán) và `exposure_event` (can thiệp thực tế) đối chiếu “định làm gì” với “đã làm gì”, nền cho ước lượng tác động trên nhóm tuân thủ lịch (LATE).
 
-**Bước 1 — Khử nhận dạng.** Chạy trước mọi bước khác, kể cả trước khi ghi log. Đây là quyết định kiến trúc: nếu khử PII đặt sau khâu lưu trữ thì dữ liệu thô có PII vẫn tồn tại trên đĩa dù chỉ vài giây.
-
-**Bước 2 — Chuẩn hóa văn bản tiếng Việt mạng xã hội.** Chuẩn hóa Unicode NFKC (gộp các cách gõ dấu khác nhau về một dạng); ánh xạ teencode phổ biến; giữ emoji thay vì xóa, vì emoji mang tín hiệu ý định thật (🛒, 🔥, ❤️); giữ nguyên câu không dấu thay vì cố thêm dấu, vì thêm dấu sai làm hỏng nghĩa nhiều hơn là giúp.
-
-**Bước 3 — Khử trùng lặp tất định.** Khóa duy nhất `(platform, ext_id)`: cùng một bình luận nạp lại bao nhiêu lần cũng chỉ vào kho một lần. Nhờ khóa này, chạy lại toàn bộ một buổi live sau hai ngày cho **trùng từng con số** — đây là điều kiện để kết quả kiểm chứng lại được.
-
-**Bước 4 — Gắn khối thời gian.** Mỗi bình luận và mỗi lượt nhấp được gán vào khối 5 phút theo **lịch bốc thăm đã khóa trước khi lên sóng**. Không có bước này thì mọi phân tích nhân quả phía sau vô nghĩa.
-
-**Bước 5 — Tổ chức để phân tích.** Đơn vị phân tích là **khối**, cụm là **phiên**; mọi sai số chuẩn đều gộp theo cụm phiên. Hai bảng riêng `assignment` (gán) và `exposure_event` (phơi nhiễm thực tế) cho phép đối chiếu "định làm gì" với "thực tế đã làm gì" — đây là nền cho ước lượng LATE ở mục 5.
-
-**Xử lý dữ liệu sai lệch.** Lượt nhấp không hợp lệ (bot, trùng lặp, quá nhanh) được **đánh cờ chứ không xóa**, theo thông lệ đo lường IAB: xóa âm thầm là một dạng can thiệp vào dữ liệu mà người đọc kết quả không nhìn thấy.
+**Dữ liệu sai lệch** được gắn cờ, không xóa. Lượt nhấp vi phạm một trong 5 quy tắc dựa trên hướng dẫn đo lượt nhấp của IAB và MRC [9] (robot, tải trước, không phải yêu cầu GET, nhấp lại trong 10 giây, quá 5 lượt mỗi thiết bị mỗi khối) vẫn nằm trong chuỗi thô và được báo song song. Bình luận mô phỏng bị chặn khỏi lô gán nhãn.
 
 # 5. Thuật toán, mô hình, phương pháp hoặc công cụ trí tuệ nhân tạo được sử dụng
 
-Hệ thống có **ba lõi kỹ thuật**, mỗi lõi giải một bài toán khác nhau.
+Phần suy luận nhân quả dùng thống kê, không dùng học máy. Phần AI nằm ở bộ phân loại ý định (học có giám sát), khâu gán nhãn bằng mô hình ngôn ngữ lớn, và công cụ lập trình có AI hỗ trợ (mục 5.4).
 
-## 5.1 Lõi A — Thiết kế thí nghiệm và suy luận nhân quả
+## 5.1 Lõi A: thiết kế thí nghiệm và suy luận nhân quả
 
-| Thành phần | Phương pháp | Vai trò |
+: Bảng 3. Thành phần của lõi thiết kế và suy luận
+
+| Thành phần | Phương pháp | Trạng thái trong mã |
 |---|---|---|
-| Thiết kế | Switchback hai tầng, khối ~5 phút, khối đầu/cuối nhân đôi (Bojinov và cs., 2023) | Biến thời gian thành đơn vị bốc thăm |
-| Gán ngẫu nhiên | Bernoulli(0,5) + tái ngẫu nhiên hóa ràng buộc ≥2 khối/nhánh/pha; jitter ±30 giây | Cân bằng nhánh mà vẫn giữ tính ngẫu nhiên |
-| Xử lý hiệu ứng lưu | Burn-in khi **phân tích** b ∈ {0..3} phút (Hu–Wager), **không** washout khi thiết kế | Bỏ ảnh hưởng còn sót của khối trước mà không phí thời lượng phát sóng |
-| Ước lượng chính | Randomization inference studentized + khoảng tin cậy Fisher | Không cần giả định phân phối; hợp cỡ mẫu nhỏ |
-| Ước lượng phụ | Horvitz–Thompson; OLS hiệu ứng cố định theo phiên + hiệu chỉnh Lin; Wald LATE | Kiểm tra chéo, và ước lượng tác động trên nhóm thực sự phơi nhiễm |
-| Giảm phương sai | CUPED đa biến tất định | Tăng lực thống kê mà không đổi kỳ vọng |
+| Thiết kế | Switchback, khối 5 phút, khối đầu và cuối dài gấp đôi (thiết kế tối ưu theo [1]) | Đang chạy |
+| Gán ngẫu nhiên | Mỗi khối bật với xác suất 0,5; bốc lại tới khi mỗi nhánh có ít nhất 2 khối trong mỗi phần ba phiên; biên khối xê dịch tối đa 30 giây | Đang chạy (bảo đảm với phiên từ 90 phút) |
+| Tác động kéo sang khối sau | Bỏ 60 giây đầu mỗi khối khi phân tích [2]; độ nhạy 0, 2, 3 phút | Đang chạy |
+| Kiểm định chính | Kiểm định ngẫu nhiên hóa với thống kê chuẩn hóa, KTC Fisher bằng cách đảo ngược kiểm định [3] | Nguồn duy nhất của ước lượng, p và KTC trong báo cáo |
+| Chọn sản phẩm trong khối BẬT | Mô hình Gamma-Poisson cho tỷ lệ nhấp (tối đa 3 sản phẩm); sản phẩm có khoảng chồng lấn với sản phẩm dẫn đầu thì bốc đều, ghi xác suất 1/k | Chạy ở chế độ Tự ghim; xác suất đã lưu, chưa vào báo cáo |
 
-Điểm cốt lõi của randomization inference ở đây: khi tính phân phối giả định vô hiệu, hệ thống **bốc thăm lại bằng đúng hàm gán đang chạy trên production**, không phải bằng một hàm mô phỏng viết riêng cho khâu phân tích. Nếu hàm gán có lỗi, lỗi đó xuất hiện ở cả hai phía và kiểm định vẫn hợp lệ.
+Kiểm định ngẫu nhiên hóa chỉ dựa vào cách gán đã biết, nên với giả thuyết “không khối nào bị tác động” nó chính xác cả khi mẫu nhỏ, không cần giả định phân phối [3]. KTC Fisher cần thêm giả định tác động cộng không đổi ở mọi khối, nên độ phủ phải kiểm bằng mô phỏng (mục 7.1). Phân phối tham chiếu dựng bằng cách bốc lại qua đúng hàm gán đang chạy, kể cả điều kiện bốc lại, với tham số đã lưu của phiên (`design_hash`, mục 5.3). Thẻ ghim có thể giữ chân hoặc đẩy người xem đi, nên báo cáo kiểm định cả mẫu số (giây xem), lệch thì gắn cờ (`PREREGISTRATION.md`, phần 5e).
 
-## 5.2 Lõi B — Xử lý ngôn ngữ tự nhiên tiếng Việt thời gian thực
+## 5.2 Lõi B: xử lý ngôn ngữ tự nhiên tiếng Việt
 
-| Thành phần | Phương pháp | Vai trò |
-|---|---|---|
-| Lọc PII | Luật + từ điển địa danh + chuẩn hóa NFKC/keycap | Khử nhận dạng trước khi lưu; cổng recall ≥95% (điện thoại/email/địa chỉ), ≥70% (tên người) |
-| Phân loại ý định | **11 lớp**; TF-IDF n-gram ký tự + hồi quy logistic, huấn luyện trên câu mẫu do AI soạn + nhãn LLM trên chat thật | Ước lượng tín hiệu ý định mua theo khối |
-| Khung đánh giá | Leave-one-session-out theo buổi live + KTC bootstrap + 3 baseline bắt buộc | Chống rò rỉ theo phiên — cái bẫy lớn nhất của bài toán này |
-| Kiểm soát đầu ra | Tín hiệu ý định **không** đi vào phần phân tích nhân quả. Lớp chặn tín hiệu theo tỷ lệ nền của từng buổi **chưa có trong mã** | Thà không dùng còn hơn dùng sai |
+**Lọc PII** dùng quy tắc, từ điển địa danh, chuẩn hóa NFKC và ký tự keycap, chạy ngay khi nạp (mục 3.2). **Phân loại ý định** dùng TF-IDF theo n-gram ký tự và từ, cộng hồi quy logistic. Bản **v1** (mặc định, 6 lớp, học trên 320 câu mẫu do AI soạn) đạt macro-F1 0,211 trên chat thật. Bản **v2** (11 lớp, thêm 9 đặc trưng hình thức như tỷ lệ chữ hoa, ký hiệu giá) đạt 0,542 khi chưa áp ngưỡng (mục 9.3), chỉ bật khi đặt `LIVELIFT_INTENT_MODEL=v2`. Khi xác suất cao nhất dưới 0,45, cả hai trả nhãn “khác”. Nhãn ý định **không đi vào phân tích nhân quả**, chỉ hiện trên bàn trợ live để người trợ live thấy khách đang hỏi gì.
 
-Nhóm **đã thử và bỏ** cơ chế từ chối trả lời theo ngưỡng tin cậy: khi chọn ngưỡng một cách trung thực (không nhìn tập kiểm tra) nó làm macro-F1 giảm 0,073, vì ngưỡng hiệu chuẩn ở buổi live này không chuyển giao sang buổi khác. Chi tiết ở mục 9.4.
+## 5.3 Lõi C: ba cơ chế liêm chính thực thi bằng mã
 
-## 5.3 Lõi C — Ba cơ chế liêm chính cưỡng chế bằng kiến trúc
-
-Đây là phần nhóm coi là đóng góp riêng, và nó là **mã nguồn chứ không phải cam kết bằng lời**:
-
-1. **Khóa tiền đăng ký.** Kế hoạch phân tích (biến kết quả chính, burn-in, bộ ước lượng) được ghi vào `PREREGISTRATION.md` và băm thành `design_hash`. Phiên không có lịch gán kèm `design_hash` thì API **chặn phát sóng bằng HTTP 409**.
-2. **Khóa kết quả theo thời gian.** Cờ `RESULTS_FREEZE_UNTIL` chạy theo nguyên tắc *fail-closed*: chưa tới mốc mở khóa thì ước lượng, giá trị p và khoảng tin cậy **không trả về**, kể cả cho chính nhóm phát triển. Mục đích: chống nhìn lén kết quả rồi dừng phiên đúng lúc số đang đẹp.
-3. **Làm mù người dẫn.** Màn hình `/host` không hiển thị thông tin khối hay nhánh gán. Nếu người dẫn biết mình đang ở khối "bật", họ sẽ hào hứng hơn, và phép đo trở thành phép đo tâm lý người dẫn.
+1. **Cam kết thiết kế trước giờ phát.** Lịch gán được tính hoàn toàn từ tham số thiết kế và seed. Hệ thống băm cặp này thành `design_hash` (SHA-256), lưu cùng lịch trước khi lên sóng, nên ai có tệp thiết kế cũng kiểm được lịch không bị sửa. Phiên chưa có lịch thì API từ chối phát sóng (HTTP 409). Kế hoạch phân tích `PREREGISTRATION.md` **chưa khóa**. Nhóm sẽ khóa bằng một commit trước phiên thí nghiệm khẳng định đầu tiên.
+2. **Khóa kết quả theo thời gian.** Khi đặt `RESULTS_FREEZE_UNTIL`, trước mốc đó bản tổng hợp và trang kết quả không trả ước lượng, p, KTC của phiên thật, kể cả cho nhóm. Mặc định biến này để trống, và đường `/sessions/{id}/report` vẫn trả chênh lệch trung bình của phiên thật trong lúc khóa. Đây là lỗi phải đóng trước phiên thật đầu tiên.
+3. **Làm mù người dẫn, mới được một phần.** Màn `/host` chỉ nhận 4 trường: thời gian đã phát, sản phẩm đang ghim, giá, tồn kho. Không có lịch, khối hay nhánh (mô hình dữ liệu cấm trường thừa, kiểm thử `test_case_8`). Nhưng người dẫn vẫn thấy sản phẩm đang ghim, mà ở chế độ Tự ghim lệnh ghim chỉ đến trong khối BẬT, nên có thể đoán nhánh. Vì thế phép so là giữa chiến lược ghim của LiveLift và cách làm thường lệ của đội, tính cả phản ứng của người dẫn (`PREREGISTRATION.md`, phần 1).
 
 ## 5.4 Công cụ AI dùng trong quá trình phát triển
 
-Nhóm sử dụng công cụ lập trình có hỗ trợ của AI (Claude Code) trong suốt quá trình phát triển, và **kê khai đầy đủ** theo Điều 5 Thể lệ. Phân định phần tự xây dựng / phần AI hỗ trợ / phần kế thừa nguồn mở, cùng quy trình kiểm chứng đầu ra, trình bày trong **Bản kê khai** nộp kèm hồ sơ; lịch sử câu lệnh đầy đủ đặt tại liên kết ở mục 13.
+Nhóm dùng Claude Code (Anthropic) suốt quá trình phát triển. **Gần như toàn bộ mã, kiểm thử, sổ sự cố và bản nháp tài liệu trong kho do Claude viết**. Từ ngày 14/09/2026, thành viên Tiến dùng thêm ChatGPT, OpenAI Codex, ChatGPT Deep Research, Google Antigravity, ChatGPT Image Generation (tự khai; ảnh chỉ để thử bố cục) và GitHub Copilot coding agent (commit `ec56971` trên kho fork). Đội đặt bài toán, ra yêu cầu, chọn phương án, duyệt kết quả, vận hành và chịu trách nhiệm. Phân định chi tiết ở **Bản kê khai**.
 
-# 6. Quy trình huấn luyện, tinh chỉnh, tích hợp hoặc khai thác mô hình
+# 6. Quy trình huấn luyện, tinh chỉnh, tích hợp hoặc khai thác mô hình (nếu có)
 
-## 6.1 Nguyên tắc chống rò rỉ dữ liệu
+**Chống rò rỉ dữ liệu.** Tập kiểm tra được tách theo buổi live (LOSO). Vì câu chào hay bảng giá có thể lặp ở nhiều buổi, khung đánh giá còn loại mọi dòng huấn luyện trùng khít văn bản với tập kiểm tra (62 dòng).
 
-Tập kiểm tra được tách theo **buổi live**, không tách theo dòng. Nếu cùng một buổi live nằm cả ở tập huấn luyện lẫn tập kiểm tra, mô hình học được văn phong và mặt hàng của buổi đó và điểm số sẽ đẹp giả tạo. Đây là cái bẫy lớn nhất của bài toán này và nhóm đã dựng cổng kiểm thử để chặn.
+1. **Dựng khung đánh giá trước khi sửa mô hình:** 4 mô hình cơ sở (Bảng 7), LOSO, KTC bootstrap 2.000 lần, macro-F1 từng buổi.
+2. **Xây lại bộ nhãn từ 6 lên 11 lớp:** trên 200 bình luận rút ngẫu nhiên, 40% là lời xã giao, loại không có chỗ trong bộ nhãn cũ (`nlp/labels.py`).
+3. **Gán nhãn, cả ba nguồn đều do AI tạo:** 393 dòng kiểm tra do một tác tử Claude gán ngày 09/09 trên bảng đã xáo trộn, 320 câu mẫu do Claude soạn ngày 01/09, và 1.800 nhãn huấn luyện do Claude gán. Nhóm quyết định bộ nhãn và cách rút mẫu (có seed), rà soát quy trình nhưng không duyệt từng nhãn. Vì vậy mọi con số ở mục 8, 9 đo **mức đồng thuận với nhãn tham chiếu do AI gán**, chưa phải độ chính xác so với con người. Việc hai thành viên gán lại độc lập rồi đo độ đồng thuận (hệ số κ) **chưa làm** (mục 12).
+4. **Huấn luyện:** TF-IDF n-gram cộng hồi quy logistic, cân bằng lớp, seed 2026. Số công bố đo bằng LOSO. Tệp mô hình v2 (cấu hình chốt ngày 14/09) học trên toàn bộ 2.513 dòng, kể cả 393 dòng kiểm tra, và được đóng gói lại ngày 25/09 trên dữ liệu đã lọc lại (mục 3.2).
 
-## 6.2 Quy trình
+**Tích hợp vào sản phẩm.** Bộ phân loại chạy ngay khi nạp dữ liệu, sau bước lọc PII. Mặc định là **v1**, còn **v2** bật bằng biến môi trường (mục 5.2). Khi nạp, mô hình phải trả lời đúng một câu dự đoán thử. Nếu lỗi (tệp hỏng, lệch phiên bản scikit-learn), hệ thống chuyển hẳn sang bộ từ khóa và `/health` báo `keyword_fallback` kèm lý do. Dự án ghim đúng scikit-learn 1.9.0 của tệp mô hình. Với ràng buộc cũ (dưới 1.8), cả 393/393 bình luận từng âm thầm rơi về bộ từ khóa.
 
-1. **Dựng khung đánh giá TRƯỚC khi sửa mô hình.** Đây là quyết định quan trọng nhất của cả quy trình: cải tiến trước rồi mới đo thì không cách nào biết cải tiến là thật hay chỉ là chọn được con số đẹp. Khung gồm 3 baseline bắt buộc (đoán lớp đa số · từ khóa · mô hình đang chạy), chia leave-one-session-out, và KTC bootstrap 2.000 lần.
-2. **Xây lại bộ nhãn.** Mở rộng 6 → **11 lớp** sau khi đo trên chat thật cho thấy hơn 40% bình luận là **xã giao và bảng giá của chính shop** — hai lớp không có trong bộ nhãn cũ, nên mô hình buộc phải ép chúng vào các lớp mua hàng. Định nghĩa lớp và hướng dẫn gán nhãn gom về một chỗ (`nlp/labels.py`).
-3. **Gán nhãn — và một điều nhóm phải nói rõ.** Cả ba nguồn nhãn hiện có **đều do AI tạo**: 393 dòng chat thật dùng làm **tập kiểm tra** do một tác tử Claude gán ngày 09/09; 320 câu mẫu do Claude soạn ngày 01/09; 1.800 nhãn huấn luyện do LLM gán. Nhóm chỉ thiết kế bộ nhãn và rà soát. Vì vậy mọi con số ở mục 8.3 và 9 đo **mức đồng thuận với nhãn tham chiếu do AI gán**, chưa phải độ chính xác so với con người. Gán lại tập kiểm tra bằng hai thành viên độc lập trên bảng xáo trộn, rồi đo độ đồng thuận κ, là việc đang làm.
-4. **Huấn luyện và đo lại.** Đặc trưng TF-IDF n-gram ký tự (chịu được teencode, thiếu dấu, viết dính) + hồi quy logistic. Mỗi thay đổi đo lại bằng cùng một lệnh; kết quả ghi tự động ra `docs/benchmarks/intent-eval/results.json` và `results.md`.
-5. **Ablation.** Tắt lần lượt từng thành phần để biết cái nào thật sự đóng góp — kể cả khi câu trả lời là "không đóng góp gì" (mục 9.4).
-
-Toàn bộ chạy lại được bằng **một lệnh**: `python -m livelift.nlp.eval_intent`.
+**Tái lập.** Lệnh `python -m livelift.nlp.eval_intent --ablation --coverage` sinh các bảng ở mục 9.3, 9.4. Nhãn tham chiếu và dự đoán từng dòng (không kèm văn bản) nằm trong `docs/benchmarks/intent-eval/results.json`, đủ để tính lại Bảng 7 và 8. Văn bản bình luận không nằm trong kho mã vì người bình luận chưa đồng ý (mục 3.3).
 
 # 7. Chỉ số, phương pháp hoặc tiêu chí đánh giá kết quả
 
-Hệ thống được chấm ở **ba tầng độc lập**, vì một con số duy nhất không nói được sản phẩm có đúng không.
+**Chỉ số của sản phẩm.** Biến kết quả chính của một phiên thí nghiệm là số lượt nhấp hợp lệ trên 1.000 giây xem của từng khối, sau burn-in (`PREREGISTRATION.md`, phần 4.1). Kết luận rơi vào đúng một trong bốn trạng thái (`analysis/narrate.py`): **dương** (KTC 95% nằm hẳn trên 0), **âm** (nằm hẳn dưới 0), **chưa phát hiện tác động** (KTC chứa 0), **chưa đủ điều kiện** (thiếu khối hoặc đang khóa). Hệ thống được đánh giá ở ba tầng độc lập.
 
-## 7.1 Tầng 1 — Bộ ước lượng có đúng không (kiểm chứng bằng mô phỏng)
+## 7.1 Tầng 1: bộ ước lượng có đúng không
 
-| Chỉ số | Ý nghĩa | Kết quả đo |
+: Bảng 4. Kiểm chứng bộ ước lượng trên mô phỏng có đáp án
+
+| Chỉ số | Tiêu chí đạt (cổng kiểm thử) | Kết quả | Nguồn |
+|---|---|---|---|
+| Tỷ lệ bác bỏ A/A, 200 lần lặp | Nhị thức hai phía quanh 5%, p từ 0,01 trở lên | 3,50% (7/200), KTC [1,4%; 7,1%], p = 0,4168 | `so-hieu-chuan.json`, đo lại 25/09, khớp |
+| Độ phủ KTC 95% (A/A) | Mặt kia của dòng trên (193 là 200 trừ 7), không độc lập | 96,50% (193/200) | như trên |
+| Thu hồi tác động biết trước, 40 lần | Lệch dưới 10% tác động; độ phủ qua kiểm định nhị thức | Lệch −0,84%; phủ 92,50% (37/40), KTC [79,6%; 98,4%] | như trên |
+
+Bảng 4 sinh lại bằng `scripts/do_lai_so_hieu_chuan.py --kiem` (báo lỗi khi số đo lại khác số đã ghi). Mỗi lần lặp A/A chạy 6 phiên 60 phút, thu hồi chạy 8 phiên 90 phút. Số lần lặp còn ít nên KTC của chính các tỷ lệ này rộng (Hình 2).
+
+![Hình 2. Hiệu chuẩn A/A và thu hồi tác động trên mô phỏng, kèm KTC của chính các tỷ lệ.](hinh/h3-hieu-chuan-aa.png){width=15cm}
+
+Hình 3 là kết quả bất lợi. Khi tác động kéo sang khối sau, với thời gian bán rã (thời gian tác động giảm một nửa) là 0, 120 và 180 giây, độ phủ KTC còn 96%, 76% và 57% (mỗi mức 75 lần lặp), ước lượng bị kéo về 0 khoảng 21% đến 32%. Nghĩa là với kiểu kéo sang cùng chiều đã mô phỏng, hệ thống đánh giá thấp chứ không phóng đại. Kiểu “khách chỉ mua sớm hơn chứ không mua thêm” chưa được mô phỏng và có thể làm ước lượng phóng đại. Ở mức 120 giây, cổng kiểm thử chỉ đòi ước lượng không đổi dấu và độ phủ từ 60% trở lên. Đây là điều kiện sử dụng, và là lý do độ dài khối chỉ chốt sau khi đo thời gian tắt dần trên phiên thăm dò.
+
+![Hình 3. Độ phủ KTC 95% và độ lệch khi tác động kéo sang khối sau (3 seed, mỗi seed 25 lần lặp cho mỗi mức).](hinh/h5-luu-hieu-ung.png){width=15cm}
+
+## 7.2 Tầng 2: mô hình AI
+
+- Macro-F1, F1 từng lớp, ma trận nhầm lẫn, KTC bootstrap theo dòng 2.000 lần. Có số từng buổi và số trên 200 dòng rút ngẫu nhiên, vì bất định thật nằm ở cấp buổi.
+- **Precision và recall của nhãn hành động** (hỏi giá, hỏi size, chê đắt, chốt đơn, vận chuyển), KTC Wilson: báo “có khách muốn mua” thì đúng bao nhiêu, và bắt được bao nhiêu khách thật sự muốn mua.
+- **Tiêu chí đạt:** vượt cả bốn mô hình cơ sở, KTC không chồng lấn với bản đang chạy, vượt ở từng buổi, số trên câu mẫu luôn đi cùng số trên chat thật.
+
+## 7.3 Tầng 3: hệ thống có chạy được không
+
+: Bảng 5. Chỉ số vận hành
+
+| Chỉ số | Kết quả | Nguồn |
 |---|---|---|
-| Tỷ lệ bác bỏ A/A | Chạy thí nghiệm giả không có tác động; phải bác bỏ đúng 5% | **3,50%** (7/200; p nhị thức 0,4168) |
-| Độ phủ khoảng tin cậy 95% | KTC phải chứa giá trị thật 95% số lần | **96,50%** (193/200) |
-| Thu hồi tác động biết trước | Cấy tác động đã biết, đo lại có đúng không | độ lệch **−0,84%**, phủ KTC 92,50% |
-| MDE | Tác động nhỏ nhất phát hiện được | **20,1%** (điều kiện 45–62 người xem đồng thời) |
-| Độ bền với hiệu ứng lưu | Phủ KTC khi hiệu ứng kéo dài sang khối sau | bán rã 0 s → **100%**; 120 s → **84%**; 180 s → **60%** |
-
-Bảng cuối là một **kết quả xấu mà nhóm công bố nguyên**: nếu hiệu ứng của can thiệp kéo dài quá 2 phút sang khối kế tiếp, khoảng tin cậy mất độ phủ nghiêm trọng. Đây là điều kiện sử dụng của sản phẩm, không phải chi tiết giấu được.
-
-**Một sự cố về tính tái lập, và cách nhóm đóng nó lại.** Khi rà soát hồ sơ này (14/09/2026), nhóm chạy lại cổng A/A và ra **3,50%**, trong khi tài liệu đang công bố **4,5%**. Truy nguyên: 4,5% là số đo thật ngày 30/08, mã đã thay đổi nhiều lần sau đó và không ai đo lại — con số cũ cứ thế được chép sang tài liệu mới. Về thống kê cả hai đều tương thích mức danh nghĩa 5%, nhưng **con số không tái lập được thì không có giá trị**, và hồ sơ này tự hứa mọi số sinh lại được bằng một lệnh.
-
-Nguyên nhân gốc: cổng Monte-Carlo chỉ *in* số khi nó đỏ; khi xanh thì số mới biến mất. Nhóm đã viết `scripts/do_lai_so_hieu_chuan.py` — đo lại bằng đúng tham số của cổng, ghi kết quả kèm ngày đo và bản mã nguồn vào `docs/benchmarks/so-hieu-chuan.json`, và có chế độ `--kiem` chạy trước mỗi lần nộp để báo đỏ nếu tài liệu lệch khỏi số đo. **Mọi con số hiệu chuẩn trong hồ sơ này lấy từ tệp đó, đo ngày 14/09/2026.**
-
-## 7.2 Tầng 2 — Mô hình AI có đúng không
-
-Macro-F1, F1 theo từng lớp, ma trận nhầm lẫn, và **khoảng tin cậy bootstrap cho macro-F1** — vì một con số không kèm sai số thì không kiểm chứng được. Bắt buộc chấm trên **hai tập**: bộ câu mẫu và **chat thật giữ riêng theo buổi**.
-
-## 7.3 Tầng 3 — Hệ thống có chạy được không
-
-| Chỉ số | Kết quả |
-|---|---|
-| Kiểm thử tự động | **1.174** (1.157 nhanh + 17 cổng Monte-Carlo), đếm 15/09/2026 |
-| Sự cố có phân tích nguyên nhân gốc | **47**, ghi trong `docs/incident-log.md` |
-| Thông lượng nạp bình luận | ~900 bình luận/giây |
-| Độ trễ nạp (YouTube) | p50 24 giây · p90 37 giây |
-| Tính tất định | Chạy lại một buổi sau 2 ngày: trùng từng con số |
-| Cô lập phiên | Kiểm cả khi chạy song song: tuyệt đối |
+| Kiểm thử tự động | 2.116 bài, gồm 2.089 nhanh, 17 bài chậm và 10 trên trình duyệt. Chạy ngày 27/09/2026: 2.114 đạt, 2 bỏ qua, 0 lỗi | `dong_bo_so_test.py` |
+| Sự cố có phân tích nguyên nhân gốc | 121 | `docs/incident-log.md` |
+| Tốc độ nạp | 835 đến 923 bình luận mỗi giây (một tiến trình, kho trong bộ nhớ, không tính thời gian tải về) | Chạy toàn tuyến ngày 10/09 (mục 8.1) |
 
 # 8. Kết quả thử nghiệm, phân tích ưu điểm, hạn chế và khả năng mở rộng
 
-## 8.1 Live-fire đa nguồn — điều đã kiểm chứng được
+Mọi kết quả ở đây là **quan sát hoặc mô phỏng**. Chưa có phiên thí nghiệm ngẫu nhiên thật nào (MT3).
 
-Ngày 10/09/2026 nhóm chạy toàn bộ đường ống trên **19.126 bình luận thật từ 16 buổi live, 7 ngành hàng**, gồm cả một buổi 117 phút với 6.586 bình luận nạp qua API trong khoảng 75 giây. Kết quả: hạ tầng nạp, khử PII, khử trùng, cô lập phiên và tính tất định đều đạt.
+## 8.1 Chạy toàn tuyến trên dữ liệu thật
 
-## 8.2 Kết quả tự bác bỏ — phần nhóm coi là giá trị nhất
+Ngày 10/09/2026, nhóm chạy toàn bộ đường ống trên 19.126 bình luận của 16 buổi phát lại (tải bằng yt-dlp, mục 3.3). Buổi lớn nhất dài 117 phút, 6.586 bình luận, tải 69 giây, xử lý 8 giây. Nạp, lọc PII, loại trùng, cô lập phiên và chạy lại ra đúng số đều đạt.
 
-Cùng đợt live-fire đó **bác bỏ chính tuyên bố của nhóm về mô hình AI**. Bộ phân loại ý định đạt macro-F1 **0,870** trên 320 câu mẫu do AI soạn, nhưng chỉ **0,211** trên chat thật — **thua cả baseline "luôn đoán lớp đa số"**. Nhóm truy ra ba cơ chế sai:
+Từ đợt hoàn thiện ngày 17 và 18/09, một phiên chạy trọn không cần thao tác kỹ thuật: bộ thu chạy nền bật bằng một nút, nguồn mô phỏng để tập dượt (bị từ chối trên phiên thật), đơn nhập từ CSV. Bộ nối Shopee Live, TikTok Shop và công cụ kiểm tra khóa YouTube có kiểm thử nhưng **chưa chạy với khóa thật**. Thử ngày 25/09 trên bản build: phiên chạy thử nhận đủ 200/200 bình luận mô phỏng, che 10/10 câu có dữ liệu cá nhân giả.
 
-1. **Thiếu lớp** — khoảng 40% bình luận livestream Việt Nam là xã giao, một lớp không có trong bộ nhãn ban đầu (đo độc lập lần hai trên 3 người bán khác cho kết quả tương tự).
-2. **Đa nghĩa tiếng Việt** — "bao nhiêu" có thể là hỏi giá, hỏi số lượng còn lại, hoặc nói đùa.
-3. **Không mô hình hóa người nói** — bình luận của chính chủ shop và của khách bị xử lý như nhau.
+## 8.2 Kết quả tự bác bỏ
 
-Một phát hiện thứ hai còn quan trọng hơn với người dùng: **radar ý định không có một độ chính xác duy nhất**. Tỷ lệ nền ý định mua thật đo được trên ba buổi live trong tập kiểm tra là **0,0% · 6,8% · 48,0%** — cùng một mô hình cho kết quả rất khác nhau tùy buổi. Một sản phẩm quảng cáo "độ chính xác 87%" mà không nói điều này là đang nói sai với người dùng.
+Cùng đợt đo đó bác bỏ chính tuyên bố của nhóm về mô hình ý định. Macro-F1 là 0,870 trên 320 câu mẫu do AI soạn (kiểm chứng chéo 5 phần) nhưng chỉ 0,211 trên chat thật. Tỷ lệ đúng 0,338 còn thấp hơn cách luôn đoán lớp đa số (0,389). Ba nguyên nhân: bộ nhãn thiếu lớp (40% bình luận là lời xã giao), tiếng Việt đa nghĩa (“đắt” là chê giá hay “bán đắt hàng”), và không phân biệt người nói (bảng giá shop tự dán bị đọc thành khách hỏi giá). Tỷ lệ bình luận có ý định mua mỗi buổi rất khác nhau: 0% (0/72), 6,8% (7/103), 48,0% (12/25), nên không có một con số độ chính xác chung.
 
-## 8.3 Kết quả sau cải tiến — đo lại bằng phương pháp chặt hơn
+## 8.3 Kết quả sau cải tiến
 
-Nhóm dựng lại khung đánh giá trước khi sửa bất cứ thứ gì: tập kiểm tra **393 bình luận thật với nhãn tham chiếu do tác tử AI gán** (mục 6.2), chia **leave-one-session-out theo buổi live**, khoảng tin cậy bootstrap. Kết quả:
+Macro-F1 tăng từ 0,211 lên 0,542, KTC hai bản không chồng lấn, bản mới tốt hơn ở cả ba buổi (Bảng 7, mục 9.3). Precision nhãn hành động tăng từ 23,0% lên 65,5%, nhưng **recall giảm từ 78,3% xuống 55,1%**: bản mới báo “có khách muốn mua” ít hơn nhưng đúng hơn. Tổng cảnh báo giảm từ 235 xuống 58, trong đó cảnh báo sai giảm từ 181 xuống 20. Ở buổi gần như không có ý định mua (1/147 dòng), bản mới vẫn phát 11 cảnh báo và sai cả 11. Bản cũ phát 88, sai 87.
 
-| | Trước cải tiến | Sau cải tiến |
-|---|---:|---:|
-| macro-F1 trên chat thật | **0,211** [0,172; 0,247] | **0,565** [0,491; 0,649] |
-| Accuracy | 0,338 (*thua* baseline đoán bừa 0,389) | 0,741 |
-| Precision nhãn hành động | 23,0% (54/235) | **66,7%** (40/60) |
+**Hai đính chính.** Con số 0,271 từng ghi trong README **không tái lập được** (tệp nhãn ngày 08/09 không được lưu), nên số “trước cải tiến” chính thức là 0,211. Số 0,565 ngày 14/09 đo **trước** khi lọc lại tên tài khoản; đo lại ngày 25/09 được 0,542, hai KTC chồng lấn gần hết.
 
-Hai khoảng tin cậy **không chồng lấn**. Chi tiết baseline và ablation ở mục 9.
+## 8.4 Ưu điểm
 
-**Một đính chính nhóm phải nêu:** con số 0,271 từng công bố **không tái lập được** — tệp nhãn 200 dòng dùng hồi 08/09 không được lưu lại. Vì vậy con số "trước cải tiến" chính thức từ nay là **0,211**, đo trên tập nhãn hiện có và chạy lại được bằng một lệnh (`python -m livelift.nlp.eval_intent`). Nhóm chọn công bố số tái lập được thay vì giữ một con số đẹp hơn mà không ai kiểm lại được.
+Số hiệu chuẩn sinh lại được bằng lệnh. Số NLP tính lại được từ dự đoán từng dòng (mục 6). Cam kết liêm chính nằm trong mã (mục 5.3). Cả hệ thống chạy trên một máy cá nhân (chưa triển khai máy chủ, mục 10.2), mô hình ý định dưới 1 MB và không cần GPU.
 
-**Bệnh gốc chưa khỏi:** precision vẫn đi theo tỷ lệ nền của từng buổi — với buổi có 0% ý định mua, mô hình vẫn sai cả 11 dự đoán. Đây là lý do không có con số nào của radar ý định đi vào phần phân tích nhân quả. Một lớp chặn tín hiệu theo tỷ lệ nền của từng buổi **chưa có trong mã** và là việc cần làm.
+## 8.5 Hạn chế
 
-## 8.3 Ưu điểm
+- **0 phiên thí nghiệm ngẫu nhiên thật**, mọi bằng chứng nhân quả là mô phỏng. **Chưa có khóa API chính thức nào**, độ trễ trên đường chính thức chưa đo.
+- **Lực thống kê** (Hình 4, mục 2.3): MDE lượt nhấp 16,4% ở khoảng 59 người xem, 8 phiên, tính từ hệ số biến thiên mô phỏng, sát sàn Poisson 16,0% nên là mức lạc quan. Với đơn hàng, ở 15 người xem và 18 phiên, MDE là 179% đến 327% (`docs/benchmarks/order-mde.md`), nên đơn hàng chỉ là biến phụ.
+- **Mô hình ý định chưa đủ để ra quyết định:** nhãn tham chiếu do AI gán, chỉ có 3 buổi kiểm tra, 2 buổi cùng hệ thống cửa hàng với buổi huấn luyện, 51/69 dòng hành động đến từ một buổi, nên 0,542 nhiều khả năng lạc quan với nhà bán mới.
+- **Đơn hàng** chỉ nhập được bằng CSV sau buổi, báo cáo hiện chỉ đếm số đơn. **TikTok Shop** không có bình luận qua API chính thức (mục 8.6). **Phiên đấu giá** có chat toàn chữ số, bộ phân loại không đọc được.
 
-- **Tính kiểm chứng**: mọi con số trong hồ sơ này sinh lại được bằng một lệnh; bộ ước lượng tự chứng minh trên A/A trước khi chạm dữ liệu thật.
-- **Liêm chính cưỡng chế bằng kiến trúc**, không bằng cam kết (mục 5.3).
-- **Tất định**: cùng đầu vào cho cùng đầu ra, kể cả sau nhiều ngày.
-- **Chi phí vận hành thấp**: chạy được trên một máy chủ phổ thông.
+![Hình 4. MDE của lượt nhấp (cận dưới Poisson) theo số người xem và số phiên, với hai giả định tỷ lệ nhấp. Vùng 5 đến 15 người xem là ước tính từ CPM, chưa đo; điểm 16,4% tính từ hệ số biến thiên đo trên 8 phiên mô phỏng.](hinh/h4-mde.png){width=15cm}
 
-## 8.4 Hạn chế — nêu đầy đủ
+## 8.6 Khả năng mở rộng
 
-- **0 phiên thí nghiệm ngẫu nhiên thật.** Toàn bộ buổi live đã chạy là **quan sát**: không gán ngẫu nhiên, không link đo, không sinh ra con số nhân quả nào. Giao diện tự dán nhãn đúng như vậy để không ai hiểu nhầm.
-- **Lực thống kê ở phòng live thật còn yếu.** MDE 20,1% đo ở 45–62 người xem đồng thời, trong khi thực đo với 300.000 đồng quảng cáo chỉ kéo được 5–15 người xem đồng thời.
-- **Mô hình ý định chưa dùng được cho quyết định** (mục 8.2).
-- **Không đo được đơn hàng trực tiếp**: đơn nằm trong ứng dụng của nền tảng; hệ thống chỉ đo được lượt nhấp hợp lệ qua link đo.
-- **Mù với phiên đấu giá**; **TikTok chưa vào được** (WebSocket bị Cloudflare từ chối 10/10 lần — cần Partner API).
+Thêm một nền tảng chỉ cần thêm một bộ nối, lõi phân tích giữ nguyên. Giới hạn đã biết: hạn mức mặc định của YouTube Data API là 10.000 đơn vị mỗi ngày. Một buổi 90 phút tốn khoảng 2.900 đơn vị nếu mỗi lượt đọc chat tính 1 đơn vị như bảng giá chính thức, nhưng vượt hạn mức nếu tính 5 đơn vị như một dự án nguồn mở ghi nhận (chưa đo). Bộ thu chỉ an toàn với một tiến trình. Hướng mở rộng gần nhất là TikTok Shop. API chính thức chỉ trả số liệu theo phút sau phiên, cho tài khoản chính thức của shop. Bộ nối đã gộp số đó theo khối và có kiểm thử, nhưng chưa nối vào bộ thu, chưa chạy với shop thật, và doanh số (GMV) theo phút là số quy đổi nên chỉ làm biến phụ.
 
-## 8.5 Khả năng mở rộng
+# 9. So sánh với phương án hoặc mô hình cơ sở, phân tích đóng góp của các thành phần trong hệ thống (nếu có)
 
-Đơn vị dữ liệu là khối thời gian, nên chi phí tính toán tăng tuyến tính theo số phiên chứ không theo số người xem. Kiến trúc tách rời phần nạp dữ liệu khỏi phần phân tích, nên thêm một nền tảng mới chỉ là thêm một adapter nạp. Phương pháp chuyển giao được sang mọi bối cảnh "một kênh phát — nhiều người xem" ngoài thương mại.
+## 9.1 So với các nhóm giải pháp hiện có
 
-# 9. So sánh với phương án cơ sở và phân tích đóng góp của các thành phần
+Công cụ phân tích livestream trả lời “bán được bao nhiêu”. Nền tảng thí nghiệm chuyên nghiệp trả lời “bao nhiêu là do bạn” nhưng đòi sở hữu nền tảng (mục 1.2). LiveLift nhắm vào khoảng trống giữa hai nhóm này, và năng lực đó mới được kiểm chứng trên mô phỏng.
 
-## 9.1 So sánh với các nhóm giải pháp hiện có
+## 9.2 So sánh phương án ước lượng
 
-| Nhóm | Đại diện | Trả lời được "bán được bao nhiêu"? | Trả lời được "bao nhiêu là do bạn"? | Nhà bán Việt Nam dùng được? |
-|---|---|---|---|---|
-| (a) Phân tích livestream | TikTok LIVE Manager | Có | **Không** | Có |
-| (b) Phần mềm hỗ trợ bán live VN | Các công cụ chốt đơn, trả lời tự động | Một phần | **Không** | Có |
-| (c) Nền tảng thí nghiệm chuyên nghiệp | Statsig, Eppo, GrowthBook | Có | Có | **Không** — đòi sở hữu nền tảng; ~1,1 tỷ đ/năm |
-| **LiveLift** | | Một phần | **Có, kèm khoảng tin cậy** | **Có** |
+: Bảng 6. Các phương án ước lượng và trạng thái kiểm chứng
 
-Khoảng trống LiveLift nhắm vào nằm đúng ở ô cuối: **năng lực của nhóm (c) với điều kiện sử dụng của nhóm (a)**.
-
-## 9.2 So sánh phương án ước lượng (mô phỏng có đáp án)
-
-| Phương án | Trạng thái kiểm chứng | Nhận xét |
+| Phương án | Vai trò | Trạng thái kiểm chứng |
 |---|---|---|
-| **RI studentized + Fisher CI** (chính) | A/A: bác bỏ 3,50%, phủ 96,50% · thu hồi tác động: lệch −0,84%, phủ 92,50% (`so-hieu-chuan.json`) | Không cần giả định phân phối |
-| Horvitz–Thompson (Hájek) | Trùng đại số với diff-in-means tại p = 0,5 — không phải một ước lượng độc lập | Giữ để kiểm tra chéo |
-| OLS + FE phiên + Lin | **Chưa đo độ phủ bằng mô phỏng** | Giảm phương sai, cần giả định thêm |
-| Diff-in-means không hiệu chỉnh | **Chưa đo độ phủ bằng mô phỏng** | Bỏ qua tương quan trong phiên |
+| Hiệu hai trung bình, kiểm định ngẫu nhiên hóa, KTC Fisher | Chính | Ước lượng điểm là hiệu hai trung bình; đạt mọi cổng A/A và thu hồi ở Bảng 4 |
+| Hájek (Horvitz-Thompson chuẩn hóa) | Không dùng riêng | Trùng hiệu hai trung bình khi xác suất gán không đổi; dòng riêng đã gỡ khỏi báo cáo |
+| Hồi quy OLS có hiệu ứng cố định theo phiên, hiệu chỉnh Lin, sai số chuẩn cụm | Phụ | Có kiểm thử đúng hướng; **chưa đo độ phủ bằng mô phỏng** |
+| Kiểm định ngẫu nhiên hóa cộng CUPED đa biến (giảm phương sai bằng dữ liệu trước can thiệp) | Độ nhạy | Có cổng A/A với ngưỡng lỏng (20%); chưa hiệu chuẩn chính thức |
 
-Bản trước của bảng này ghi "thấp hơn / xấp xỉ danh nghĩa" cho ba dòng dưới mà **không có phép đo nào đứng sau**; nhóm đã gỡ và ghi đúng trạng thái. Đo so sánh độ phủ của cả bốn phương án trên cùng mô phỏng là việc đang làm.
+Nhóm chọn kiểm định ngẫu nhiên hóa làm kết luận chính vì khi có ít phiên, KTC dựa trên sai số chuẩn cụm bị hụt độ phủ. Pankratev [4] (phần 3.2.1) ghi nhận với 10 cụm trở xuống, KTC của cả bốn phương pháp được so chỉ chứa giá trị thật khoảng 82% số lần thay vì 95%.
 
-## 9.3 So sánh với baseline trên chat thật
+## 9.3 So sánh với mô hình cơ sở trên chat thật
 
-Tập kiểm tra: **393 bình luận thật, nhãn tham chiếu do tác tử AI gán** (chưa có nhãn người độc lập), chia **leave-one-session-out theo buổi live** — không buổi nào nằm cả ở tập huấn luyện lẫn tập kiểm tra. Khoảng tin cậy bootstrap 2.000 lần.
+: Bảng 7. Phân loại ý định trên 393 bình luận thật (LOSO theo buổi, nhãn tham chiếu do tác tử AI gán, đo ngày 25/09/2026)
 
-| Hệ thống | macro-F1 | KTC 95% | Accuracy | Precision nhãn hành động |
-|---|---:|---|---:|---:|
-| B0 · luôn đoán lớp đa số | 0,056 | [0,051; 0,063] | 0,389 | — |
-| B1 · từ khóa (bản tiền đăng ký) | 0,146 | [0,109; 0,180] | 0,387 | 20,9% |
-| B2 · **bản đang chạy trước cải tiến** | **0,211** | [0,172; 0,247] | 0,338 | 23,0% |
-| C1 · bộ nhãn 11 lớp | 0,557 | [0,487; 0,614] | 0,608 | 46,2% |
-| **C2 · 11 lớp + nhãn LLM trên chat thật** | **0,565** | [0,491; 0,649] | 0,741 | **66,7%** |
+| Hệ thống | macro-F1 [KTC 95%] | Tỷ lệ đúng | Precision hành động | Recall hành động |
+|---|---|---:|---:|---:|
+| B0: luôn đoán lớp đa số | 0,056 [0,051; 0,063] | 0,389 | không báo lần nào | 0% (0/69) |
+| B1: từ khóa (đăng ký trước) | 0,146 [0,109; 0,180] | 0,387 | 20,9% (18/86) | 26,1% |
+| B2: **v1 đang chạy** | **0,211** [0,172; 0,247] | 0,338 | 23,0% (54/235) | 78,3% |
+| B3: cùng kiến trúc, học lại trên câu mẫu | 0,199 [0,163; 0,234] | 0,303 | 21,9% (57/260) | 82,6% |
+| C1: 11 lớp, thêm nhãn 2 buổi còn lại | 0,563 [0,491; 0,621] | 0,611 | 47,2% (43/91) | 62,3% |
+| C2: C1 cộng 1.800 nhãn LLM (**v2**) | **0,542** [0,478; 0,625] | 0,730 | 65,5% (38/58) | 55,1% |
 
-Khoảng tin cậy của B2 và C2 **không chồng lấn** — cải tiến là thật, không phải nhiễu. Đáng chú ý: bản trước cải tiến có accuracy 0,338, **thua cả baseline đoán bừa** (0,389); sau cải tiến đạt 0,741. Số cảnh báo sai cho người dùng giảm từ 235 xuống 60.
+C2 tốt hơn B2 ở cả ba buổi (macro-F1 từng buổi từ 0,064, 0,412, 0,138 lên 0,368, 0,599, 0,525; KTC gộp ở Hình 5b). Nhãn tham chiếu có bốn lớp mới mà B2 không thể đoán (171/393 dòng), nên một phần mức tăng đến từ bộ nhãn mới. Chấm cùng thang 6 lớp cũ, B2 đạt 0,370 [0,306; 0,432], C2 đạt 0,572 [0,471; 0,667], KTC vẫn không chồng lấn (Bảng 8). 193 dòng được rút theo nhãn bản cũ dự đoán nên số trên 393 dòng không phản ánh lúc chạy thật. Trên riêng 200 dòng rút ngẫu nhiên, macro-F1 tăng từ 0,208 lên 0,516, precision hành động tăng từ 21,4% (9/42) lên 66,7% (6/9, KTC 35% đến 88%), recall giảm từ 47,4% (9/19) xuống 31,6% (6/19). B2 được chấm với ngưỡng 0,45 như sản phẩm, còn C2 thì không. Cùng ngưỡng, v2 cho macro-F1 0,523 và precision 73,9%.
 
-## 9.4 Ablation — đóng góp thật của từng thành phần
+![Hình 5. (a) Ma trận nhầm lẫn của v2 (C2), chuẩn hóa theo hàng; (b) macro-F1 và KTC 95% của các hệ thống ở Bảng 7 và của C3, A4 ở Bảng 8. Nhãn tham chiếu do tác tử AI gán.](hinh/h6-nlp.png){width=15cm}
 
-| Bỏ thành phần nào ra khỏi bản đầy đủ | macro-F1 | Chênh lệch |
-|---|---:|---:|
-| **A0 · bản đầy đủ** | **0,565** | — |
-| − bộ 320 câu mẫu (do AI soạn) | 0,365 | **−0,200** |
-| − nhãn LLM trên chat thật | 0,557 | −0,008 |
-| − chuẩn hóa văn bản (NFKC/teencode/emoji) | 0,564 | −0,001 |
-| − đặc trưng "ai đang nói" | 0,576 | **+0,011** |
-| − nhãn thật của buổi khác trong tập huấn luyện | 0,582 | **+0,017** |
-| + cơ chế từ chối trả lời (ngưỡng chọn trong tập train) | 0,492 | **−0,073** |
-| bộ nhãn 6 lớp (chấm cùng thang 6 lớp) | 0,574 | — |
-| bộ nhãn 11 lớp (gộp về 6 khi chấm) | **0,609** | **+0,035** |
+## 9.4 Ablation: đóng góp của từng thành phần
 
-**Đọc bảng này trung thực:**
-- Thứ đóng góp nhiều nhất là **bộ 320 câu mẫu** (bỏ đi mất 0,200). Bộ này cũng do AI soạn, nên kết luận đúng là: dữ liệu mẫu có chủ đích tốt hơn dữ liệu thật gán vội — chưa phải "dữ liệu người làm".
-- Bộ **nhãn 11 lớp thắng ngay cả khi chấm trên thang 6 lớp cũ** (0,609 so với 0,574), tức cái lợi đến từ việc *có chỗ đặt* cho hơn 40% chat là xã giao và bảng giá của shop, chứ không phải do đổi cách chấm.
-- **Ba thành phần nhóm kỳ vọng có ích thì không có ích**: chuẩn hóa văn bản gần như bằng không (đặc trưng n-gram ký tự đã dung sai sẵn), đặc trưng "ai đang nói" **làm xấu đi**, và cơ chế từ chối trả lời với ngưỡng chọn trung thực (không nhìn tập kiểm tra) **làm xấu đi rõ rệt** — hiệu chuẩn ngưỡng không chuyển giao được sang buổi live mới.
+: Bảng 8. Bỏ lần lượt từng thành phần khỏi bản đầy đủ (C2), đo ngày 25/09/2026
 
-**Vì sao nhóm không chọn cấu hình có điểm cao nhất.** Hai cấu hình bỏ bớt thành phần đạt 0,576 và 0,582, cao hơn bản đầy đủ 0,565. Nhóm vẫn giữ bản đầy đủ, vì các khoảng tin cậy chồng lấn nhau và **chọn cấu hình theo điểm trên chính tập kiểm tra là một dạng khớp quá mức**. Việc đúng là công bố cả bảng và để người đọc thấy.
+| Cấu hình | macro-F1 [KTC 95%] | Chênh với bản đầy đủ |
+|---|---|---:|
+| Bản đầy đủ (C2) | **0,542** [0,478; 0,625] | 0 |
+| A4: bỏ bộ 320 câu mẫu | 0,362 [0,317; 0,423] | **−0,180** |
+| Bỏ 1.800 nhãn LLM | 0,563 [0,491; 0,621] | +0,021 |
+| Bỏ bước chuẩn hóa văn bản | 0,559 [0,488; 0,643] | +0,017 |
+| Bỏ đặc trưng “ai đang nói” | 0,576 [0,513; 0,682] | +0,034 |
+| Bỏ nhãn AI của 2 buổi còn lại | 0,580 [0,504; 0,666] | +0,038 |
+| Thêm bước tự chọn ngưỡng từ chối theo tập huấn luyện (C3) | 0,493 [0,441; 0,562] | −0,049 |
+| Cùng thang 6 lớp: v1 đang chạy (B2); học lại 6 lớp; C2 gộp về 6 lớp | 0,370; 0,579; 0,572 | Không áp dụng |
 
-**Điều nhóm KHÔNG làm, và nói thẳng:** chưa tinh chỉnh ViSoBERT. Máy của nhóm không có `torch`/`transformers` và chưa xác nhận được GPU; hứa một con số transformer mà không chạy được là điều nhóm từ chối làm.
+**Cách đọc bảng.** Chỉ bộ 320 câu mẫu có đóng góp rõ (−0,180, KTC không chồng lấn): lô nhãn LLM chỉ có 5 dòng nhãn hành động trong 1.800, nên thiếu câu mẫu là thiếu gần hết ví dụ mua hàng. Nhãn LLM nâng precision từ 47,2% lên 65,5%. Nhưng mức chênh macro-F1 +0,021 đổi dấu thành −0,034 khi chỉ chấm 10 lớp có trong nhãn tham chiếu, nên chưa kết luận được. Các dòng còn lại lệch dưới 0,05 và KTC chồng lấn. Với 3 buổi kiểm tra, chưa kết luận được thành phần nào có hại hay có ích.
+
+**Vì sao vẫn giữ bản đầy đủ.** Cấu hình v2 chốt ngày 14/09. Chọn lại theo điểm trên chính tập kiểm tra là khớp quá mức (overfitting). Mô hình cơ sở dạng transformer (ViSoBERT, PhoBERT) chưa chạy, đây là phép so sánh còn thiếu. Claude không dùng làm mô hình cơ sở được vì chính nó gán nhãn tham chiếu. Cũng vì thế, phần precision tăng nhờ 1.800 nhãn LLM có thể một phần do mô hình học theo cách gán của Claude.
 
 # 10. Kiến trúc hệ thống và phương án triển khai
 
-```
-   NGUỒN                 NẠP & LÀM SẠCH            LÕI                    NGƯỜI DÙNG
- ┌──────────┐         ┌────────────────┐    ┌──────────────────┐     ┌──────────────┐
- │ YouTube  │──API──► │  Adapter nạp   │    │ Bộ gán ngẫu nhiên│     │ /desk        │
- │ Data API │         │      ↓         │──► │  (khóa trước khi │────►│ Bàn điều     │
- ├──────────┤         │  KHỬ PII       │    │   lên sóng)      │     │ khiển        │
- │ Facebook │──API──► │  (bắt buộc)    │    ├──────────────────┤     ├──────────────┤
- │ Graph API│         │      ↓         │    │ NLP: phân loại   │     │ /host        │
- ├──────────┤         │  Chuẩn hóa     │    │ ý định + abstain │     │ (LÀM MÙ:     │
- │ Link đo  │──HTTP─► │      ↓         │    ├──────────────────┤     │ không thấy   │
- │ /r/{code}│         │  Khử trùng     │    │ Phân tích nhân   │     │ khối/nhánh)  │
- └──────────┘         │  (platform,    │    │ quả: RI + Fisher │     ├──────────────┤
-                      │   ext_id)      │    │ CI, CUPED, LATE  │     │ /report      │
-                      └───────┬────────┘    └────────┬─────────┘     │ (KHÓA tới    │
-                              ▼                      ▼               │  mốc prereg) │
-                      ┌─────────────────────────────────────┐        └──────────────┘
-                      │  PostgreSQL — 9 migration có version│
-                      │  assignment · exposure_event ·      │
-                      │  comment · click · design_hash      │
-                      └─────────────────────────────────────┘
-```
+**Thành phần:** API FastAPI (Python 3.11), giao diện Next.js 14, PostgreSQL 16 (9 migration), Redis, Caddy (cổng HTTPS) và tác vụ sao lưu hằng ngày, đóng gói bằng Docker Compose (7 dịch vụ). Giao diện gồm `/chay-phien` (bốc lịch, bật bộ thu), `/desk` (bàn trợ live), `/host` (màn người dẫn), `/ket-qua` và `/bao-cao` (Hình 7).
 
-**Thành phần:** API FastAPI (Python) · giao diện Next.js/TypeScript · PostgreSQL · Caddy làm cổng vào HTTPS · toàn bộ đóng gói bằng Docker Compose.
+**Ba cổng chặn** (Hình 6, tô đỏ): không qua bộ lọc PII thì không ghi được xuống kho, chưa có lịch gán thì không phát sóng được (HTTP 409), và khóa kết quả chỉ có hiệu lực khi đặt `RESULTS_FREEZE_UNTIL` (mục 5.3). Biến này, cùng `INGEST_TOKEN`, là điều kiện bắt buộc trước khi mở bản công khai.
 
-**Ba cổng chặn trong luồng xử lý** (không vượt qua được bằng cấu hình):
-- Nạp dữ liệu **không đi qua bộ khử PII** → không có đường nào ghi xuống kho.
-- Phiên **không có `design_hash`** → API trả HTTP 409, không phát sóng được.
-- Chưa tới mốc mở khóa prereg → endpoint kết quả **không trả** ước lượng, p, KTC.
-
-![Hình 1 — Lịch bốc thăm sinh ra và khóa lại TRƯỚC khi lên sóng, kèm design_hash. Sau bước này lịch không sửa được.|10.5](../../img/l3-05-buoc3-lich-da-boc.png)
-
-![Hình 2 — Bàn điều khiển phiên trực tiếp: dải khối thời gian, đồng hồ đếm khối, nhật ký can thiệp.|10.5](../../img/l3-07-ban-dieu-khien.png)
-
-![Hình 3 — Màn hình người dẫn được LÀM MÙ: chỉ thấy việc cần làm, không thấy khối hay nhánh gán.|10.5](../../img/l3-11-host-da-ghim.png)
+![Hình 6. Kiến trúc, luồng dữ liệu và ba cổng chặn (tô đỏ).](hinh/h2-kien-truc.png){width=15cm}
 
 ## 10.1 Phương án triển khai và lý do chọn
 
-Thể lệ đòi sản phẩm **chạy ổn định ít nhất 48 giờ** trước thời điểm kiểm tra. Ràng buộc đó loại ngay một nhóm lựa chọn tưởng là tiện:
+Vòng chung kết đòi sản phẩm chạy ổn định ít nhất 48 giờ, nên nhóm loại các gói miễn phí tự tắt khi không có người truy cập. Dự kiến dùng **Oracle Cloud Always Free** (Singapore, 2 OCPU, 12 GB RAM, 0 đồng), dự phòng **Vultr** trả theo thời gian dùng (khoảng 17.000 đồng cho 48 giờ). Tệp `docker-compose.prod.yml` khai báo cả hệ thống cho một lệnh `docker compose up -d` (chưa chạy trọn, mục 10.2), có giới hạn bộ nhớ, kiểm tra tình trạng dịch vụ, sao lưu hằng ngày giữ 14 ngày.
 
-| Phương án | Chi phí | Có ngủ đông? | Kết luận |
-|---|---|---|---|
-| Render / Fly.io / Hugging Face Spaces (gói miễn phí) | 0 đ | **Có** | **Loại** — ngủ đông là tử huyệt với yêu cầu 48 giờ |
-| **Oracle Cloud Always Free (Singapore)** | **0 đ** | Không | **Chọn** — 2 OCPU / 12 GB RAM, độ trễ ~35 ms từ Việt Nam |
-| Vultr (tính tiền theo giây) | ~17.000 đ cho 48 giờ | Không | Dự phòng khi Oracle hết suất |
+## 10.2 Khả năng duy trì: đã kiểm và chưa kiểm
 
-Tên miền: cả ba thành viên 20 tuổi nên **đủ điều kiện đăng ký tên miền `.id.vn` miễn phí** theo Thông tư 64/2025 (công dân 18–23 tuổi).
+- **Đã kiểm ngày 14/09:** 5/5 bản sao lưu qua kiểm tra toàn vẹn, khôi phục được sau khi buộc dừng tiến trình, và khi tắt API giữa chừng thì trang vẫn trả HTTP 200, không lộ chi tiết lỗi nội bộ.
+- **Đã kiểm ngày 25/09:** quét 84 commit trên mọi nhánh thấy 0 khóa bí mật thật, tệp compose hợp lệ, và luồng người bán dùng lần đầu chạy trọn trên bản build.
+- **Chưa kiểm:** `docker compose up` trọn vẹn (hệ thống đang chạy bằng `scripts/chay_local.py`). **Chưa có địa chỉ demo công khai** tại ngày 27/09/2026 (mốc ở mục 12).
 
-Triển khai bằng **một lệnh `docker compose up`**: API, giao diện, PostgreSQL và Caddy (tự cấp chứng chỉ HTTPS). Nhóm bổ sung cho bản chạy thật: **healthcheck cho cả ba dịch vụ** (trước đó không có cái nào, nên chính sách tự khởi động lại chỉ cứu được tiến trình thoát hẳn chứ không cứu tiến trình treo), **xoay vòng nhật ký** (ổ đầy làm PostgreSQL ngừng ghi — kiểu chết âm thầm hay gặp nhất), **trần bộ nhớ**, header bảo mật, và **ba trang lỗi tiếng Việt** thay cho trang mặc định lộ vết ngăn xếp.
-
-## 10.2 Chứng minh khả năng duy trì
-
-Nhóm kiểm chứng bằng cách **phá thật rồi xem hệ thống có sống lại không**, chứ không bằng cấu hình trên giấy:
-
-- **Sao lưu 5/5** đạt kiểm tra toàn vẹn (`gzip -t` + chữ ký `PGDMP`); khôi phục được chứng minh bằng cách **giết cứng tiến trình**, có đối chứng âm để bảo đảm phép thử không tự dối mình.
-- **Giết tiến trình API** trong lúc trang đang mở: trang vẫn trả HTTP 200, **không lộ một vết ngăn xếp nào**; bật lại thì đủ 33 phiên.
-- Kiểm tra rò rỉ nhãn DEMO/THẬT: **0 chỗ rò**, và client **không giả mạo được** cờ `is_demo`.
-- Quét toàn bộ 42 commit tìm bí mật bị lộ: **0**.
-- `scripts/kiem_tra_truoc_demo.py` — một lệnh xác nhận mọi phân hệ sẵn sàng trước khi trình diễn trước hội đồng (9 mục kiểm, đã thử cả ba đường hỏng).
-
-**Hạn chế trung thực:** tại ngày viết hồ sơ, `docker compose up` **chưa kiểm chứng được trên máy của nhóm** vì dịch vụ Docker cần quyền quản trị mà nhóm chưa mở được; đường chạy thay thế (`chay_local.py`) thì đã chạy thật và xanh. Việc kiểm chứng Docker và đưa lên địa chỉ công khai là hạng mục đang thực hiện.
-
-**Địa chỉ demo công khai:** ⬜ *điền trước khi nộp*
+![Hình 7. Giao diện chụp tự động ngày 25/09/2026: (a) bốc lịch BẬT/TẮT trước giờ phát; (b) bàn trợ live, bình luận mô phỏng đã che dữ liệu cá nhân; (c) màn người dẫn không thấy khối; (d) kết quả trên dữ liệu mẫu, gắn nhãn DEMO.](hinh/h7-giao-dien.png){width=15cm}
 
 # 11. Phân tích rủi ro, yêu cầu bảo mật, đạo đức trí tuệ nhân tạo và an toàn dữ liệu
 
-## 11.1 Rủi ro và biện pháp
+## 11.1 Khuôn khổ pháp lý và đạo đức AI
 
-| Rủi ro | Hậu quả | Biện pháp đã có |
+- **Luật Trí tuệ nhân tạo số 134/2025/QH15** [13] và **Nghị định 142/2026/NĐ-CP** [14]: nhà cung cấp tự phân loại hệ thống và chịu trách nhiệm về kết quả phân loại (Nghị định 142 Điều 6 khoản 1), theo ba mức (Điều 6 khoản 3): **cao** nếu thuộc Danh mục do Thủ tướng ban hành, **trung bình** nếu người dùng có thể nhầm vì không biết mình tương tác với AI hay nội dung do AI tạo (Điều 9 khoản 1), còn lại là **thấp**.
+- **LiveLift có tự ra quyết định.** Ở chế độ mặc định **Tự ghim**, trong mỗi khối BẬT của lịch đã khóa, hệ thống tự chọn sản phẩm (tối đa 3 sản phẩm của nhà bán, Bảng 3) và ra lệnh ghim không chờ người bấm. Lệnh đi qua đúng hàm của nút người trợ live, có nhật ký, hiện ngay trên màn người dẫn. Thao tác ghim trên nền tảng vẫn do người làm. Khối TẮT không có lệnh. Người trợ live đã thao tác trong khối thì hệ thống để yên. Chế độ **Chỉ gợi ý** chỉ ra lệnh khi người bấm. Người xem không được báo trước từng khối, nhưng can thiệp chỉ là thao tác nhà bán vốn làm công khai (ghim, nhắc mã đã công bố), không đổi giá theo từng người.
+- **Tự đánh giá sơ bộ, chưa có ý kiến chuyên gia pháp lý: mức thấp**, vì người dùng là nhân sự nhà bán, biết mình dùng công cụ (Điều 9 khoản 1 điểm b), và hệ thống không đưa nội dung ra công chúng (Điều 9 khoản 3 điểm c). Chưa đối chiếu được Danh mục rủi ro cao (Điều 7). Cần chuyên gia xem tiêu chí “mức độ tự động” và “khả năng giám sát, can thiệp của con người” (Điều 8 khoản 1 điểm a). Chế độ Chỉ gợi ý cho người xem xét trước khi lệnh có hiệu lực (Điều 8 khoản 2 điểm b), còn Tự ghim chỉ cho can thiệp sau. Nhóm phân loại lại (Điều 11 khoản 1) khi đổi chức năng hoặc Danh mục thay đổi.
+- **Luật 91/2025/QH15** [11], **Nghị định 356/2025/NĐ-CP** [12]: vai trò các bên, sự đồng ý, xử lý ở nước ngoài, thời hạn lưu: xem mục 3.3. Điều 30 (xử lý bằng AI phải có xác thực, phân quyền) liên quan các điểm còn mở ở mục 11.4. **Điều 5 Thể lệ** [16]: xem Bản kê khai.
+
+## 11.2 Rủi ro và biện pháp
+
+: Bảng 9. Rủi ro, biện pháp đã có và phần còn thiếu
+
+| Rủi ro | Biện pháp đã có | Còn thiếu |
 |---|---|---|
-| Rò rỉ dữ liệu cá nhân của người xem | Vi phạm Luật 91/2025/QH15 | Khử PII trước khi ghi đĩa; cổng recall ≥95%; không lưu định danh người bình luận |
-| Người dùng tin vào kết quả không đủ lực thống kê | Quyết định kinh doanh sai | Luôn trả khoảng tin cậy; báo rõ khi MDE lớn hơn tác động quan tâm |
-| Mô hình AI trả lời sai được dùng để ra quyết định | Thiệt hại cho nhà bán | Công bố macro-F1 trên chat thật (0,211 → 0,565, đo so với nhãn tham chiếu do AI gán) **theo cặp với số trên bộ câu mẫu**; tín hiệu ý định không vào phần phân tích nhân quả; lớp chặn theo tỷ lệ nền **chưa có** |
-| Nhìn lén kết quả rồi dừng phiên khi số đẹp | Kết quả mất giá trị khoa học | Khóa `RESULTS_FREEZE_UNTIL` *fail-closed* |
-| Người dẫn biết nhánh gán | Thiên lệch phép đo | Màn hình `/host` làm mù |
-| Lệ thuộc điều khoản dịch vụ của nền tảng | Mất nguồn dữ liệu | Chỉ dùng API chính thức trên đường chạy mặc định; ghi rõ nền tảng nào chưa vào được |
-| Bí mật lộ trong kho mã | Chiếm quyền truy cập | Bí mật qua biến môi trường, không vào git |
+| Lộ dữ liệu cá nhân người xem | Lọc PII trước khi ghi; cổng kiểm tra bộ lọc; không lưu định danh người bình luận | Xóa tự động; đầu mối nhận yêu cầu xem, xóa dữ liệu |
+| Ít phiên, ít người xem nên kết luận sai | Kiểm định ngẫu nhiên hóa; luôn trả KTC; trạng thái “chưa đủ điều kiện” | Mô phỏng lực theo số người xem đo thật |
+| Nhìn trước kết quả rồi dừng phiên | Khóa kết quả; cấu hình sai thì khóa luôn | Bắt buộc đặt mốc khóa trên máy chạy thật; đóng đường `/report` |
+| Nhà bán quyết định theo nhãn ý định sai | Nhãn không vào phân tích nhân quả; công bố cặp số trên câu mẫu và trên chat thật | Nhãn “chưa dùng cho quyết định” trên giao diện |
+| Quên bật bảo vệ khi đưa lên Internet | Cổng ở cấp ứng dụng; 6/19 route ghi đòi token | Bắt buộc `INGEST_TOKEN` (mặc định đang tắt) |
+| Vi phạm điều khoản nền tảng | Bộ thu mặc định dùng API chính thức; dữ liệu VOD chỉ mang nhãn “quan sát” | Gỡ hai đường yt-dlp (kể cả tùy chọn cookie trình duyệt) và bộ thu TikTok không chính thức |
 
-## 11.2 Đạo đức trí tuệ nhân tạo và khuôn khổ pháp lý
+## 11.3 Phương án kiểm soát đầu ra
 
-Ba văn bản chi phối sản phẩm này, và nhóm đối chiếu từng cái:
+Bảy ràng buộc sau đều nằm trong mã và có kiểm thử: (1) không đủ khối hoặc đang khóa thì trang kết quả và báo cáo trả “chưa đủ điều kiện” thay vì con số (trừ đường `/report`, mục 5.3); (2) số dự báo của mô hình không được kèm KTC, để không bị đọc như kết quả thí nghiệm (API từ chối); (3) buổi live của người khác (VOD) không có lịch gán nên chỉ mang nhãn “quan sát”; (4) thiếu tín hiệu (tim, quà, đơn hàng) thì ghi rõ “thiếu”, không lặng lẽ đưa ra con số yếu; (5) nhãn mẫu hay thật do máy chủ quyết định, phiên chạy thử và phiên mẫu không vào kết quả gộp thật; (6) dưới ngưỡng xác suất 0,45, bộ phân loại trả nhãn “khác”; (7) Tự ghim chỉ ra lệnh trong khối BẬT của lịch đã khóa.
 
-- **Luật Trí tuệ nhân tạo số 134/2025/QH15** (Quốc hội khóa XV thông qua ngày 10/12/2025, **hiệu lực 01/3/2026**). LiveLift là hệ thống AI hỗ trợ ra quyết định, **không** thuộc nhóm rủi ro cao: nó không quyết định thay con người, không đánh giá con người, không tác động tới quyền cơ bản. Nhóm thực hiện nghĩa vụ **minh bạch**: người dùng luôn được cho biết phần nào là kết quả mô hình, độ tin cậy bao nhiêu, và khi nào hệ thống không đủ căn cứ để kết luận.
-- **Luật Bảo vệ dữ liệu cá nhân số 91/2025/QH15** (Quốc hội thông qua 26/6/2025, hiệu lực 01/01/2026) và **Nghị định 356/2025/NĐ-CP** ngày 31/12/2025 quy định chi tiết — văn bản này thay thế Nghị định 13/2023/NĐ-CP. Xử lý ở mục 3.2.
-- **Điều 5 Thể lệ Cuộc thi** về kê khai trung thực công cụ AI — xử lý bằng Bản kê khai nộp kèm.
+## 11.4 An toàn thông tin
 
-Trên nền đó, nhóm xác định **ba cam kết**, cả ba đều có cơ chế thực thi chứ không chỉ là tuyên bố:
+Rà soát ngày 14/09 thấy 12/15 route ghi không có xác thực. Nay **một cổng ở cấp ứng dụng** bắt mọi route ghi khai báo mức bảo vệ, quên thì kiểm thử báo lỗi. Trong 19 route ghi, 6 bắt buộc token, 13 khách dùng được **nhưng chỉ trên dữ liệu mẫu**. Khóa bí mật đọc từ biến môi trường. Có HTTPS, header bảo mật, trang lỗi không lộ chi tiết lỗi nội bộ.
 
-1. **Không tuyên bố quá năng lực thật.** Số xấu công bố cùng số đẹp, luôn theo cặp. Quy tắc nội bộ: không bao giờ trích riêng macro-F1 trên bộ câu mẫu mà không kèm số trên chat thật.
-2. **Kiểm soát đầu ra.** Mô hình được phép nói "không chắc". Ba trạng thái kết quả — đủ bằng chứng / không đủ bằng chứng / chưa đủ dữ liệu — thay vì ép mọi phiên ra một con số.
-3. **Con người giữ quyền quyết định.** LiveLift **không** tự động hóa việc ghim sản phẩm. Hệ thống đưa bằng chứng, người bán quyết định.
-
-## 11.3 An toàn thông tin
-
-Khi rà soát trước lúc đưa sản phẩm lên Internet, nhóm phát hiện **12 trong 15 endpoint ghi không có xác thực** — người lạ có thể kết thúc một phiên thí nghiệm đang chạy (phá hỏng tính hợp lệ khoa học của phiên đó) hoặc bắt máy chủ tải video bất kỳ. Nhóm đã vá, và cách vá là phần đáng nói:
-
-- **Một cổng duy nhất gắn ở cấp ứng dụng**, không phải từng route. Hệ quả: route ghi thêm về sau **mặc định được bảo vệ**; route quên khai báo rơi về mức ngặt nhất thay vì mở ra. Một cổng kiểm thử đọc thẳng bảng định tuyến nên quên là **kiểm thử đỏ**, không phải lỗ hổng im lặng.
-- **Hai mức phân theo thiệt hại thật.** Bắt buộc token với những đường mà bản ghi giả sẽ thành một điểm dữ liệu sai trong kết quả khoa học (bình luận, nhịp phiên, phản ứng) và đường tốn tài nguyên. Các đường còn lại cho thao tác không token **nhưng chỉ trên dữ liệu mẫu**.
-- **Máy chủ quyết định dữ liệu là thật hay mẫu, không phải client.** Yêu cầu chứng minh được là người vận hành (có token) thì tạo phiên thật; không có token thì mọi thứ tạo ra đều là dữ liệu mẫu. Nhờ vậy hội đồng chấm **chạy trọn được cả quy trình** — tạo phiên, bốc lịch, phát sóng, ghim, kết thúc — mà thao tác của khách **không bao giờ lẫn vào kết quả thật**. Thử tác động lên phiên thật thì bị từ chối và **trạng thái không đổi một ly** (có kiểm thử đối chứng).
-- Giới hạn tần suất đặt ở tầng ứng dụng chứ không ở máy chủ web, vì chỉ ở đó mới biết yêu cầu có token hay không — bộ thu dữ liệu của chính nhóm do đó không bao giờ bị chặn nhầm. Địa chỉ người gọi lấy ở vị trí **không giả mạo được** bằng một dòng lệnh.
-
-Ngoài ra: bí mật quản lý qua biến môi trường (quét toàn bộ 42 commit: **0 bí mật bị lộ**), HTTPS bắt buộc, header bảo mật, trang lỗi tiếng Việt không lộ dấu vết ngăn xếp, sao lưu có kiểm chứng phục hồi.
-
-**Rủi ro nhóm biết là vẫn còn:** danh mục sản phẩm hiện dùng chung toàn hệ thống (chưa có chủ sở hữu); WebSocket chưa kiểm nguồn gọi; và chế độ cho khách thao tác trên dữ liệu mẫu là một **đánh đổi có chủ ý** — máy chạy thí nghiệm thật phải tắt nó bằng cấu hình.
+**Còn mở:** xác thực chỉ bật khi đặt `INGEST_TOKEN`, WebSocket chưa kiểm nguồn gọi, chưa tách dữ liệu theo nhà bán. `npm audit` (25/09) báo Next.js 14.2.32 có 2 lỗ hổng nghiêm trọng (thực thi mã từ xa), vá từ bản 15.5.24, cần nâng trước phiên thật (Bảng 10).
 
 # 12. Hướng phát triển, hoàn thiện và khả năng ứng dụng trong thực tiễn
 
-**Ưu tiên 1 — xóa khoảng cách lớn nhất (MT3).** Chạy những phiên thí nghiệm ngẫu nhiên thật đầu tiên với nhà bán đối tác, phân tích đúng theo tệp tiền đăng ký đã khóa, và công bố kết quả dù là kết quả âm.
+: Bảng 10. Lộ trình gắn với các vòng thi
 
-**Ưu tiên 2 — làm cho phân hệ NLP dùng được cho quyết định**: hoàn tất tinh chỉnh ViSoBERT trên nhãn chat thật, hiệu chuẩn ngưỡng, và báo cáo độ chính xác **theo từng buổi** thay vì một con số gộp.
+| Mốc | Việc | Tiêu chí xong |
+|---|---|---|
+| Trước vòng Khu vực (10 và 11/10/2026) | Khóa API YouTube, Page token; phát thử trên kênh nhóm; hai thành viên gán nhãn lại 393 dòng | Đo hạn mức thật; báo hệ số κ, đo lại mục 9.3 |
+| Tháng 10 và 11/2026 | Tìm nhà bán đối tác (chưa có); đủ điều kiện trước phiên thật; phiên thăm dò, chốt độ dài khối, khóa `PREREGISTRATION.md`, rồi phiên ngẫu nhiên thật | `kiem_tra_truoc_demo.py` xanh; tiến tới ít nhất 18 phiên (MT3); công bố cả khi kết quả âm |
+| Trước vòng Chung kết (20 đến 22/11/2026) | Địa chỉ công khai chạy liên tục ít nhất 48 giờ trên bản đã vá | Truy cập được suốt 48 giờ trước giờ kiểm tra |
+| Sau cuộc thi | Đăng nhập, tách dữ liệu theo nhà bán; kết nối nền tảng bằng OAuth | Nhiều nhà bán dùng chung máy chủ mà dữ liệu không lẫn |
 
-**Ưu tiên 3 — độ tin cậy vận hành**: giữ môi trường demo công khai chạy liên tục, giám sát, và quy trình phục hồi có tập dượt.
+**Trước phiên thật đầu tiên** phải có: thỏa thuận xử lý dữ liệu và căn cứ xử lý lượt nhấp, máy chủ tại Việt Nam hoặc hồ sơ theo Luật 91 Điều 20, Next.js đã nâng cấp, `INGEST_TOKEN` và `RESULTS_FREEZE_UNTIL` bắt buộc (`kiem_tra_truoc_demo.py` kiểm cả hai), và đường `/report` đã đóng.
 
-**Trung hạn:** phát lại phản thực (counterfactual replay) để ước lượng chính sách ghim tốt hơn mà không cần phát sóng thêm; co-pilot nghe hiểu tiếng Việt (PhoWhisper) cho người dẫn; mở rộng nền tảng khi có Partner API.
+**Khả năng ứng dụng.** Để dùng thật, nhà bán cần khóa API chính thức của kênh, hai người (người trợ live nắm lịch, người dẫn không biết trước lịch), lượng người xem đủ cho mức tác động muốn phát hiện, và chấp nhận chạy nhiều phiên cho một câu hỏi (mô phỏng: 8 phiên 90 phút ở khoảng 59 người xem cho MDE 16,4%). Họ nhận câu trả lời kèm KTC cho đúng hành động của mình, kể cả “chưa phát hiện tác động”. LiveLift không hứa tăng doanh số. **Duy trì:** mã nguồn mở AGPL-3.0, máy chủ từ 0 đồng, nhưng hiện cần kỹ sư cài đặt. Thu phí bản cài sẵn trên máy chủ vẫn là **giả thuyết**, chưa hỏi nhà bán.
 
-**Khả năng ứng dụng rộng hơn.** Lõi phương pháp không gắn với thương mại. Bất cứ nơi nào có một kênh phát và nhiều người xem, mà người vận hành muốn biết cách làm nào thật sự hiệu quả hơn, đều dùng được thiết kế này: truyền thông chiến dịch cộng đồng, phổ biến kiến thức pháp luật, tư vấn tuyển sinh, khuyến nông trực tuyến. Chi phí biên gần như bằng không vì cùng một hạ tầng.
+# 13. Lịch sử câu lệnh và hình ảnh minh chứng quá trình phát triển sản phẩm từ bản nháp đến khi hoàn thiện
 
-# 13. Lịch sử câu lệnh và hình ảnh minh chứng quá trình phát triển sản phẩm
+Minh chứng quá trình phát triển nằm trong kho mã công khai (nhánh `main`): **https://github.com/bminhnemhoi/AISC2026_LIVEFIT**. Lịch sử commit từ ngày 24/08/2026 ghi lại từng bước từ bản nháp tới bản hoàn thiện. Commit có AI hỗ trợ mang dòng khai báo đồng tác giả. Kho còn có tài liệu nghiên cứu (`docs/`), sổ sự cố (`docs/incident-log.md`), ảnh giao diện bản nháp ngày 11/09/2026 (`docs/img/`) và bản hoàn thiện ngày 25/09/2026 (`docs/img/v2/`, Hình 7), cùng bộ kiểm thử (`tests/`).
 
-**Kho lưu trữ mã nguồn:** https://github.com/bminhnemhoi/AISC2026_LIVEFIT — có toàn bộ lịch sử thay đổi mã nguồn thật của quá trình phát triển.
+**Lịch sử câu lệnh:** nhật ký làm việc với Claude Code (83 câu lệnh người gõ trong 5 phiên, 598 nhật ký tác tử con) đã xuất và che dữ liệu cá nhân. Chi tiết, cùng nhật ký của các công cụ AI khác, nằm ở **Bản kê khai** nộp kèm.
 
-**Thư mục minh chứng (Google Drive):** ⬜ *dán liên kết đã mở quyền truy cập trước khi nộp*
+# Tài liệu tham khảo
 
-Thư mục gồm:
-- **Lịch sử câu lệnh (Prompt Log)**: câu lệnh hệ thống và toàn bộ lịch sử hội thoại với công cụ AI, đã làm sạch bí mật và thông tin cá nhân.
-- **Ảnh minh chứng quá trình phát triển** từ bản nháp đến bản hoàn thiện, kèm chú thích theo mốc thời gian.
-- **Tài liệu kỹ thuật**: tệp tiền đăng ký phân tích, sổ sự cố, báo cáo hiệu chuẩn, báo cáo live-fire.
-- **Bản kê khai** công cụ AI, mô hình, bộ dữ liệu, API, thư viện, mã nguồn mở, kèm phân định phần đội tự xây dựng / phần AI hỗ trợ / phần kế thừa.
+1. Bojinov, I., Simchi-Levi, D., Zhao, J. (2023). Design and Analysis of Switchback Experiments. *Management Science* 69(7), 3759-3777. doi:10.1287/mnsc.2022.4583.
+2. Hu, Y., Wager, S. (2022). Switchback Experiments under Geometric Mixing. arXiv:2209.00197.
+3. Liu, J., Zhong, L. (2026). Randomization Tests in Switchback Experiments. arXiv:2602.23257.
+4. Pankratev, S. (2026). Design-Aware Variance Reduction for Switchback Experiments: A Comparative Study. arXiv:2606.27662.
+5. Xie, Sharma, Mehra (2025). Designing E-commerce Livestreams: How Product Presentation Duration Affects Sales? *Production and Operations Management* 34(12). doi:10.1177/10591478251314455.
+6. Wang và cs. (2025). Artificial Intelligence (AI) Assistant in Online Shopping: A Randomized Field Experiment on a Livestream Selling Platform. *Information Systems Research* 36(4). doi:10.1287/isre.2023.0103.
+7. He, Y., Huang, N., Wang, L., Sun, Y. (2025). Real-Time Sales Data, Streamer Improvisation, and Sales Performance: Evidence From Live Stream Selling. *MIS Quarterly* 49(4), 1567-1594.
+8. Qu và cs. (2026). KuaiLive: A Real-time Interactive Dataset for Live Streaming Recommendation. SIGIR 2026. arXiv:2508.05633.
+9. Interactive Advertising Bureau, Media Rating Council (2009). Click Measurement Guidelines v1.0.
+10. VnEconomy (18/11/2024), dẫn AccessTrade: vneconomy.vn/bung-no-xu-huong-tieu-dung-livestream.htm.
+11. Quốc hội (2025). Luật Bảo vệ dữ liệu cá nhân số 91/2025/QH15, thông qua 26/6/2025, hiệu lực 01/01/2026 (Công báo số 971+972 ngày 24/7/2025).
+12. Chính phủ (2025). Nghị định số 356/2025/NĐ-CP ngày 31/12/2025 hướng dẫn Luật Bảo vệ dữ liệu cá nhân.
+13. Quốc hội (2025). Luật Trí tuệ nhân tạo số 134/2025/QH15, thông qua 10/12/2025, hiệu lực 01/3/2026.
+14. Chính phủ (2026). Nghị định số 142/2026/NĐ-CP ngày 30/4/2026 quy định chi tiết một số điều và biện pháp thi hành Luật Trí tuệ nhân tạo, hiệu lực 01/5/2026 (Công báo số 278 ngày 18/5/2026).
+15. Bộ Chính trị (2024). Nghị quyết số 57-NQ/TW ngày 22/12/2024 về đột phá phát triển khoa học, công nghệ, đổi mới sáng tạo và chuyển đổi số quốc gia.
+16. Ban Bí thư TW Đoàn. Thể lệ Cuộc thi Sáng tạo trẻ Quốc gia trong lĩnh vực Trí tuệ nhân tạo năm 2026.

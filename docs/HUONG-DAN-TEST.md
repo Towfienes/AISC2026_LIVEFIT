@@ -242,7 +242,7 @@ còn lại của tài liệu giữ nguyên bản 27/08.*
 ### Dùng được ngay trên giao diện
 - Xem thử bằng dữ liệu mô phỏng (1 cú bấm)
 - Bàn điều khiển 3 vùng, dải khối BẬT/TẮT, thẻ hành động
-- Màn hình host làm mù
+- Màn hình host không thấy lịch khối (làm mù một phần: vẫn thấy sản phẩm đang ghim)
 - Phát lại phiên + phân tích video YouTube
 - **Trang kết quả thí nghiệm** (tác động, KTC, p-value, bảng MDE)
 

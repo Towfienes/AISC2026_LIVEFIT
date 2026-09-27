@@ -129,8 +129,8 @@ LABEL_EXAMPLES_REAL: dict[str, tuple[str, ...]] = {
         "Chao A Chan ! Chao Ca Nha !",
         "chào cả nhà buổi tối bình an",
         "Chào Achan, Chào cả nhà yêu",
-        "xin chào chú báu chào cháu tuyên",
-        "TINA NGUYEN : HELLO",
+        "xin chào chú báu chào cháu [TÊN]",
+        "[TÊN] : HELLO",
         "EM CHAO CA NHA",
         "xin chào cả gia đình thân thương của A chan",
         "Chào buổi tối em [TÊN] xinh đẹp",
@@ -155,7 +155,7 @@ LABEL_EXAMPLES_REAL: dict[str, tuple[str, ...]] = {
     ),
     "hoi_daily": (
         "Tôi muốn mở đại lý ở [ĐỊA CHỈ] có được không bóng",
-        "Mình ở quãng xương thanh hóa muốn mở chi nhánh a,chan shop có đc k bạn [TÊN] ơi?",
+        "Mình ở [ĐỊA CHỈ] muốn mở chi nhánh a,chan shop có đc k bạn [TÊN] ơi?",
         "mở đại lý bên hàn được không em",
         "em có mở sốp Vũng Tàu ko",
         "CHỊ Ở [ĐỊA CHỈ] ! KO CÓ KÊNH YTB. CÓ MỞ ĐC KO ACHAN BÁU ƠI ?",
@@ -173,7 +173,7 @@ LABEL_EXAMPLES_REAL: dict[str, tuple[str, ...]] = {
     # với guideline ("chào shop buổi tối", "chị chủ xinh quá" đang mang nhãn
     # khac). Đưa chúng vào prompt là dạy ngược cho bộ gán nhãn.
     "khac": (
-        "TrD nó chạy sau A chan cắn càng",
+        "[TÊN] nó chạy sau A chan cắn càng",
         "77777778👍👍👍👍",
         "0h ngày 22/05 đến 0h ngày 24",
         "nó soi từng chút",
@@ -183,7 +183,17 @@ LABEL_EXAMPLES_REAL: dict[str, tuple[str, ...]] = {
         "làm sạch XH",
     ),
 }
-"""Ví dụ trích NGUYÊN VĂN từ phiên live-fire (docs/benchmarks/live-fire-achan.md).
+"""Ví dụ trích NGUYÊN VĂN từ phiên live-fire (docs/benchmarks/live-fire-achan.md),
+chỉ thay tên người và địa danh của người bình luận bằng placeholder của bộ lọc PII.
+
+Rà lại 25/09/2026: bốn chỗ bộ lọc tự động không bắt được đã được thay tay — một
+tên hiển thị VIẾT HOA không dấu đứng trước ":" (``[TÊN] : HELLO``), một tên riêng
+sau "cháu", một chữ viết tắt CÓ THỂ là tên người thứ ba (``[TÊN] nó chạy sau…`` —
+thay phòng ngừa) và một địa danh cấp huyện (``Mình ở [ĐỊA CHỈ]…``). Chúng đi thẳng
+vào prompt của LLM gán nhãn, nên cổng ``tests/test_labels_vi_du_khong_ten.py`` giữ
+cho chúng không quay lại.
+"A chan"/"Achan" là tên kênh/thương hiệu của shop (công khai), "báu" là từ gọi thân
+mật ("em báu"), không phải tên người.
 
 Lớp nào có mặt ở đây thì ví dụ này THAY THẾ ví dụ từ bộ biên soạn, không phải
 bổ sung — xem ``label_llm.load_seed_examples``."""

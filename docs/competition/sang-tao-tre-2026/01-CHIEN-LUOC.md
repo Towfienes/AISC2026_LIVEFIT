@@ -4,6 +4,25 @@
 *Soạn 14/09/2026 · Đội LiveLift — Ngô Bình Minh, Lê Xuân Khánh, Ngô Lâm Tiến · Khoa CNTT, ĐH Tôn Đức Thắng*
 *Trạng thái đội: **đã được ĐH Tôn Đức Thắng cử** → hạn nộp **30/9/2026**, **vào thẳng Vòng Khu vực**, không qua Vòng loại Quốc gia. Còn **16 ngày**.*
 
+> **Cập nhật 25/09/2026 — đọc trước khi trích bất kỳ số nào.** Tài liệu soạn 14/09; các bảng
+> chấm điểm là ảnh chụp ngày đó. Số hiện hành ở `docs/competition/FACT-SHEET.md`:
+> - A/A bác bỏ **3,50%** (7/200), p nhị thức 0,4168 (phủ KTC 96,50% là mặt kia của cùng phép đo, không
+>   độc lập), thu hồi lệch −0,84%, phủ 37/40 (bộ
+>   4,5% / 0,872 / 95,5% / −0,3% của 30/08 **không tái lập được**);
+> - ý định: 0,870 (320 câu mẫu do AI soạn) / **0,211 → 0,542 [0,478; 0,625]** trên 393 bình luận
+>   thật (thang 11 lớp; cùng thang 6 lớp: 0,370 → 0,572), nhãn tham chiếu do **tác tử AI** gán — **0,271 không tái lập được, không trích**;
+> - MDE lượt nhấp **16,4%** ở ~59 người xem (8 phiên mô phỏng, Hình 4 hồ sơ); **20,1%** là phép
+>   quét 30/08, **chưa đo lại**; hiệu ứng lưu: độ phủ 96% / 76% / 57% (bán rã 0 / 120 / 180 s);
+> - sổ sự cố **121** hàng (25/09); làm mù người dẫn chỉ **một phần** (người dẫn thấy sản phẩm đang ghim);
+>   "5–15 người xem" là **ước tính từ CPM, chưa đo**;
+> - 19.126 bình luận là chat của 16 VOD YouTube công khai tải bằng **yt-dlp** (không phải API
+>   chính thức), chỉ phân tích quan sát; Xie–Sharma–Mehra (POM 2025) mô tả một **đánh đổi**, không
+>   phải chữ U ngược (đính chính 15/09).
+>
+> Các câu hướng dẫn cách kể (§2.2, §3.2, §5.6, §6.2) và bảng "câu nào ăn điểm nào" (§3.3) đã đổi
+> theo; bảng chấm điểm §2.1 và §4.1 giữ số của ngày 14/09, chỉ chú thích tại chỗ những số không tái
+> lập được hoặc sai nguồn.
+
 > **Quy tắc của tài liệu này:** mọi khẳng định về thế giới bên ngoài đều kèm URL hoặc trỏ
 > vào file gốc trong máy. Chỗ nào không tìm được thì ghi thẳng **"KHÔNG TÌM THẤY"** kèm
 > việc phải làm để lấp. Không suy đoán, không bịa số hiệu văn bản, không bịa tên dự án.
@@ -31,7 +50,7 @@ cho việc này, gồm dự báo dạng dữ liệu, bộ "đồ nghề hackatho
 giờ chia việc 3 người, và cách ghi điểm khác biệt khi cả phòng đều dùng LLM.
 
 **4. VIỆC ĐÒN BẨY CAO NHẤT CHO HỒ SƠ (40%): XÓA CON SỐ "0 PHIÊN THÍ NGHIỆM THẬT".**
-Chạy 2–3 phiên switchback thật trước 28/09, dù phòng chỉ 5–15 người xem, dù kết quả null.
+Chạy 2–3 phiên switchback thật trước 28/09, dù phòng chỉ 5–15 người xem (ước tính từ CPM, chưa đo), dù kết quả null.
 "0 phiên" là lỗ hổng chí mạng ở trọng tâm **1, 5 và 7 cùng lúc**. "3 phiên thật, kết quả
 chưa kết luận được, MDE 60%, và đây là lý do" là một câu trả lời **mạnh**; "0 phiên" thì
 không có câu trả lời nào cả.
@@ -174,10 +193,10 @@ Vòng Khu vực không phải là đã gần giải.
 |---|---|---|---|
 | 1 | Cấp thiết, giá trị thực tiễn, **khả năng tác động** | ⚠️ **YẾU** | Bài toán thật nhưng **0 người dùng thật, 0 phiên thật, 0 thư xác nhận của nhà bán**. "2,5 triệu phiên/tháng" là số thị trường, không phải tác động của LiveLift |
 | 2 | Tính khoa học, logic, phù hợp của phương pháp | ✅ **RẤT MẠNH** | Switchback 2 tầng theo Bojinov–Simchi-Levi–Zhao (2023), kiểm định ngẫu nhiên hóa studentized, Fisher CI, Hájek IPW, OLS-Lin, LATE. Gần như chắc chắn không đội sinh viên nào có thứ tương đương |
-| 3 | Chất lượng & **tính hợp lệ** của dữ liệu | ✅ mạnh, ⚠️ 2 lỗ | Lọc PII tiếng Việt recall ≥95% chạy **trước** khi ghi đĩa; 3 nguồn hợp lệ khai rõ; live-fire 19.126 bình luận thật qua API chính thức. Lỗ: (a) `collectors/tiktok_public` là vùng xám; (b) trích dẫn pháp lý phải cập nhật (xem §7 — tin tốt: hai văn bản README đang dẫn đều **đúng**) |
+| 3 | Chất lượng & **tính hợp lệ** của dữ liệu | ✅ mạnh, ⚠️ 2 lỗ | Lọc PII tiếng Việt recall ≥95% chạy **trước** khi ghi đĩa; 3 nguồn hợp lệ khai rõ; live-fire 19.126 bình luận thật (VOD công khai qua yt-dlp, không phải API chính thức — đính chính 14/09). Lỗ: (a) `collectors/tiktok_public` là vùng xám; (b) trích dẫn pháp lý phải cập nhật (xem §7 — tin tốt: hai văn bản README đang dẫn đều **đúng**) |
 | 4 | **Mức độ làm chủ** mô hình/kiến trúc/quy trình | ✅ kỹ thuật mạnh, 🔴 **bằng chứng yếu** | Kỹ thuật rõ ràng. Nhưng **42 commit đều mang một tác giả duy nhất "LiveLift Team"**, commit gói trọn từng ngày lớn. Giám khảo được yêu cầu soi commit history + Prompt Log để phân biệt *"đội tự xây / AI tạo ra / kế thừa nguồn mở"*. **Rủi ro lớn nhất chưa ai xử lý** |
-| 5 | Kết quả thử nghiệm, **khả năng kiểm chứng đầu ra** | ✅ mạnh trên mô phỏng, 🔴 **trống trên thực địa** | A/A 200 lặp bác bỏ 4,5% (danh nghĩa 5%, p nhị thức 0,872); coverage 95,5%; MDE 20,1% đo bằng sweep; 993 test nhanh + 16 gate Monte-Carlo; 41 sự cố có root cause. Nhưng **0 phiên ngẫu nhiên thật** — toàn bộ bằng chứng nhân quả là mô phỏng |
-| 6 | Phân tích, so sánh phương án, tối ưu, xử lý rủi ro | ✅ **RẤT MẠNH** | Sổ sự cố 41 mục có nguyên nhân gốc + gate chặn tái diễn; bảng ánh xạ knob→ICC 400 phiên; lưới SBC có "răng" (lỗi tiêm vào làm ô đỏ đúng như phải thế); so sánh 3 nhóm công cụ đối thủ; tự phát hiện và sửa công thức MDE sai (30,1% → 20,1%) |
+| 5 | Kết quả thử nghiệm, **khả năng kiểm chứng đầu ra** | ✅ mạnh trên mô phỏng, 🔴 **trống trên thực địa** | A/A 200 lặp bác bỏ 4,5% (danh nghĩa 5%, p nhị thức 0,872); coverage 95,5%; MDE 20,1% đo bằng sweep (quét 30/08, chưa đo lại); 993 test nhanh + 16 gate Monte-Carlo; 41 sự cố có root cause. Nhưng **0 phiên ngẫu nhiên thật** — toàn bộ bằng chứng nhân quả là mô phỏng |
+| 6 | Phân tích, so sánh phương án, tối ưu, xử lý rủi ro | ✅ **RẤT MẠNH** | Sổ sự cố 41 mục có nguyên nhân gốc + gate chặn tái diễn; bảng ánh xạ knob→ICC 400 phiên; lưới SBC có "răng" (lỗi tiêm vào làm ô đỏ đúng như phải thế); so sánh 3 nhóm công cụ đối thủ; tự phát hiện và sửa công thức MDE sai (30,1% → 20,1%; quét 30/08, chưa đo lại) |
 | 7 | Sáng tạo, khả thi, **triển khai / mở rộng / duy trì** | ⚠️ **YẾU** | Chưa deploy công khai lần nào; phụ thuộc nền tảng đội không sở hữu (TikTok **đã đo và thất bại**); mô hình giá chưa phỏng vấn WTP nào; 300k quảng cáo chỉ ra 5–15 người xem đồng thời, hụt mục tiêu ~10 lần |
 | 8 | An toàn, bảo mật, **đạo đức AI**, trách nhiệm | ✅ mạnh, ⚠️ thiếu 1 mục | Khử nhận dạng tại ingest, salt xoay theo phiên, không lưu chuỗi hành vi cá nhân, làm mù màn hình host ở **cấp kiểu dữ liệu** (model riêng 4 trường). Thiếu: **"phương án kiểm soát đầu ra"** — MẪU 3 mục 11 hỏi thẳng, hồ sơ hiện chưa trả lời tách bạch |
 
@@ -209,16 +228,19 @@ thống đã chạy trọn vòng đời phiên trên giao diện (`/chay-phien`,
 thật của chính đội.** Chạy 2–3 phiên trong 16 ngày là hoàn toàn khả thi và đổi được nhiều
 điểm nhất trên mỗi đồng công sức (§4, hành động #1).
 
-**(c) "Bộ phân loại ý định chỉ đạt macro-F1 0,271 trên chat thật."**
+**(c) "Bộ phân loại ý định chỉ đạt macro-F1 0,211 trên chat thật."** *(Bản 14/09 ghi 0,271 —
+số 08/09 không tái lập được; số chạy lại được là 0,211, KTC95 [0,172; 0,247].)*
 
 **Đây không phải điểm yếu. Đây là tài sản — nếu kể đúng cách.** Thể lệ Bảng C có nguyên một
 trọng tâm về *"khả năng kiểm chứng đầu ra"*, một trọng tâm về *"phân tích... hạn chế, rủi ro"*,
 và Điều 5 nghiêm cấm *"giả mạo... dữ liệu thử nghiệm"*. Một đội **tự đo lại số đẹp của chính
-mình trên dữ liệu thật, phát hiện nó sụp từ 0,870 xuống 0,271, thua cả baseline luôn đoán
+mình trên dữ liệu thật, phát hiện nó sụp từ 0,870 xuống 0,211 (đo lại được bằng một lệnh; số
+0,271 ngày 08/09 không tái lập được), accuracy thua cả baseline luôn đoán
 "khác", ghi vào sổ sự cố, và từ chối huấn luyện lại khi chưa có nhãn** — đó chính xác là thứ
 mọi hội đồng nói họ muốn thấy nhưng gần như không bao giờ được thấy.
 
-Cách kể bắt buộc: **luôn quote cặp 0,870 / 0,271**, kèm phát hiện sâu hơn trong
+Cách kể bắt buộc: **luôn quote cặp 0,870 / 0,211** (không dùng 0,271 — không tái lập được;
+nhãn tham chiếu do tác tử AI gán), kèm phát hiện sâu hơn trong
 `docs/benchmarks/live-fire-da-nguon.md` §4 — *precision nhãn hành động chạy từ **1,3% đến
 67,9%** tuỳ buổi, và nguyên nhân là **tỷ lệ nền** ý định mua của buổi đó (0,0% → 48,0%) chứ
 không phải model; độ tự tin dùng được TRONG một phiên (AUC 0,696) nhưng KHÔNG so sánh được
@@ -306,8 +328,9 @@ Vì sao mạnh: nối thẳng vào chủ trương bằng **số hiệu văn bả
 > vẫn tin**. Mọi dashboard đều trả lời được "bao nhiêu"; gần như không dashboard nào dám trả
 > lời "có phải do bạn làm không". LiveLift được xây để trả lời đúng câu hỏi đó. Và để chứng
 > minh chúng em nói thật: chính hệ thống này đã **tự bác bỏ một con số đẹp của chính chúng
-> em** — bộ phân loại ý định đạt macro-F1 0,870 trên bộ tự biên soạn nhưng chỉ còn **0,271**
-> trên chat bán hàng thật, thua cả cách đoán bừa. Chúng em đã đo, đã ghi vào sổ sự cố, và
+> em** — bộ phân loại ý định đạt macro-F1 0,870 trên bộ câu mẫu do AI soạn nhưng chỉ còn
+> **0,211** trên chat bán hàng thật (so với nhãn do tác tử AI gán), độ chính xác còn thua cách
+> luôn đoán "khác". Chúng em đã đo, đã ghi vào sổ sự cố, và
 > không giấu."*
 
 Vì sao mạnh: đây là **thứ không đội nào khác trong phòng dám nói**, và nó ăn thẳng vào trọng
@@ -324,8 +347,8 @@ chốt). Video thuyết trình 5 phút mở bằng **C**, vì 15 giây đầu ph
 | 2. Khoa học, logic | Sơ đồ 2 tầng; trích Bojinov et al. 2023, Hu–Wager 2022, Lin 2013; giải thích **vì sao switchback chứ không A/B chia người** (không chia được người xem trong một phòng live) |
 | 3. Dữ liệu hợp lệ | Bảng 3 nguồn × giấy phép × cơ sở pháp lý; lọc PII chạy **trước** khi ghi đĩa; trích **Luật 91/2025/QH15** + **NĐ 356/2025/NĐ-CP** (§7) |
 | 4. Làm chủ | Bản kê khai AI chi tiết + phân công từng người từng phân hệ + commit bằng tên thật từ nay |
-| 5. Kiểm chứng đầu ra | A/A 4,5%, coverage 95,5%, MDE 20,1%, 1.009 test, **cặp 0,870/0,271**, cơ chế `estimable=False` |
-| 6. Phân tích, rủi ro | Sổ sự cố 41 mục; bảng ablation ICC; tự sửa MDE 30,1%→20,1%; bảng so sánh 3 nhóm đối thủ |
+| 5. Kiểm chứng đầu ra | A/A 3,50%, độ phủ 96,50% (bộ 4,5%/95,5% của 30/08 không tái lập được), MDE lượt nhấp 16,4% ở ~59 người xem mô phỏng (20,1% là quét 30/08, chưa đo lại), 1.009 test, **cặp 0,870/0,211**, cơ chế `estimable=False` |
+| 6. Phân tích, rủi ro | Sổ sự cố (99 hàng, đếm 25/09); bảng ablation ICC; tự sửa công thức MDE 30,1%→20,1% (quét 30/08, chưa đo lại); bảng so sánh 3 nhóm đối thủ |
 | 7. Triển khai, duy trì | **URL công khai chạy được** + Docker một lệnh + AGPL-3.0 + lộ trình; bảng khả năng 8 nền tảng |
 | 8. An toàn, đạo đức | Làm mù ở cấp kiểu dữ liệu; salt xoay theo phiên; **mục "phương án kiểm soát đầu ra" viết riêng**; trích **Luật TTNT 134/2025/QH15** (§7) |
 
@@ -337,12 +360,12 @@ chốt). Video thuyết trình 5 phút mở bằng **C**, vì 15 giây đầu ph
 
 | # | Trọng tâm | Điểm | Bằng chứng cho điểm này |
 |---|---|---:|---|
-| 1 | Cấp thiết, giá trị thực tiễn, khả năng tác động | **4/10** | Bài toán có bằng chứng bình duyệt (Xie–Sharma–Mehra, POM 2025: thời lượng ghim vs doanh thu có dạng chữ U ngược) và số thị trường có nguồn. Nhưng: **0 phiên thật, 0 người dùng ngoài đội, 0 thư xác nhận, 0 phỏng vấn WTP**. Tác động hiện là *giả thuyết* |
+| 1 | Cấp thiết, giá trị thực tiễn, khả năng tác động | **4/10** | Bài toán có bằng chứng bình duyệt (Xie–Sharma–Mehra, POM 2025: thời lượng ghim vs doanh thu có dạng chữ U ngược — **sai, đính chính 15/09**: bài báo mô tả một đánh đổi, không phải chữ U ngược) và số thị trường có nguồn. Nhưng: **0 phiên thật, 0 người dùng ngoài đội, 0 thư xác nhận, 0 phỏng vấn WTP**. Tác động hiện là *giả thuyết* |
 | 2 | Tính khoa học, logic, phù hợp của phương pháp | **9/10** | Switchback 2 tầng (Bojinov–Simchi-Levi–Zhao 2023), burn-in thay washout (Hu–Wager 2022), kiểm định ngẫu nhiên hóa studentized vẽ lại **bằng chính hàm gán production trên toàn lịch**, Fisher CI qua nghịch đảo kiểm định, Hájek IPW, OLS FE + tương tác Lin (2013), LATE qua IV. Mất 1 điểm vì chưa có bản giải thích 1 trang cho giám khảo **không chuyên thống kê** |
-| 3 | Chất lượng dữ liệu, quy trình xử lý, tính hợp lệ nguồn | **7/10** | Lọc PII tiếng Việt recall ≥95%/loại chạy **trước khi ghi đĩa** (SĐT viết chữ, teencode, 2 thế hệ đơn vị hành chính); 19.126 bình luận thật qua API chính thức, 16 buổi, 7 ngành hàng; hiệu chỉnh mô phỏng bằng KuaiLive 1,16M phòng shop thật. Trừ điểm: `collectors/tiktok_public` là vùng xám chưa xử lý dứt; chưa có **bảng nguồn × giấy phép × căn cứ pháp lý** trình bày được |
+| 3 | Chất lượng dữ liệu, quy trình xử lý, tính hợp lệ nguồn | **7/10** | Lọc PII tiếng Việt recall ≥95%/loại chạy **trước khi ghi đĩa** (SĐT viết chữ, teencode, 2 thế hệ đơn vị hành chính); 19.126 bình luận thật (VOD công khai qua yt-dlp, không phải API chính thức — đính chính 14/09), 16 buổi, 7 ngành hàng; hiệu chỉnh mô phỏng bằng KuaiLive 1,16M phòng shop thật. Trừ điểm: `collectors/tiktok_public` là vùng xám chưa xử lý dứt; chưa có **bảng nguồn × giấy phép × căn cứ pháp lý** trình bày được |
 | 4 | Mức độ làm chủ mô hình/thuật toán/kiến trúc/quy trình | **5/10** | Kỹ thuật thì 9/10. Nhưng trọng tâm này chấm **bằng chứng làm chủ**, và bằng chứng đang yếu: **42/42 commit mang một tác giả duy nhất "LiveLift Team"**; chưa có bản kê khai AI; chưa có phân công ai làm phân hệ nào; Prompt Log chưa được tổ chức thành dạng nộp được |
-| 5 | Kết quả thử nghiệm, phương pháp đánh giá, kiểm chứng đầu ra | **7/10** | A/A 200 lặp: bác bỏ 4,5% (danh nghĩa 5%, p nhị thức 0,872); coverage 95,5%; thu hồi tác động biết trước sai lệch −0,3%; MDE 20,1% đo bằng sweep 4 mức × 60 lặp; 993 test nhanh + 16 gate Monte-Carlo; lưới SBC 4/4 xanh và **có răng** (lỗi tiêm vào làm ô đỏ). Trừ nặng vì **0 phiên ngẫu nhiên thật** — toàn bộ là mô phỏng |
-| 6 | Phân tích, so sánh phương án, tối ưu, xử lý rủi ro | **8/10** | 41 sự cố có nguyên nhân gốc + gate chặn tái diễn; tự phát hiện và sửa lỗi FATAL "NaN → significance" (52% phiên null bị tuyên có ý nghĩa → 6,2%); tự sửa công thức MDE 30,1% → 20,1%; bảng ánh xạ knob→ICC 400 phiên tách được hai cơ chế; khảo sát 3 nhóm công cụ đối thủ. Trừ vì MẪU 3 **mục 9 (so sánh baseline + ablation)** chưa được viết thành một mục độc lập |
+| 5 | Kết quả thử nghiệm, phương pháp đánh giá, kiểm chứng đầu ra | **7/10** | A/A 200 lặp: bác bỏ 4,5% (danh nghĩa 5%, p nhị thức 0,872); coverage 95,5%; thu hồi tác động biết trước sai lệch −0,3%; MDE 20,1% đo bằng sweep 4 mức × 60 lặp (30/08, chưa đo lại); 993 test nhanh + 16 gate Monte-Carlo; lưới SBC 4/4 xanh và **có răng** (lỗi tiêm vào làm ô đỏ). Trừ nặng vì **0 phiên ngẫu nhiên thật** — toàn bộ là mô phỏng |
+| 6 | Phân tích, so sánh phương án, tối ưu, xử lý rủi ro | **8/10** | 41 sự cố có nguyên nhân gốc + gate chặn tái diễn; tự phát hiện và sửa lỗi FATAL "NaN → significance" (52% phiên null bị tuyên có ý nghĩa → 6,2%); tự sửa công thức MDE 30,1% → 20,1% (quét 30/08, chưa đo lại); bảng ánh xạ knob→ICC 400 phiên tách được hai cơ chế; khảo sát 3 nhóm công cụ đối thủ. Trừ vì MẪU 3 **mục 9 (so sánh baseline + ablation)** chưa được viết thành một mục độc lập |
 | 7 | Sáng tạo, khả thi, triển khai, mở rộng, duy trì | **5/10** | Docker một lệnh + Caddy HTTPS + 9 migration + backup verify + CI 5 job. Nhưng **chưa từng deploy công khai**; TikTok đã đo và thất bại; 300k đồng quảng cáo chỉ ra 5–15 người xem đồng thời (hụt mục tiêu 80 khoảng 10 lần); giá gói chưa phỏng vấn ai |
 | 8 | An toàn thông tin, bảo mật, đạo đức AI, trách nhiệm | **7/10** | Khử nhận dạng tại ingest; salt xoay theo phiên; không lưu chuỗi hành vi cá nhân; **làm mù màn hình host ở cấp kiểu dữ liệu** (model riêng 4 trường — không phải ẩn bằng CSS); `RESULTS_FREEZE_UNTIL` cưỡng chế tiền đăng ký; AGPL-3.0. Trừ vì thiếu hẳn mục **"phương án kiểm soát đầu ra"** mà MẪU 3 mục 11 hỏi thẳng |
 
@@ -352,7 +375,7 @@ chốt). Video thuyết trình 5 phút mở bằng **C**, vì 15 giây đầu ph
 
 | # | Hành động | Nâng trọng tâm | Công | Điểm ước tính | Ai |
 |---:|---|---|---|---:|---|
-| **1** | **Chạy 2–3 phiên switchback THẬT** trên kênh của chính đội (dù 5–15 người xem, dù kết quả null). Ghi đầy đủ: lịch gán lưu trước phát sóng, seed, nhật ký vận hành, báo cáo sau phiên | 1, 5, 7 | 2 ngày | **+7** | Bình Minh + Lâm Tiến |
+| **1** | **Chạy 2–3 phiên switchback THẬT** trên kênh của chính đội (dù 5–15 người xem — ước tính từ CPM, chưa đo — dù kết quả null). Ghi đầy đủ: lịch gán lưu trước phát sóng, seed, nhật ký vận hành, báo cáo sau phiên | 1, 5, 7 | 2 ngày | **+7** | Bình Minh + Lâm Tiến |
 | **2** | **Deploy công khai HTTPS** với tên miền thật + trang `/health` + uptime monitor. Đặt link vào hồ sơ để giám khảo tự mở | 7, 5, 1 | 4 giờ | **+4** | Xuân Khánh |
 | **3** | **Gói liêm chính:** từ hôm nay commit bằng **tên thật 3 thành viên** (`git config user.name/email`); thêm `CONTRIBUTORS.md` + `docs/phan-cong.md` ghi ai làm phân hệ nào; xuất **Prompt Log đầy đủ có System Prompt**; viết **bản kê khai AI/model/thư viện/dataset/API** với cột *đội tự xây / AI tạo ra / kế thừa nguồn mở*. **KHÔNG viết lại lịch sử git cũ** | 4, 8 | 1 ngày | **+5** | Cả 3 |
 | **4** | **Viết lại MẪU 3 đúng 13 mục, ≤20 trang**, theo khung tái định vị §3. Đặc biệt viết **mục 9 (baseline + ablation)** và **mục 11 (kiểm soát đầu ra)** thành mục độc lập, không gộp | 1, 6, 8 | 2 ngày | **+5** | Bình Minh |
@@ -573,7 +596,7 @@ vội giờ chót.** Tám đòn dưới đây đều rẻ và đều đánh đú
 
 | # | Đòn | Đánh vào | Vì sao đội khác không làm |
 |---:|---|---|---|
-| **1** | **Baseline tầm thường có số thật** — "đoán lớp đa số", "seasonal naive". Và **dám công bố khi mô hình xịn thua baseline** | Kết quả thử nghiệm · so sánh phương án | Vì nó làm mô hình của họ trông kém. LiveLift **đã sống bằng văn hoá này**: intent 0,271 thua baseline "khac" và đội vẫn công bố |
+| **1** | **Baseline tầm thường có số thật** — "đoán lớp đa số", "seasonal naive". Và **dám công bố khi mô hình xịn thua baseline** | Kết quả thử nghiệm · so sánh phương án | Vì nó làm mô hình của họ trông kém. LiveLift **đã sống bằng văn hoá này**: intent 0,211 (đo lại được; 0,271 cũ không tái lập được) có accuracy thua baseline "khac" và đội vẫn công bố |
 | **2** | **Bảng ablation thật** — bỏ từng thành phần, chạy lại, ghi số | Phân tích đóng góp thành phần | Tốn thời gian nếu không có khung tự động. Đội **có Món 4 nên gần như miễn phí** |
 | **3** | **Khoảng tin cậy bootstrap trên mọi metric** thay vì một con số trần trụi | Khoa học · kiểm chứng đầu ra | Gần như không sinh viên nào nghĩ tới. Đội đã làm Fisher CI ở LiveLift |
 | **4** | **`TIEN-DANG-KY.md` commit ở giờ thứ 2** — khoá metric và tiêu chí **trước khi nhìn kết quả**, rồi nêu thẳng trong báo cáo: *"chúng em khoá tiêu chí lúc 9h15, commit `abc1234`, và không đổi"* | Khoa học · liêm chính · trách nhiệm | **Không đội nào làm.** Đây là chữ ký nhận dạng của LiveLift, chuyển giao nguyên vẹn, chi phí 20 phút |
@@ -617,7 +640,8 @@ tập dượt**. Hai thiếu sót đó chính là §4 hành động #1 và §5.
 3. **Sổ sự cố 41 mục có nguyên nhân gốc và gate chặn tái diễn**, gồm cả lỗi FATAL do chính
    đội tìm ra (52% phiên null từng bị tuyên "có ý nghĩa"). **Không ai làm giả được một sổ sự
    cố** — nó phải được viết dần trong nhiều tuần.
-4. **Một con số tự bác bỏ chính mình: 0,870 → 0,271.** Đây là thứ hiếm nhất trong mọi cuộc
+4. **Một con số tự bác bỏ chính mình: 0,870 → 0,211.** (Số 0,271 ngày 08/09 không tái lập
+   được, không trích.) Đây là thứ hiếm nhất trong mọi cuộc
    thi. Kèm phát hiện sâu: precision chạy 1,3% → 67,9% theo **tỷ lệ nền** của từng buổi, không
    theo model.
 5. **Bộ lọc PII tiếng Việt đã đo recall ≥95%/loại**, chạy trước khi ghi đĩa, xử lý được SĐT

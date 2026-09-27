@@ -4,7 +4,8 @@
 
 > **Kết luận một dòng:** macro-F1 **0,870** đo trên bộ biên soạn **KHÔNG chuyển
 > giao** sang chat bán hàng thật. Trên 200 bình luận thật lấy ngẫu nhiên, cùng
-> mô hình đó đạt **macro-F1 0,271** và **accuracy 0,920 — THẤP HƠN** baseline
+> mô hình đó đạt **macro-F1 0,271** (không tái lập được — xem ghi chú nguồn nhãn
+> 25/09 ở phần phương pháp) và **accuracy 0,920 — THẤP HƠN** baseline
 > tầm thường "luôn đoán `khac`" (0,995). Trong 932 bình luận được gắn nhãn ý
 > định hành động, ước tính chỉ **~7%** là đúng.
 
@@ -60,6 +61,17 @@ Toàn bộ số liệu đọc lại **qua chính API của hệ thống**, khôn
 3. Khoảng tin cậy 95% dùng công thức **Wilson** (mẫu nhỏ, tỷ lệ gần 0 — Wald sẽ
    cho cận âm).
 
+> **Ghi chú nguồn nhãn (25/09/2026).** Các câu "người gán nhãn thủ công", "gán nhãn
+> tay", "một người gán nhãn" trong tệp này là khai báo gốc ngày 08/09 và **chưa kiểm
+> chứng được**: tệp nhãn của lần đo này **không được lưu**, nên không đối chiếu được ai
+> (người hay tác tử AI) đã gán. Cùng giai đoạn, hai bộ dữ liệu khác từng được khai là
+> "người gán"/"tự viết" hoá ra do Claude tạo (đính chính 15/09, `docs/incident-log.md`),
+> nên **không được trích các câu trên như sự thật đã kiểm**. Con số **0,271** (và 11,0%)
+> **không tái lập được**; số "trước cải tiến" chính thức từ 14/09 là **0,211** trên lô
+> 393 dòng (nhãn do tác tử AI gán, chưa có nhãn người) — `docs/benchmarks/intent-eval/`.
+> Chat của buổi này là VOD YouTube công khai, nạp qua `POST /replays/youtube` — đường
+> này tải chat bằng **yt-dlp**, không phải API chính thức của YouTube; dữ liệu quan sát.
+
 **Giới hạn của phương pháp, nói trước:** một người gán nhãn, không đo được
 đồng thuận giữa người gán (κ). Với các trường hợp mơ hồ ("111" là spam số hay
 chốt đơn?) tài liệu này chọn cách **có lợi cho model** rồi vẫn báo con số thấp —
@@ -112,7 +124,7 @@ không phải sửa gì.
 
 | Chỉ số | Bộ biên soạn (5-fold CV) | **Chat thật** |
 |---|---:|---:|
-| macro-F1 | 0,870 | **0,271** |
+| macro-F1 | 0,870 | **0,271** (không tái lập được) |
 | Accuracy | 0,866 | **0,920** |
 | Accuracy của baseline "luôn đoán `khac`" | — | **0,995** |
 
@@ -264,7 +276,8 @@ cho trung control + biến khám phá**, không nằm trong bất kỳ ước l�
 - Radar ý định trên giao diện hiện tại, với chat kiểu này, **gần như là nhiễu**.
   Trung control tin vào nó sẽ bị dẫn sai.
 - Con số **0,870** chỉ được nêu kèm đúng ngữ cảnh của nó ("trên bộ biên soạn,
-  cùng phân phối") và **luôn đi kèm 0,271 của chat thật**. Nêu một mình là
+  cùng phân phối") và **luôn đi kèm số chat thật chính thức 0,211** (0,271 của lần đo
+  này không tái lập được). Nêu một mình là
   overclaim.
 
 ## 8. Việc tiếp theo (theo thứ tự)

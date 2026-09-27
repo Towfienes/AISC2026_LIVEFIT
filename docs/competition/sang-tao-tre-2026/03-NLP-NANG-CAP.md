@@ -1,15 +1,54 @@
-# 03 — CỨU PHÂN HỆ NLP: TỪ 0,211 LÊN 0,565 TRÊN CHAT THẬT
+# 03 — CỨU PHÂN HỆ NLP: TỪ 0,211 LÊN 0,542 TRÊN CHAT THẬT (SO VỚI NHÃN AI)
 
-*Lập 14/09/2026 · phục vụ **MẪU 3 mục 5, 6, 7, 8, 9, 11** và **trọng tâm 4, 5, 6, 8***
+*Lập 14/09/2026 · đo lại và sửa nguồn nhãn 25/09/2026 · phục vụ **MẪU 3 mục 5, 6, 7, 8, 9, 11** và **trọng tâm 4, 5, 6, 8***
 *Mọi con số sinh lại được bằng một lệnh; lệnh ghi ở §10. Số gốc:
 [`docs/benchmarks/intent-eval/results.json`](../../benchmarks/intent-eval/results.json).*
 
 > **Một dòng:** bộ phân loại ý định của LiveLift từng đạt macro-F1 **0,870 trên 320 câu
-> đội tự viết** nhưng chỉ **0,271 trên chat bán hàng thật** — thua baseline `return "khac"`.
+> mẫu do AI (Claude) soạn** nhưng chỉ **0,271 trên chat bán hàng thật** (số 08/09, không tái
+> lập được) — accuracy còn thua baseline `return "khac"`.
 > Tài liệu này dựng lại **khung đo trung thực trước**, đo lại con số cũ trên một tập test
-> mới (**0,211**), rồi nâng lên **0,565** (KTC95 **0,491–0,649**) bằng ba thay đổi rẻ tiền:
+> mới (**0,211**), rồi nâng lên **0,542** (KTC95 **0,478–0,625**; bản đo 14/09
+> trước khi lọc lại PII: 0,565) bằng ba thay đổi rẻ tiền:
 > sửa bộ nhãn, gán nhãn dữ liệu thật bằng LLM, thêm đặc trưng "ai đang nói".
 > **Hai cải tiến đã thử và KHÔNG hiệu quả cũng được báo cáo đủ số.**
+> ⚠️ **Nhãn tham chiếu của 393 dòng test do tác tử AI gán — chưa có nhãn người.** Mọi con
+> số ở đây là mức đồng thuận với nhãn AI.
+
+> **Cập nhật 25/09/2026 — đo lại sau khi lọc lại PII, số mới công bố dù giảm.** Bộ lọc PII
+> được sửa 15/09 để bắt tên tài khoản có dấu; dữ liệu gán nhãn lưu trước đó còn 57 tên tài
+> khoản sót. Lọc lại bằng đúng hàm `scrub` của sản phẩm đổi **12 dòng văn bản mà khung đánh
+> giá đọc** (1 dòng tập test, 11 dòng lô LLM), không đổi nhãn nào. Chạy lại
+> `eval_intent --ablation --coverage`:
+>
+> | | 14/09 (trước lọc lại) | **25/09 (hiện hành)** |
+> |---|---:|---:|
+> | C2 · macro-F1 (KTC95) | 0,565 [0,491; 0,649] | **0,542 [0,478; 0,625]** |
+> | C2 · accuracy | 0,741 | **0,730** |
+> | C2 · precision nhãn hành động | 66,7% (40/60) | **65,5% (38/58)** |
+> | C1 · macro-F1 | 0,557 | 0,563 |
+> | B0–B3 (baseline) | không đổi | không đổi |
+>
+> Chỉ **4/393** dự đoán của C2 đổi, nhưng một trong số đó rơi vào `hoi_size` (chỉ 3
+> dòng tham chiếu): F1 lớp này 0,444 → 0,250, kéo macro-F1 11 lớp xuống. Đây là minh
+> hoạ trực tiếp cho hạn chế đã nêu: với lớp có 3–5 mẫu, macro-F1 nhạy với từng dòng. Lần
+> chạy đối chiếu trên **bản sao TRƯỚC khi lọc** (`--du-lieu`, cùng mã, cùng seed) tái lập
+> **đúng từng chữ số** của cả 16 dòng bảng 14/09, nên toàn bộ chênh lệch là do 12 dòng văn
+> bản, không do mã. Hai điều phải đọc cùng: (1) **C1 (0,563) nay cao hơn C2
+> (0,542) về macro-F1** — nằm trong KTC; C2 vẫn là số "SAU" vì nó là cấu hình
+> đã chọn TRƯỚC để đóng gói thành v2, và nó hơn C1 ở accuracy và precision; (2) **recall
+> nhãn hành động của C2 là 55,1% (38/69), THẤP hơn artifact cũ
+> (78,3%, 54/69)** — v2 bớt cảnh báo giả bằng cách im lặng
+> nhiều hơn. Artifact `intent_clf_v2.joblib` đã đóng gói lại ngày 25/09 trên dữ liệu đã lọc
+> (bản 14/09 chỉ còn trong lịch sử git).
+>
+> **Lọc lần hai (25/09/2026 chiều).** Bộ lọc được sửa để bắt tên tài khoản viết dính liền chữ
+> đứng trước (`chữ@tên`, cả `@@tên`); lọc lại đổi thêm **4 dòng lô LLM** mà khung đánh giá
+> đọc (0 dòng tập test), không đổi nhãn nào. Chạy lại `eval_intent --ablation --coverage`:
+> **bảng 2–3 (B0–B3, C1–C3) không đổi từng chữ số**, C2 vẫn 0,542 [0,478; 0,625]; chỉ
+> dòng A2, A7 của bảng ablation và ba điểm 0,30 / 0,50 / 0,70 của đường độ phủ đổi (đã
+> cập nhật ở §5 và §6.1). Lần chạy đối chiếu trên bản sao trước khi lọc (`--du-lieu`,
+> cùng mã) tái lập đúng `results.json` cũ, nên chênh lệch là do 4 dòng văn bản.
 
 ---
 
@@ -22,12 +61,12 @@ những gì tài liệu cũ mô tả, và chỗ không khớp được ghi ra đ
 
 | Nguồn | Đường dẫn | Số dòng | Nhãn? | Vai trò trong tài liệu này |
 |---|---|---:|---|---|
-| Bộ **tự biên soạn** (bộ 6 lớp gốc) | `src/livelift/nlp/data/intent_dataset.jsonl` | **320** | có, 6 lớp | baseline tiền đăng ký, giữ nguyên |
-| Bộ tự biên soạn **gán lại 11 lớp** ✨ | `src/livelift/nlp/data/intent_dataset_11.jsonl` | **320** | có, 11 lớp | **train** |
+| Bộ **câu mẫu do AI (Claude) soạn** 01/09 (bộ 6 lớp gốc) | `src/livelift/nlp/data/intent_dataset.jsonl` | **320** | có, 6 lớp | baseline tiền đăng ký, giữ nguyên |
+| Bộ câu mẫu đó **gán lại 11 lớp** ✨ | `src/livelift/nlp/data/intent_dataset_11.jsonl` | **320** | có, 11 lớp | **train** |
 | Lô 1 — chat thật phiên `b519f75c` | `data/labeling/lot1-achan-b519f75c/comments_b519f75c.jsonl` | **6.586** | **KHÔNG** | nguồn để gán nhãn |
 | Lô 1 — batch đã xuất đi gán nhãn | `.../batch.jsonl` + `strata.jsonl` | **1.800** | **KHÔNG** (trước 14/09) | — |
 | Lô 1 — **nhãn LLM** ✨ | `.../train_llm.jsonl` | **1.800** | có, 11 lớp | **train** (kê khai §7) |
-| Lô 2 — gán nhãn **TAY, mù**, 3 buổi live | `data/labeling/lot2-da-nguon-10-09/{to_label,gold}.txt` + `key.json` | **393** | có, 11 lớp | **TEST — không bao giờ train** |
+| Lô 2 — nhãn do **tác tử AI (Claude) gán** 09/09 trên bảng xáo trộn, 3 buổi live (**chưa có nhãn người**) | `data/labeling/lot2-da-nguon-10-09/{to_label,gold}.txt` + `key.json` | **393** | có, 11 lớp | **TEST** theo leave-one-session-out (C1–C3 dùng 2 buổi còn lại của mỗi fold làm train) |
 
 ✨ = tạo ra trong đợt làm việc 14/09/2026 này.
 
@@ -36,15 +75,15 @@ những gì tài liệu cũ mô tả, và chỗ không khớp được ghi ra đ
 | Tài liệu cũ nói | Thực tế trên đĩa 14/09 | Hệ quả |
 |---|---|---|
 | *"Có lô ~1.800 nhãn đã xuất"* (`docs/benchmarks/intent-classifier.md`) | `batch.jsonl` có **1.800 dòng nhưng KHÔNG có nhãn**. Không tồn tại `a.jsonl` / `b.jsonl` / `consensus.jsonl` / `reviewed.jsonl` / `train_extra.jsonl`. Lô mới **xuất ra để đi gán**, chưa ai gán | Câu "đã xuất 1.800 nhãn" dễ bị đọc thành "đã có 1.800 nhãn". **Đã sửa bằng cách gán thật** (§7) |
-| *"19.126 bình luận thật từ 16 buổi live"* (`FACT-SHEET.md`) | **Không nằm trên đĩa.** Store là in-memory; ảnh chụp hiện tại (`data/snapshot/livelift-store.json`) chỉ còn **757 bình luận của 16 phiên MÔ PHỎNG**. 19.126 bình luận thật **sinh lại được** từ VOD công khai bằng `scripts/live_fire_da_nguon.py nap`, nhưng **không phải là một tệp có sẵn** | Con số 19.126 vẫn đúng và kiểm chứng được, nhưng phải nói kèm *"sinh lại từ 16 VOD YouTube công khai"*, không được nói *"chúng tôi có một bộ dữ liệu 19.126 dòng"* |
-| *"200 bình luận chat thật gán nhãn tay"* (nguồn của con số 0,271) | Tồn tại như **quy trình** (`random.Random(20260908).sample(comments, 200)` + nhãn tay), nhưng **file nhãn của 200 dòng ấy không được lưu**. Chỉ lô 2 (393 dòng, 10/09) còn đủ ba file ghép được | **Con số 0,271 không tái lập được từng dòng.** Vì vậy tài liệu này **đo lại từ đầu** trên lô 2 và công bố **0,211** làm số "TRƯỚC" chính thức |
+| *"19.126 bình luận thật từ 16 buổi live"* (`FACT-SHEET.md`) | **Không nằm trên đĩa.** Store là in-memory; ảnh chụp hiện tại (`data/snapshot/livelift-store.json`) chỉ còn **757 bình luận của 16 phiên MÔ PHỎNG**. 19.126 bình luận thật **sinh lại được** từ VOD công khai bằng `scripts/live_fire_da_nguon.py nap` (tải chat bằng **yt-dlp**, không phải API chính thức của YouTube; dữ liệu quan sát), nhưng **không phải là một tệp có sẵn** | Con số 19.126 vẫn đúng và kiểm chứng được, nhưng phải nói kèm *"sinh lại từ 16 VOD YouTube công khai"*, không được nói *"chúng tôi có một bộ dữ liệu 19.126 dòng"* |
+| *"200 bình luận chat thật gán nhãn tay"* (nguồn của con số 0,271) | Tồn tại như **quy trình** (`random.Random(20260908).sample(comments, 200)` + nhãn khai là "gán tay" — **chưa kiểm chứng được** ai gán, vì tệp nhãn không được lưu; đính chính 15/09 đã xác định hai bộ dữ liệu khác từng khai "người gán"/"tự viết" thực ra do Claude tạo), nhưng **file nhãn của 200 dòng ấy không được lưu**. Chỉ lô 2 (393 dòng, 10/09) còn đủ ba file ghép được | **Con số 0,271 không tái lập được từng dòng.** Vì vậy tài liệu này **đo lại từ đầu** trên lô 2 và công bố **0,211** làm số "TRƯỚC" chính thức |
 
 > Điểm cuối cùng là điểm quan trọng nhất và nó bất lợi cho đội: **0,271 là một con số
-> không còn kiểm chứng được đến từng dòng**. Đội không xoá nó khỏi tài liệu (nó phản ánh
+> không tái lập được — không còn kiểm chứng được đến từng dòng**. Đội không xoá nó khỏi tài liệu (nó phản ánh
 > đúng một phép đo đã làm), nhưng từ nay mọi bảng dùng **0,211 ± KTC** — con số chạy lại
 > được bằng lệnh trên dữ liệu còn nguyên vẹn.
 
-### 1.3. Phân bố nhãn của tập TEST (393 dòng, người gán)
+### 1.3. Phân bố nhãn của tập TEST (393 dòng, nhãn tham chiếu do tác tử AI gán)
 
 | Lớp | Số dòng | Tỷ lệ | | Lớp | Số dòng | Tỷ lệ |
 |---|---:|---:|---|---|---:|---:|
@@ -55,7 +94,7 @@ những gì tài liệu cũ mô tả, và chỗ không khớp được ghi ra đ
 | `bao_gia_shop` | 32 | 8,1% | | `hoi_size` | 3 | 0,8% |
 | | | | | **`hoi_daily`** | **0** | **0,0%** |
 
-**Đọc bảng này là đã thấy nguyên nhân của 0,271:** hai lớp xã giao (`chao_hoi` +
+**Đọc bảng này là đã thấy nguyên nhân của 0,271 (số 08/09, không tái lập được):** hai lớp xã giao (`chao_hoi` +
 `cam_on_khen`) chiếm **32,6%** chat thật và **không hề có trong bộ 6 lớp cũ**; `bao_gia_shop`
 (shop tự dán bảng giá) chiếm thêm **8,1%**. Tức **hơn 40% chat thật** rơi vào những lớp mà
 mô hình cũ *không có chỗ để đặt*, nên nó ép chúng vào 6 lớp ý định mua.
@@ -67,7 +106,7 @@ thật, nhưng **không có bất kỳ con số chất lượng nào cho lớp n
 
 Đo trên **tầng ngẫu nhiên đơn giản** (mẫu không chệch), từng buổi live:
 
-| Buổi live | Dòng gán nhãn | Tầng ngẫu nhiên | **Ý định mua THẬT** |
+| Buổi live | Dòng có nhãn | Tầng ngẫu nhiên | **Nhãn hành động (theo nhãn AI)** |
 |---|---:|---:|---:|
 | `1NMt8BChQrI` — "Vừa trả đơn vừa tâm sự" | 147 | 72 | **0/72 = 0,0%** |
 | `gT0LDiBta2k` — Khai trương Achan Shop Tuyên Quang | 168 | 103 | **7/103 = 6,8%** |
@@ -80,7 +119,8 @@ radar ý định, và là lý do bảng kết quả dưới đây luôn in kèm 
 
 ## 2. THIẾT KẾ ĐÁNH GIÁ — DỰNG TRƯỚC KHI CẢI TIẾN
 
-Mã: `src/livelift/nlp/eval_intent.py`. Test khoá: `tests/test_nlp_eval_harness.py` (**39 test nhanh + 1 cổng `slow`**).
+Mã: `src/livelift/nlp/eval_intent.py`. Test khoá: `tests/test_nlp_eval_harness.py` (**39 test nhanh + 1 cổng `slow`** ngày 14/09; 25/09 thêm 21 test cho câu kê khai nguồn
+nhãn, recall hành động, số liệu hình, lọc lại PII, bảng gán mù (kể cả seed bí mật) và Cohen κ — tổng **60 nhanh + 1 `slow`**).
 
 ### 2.1. Năm quyết định, và lý do từng cái
 
@@ -96,14 +136,18 @@ khít một dòng trong lô LLM. Khung loại mọi dòng train trùng khít dò
 **62 dòng bị loại** trong lần chạy công bố. Chín dòng không làm đổi kết quả — nhưng một
 khung tự nhận là trung thực thì phải loại và đếm, chứ không đoán là chúng vô hại.
 
-**(c) Nhãn TEST do NGƯỜI gán; nhãn TRAIN có thể do LLM gán.**
-Nếu cả hai do cùng một LLM sinh thì điểm đo được là "mức đồng ý với LLM đó", không phải
-độ chính xác. Lô người gán (3 buổi) **chỉ test**; lô LLM gán (buổi thứ tư) **chỉ train**.
+**(c) Tách lô test khỏi lô train — và kê khai đúng ai gán.**
+Lô 2 (3 buổi) là tập test; lô 1 (buổi thứ tư, 1.800 nhãn LLM) **chỉ train**. ⚠️ **Đính
+chính 15/09:** nhãn lô 2 **cũng do một tác tử AI (Claude) gán**, không phải người (các bản
+trước ghi "người gán" là sai). Hai lô tách buổi và tách lượt gán nhưng cùng một họ mô hình,
+nên **mọi con số trong tài liệu này là mức đồng thuận với nhãn AI**, chưa phải độ chính xác
+so với con người. Bảng gán mù cho hai người đã chuẩn bị 25/09
+(`docs/benchmarks/intent-eval/gan-mu/`), κ tính bằng `scripts/tinh_kappa.py`.
 
-**(d) macro-F1 lấy trung bình trên HỢP của nhãn thật và nhãn dự đoán.**
+**(d) macro-F1 lấy trung bình trên HỢP của nhãn tham chiếu và nhãn dự đoán.**
 Đây là mặc định của `sklearn.f1_score(average="macro")` và là đúng quy ước đã sinh ra con
-số 0,271: lớp mà mô hình **bịa ra** nhưng không tồn tại trong nhãn thật vẫn nhận F1 = 0 và
-được tính vào trung bình. Bịa lớp phải bị phạt. Cột `macro-F1 (chỉ lớp có nhãn thật)` in
+số 0,271 (không tái lập được): lớp mà mô hình **bịa ra** nhưng không tồn tại trong nhãn tham chiếu vẫn nhận F1 = 0
+và được tính vào trung bình. Bịa lớp phải bị phạt. Cột `macro-F1 (chỉ lớp có trong nhãn tham chiếu)` in
 kèm để thấy khoảng cách giữa hai quy ước. Test `test_macro_f1_matches_sklearn_default_convention`
 khoá công thức này lại.
 
@@ -132,7 +176,8 @@ Mọi bảng in cả hai. Ai trích một con số mà không nói tầng nào l
 
 ## 3. BẢNG BASELINE — BA BASELINE BẮT BUỘC + ARTIFACT ĐANG CHẠY
 
-Test = 393 dòng người gán, gộp từ ba fold leave-one-session-out.
+Test = 393 dòng, nhãn tham chiếu do tác tử AI gán (chưa có nhãn người), gộp từ ba fold
+leave-one-session-out.
 
 | # | Hệ thống | macro-F1 (393) | KTC95 | Accuracy | Precision nhãn hành động | macro-F1 tầng **ngẫu nhiên** (200) |
 |---|---|---:|---|---:|---:|---:|
@@ -156,7 +201,8 @@ một mô hình phân loại ý định — đó là một mô hình đoán rằ
 
 **Đọc bảng:**
 
-1. **"0,271 ± bao nhiêu?"** — câu hỏi giám khảo chắc chắn hỏi — nay có đáp án:
+1. **"0,271 ± bao nhiêu?"** — câu hỏi giám khảo chắc chắn hỏi. 0,271 không tái lập được,
+   nên đáp án là con số chạy lại được:
    trên tập test còn kiểm chứng được, mô hình đang chạy đạt **0,211, KTC95 [0,172; 0,247]**.
    Trên riêng tầng ngẫu nhiên 200 dòng: **0,208, KTC95 [0,095; 0,286]** — khoảng rộng gấp
    đôi, đúng như cỡ mẫu 200 cho phép nói.
@@ -169,42 +215,45 @@ một mô hình phân loại ý định — đó là một mô hình đoán rằ
 
 ## 4. BẢNG TRƯỚC/SAU
 
-| # | Hệ thống | macro-F1 (393) | KTC95 | Accuracy | Precision hành động | macro-F1 tầng ngẫu nhiên | Precision hành động, tầng ngẫu nhiên |
-|---|---|---:|---|---:|---:|---:|---:|
-| B2 | **TRƯỚC** — artifact đang chạy | 0,211 | [0,172; 0,247] | 0,338 | 23,0% (54/235) | 0,208 | 21,4% (9/42) |
-| C1 | Bộ nhãn 11 lớp + bộ biên soạn gán lại + gold 2 buổi | 0,557 | [0,487; 0,614] | 0,608 | 46,2% (43/93) | 0,451 | 36,0% (9/25) |
-| **C2** | **SAU** — C1 + 1.800 nhãn LLM trên buổi thứ tư | **0,565** | **[0,491; 0,649]** | **0,741** | **66,7%** (40/60) | **0,519** | **66,7%** (6/9) |
-| C3 | C2 + từ chối trả lời, ngưỡng chọn **trong tập train** | 0,492 | [0,440; 0,562] | 0,713 | 65,2% (30/46) | 0,541 | 83,3% (5/6) |
+| # | Hệ thống | macro-F1 (393) | KTC95 | Accuracy | Precision hành động | Recall hành động | macro-F1 tầng ngẫu nhiên | Precision hành động, tầng ngẫu nhiên |
+|---|---|---:|---|---:|---:|---:|---:|---:|
+| B2 | **TRƯỚC** — artifact đang chạy | 0,211 | [0,172; 0,247] | 0,338 | 23,0% (54/235) | 78,3% (54/69) | 0,208 | 21,4% (9/42) |
+| C1 | Bộ nhãn 11 lớp + bộ câu mẫu gán lại + nhãn AI 2 buổi | 0,563 | [0,491; 0,621] | 0,611 | 47,3% (43/91) | 62,3% (43/69) | 0,455 | 37,5% (9/24) |
+| **C2** | **SAU** — C1 + 1.800 nhãn LLM trên buổi thứ tư (cấu hình đóng gói thành v2) | **0,542** | **[0,478; 0,625]** | **0,730** | **65,5% (38/58)** | 55,1% (38/69) | **0,516** | **66,7% (6/9)** |
+| C3 | C2 + từ chối trả lời, ngưỡng chọn **trong tập train** | 0,493 | [0,441; 0,562] | 0,707 | 66,7% (30/45) | 43,5% (30/69) | 0,538 | 83,3% (5/6) |
 
-**Chênh lệch công bố: macro-F1 0,211 → 0,565 (+0,354).** KTC95 của hai bên **không chồng
-lấn** ([0,172; 0,247] so với [0,491; 0,649]), nên chênh lệch này không phải nhiễu cỡ mẫu.
-Accuracy 0,338 → 0,741, đồng thời **vượt luôn baseline tầm thường** (0,389) — điều mô hình
-cũ không làm được. Precision nhãn hành động **23,0% → 66,7%**.
+**Chênh lệch công bố (25/09): macro-F1 0,211 → 0,542 (+0,331).** KTC95 của hai bên
+**không chồng lấn** ([0,172; 0,247] so với [0,478; 0,625]), nên chênh lệch này không phải
+nhiễu cỡ mẫu. Accuracy 0,338 → 0,730, đồng thời **vượt luôn baseline tầm thường**
+(0,389) — điều mô hình cũ không làm được. Precision nhãn hành động **23,0% →
+65,5%**. **Cái giá phải nói cùng:** recall nhãn hành động **78,3% → 55,1%**
+(54 → 38 trên 69 dòng có nhãn hành động). Mọi số so với nhãn tham chiếu do tác tử AI gán.
 
 **F1 từng lớp của C2** (so với bộ 6 lớp cũ, nơi bốn lớp có F1 = 0 trên chat thật):
 
-| Lớp | P | R | **F1** | Nhãn thật | Lần dự đoán | | Lớp | P | R | **F1** | Nhãn thật | Lần dự đoán |
+| Lớp | P | R | **F1** | Nhãn tham chiếu | Lần dự đoán | | Lớp | P | R | **F1** | Nhãn tham chiếu | Lần dự đoán |
 |---|---:|---:|---:|---:|---:|---|---|---:|---:|---:|---:|---:|
 | `hoi_gia` | 0,812 | 0,929 | **0,867** | 14 | 16 | | `chao_hoi` | 0,909 | 0,952 | **0,930** | 42 | 44 |
-| `hoi_size` | 0,333 | 0,667 | **0,444** | 3 | 6 | | `cam_on_khen` | 0,713 | 0,837 | **0,770** | 86 | 101 |
+| `hoi_size` | 0,200 | 0,333 | **0,250** | 3 | 5 | | `cam_on_khen` | 0,699 | 0,837 | **0,762** | 86 | 103 |
 | `che_dat` | 0,167 | 0,200 | **0,182** | 5 | 6 | | `hoi_sanpham` | 0,333 | 0,182 | **0,235** | 11 | 6 |
-| `chot_don` | 0,833 | 0,455 | **0,588** | 33 | 18 | | `hoi_daily` | 0,000 | — | **0,000** | **0** | 2 |
+| `chot_don` | 0,824 | 0,424 | **0,560** | 33 | 17 | | `hoi_daily` | 0,000 | — | **0,000** | **0** | 2 |
 | `van_chuyen` | 0,643 | 0,643 | **0,643** | 14 | 14 | | `bao_gia_shop` | 0,812 | 0,812 | **0,812** | 32 | 32 |
-| | | | | | | | `khac` | 0,750 | 0,726 | **0,738** | 153 | 148 |
+|  | | | | | | | `khac` | 0,737 | 0,712 | **0,724** | 153 | 148 |
 
 **macro-F1 từng buổi live của C2 — và đây là chỗ phải trung thực:**
 
-| Buổi live | macro-F1 | Accuracy | Precision hành động | Tỷ lệ nền ý định mua |
-|---|---:|---:|---:|---:|
-| `1NMt8BChQrI` | 0,372 | 0,776 | **0,0% (0/11)** | **0,0%** |
-| `gT0LDiBta2k` | 0,525 | 0,762 | 75,0% (6/8) | 6,8% |
-| `47oGShxf80A` | 0,635 | 0,628 | 82,9% (34/41) | 48,0% |
+| Buổi live | macro-F1 | Accuracy | Precision hành động | Recall hành động | Tỷ lệ nền nhãn hành động (nhãn AI) |
+|---|---:|---:|---:|---:|---:|
+| `1NMt8BChQrI` | 0,368 | 0,762 | **0,0% (0/11)** | 0,0% (0/1) | **0,0%** |
+| `gT0LDiBta2k` | 0,525 | 0,762 | 75,0% (6/8) | 35,3% (6/17) | 6,8% |
+| `47oGShxf80A` | 0,599 | 0,603 | 82,1% (32/39) | 62,7% (32/51) | 48,0% |
 
 **Bệnh gốc CHƯA khỏi.** Precision nhãn hành động vẫn đi theo **tỷ lệ nền của buổi**, đúng
 như phát hiện 10/09: ở buổi không có ai mua, mô hình mới vẫn gắn 11 nhãn hành động và
 **sai cả 11**. Cái đã cải thiện là *quy mô sai*: mô hình cũ gắn **235** nhãn hành động trên
-cùng tập test, mô hình mới gắn **60** — bớt được **74%** cảnh báo giả trong khi bắt được
-nhiều ca đúng hơn.
+cùng tập test, mô hình mới gắn **58** — bớt được **75%** số cảnh báo. Nhưng nó **không**
+bắt được nhiều ca đúng hơn: số nhãn hành động đoán đúng giảm 54 → 38 (bản 14/09 từng viết
+"bắt được nhiều ca đúng hơn" — sai ngay trên số của chính nó, 54 → 40; sửa 25/09).
 
 ---
 
@@ -214,53 +263,56 @@ Mỗi dòng tắt **đúng một** thành phần so với cấu hình đầy đ�
 nên phải chấm trên **cùng không gian nhãn 6 lớp** (so macro-F1 trên 6 lớp với macro-F1 trên
 10 lớp là so hai cái thang khác nhau).
 
-| # | Cấu hình | macro-F1 (393) | Δ so với A0 | Accuracy | Precision hành động | macro-F1 tầng ngẫu nhiên |
-|---|---|---:|---:|---:|---:|---:|
-| **A0** | **Đầy đủ** (chuẩn hoá + phong cách + 11 lớp + mọi nguồn) | **0,565** | — | 0,741 | 66,7% | 0,519 |
-| A1 | − chuẩn hoá văn bản (NFKC/teencode/emoji) | 0,564 | **−0,001** | 0,735 | 68,4% | 0,500 |
-| A2 | − đặc trưng phong cách (caps / mốc giá / `‖`) | 0,576 | **+0,011** | 0,735 | 64,3% | 0,545 |
-| A3 | − 1.800 nhãn LLM buổi thứ tư | 0,557 | **−0,008** | **0,608** | **46,2%** | 0,451 |
-| A4 | − bộ biên soạn (chỉ dữ liệu thật) | **0,365** | **−0,200** | 0,677 | 87,5% (7/8) | 0,331 |
-| A5 | − gold 2 buổi trong train (chỉ biên soạn + LLM) | 0,582 | **+0,017** | 0,730 | 71,0% | 0,429 |
-| A6 | + từ chối trả lời (ngưỡng chọn trong train) | 0,492 | **−0,073** | 0,713 | 65,2% | **0,541** |
-| A7 | **Bộ nhãn 6 lớp** (chấm trên không gian 6 lớp) | 0,574 | — | 0,850 | 54,8% | 0,455 |
-| A8 | **Bộ nhãn 11 lớp**, gộp về 6 khi chấm (cùng thang A7) | **0,609** | **+0,035 vs A7** | **0,880** | **66,7%** | 0,626 |
+| # | Cấu hình | macro-F1 (393) | KTC95 | Δ so với A0 | Accuracy | Precision hành động | macro-F1 tầng ngẫu nhiên |
+|---|---|---:|---|---:|---:|---:|---:|
+| **A0** | **Đầy đủ** (chuẩn hoá + phong cách + 11 lớp + mọi nguồn) | **0,542** | [0,478; 0,625] | — | 0,730 | 65,5% | 0,516 |
+| A1 | − chuẩn hoá văn bản (NFKC/teencode/emoji) | 0,559 | [0,488; 0,643] | **+0,016** | 0,735 | 65,0% | 0,500 |
+| A2 | − đặc trưng phong cách (caps / mốc giá / `‖`) | 0,576 | [0,513; 0,682] | **+0,034** | 0,738 | 64,3% | 0,546 |
+| A3 | − 1.800 nhãn LLM buổi thứ tư | 0,563 | [0,491; 0,621] | **+0,021** | 0,611 | 47,3% | 0,455 |
+| A4 | − bộ câu mẫu (chỉ dữ liệu thật) | 0,362 | [0,317; 0,423] | **−0,180** | 0,672 | 87,5% (7/8) | 0,331 |
+| A5 | − nhãn AI 2 buổi trong train (chỉ câu mẫu + LLM) | 0,580 | [0,504; 0,666] | **+0,038** | 0,728 | 71,0% | 0,427 |
+| A6 | + từ chối trả lời (ngưỡng chọn trong train) | 0,493 | [0,441; 0,562] | **−0,050** | 0,707 | 66,7% | 0,538 |
+| A7 | **Bộ nhãn 6 lớp** (chấm trên không gian 6 lớp) | 0,579 | [0,465; 0,669] | — (thang 6 lớp) | 0,852 | 55,4% | 0,455 |
+| A8 | **Bộ nhãn 11 lớp**, gộp về 6 khi chấm (cùng thang A7) | 0,572 | [0,471; 0,667] | **−0,007 vs A7** | 0,875 | 65,5% | 0,626 |
+
+*Số 25/09 (sau lọc lại PII). Trong các dòng cùng thang 11 lớp (A1–A6), trừ A4, điểm đều nằm trong KTC95 của A0 — không dòng nào khác A0 một cách chắc chắn. A7/A8 chấm trên thang 6 lớp, chỉ so với nhau.*
 
 ### Đọc bảng ablation — kể cả những dòng bất lợi
 
 **Cái hiệu quả:**
 
-- **Bộ biên soạn là xương sống (A4: −0,200).** Bỏ 320 câu tự viết, macro-F1 sập gần một
+- **Bộ câu mẫu do AI soạn là xương sống (A4: −0,180).** Bỏ 320 câu mẫu, macro-F1 sập gần một
   nửa. Lý do rõ ràng và đo được: nó là **nguồn duy nhất** dạy được `hoi_size` (50 mẫu),
   `che_dat` (50) và phần lớn `chot_don`/`van_chuyen` — chat thật của ba buổi này quá thưa
   ý định mua để dạy nổi. Precision hành động của A4 lên 87,5% chỉ vì nó gần như **không
   dám dự đoán gì** (8 dự đoán trên 393 dòng): đó là precision của sự im lặng.
-- **Bộ nhãn 11 lớp thắng bộ 6 lớp trên chính thang đo của bộ 6 lớp (A8 vs A7: +0,035
-  macro-F1, +0,030 accuracy, +11,9 điểm precision hành động).** Đây là bằng chứng
-  quan trọng nhất của cả tài liệu: thêm lớp không chỉ giúp mô tả chat thật đầy đủ hơn —
-  nó **làm mô hình bớt sai ngay trên bài toán cũ**, vì `chào cả nhà` cuối cùng cũng có
-  một chỗ để đi thay vì bị ép thành `chot_don`.
-- **1.800 nhãn LLM đổi cả hành vi sản phẩm (A3).** macro-F1 gần như không đổi (−0,008,
-  nằm sâu trong nhiễu), nhưng **accuracy 0,608 → 0,741** và **precision hành động 46,2% →
-  66,7%**, số nhãn hành động phát ra giảm 93 → 60. Lô này dạy mô hình *chat thật trông
+- **Bộ nhãn 11 lớp so với bộ 6 lớp trên chính thang đo của bộ 6 lớp (A8 vs A7): macro-F1
+  −0,007 (ngang nhau), accuracy +0,023, precision hành động
+  55,4% → 65,5%.** Bản 14/09 ghi "+0,035 macro-F1" và gọi đây là bằng chứng quan
+  trọng nhất; sau khi lọc lại PII, phần macro-F1 **biến mất** (A8 0,609 → 0,572) — nó
+  chỉ là dao động của vài dòng lớp nhỏ. Phần còn đứng được là accuracy và precision:
+  thêm lớp giúp `chào cả nhà` có chỗ để đi thay vì bị ép thành `chot_don`.
+- **1.800 nhãn LLM đổi cả hành vi sản phẩm (A3).** macro-F1 **giảm nhẹ** khi thêm lô này
+  (0,563 → 0,542, trong nhiễu), nhưng **accuracy 0,611 → 0,730** và **precision hành
+  động 47,3% → 65,5%**, số nhãn hành động phát ra giảm 91 → 58. Lô này dạy mô hình *chat thật trông
   như thế nào*, và nó là nguồn duy nhất có `hoi_daily` (40 mẫu) và `bao_gia_shop` (33).
 
 **Cái KHÔNG hiệu quả — báo cáo đủ số:**
 
-- **Chuẩn hoá văn bản: −0,001. Bằng không.** Module `normalize.py` (NFKC, teencode, gom ký
+- **Chuẩn hoá văn bản: bỏ đi thì macro-F1 +0,016 (14/09: −0,001). Không giúp gì đo được.** Module `normalize.py` (NFKC, teencode, gom ký
   tự kéo dài, tách emoji) tốn một buổi viết và **không mua được gì đo được**. Giả thuyết
   giải thích: TF-IDF **char 2–5-gram** vốn đã dung sai với mất dấu và teencode — đó chính
   là lý do kiến trúc này được chọn từ đầu — nên chuẩn hoá làm lại một việc đã xong. Module
   được giữ lại vì nó có ích cho mô hình có tokenizer (ViSoBERT, xem §8), **không phải vì
   nó cải thiện mô hình hiện tại**.
-- **Đặc trưng phong cách: −0,011 (tức TẮT nó thì TỐT HƠN).** Chín đặc trưng "ai đang nói"
+- **Đặc trưng phong cách: tắt đi thì macro-F1 +0,034 (tức TẮT nó thì TỐT HƠN).** Chín đặc trưng "ai đang nói"
   (tỷ lệ viết hoa, số mốc giá, dấu `‖`) **làm giảm** macro-F1, dù chúng nâng precision hành
-  động 64,3% → 66,7% và giúp `bao_gia_shop` đạt F1 0,812. Đọc đúng: chúng giúp đúng cái
+  động 64,3% → 65,5% và giúp `bao_gia_shop` đạt F1 0,812. Đọc đúng: chúng giúp đúng cái
   chúng được thiết kế để giúp (tách bảng giá shop khỏi khách hỏi giá) và **trả giá ở chỗ
   khác** — 9 đặc trưng số dày đặc cạnh hàng vạn đặc trưng TF-IDF thưa sẽ hút trọng số.
   Chênh lệch nằm gọn trong KTC nên **không được tuyên bố là có hại**; đúng mực là:
   *chưa chứng minh được lợi ích trên macro-F1*.
-- **Gold 2 buổi trong tập train: +0,017 khi BỎ ĐI (A5).** Nhãn người gán của hai buổi khác
+- **Nhãn AI của 2 buổi trong tập train: +0,038 khi BỎ ĐI (A5).** Nhãn (tác tử AI gán) của hai buổi khác
   **không giúp** mô hình đoán buổi thứ ba — thậm chí hơi hại. Với 3 buổi thì đây chưa phải
   kết luận, nhưng nó là cảnh báo thẳng: **dữ liệu thật của buổi này không tự động chuyển
   giao sang buổi khác**, và chiến lược "cứ gán thêm nhãn là tốt lên" có thể sai.
@@ -273,11 +325,11 @@ nên phải chấm trên **cùng không gian nhãn 6 lớp** (so macro-F1 trên 
 
 | Ngưỡng tự tin | macro-F1 | Accuracy | Độ phủ nhãn hành động | **Precision hành động** | KTC95 Wilson |
 |---:|---:|---:|---:|---:|---|
-| 0,00 (không từ chối) | 0,565 | 0,741 | 15,3% | 66,7% | [0,541; 0,773] |
-| 0,40 | 0,587 | 0,741 | 13,2% | 75,0% | [0,618; 0,848] |
-| 0,45 *(ngưỡng sản phẩm hiện tại)* | 0,560 | 0,741 | 12,0% | 74,5% | [0,605; 0,848] |
+| 0,00 (không từ chối) | 0,542 | 0,730 | 14,8% | 65,5% | [0,527; 0,764] |
+| 0,40 | 0,522 | 0,730 | 12,5% | 73,5% | [0,597; 0,838] |
+| 0,45 *(ngưỡng sản phẩm hiện tại)* | 0,523 | 0,738 | 11,7% | 73,9% | [0,597; 0,844] |
 | 0,60 | 0,577 | 0,730 | 8,4% | **87,9%** | [0,727; 0,952] |
-| 0,70 | 0,546 | 0,700 | 7,6% | **90,0%** | [0,744; 0,965] |
+| 0,70 | 0,548 | 0,700 | 7,9% | **90,3%** | [0,751; 0,967] |
 | 0,80 | 0,488 | 0,674 | 5,6% | 90,9% | [0,722; 0,975] |
 
 Bảng này là **thực đơn**, không phải kết quả đã thẩm định: chọn điểm đẹp nhất trên đây rồi
@@ -293,8 +345,8 @@ Kết quả (dòng C3/A6):
 
 | Đo trên | macro-F1 | Precision hành động |
 |---|---:|---:|
-| Cả 393 dòng | **0,492** (từ 0,565 — **tệ đi 0,073**) | 65,2% (từ 66,7% — tệ đi) |
-| Riêng tầng ngẫu nhiên 200 dòng | **0,541** (từ 0,519 — **tốt lên 0,022**) | **83,3%** (5/6, từ 66,7%) |
+| Cả 393 dòng | **0,493** (từ 0,542 — **tệ đi 0,050**) | 66,7% (30/45, từ 65,5%) |
+| Riêng tầng ngẫu nhiên 200 dòng | **0,538** (từ 0,516 — **tốt lên 0,021**) | **83,3%** (5/6, từ 66,7%) |
 
 **Kết luận trung thực: hiệu chuẩn ngưỡng KHÔNG chuyển giao ổn định giữa các buổi live.**
 Hai trong ba fold chọn ngưỡng 0,00 (tức "đừng từ chối gì cả") vì buổi dùng để hiệu chuẩn đã
@@ -327,10 +379,10 @@ ngưỡng **0,45** như hiện tại và bổ sung **hai lớp kiểm soát đ�
 | **Mô hình** | Claude (Anthropic), truy cập qua Claude Code — cùng công cụ đã kê khai ở §I.1 của `05-BAN-KE-KHAI.md` |
 | **Đầu vào** | `batch.jsonl` (1.800 dòng, đã lọc PII ở tầng ingest) + guideline 11 lớp trong `src/livelift/nlp/labels.py` |
 | **Đội làm gì** | Viết guideline; rút mẫu hai tầng có seed (`--random-fraction 0.10 --seed 2026`); định nghĩa quy ước cho ca mơ hồ; hợp nhất và kiểm tra phân bố; **quyết định lô này CHỈ dùng để train, không bao giờ để test** |
-| **Dùng vào đâu** | **Chỉ làm dữ liệu huấn luyện.** Không một con số đánh giá nào trong tài liệu này đo trên nhãn do AI sinh |
+| **Dùng vào đâu** | **Chỉ làm dữ liệu huấn luyện**, không bao giờ làm tập test. ⚠️ Đính chính 15/09: nhãn của **tập test** (lô 2) **cũng do tác tử AI gán** — mọi con số đánh giá trong tài liệu này là mức đồng thuận với nhãn AI, chưa phải so với người |
 | **Phân bố nhãn sinh ra** | `khac` 1.149 · `cam_on_khen` 382 · `chao_hoi` 173 · `hoi_daily` 40 · `bao_gia_shop` 33 · `hoi_sanpham` 18 · `van_chuyen` 3 · `chot_don` 1 · `hoi_gia` 1 · `hoi_size` 0 · `che_dat` 0 |
 | ⚠️ **Hạn chế 1 — một mô hình, không đồng thuận** | Quy trình thiết kế sẵn trong `label_llm.py` là **2 LLM độc lập + người duyệt bất đồng**. Lô này chỉ chạy **một** mô hình, **không có người duyệt**. Không đo được κ giữa người gán |
-| ⚠️ **Hạn chế 2 — hiệu chuẩn quy ước từ tập test** | Người/AI gán nhãn lô 1 đã **đọc nhãn của lô 2** để thống nhất quy ước (ví dụ: tiếng cười `Kkkk` → `cam_on_khen`, spam chữ số → `khac`). Đây là *hiệu chuẩn hướng dẫn gán nhãn*, hợp lệ và thông thường, nhưng nó khiến **mọi lợi ích đo được của lô LLM đều mang thiên lệch lạc quan**. Không thể báo cáo một con số đồng thuận LLM–người không chệch từ lô này; muốn có thì phải gán một lô người **mới** |
+| ⚠️ **Hạn chế 2 — hiệu chuẩn quy ước từ tập test** | Bên gán nhãn lô 1 (Claude) đã **đọc nhãn của lô 2** để thống nhất quy ước (ví dụ: tiếng cười `Kkkk` → `cam_on_khen`, spam chữ số → `khac`). Đây là *hiệu chuẩn hướng dẫn gán nhãn*, hợp lệ và thông thường, nhưng nó khiến **mọi lợi ích đo được của lô LLM đều mang thiên lệch lạc quan**. Không thể báo cáo một con số đồng thuận LLM–người không chệch từ lô này; muốn có thì phải gán một lô người **mới** |
 | ⚠️ **Hạn chế 3 — lô nghèo ý định mua** | Phiên `b519f75c` là "mega live tâm sự": chỉ **1** dòng `hoi_gia`, **1** `chot_don`, **0** `hoi_size`, **0** `che_dat` trong 1.800 dòng. Lô này dạy được xã giao và bảng giá shop, **không dạy được ý định mua** |
 
 **Kê khai thêm cho lần làm việc này:** bộ 320 câu biên soạn được **gán lại nhãn** sang bộ
@@ -348,11 +400,13 @@ Sinh bằng `python -m livelift.nlp.eval_intent --errors <file>`. Bình luận �
 
 ### 8.1. Sáu cơ chế sai, mỗi cơ chế một câu thật
 
+*Câu ví dụ lấy từ lần chạy `--errors` ngày 14/09; số đếm trong ngoặc cập nhật theo lần đo 25/09.*
+
 | # | Ô nhầm lẫn | Câu THẬT | Cơ chế |
 |---|---|---|---|
 | **1** | `cam_on_khen` → `hoi_size` | **`Hay`** (4 lần, cả 4 sai) | **Đa nghĩa tiếng Việt.** `hay` = "thú vị" (khen) trùng mặt chữ với `hay` = "hoặc" trong câu hỏi cỡ (`L hay XL ạ`, `form chuẩn hay lớn hơn 1 size`). Bộ biên soạn có 50 câu `hoi_size` chứa `hay` với nghĩa "hoặc"; chat thật có `Hay` một mình với nghĩa khen. Char n-gram không phân biệt được |
 | **2** | `bao_gia_shop` → `che_dat` | **`Achan Shop đang có bưởi. Mời cả nhà mua ủng hộ ạ (giảm giá 5%)`** (3 lần) | **Đa nghĩa "giảm giá".** Shop nói `giảm giá 5%` (khuyến mãi) trùng mặt chữ với khách nói `giảm giá đi shop` (trả giá). Đặc trưng `is_shouted_pricesheet` không bắt được vì câu này viết thường, chỉ 1 mốc giá |
-| **3** | `chot_don` → `khac` (14/33) | **`mã15 khăn 3 cái`** · **`mả 3 2 hủ`** · **`giỏ đi chợ 1c`** · **`ma4chao vàng 4c`** | **Quy ước đặt hàng riêng của từng shop.** Buổi bán quần áo chốt đơn bằng *mã sản phẩm + số lượng*, không có một chữ nào trong 11 từ khoá `chot_don`. Đây là lỗi làm hỏng recall nhiều nhất (0,455) và **không sửa được bằng thêm dữ liệu chung** — phải học từ chính buổi đó |
+| **3** | `chot_don` → `khac` (15/33) | **`mã15 khăn 3 cái`** · **`mả 3 2 hủ`** · **`giỏ đi chợ 1c`** · **`ma4chao vàng 4c`** | **Quy ước đặt hàng riêng của từng shop.** Buổi bán quần áo chốt đơn bằng *mã sản phẩm + số lượng*, không có một chữ nào trong 11 từ khoá `chot_don`. Đây là lỗi làm hỏng recall nhiều nhất (0,424) và **không sửa được bằng thêm dữ liệu chung** — phải học từ chính buổi đó |
 | **4** | `chot_don` → `bao_gia_shop` | **`1cay son m18 gia 19k`** · **`1 cái chảo nửa 19 k 24310 khách củ`** | **Đặc trưng phong cách phản chủ.** Khách chốt đơn có nhắc giá → khớp mẫu "có mốc giá" của bảng giá shop. Cùng đặc trưng cứu được `bao_gia_shop` (F1 0,812) thì làm hỏng `chot_don` |
 | **5** | `khac` → `van_chuyen` | **`Em ship toàn quốc`** · **`Đơn e đi hơi chậm hàng nhiều nên nhận lâu chị đợi hàng dùm em nha`** | **Vẫn là mô hình người nói.** Hai câu này do **shop** nói (trả lời khách), không phải khách hỏi. Guideline nói rõ "ai đang nói quyết định nhãn" nhưng mô hình không có bất kỳ tín hiệu tác giả nào — nền tảng không trả về vai trò mod cho replay |
 | **6** | `hoi_sanpham` → `khac` (6/11) | **`có túi`** · **`vai gi em`** · **`bi hen suyên uong đuoc`** | **Câu quá ngắn, sai chính tả nặng.** 2–4 token, không dấu, thiếu chủ ngữ. Không có đặc trưng nào đủ tín hiệu |
@@ -364,7 +418,7 @@ Sinh bằng `python -m livelift.nlp.eval_intent --errors <file>`. Bình luận �
 | Lời chào bị gán `chot_don` (lỗi số 1 đo được) | **Khỏi.** `chao_hoi` F1 **0,930**, chỉ 2/42 lời chào bị nhầm — và nhầm sang `cam_on_khen`, vô hại |
 | Bảng giá mod dán bị tính là khách hỏi giá | **Khỏi phần lớn.** `bao_gia_shop` F1 **0,812**; chỉ 1/32 bảng giá còn bị gọi là `hoi_gia` |
 | `hoi_gia` sai 80% (6/30 đúng, 08/09) | **Khỏi.** `hoi_gia` precision **0,812**, recall 0,929, F1 **0,867** |
-| `hoi_size` sai 100% (0/16, 08/09) | **Đỡ nhưng chưa khỏi.** F1 0,444 trên **3 mẫu thật** — cỡ mẫu quá nhỏ để nói gì chắc chắn |
+| `hoi_size` sai 100% (0/16, 08/09) | **Đỡ nhưng chưa khỏi.** F1 0,250 trên **3 dòng tham chiếu** (14/09: 0,444 — một dòng đổi là đủ) — cỡ mẫu quá nhỏ để nói gì chắc chắn |
 
 ---
 
@@ -372,14 +426,17 @@ Sinh bằng `python -m livelift.nlp.eval_intent --errors <file>`. Bình luận �
 
 1. **Ba buổi live là ba buổi, không phải một mẫu.** Toàn bộ kết luận đứng trên
    `n_session = 3`. KTC bootstrap in trong mọi bảng là **KTC theo dòng** và **hẹp hơn sự
-   thật**; bất định thật nằm ở cấp buổi, nơi macro-F1 đi từ 0,372 đến 0,635. Ba buổi thì
+   thật**; bất định thật nằm ở cấp buổi, nơi macro-F1 đi từ 0,368 đến 0,599. Ba buổi thì
    không bootstrap theo cụm được. Cần ≥ 10 buổi mới nói được "mô hình đạt X".
-2. **Một người gán nhãn, không có κ.** Lô 2 do một người gán, không đo được đồng thuận
-   giữa người gán. Quy tắc định trước cho ca mơ hồ là **chọn lớp hành động** ⇒ mọi con số
-   precision là **cận trên có lợi cho mô hình**.
+2. **Nhãn tham chiếu do tác tử AI gán, chưa có nhãn người, chưa có κ.** Lô 2 do một tác
+   tử Claude gán (đính chính 15/09), nên mọi con số là mức đồng thuận với nhãn AI — và mô
+   hình C2 còn học từ 1.800 nhãn của cùng họ mô hình (câu hỏi "0,542 đo khả năng hiểu khách
+   hay khả năng bắt chước Claude?" là câu hỏi đúng, chưa trả lời được). Bảng gán mù cho hai
+   người đã sẵn sàng 25/09 (`docs/benchmarks/intent-eval/gan-mu/`). Quy tắc định trước cho
+   ca mơ hồ là **chọn lớp hành động** ⇒ mọi con số precision là **cận trên có lợi cho mô hình**.
 3. **Rò rỉ theo người bán.** Ba buổi test và buổi train LLM **cùng một nhà bán** (hệ thống
    Achan Shop) ở 3/4 phiên. Bảng giá, cách nói, tên sản phẩm lặp lại. Rào chắn trùng khít
-   văn bản loại được 62 dòng, nhưng **không loại được trùng phong cách**. Con số 0,565
+   văn bản loại được 62 dòng, nhưng **không loại được trùng phong cách**. Con số 0,542
    gần như chắc chắn **lạc quan** khi áp sang một nhà bán mới.
 4. **Thiên lệch hiệu chuẩn quy ước gán nhãn** (§7, hạn chế 2) — lợi ích của lô LLM đo được
    trong điều kiện có lợi.
@@ -393,12 +450,13 @@ Sinh bằng `python -m livelift.nlp.eval_intent --errors <file>`. Bình luận �
    ViSoBERT trên CPU với ~2,5k mẫu là khả thi về thời gian (vài chục phút/epoch) nhưng đòi
    cài ~2,5 GB phụ thuộc và **một đường mạng ổn định để tải trọng số** — hai thứ không đảm
    bảo được trong 5 ngày còn lại, và một artifact 500 MB không hợp với ràng buộc vận hành
-   hiện tại (suy luận < 1 ms/bình luận, artifact 86 KB, không cần torch). **Quyết định:
+   hiện tại (suy luận < 1 ms/bình luận, artifact v1 ≈ 84 KiB, không cần torch). **Quyết định:
    không hứa ViSoBERT trong hồ sơ vòng 1.** Module `normalize.py` được giữ lại chính vì
    nó là bước chuẩn bị đúng cho tokenizer của ViSoBERT, dù nó không giúp TF-IDF.
-8. **Tăng gấp đôi kích thước artifact.** `intent_clf_v2.joblib` ≈ **925 KB** so với 86 KB
-   (từ vựng char n-gram lớn hơn 8 lần vì có dữ liệu thật). Vẫn nạp được trong < 1 s, vẫn
-   không cần torch, nhưng con số phải được ghi đúng ở mọi nơi.
+8. **Artifact lớn gấp khoảng 10,9 lần.** `intent_clf_v2.joblib` 942.653 byte (≈ 921 KiB)
+   so với 86.496 byte (≈ 84 KiB) của v1 (từ vựng char n-gram lớn hơn 8 lần vì có dữ liệu
+   thật). Vẫn nạp được trong < 1 s, vẫn không cần torch, nhưng con số phải được ghi đúng ở
+   mọi nơi.
 
 ---
 
@@ -418,10 +476,19 @@ cd d:/AISC2026/livelift
 #    data/labeling/README.md; lô LLM là data/labeling/lot1-achan-b519f75c/train_llm.jsonl)
 
 # 3. Toàn bộ bảng của tài liệu này, MỘT lệnh (~8 phút trên CPU)
-.venv/Scripts/python -m livelift.nlp.eval_intent --ablation --coverage --save-model
-#    -> docs/benchmarks/intent-eval/results.json   (số gốc, đủ ma trận nhầm lẫn)
-#    -> docs/benchmarks/intent-eval/results.md     (bảng Markdown tự sinh)
-#    -> src/livelift/nlp/model/intent_clf_v2.joblib + .meta.json
+.venv/Scripts/python -m livelift.nlp.eval_intent --ablation --coverage
+#    -> docs/benchmarks/intent-eval/results.json      (số gốc, đủ ma trận nhầm lẫn)
+#    -> docs/benchmarks/intent-eval/results.md        (bảng Markdown tự sinh)
+#    -> docs/benchmarks/intent-eval/chi-tiet-hinh.json (số cho hình, không có văn bản)
+#    Thêm --save-model thì GHI ĐÈ src/livelift/nlp/model/intent_clf_v2.joblib + .meta.json
+
+# 3b. Đối chiếu (25/09): cùng mã trên bản sao dữ liệu TRƯỚC khi lọc lại PII — phải ra
+#     đúng số 14/09; không bao giờ ghi vào thư mục kết quả công bố
+.venv/Scripts/python -m livelift.nlp.eval_intent --ablation --coverage \
+    --du-lieu <bản sao data/labeling> --out-dir <thư mục tạm>
+
+# 3c. Lọc lại PII dữ liệu gán nhãn (idempotent; --kiem-tra là cổng: còn PII thì mã 1)
+.venv/Scripts/python scripts/gan_mu/loc_lai_pii.py --kiem-tra
 
 # 4. Ví dụ lỗi thật của §8 (ghi ra ngoài repo — file chứa bình luận người dùng)
 .venv/Scripts/python -m livelift.nlp.eval_intent --errors ../loi-intent.md
@@ -433,8 +500,9 @@ cd d:/AISC2026/livelift
 ```
 
 **Seed cố định ở mọi bước:** rút mẫu `2026`, bootstrap `2026`, `LogisticRegression` `2026`,
-lô 2 `SEED_A=20260910` / `SEED_B=4242` / xáo trộn `777`. Chạy lại ra **cùng con số đến chữ
-số thứ ba**.
+lô 2 `SEED_A=20260910` / `SEED_B=4242` / xáo trộn `777`. Chạy lại trên **cùng dữ liệu** ra
+**cùng con số đến chữ số thứ ba**. Dữ liệu đổi thì số đổi: lọc lại PII 25/09 đổi 12 dòng văn
+bản và C2 đổi 0,565 → 0,542 (khối cập nhật ở đầu tài liệu).
 
 ---
 
@@ -464,7 +532,8 @@ xoá khả năng kiểm chứng con số cũ.
 
 **Cổng hồi quy mới (`slow`):** `test_upgraded_model_beats_the_shipped_one_on_real_chat` —
 bản nâng cấp phải hơn artifact đang chạy **≥ 0,20 macro-F1** trên chat thật (khoảng cách
-đo được là +0,354, nên một bản sụt nhẹ vẫn qua còn một bản hỏng thật thì trượt).
+đo được là +0,354 ngày 14/09 và +0,331 ngày 25/09, nên một bản sụt nhẹ vẫn qua còn một bản
+hỏng thật thì trượt).
 
 ### 11.1. Vì sao v2 CHƯA phải mặc định — và thăng cấp thế nào
 
@@ -523,12 +592,13 @@ hai hàm biến đổi chuyển sang `livelift.nlp.normalize` — một module k
 | # | Việc | Chi phí | Lợi ích kỳ vọng | Vì sao tin như vậy |
 |---|---|---|---|---|
 | 1 | **Gán nhãn tay 200–300 dòng của một nhà bán KHÁC** (không thuộc hệ thống Achan) | 3–4 giờ | Con số đầu tiên **không** dính rò rỉ theo người bán | Hạn chế 3 là hạn chế lớn nhất còn lại |
-| 2 | **Gán 150 dòng `chot_don` của buổi bán quần áo** (quy ước "mã X, N cái") | 1 giờ | Recall `chot_don` 0,455 → kỳ vọng > 0,8 | Cơ chế lỗi 3 ở §8.1 là lỗi *quy ước*, học được bằng vài chục ví dụ |
-| 3 | **Người thứ hai gán lại 100 dòng lô 2 → đo κ** | 1 giờ | Trả lời được câu hỏi "nhãn của các bạn đáng tin không" | Hạn chế 2 |
+| 2 | **Gán 150 dòng `chot_don` của buổi bán quần áo** (quy ước "mã X, N cái") | 1 giờ | Recall `chot_don` 0,424 → kỳ vọng > 0,8 | Cơ chế lỗi 3 ở §8.1 là lỗi *quy ước*, học được bằng vài chục ví dụ |
+| 3 | **Hai người gán mù 393 dòng lô 2 → đo κ người–người, κ người–AI, chấm lại B0–C2** (bảng + script đã sẵn 25/09: `docs/benchmarks/intent-eval/gan-mu/`) | 2 × ~1 giờ | Trả lời được câu hỏi "nhãn AI có khớp người không" | Hạn chế 2 |
 | 4 | **Chặn theo tỷ lệ nền trong phiên** (§6.2) | nửa ngày | Đánh trúng cơ chế lỗi còn lại (buổi 0% ý định mua) | Precision đi theo tỷ lệ nền, không theo độ tự tin |
 | 5 | ViSoBERT fine-tune | 1–2 ngày + hạ tầng | Chưa xác định được | §9 mục 7 |
 
 ---
 
-*Người chịu trách nhiệm nội dung tài liệu này: đội LiveLift. Mọi con số ở đây do đội tự đo
-trên dữ liệu của chính mình, tự công bố cả phần bất lợi, và sinh lại được bằng lệnh ở §10.*
+*Người chịu trách nhiệm nội dung tài liệu này: đội LiveLift. Mọi con số ở đây đo trên dữ
+liệu kê khai ở §1 (bình luận VOD công khai qua yt-dlp; nhãn do AI gán), công bố cả phần bất
+lợi, và sinh lại được bằng lệnh ở §10.*

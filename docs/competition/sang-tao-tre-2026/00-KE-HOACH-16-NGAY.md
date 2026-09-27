@@ -11,6 +11,16 @@ không phải qua Vòng loại Quốc gia. Chi tiết thể lệ ở `BRIEF-THE-
 | **Vòng Khu vực — hackathon 2 ngày, TP.HCM** | **10–11/10/2026** | **60%** |
 | Vòng Chung kết — cải tiến 12 giờ + phản biện, Hà Nội | 20–22/11/2026 | quyết định giải Nhất |
 
+> **Lịch song song (cập nhật 25/09/2026):** AISC'26 vòng 2 là **15/10/2026 tại UIT**, poster + mockup
+> giao diện bắt buộc — không phải "16–30/09" như kế hoạch nội bộ cũ ghi. Việc AISC xếp sau 30/09.
+
+> **Trạng thái 25/09/2026:** việc đã xong, việc còn lại của con người và các quyết định cần chốt nay
+> ghi ở `docs/VIEC-CAN-LAM.md` (mục "Trạng thái 25/09"). Tóm tắt: repo đã Public (15/09); việc 4
+> giai đoạn 1 (lọc lại PII, đo lại) xong trên nhánh review `hoan-thien/ho-so-2509` — 57 → 0 tên tài
+> khoản, C2 = 0,542 [0,478; 0,625]; giai đoạn 3 đã có bộ dựng hồ sơ an toàn, kịch bản 2 video, bộ
+> xuất Prompt Log mới (78 câu lệnh người gõ trong 5 phiên), bản kê khai viết lại — chờ merge. Việc 2, 3
+> giai đoạn 1 và các việc chỉ con người làm được ở cuối tài liệu này vẫn còn mở.
+
 > **Điều dễ hiểu sai nhất:** Vòng Khu vực **không** phải buổi bảo vệ LiveLift.
 > BTC đưa **một bộ dữ liệu thô lạ + một yêu cầu thực tiễn**, đội xây giải pháp
 > tại chỗ trong 2 ngày. Hồ sơ LiveLift chỉ mang 40%. Một đội có hồ sơ xuất sắc

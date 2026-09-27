@@ -12,6 +12,11 @@ Thiếu tệp thật thì mọi hàm vẫn chạy, nhưng trả toàn ô ``⬜``
 báo "CHƯA NỘP ĐƯỢC" chứ không lặng lẽ dựng ra bản thiếu tên.
 
 Chỉ dùng thư viện chuẩn: tệp này được nhập từ cả ``.venv`` lẫn ``.venv-docx``.
+
+Khoá của mỗi thành viên: ``ho_ten``, ``ngay_sinh``, ``mssv``, ``lop_hanh_chinh``
+(thêm 25/09/2026 — MẪU 3 hỏi "Lớp hành chính, ngành, khoa, trường"; tệp cũ
+thiếu khoá này thì bộ dựng coi là ô ``⬜``), ``nganh``, ``khoa``, ``truong``,
+``noi_o``, ``dien_thoai``, ``email``.
 """
 
 from __future__ import annotations
@@ -34,11 +39,19 @@ def doc() -> dict:
 
 
 def gia_tri_nhay_cam() -> list[str]:
-    """Mọi giá trị cần che khi công bố (email, SĐT, MSSV), bỏ qua ô còn trống."""
+    """Mọi giá trị cần che khi công bố, bỏ qua ô còn trống.
+
+    Email, SĐT, MSSV luôn che. Lớp hành chính (thêm 25/09/2026) che khi dài từ
+    6 ký tự: mã lớp đầy đủ cùng họ tên định danh được một sinh viên, còn chuỗi
+    quá ngắn thì thay thế toàn văn sẽ xoá nhầm chữ thường.
+    """
     ra = []
     for tv in doc()["thanh_vien"]:
-        for khoa in ("email", "dien_thoai", "mssv"):
+        for khoa in ("email", "dien_thoai", "mssv", "lop_hanh_chinh"):
             v = (tv.get(khoa) or "").strip()
-            if v and CHO_TRONG not in v:
-                ra.append(v)
+            if not v or CHO_TRONG in v:
+                continue
+            if khoa == "lop_hanh_chinh" and len(v) < 6:
+                continue
+            ra.append(v)
     return ra

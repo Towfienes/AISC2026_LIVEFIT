@@ -288,6 +288,10 @@ Buổi phân tích là dòng bắt đầu bằng **"Phân tích: …"**; phiên 
 
 ![Đã chọn đúng buổi vừa phân tích](img/l2-04-chon-buoi-trong-dropdown.png)
 
+*(Trong ảnh này và ảnh ở bước 2.5, bình luận của người xem và tên kênh đã được
+che bằng khối xám để giữ riêng tư cho người xem và chủ kênh. Trên máy của bạn,
+các chỗ đó hiện đầy đủ.)*
+
 Đúng buổi rồi thì: tổng thời lượng bên phải khớp buổi đó (ví dụ `01:58:00`), và
 khung **Radar bình luận** có bình luận tiếng Việt thật.
 
@@ -399,9 +403,11 @@ xong bấm **"Tạo phiên"**:
 | Chế độ | thẻ **Tự ghim** (khuyên dùng) hoặc **Chỉ gợi ý** |
 
 > **Hai chế độ nghĩa là gì (giải thích ngay trên thẻ):**
-> - **Tự ghim** — hệ thống tự ghim sản phẩm tốt nhất khi đến lượt khối BẬT
->   (bộ thực thi tự động phía máy chủ, có từ 12/09); bạn chỉ theo dõi. Ở chế độ
->   này nút *Thực hiện* trên thẻ gợi ý bị khoá — vì máy đã bấm thay bạn:
+> - **Tự ghim** — hệ thống tự chọn sản phẩm và ra lệnh ghim trong khối BẬT
+>   (bộ thực thi tự động phía máy chủ, có từ 12/09); người trợ live vẫn bấm ghim
+>   trên ứng dụng của nền tảng. Khi khoảng tin cậy của các sản phẩm chồng lấn, hệ
+>   thống bốc đều chứ không chọn "tốt nhất". Ở chế độ này nút *Thực hiện* trên thẻ
+>   gợi ý bị khoá — vì máy đã ra lệnh thay bạn:
 >
 > ![Chế độ Tự động — nút Thực hiện bị mờ, không bấm được](img/l3-08b-che-do-tu-dong-nut-mo.png)
 >
@@ -450,8 +456,11 @@ tiếp.
   **"Chép link"** (bấm xong đổi thành *"Đã chép ✓"*), và một ô tự đánh dấu
   *"Tôi đã dán (hoặc sẽ dán ngay khi lên sóng) link đo vào bình luận ghim"*;
 - **Nguồn bình luận** — khung **Bộ thu bình luận** ngay trong checklist: chọn
-  nền tảng, dán link buổi live, bấm **"Bật bộ thu"**. Bật trước giờ phát cũng
-  được — bộ thu chờ buổi live bắt đầu. Chi tiết ở **mục 10**;
+  nền tảng, dán link buổi live, bấm **"Bật bộ thu"**. YouTube/Facebook: bật
+  trước giờ phát được — bộ thu chờ nền tảng báo buổi live đang phát (không chờ
+  nút *"Bắt đầu phát sóng"*); bình luận ghi trước lúc phiên lên sóng không thuộc
+  khối nào. Nguồn Mô phỏng phát ngay khi bật, nên bật SAU khi bấm *"Bắt đầu
+  phát sóng"*. Chi tiết ở **mục 10**;
 - **Màn hình người dẫn** — nút **"Mở màn hình người dẫn ↗"** (mở
   `/host?session=<mã phiên>` ở tab mới) kèm hướng dẫn kéo sang màn phụ/TV, bấm
   F11;
@@ -666,6 +675,9 @@ nút **"Báo cáo phiên"** ở dòng bạn muốn.
 
 ![Danh sách báo cáo từng phiên](img/l4-02-ket-qua-bao-cao-tung-phien.png)
 
+*(Tên các buổi live của kênh khác trong ảnh này và ảnh ở mục 6.3 đã được che bằng
+khối xám. Trên máy của bạn, tên buổi hiện đầy đủ.)*
+
 ### 6.3 — Đọc báo cáo sau phiên
 
 ![Báo cáo sau phiên — tổng quan và ma trận tín hiệu](img/l4-03-bao-cao-tong-quan.png)
@@ -716,7 +728,7 @@ không có số nhân quả"*. Với phiên bạn tự chạy, nó hiện tác �
 |---|---|---|---|
 | Ai nhìn | Chủ shop / người trợ live | Người dẫn đang nói trước máy quay | Khách xem live |
 | Đặt ở đâu | Laptop ngồi cạnh, ngoài khung hình | Màn phụ / TV trước mặt người dẫn | Điện thoại của khách |
-| Thấy khối BẬT/TẮT | **Có** | **KHÔNG BAO GIỜ** | Không |
+| Thấy khối BẬT/TẮT | **Có** | **Không** hiện (nhưng đoán được qua sản phẩm ghim — xem dưới) | Không |
 | Thấy đồng hồ đếm ngược khối | Có | Không | Không |
 | Thấy thẻ gợi ý, nút Thực hiện | Có | Không | Không |
 | Thấy gì | Toàn bộ | Đúng 4 thứ: sản phẩm đang ghim · giá · tồn kho · thời gian phát | Chỉ link đo trong bình luận ghim |
@@ -732,6 +744,13 @@ Việc làm mù này được ép ở tầng kiến trúc, không phải "nhớ 
 dùng một luồng dữ liệu riêng chỉ chứa đúng 4 trường, nên **kể cả lập trình viên
 muốn cũng không hiện khối lên đó được**. Bạn kiểm chứng bằng mắt: mở `/host`,
 không có dải tím/xám ở bất kỳ đâu.
+
+**Giới hạn — làm mù chỉ một phần.** Màn host vẫn hiện *sản phẩm đang ghim*, mà
+ghim chính là thứ đang được thử. Ở chế độ Tự ghim, lệnh ghim chỉ đến trong khối
+BẬT; khối TẮT hiện "Chưa ghim sản phẩm". Người dẫn tinh ý vẫn đoán được nhánh.
+Thứ được che là **lịch** (ranh giới khối, đếm ngược, nhánh sắp tới), không phải
+chính can thiệp — nên con số đo được là tác động của chiến lược ghim *tính cả*
+phản ứng của người dẫn với sản phẩm ghim (`PREREGISTRATION.md` §1).
 
 Dòng chữ nhỏ ngay dưới dải khối trên bàn trợ live nhắc lại điều này: *"Chỉ hiện
 trên bàn trợ live — màn người dẫn không thấy khối"*.
@@ -798,7 +817,10 @@ khi lưu.
 **Ở đâu** (hai chỗ, cùng điều khiển một bộ thu của phiên):
 
 - **Chuẩn bị phiên → bước 4/4 — Lên sóng**, dòng **"Nguồn bình luận"** trong
-  checklist. Bật **trước giờ phát** cũng được: bộ thu sẽ chờ buổi live bắt đầu.
+  checklist. Bật **trước giờ phát** được: bộ thu chờ nền tảng báo buổi live đang
+  phát, KHÔNG chờ nút *"Bắt đầu phát sóng"* của LiveLift; bình luận ghi trước lúc
+  phiên lên sóng không thuộc khối nào. Nguồn Mô phỏng (mục 12) thì phát ngay khi
+  bật.
 - **Bàn trợ live**, khung **"Bộ thu bình luận"** ở đầu cột giữa. Khung chỉ hiện
   khi bàn nối được máy chủ thật và phiên chưa kết thúc.
 

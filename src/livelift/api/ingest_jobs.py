@@ -30,7 +30,13 @@ Vòng đời::
   tối đa :data:`MAX_RESTARTS` lần.
 * Nền tảng nói buổi live CHƯA bắt đầu ⇒ ``cho_len_song``, dò lại mỗi
   :data:`WAIT_FOR_LIVE_S` giây, không tính vào số lần thử lại. Nhờ vậy người
-  vận hành bật bộ thu TRƯỚC giờ phát và nó tự bắt đầu thu khi host lên sóng.
+  vận hành bật bộ thu TRƯỚC giờ phát và nó tự bắt đầu thu khi NỀN TẢNG báo
+  buổi live đang phát. Nói chính xác (kiểm toán 25/09/2026, runtime.md 3.5):
+  bộ thu chờ NỀN TẢNG, không chờ nút "Bắt đầu phát sóng" của LiveLift — kênh
+  đã lên sóng mà phiên còn ``scheduled`` thì bình luận vẫn được ghi (không
+  thuộc khối nào, không vào ước lượng). Nguồn ``mo_phong`` không có buổi live
+  nào để chờ nên phát NGAY khi bật. Trạng thái bộ thu nói điều đó bằng
+  ``ghi_chu_truoc_len_song`` (:func:`ghi_chu_truoc_len_song`).
 * Lỗi CẤU HÌNH (thiếu khoá, token sai) ⇒ ``loi`` ngay: thử lại không sửa được
   một token hỏng, chỉ đốt quota.
 * Phiên LiveLift chuyển sang ``ended``/``cancelled`` ⇒ ``phien_ket_thuc``.
@@ -794,6 +800,40 @@ def _co_yt_dlp() -> bool:
     return importlib.util.find_spec("yt_dlp") is not None
 
 
+CHO_NEN_TANG = (
+    "Bật trước giờ phát được: bộ thu chờ NỀN TẢNG báo buổi live đang phát, KHÔNG chờ "
+    "nút Bắt đầu phát sóng của LiveLift — bình luận ghi trước lúc phiên lên sóng "
+    "không thuộc khối nào."
+)
+"""Câu chung cho các nền tảng có trạng thái ``cho_len_song`` (YouTube, Facebook)."""
+
+TRANG_THAI_DA_LEN_SONG = frozenset({"live", "ended", "cancelled"})
+
+
+def ghi_chu_truoc_len_song(session: dict[str, Any] | None, platform: str | None) -> str | None:
+    """Câu nói thật khi bộ thu đang/đã chạy mà phiên LiveLift CHƯA lên sóng.
+
+    Kiểm toán 25/09/2026 (runtime.md 3.5): wizard hứa "bộ thu sẽ chờ buổi live
+    bắt đầu", nhưng phiên 80da23ab ghi 78 bình luận khi ``status=scheduled``,
+    ``start_ts=null``. Không đổi hành vi thu (bình luận trước giờ phát không
+    thuộc khối nào nên không làm sai số nào) — chỉ nói ra, để giao diện không
+    phải đoán. ``None`` khi phiên đã lên sóng (hoặc đã đóng).
+    """
+    if session is None or session.get("status") in TRANG_THAI_DA_LEN_SONG:
+        return None
+    if platform == NEN_TANG_MO_PHONG:
+        return (
+            "Phiên chưa lên sóng mà nguồn Mô phỏng phát kịch bản NGAY khi bật: bình luận "
+            "ghi lúc này không thuộc khối nào (không vào ước lượng) và phần kịch bản này "
+            "bị dùng hết trước giờ phát. Nên tắt rồi bật lại SAU khi bấm Bắt đầu phát sóng."
+        )
+    return (
+        "Phiên chưa lên sóng: bộ thu chờ NỀN TẢNG báo buổi live đang phát, không chờ nút "
+        "Bắt đầu phát sóng của LiveLift. Bình luận ghi trước lúc phiên lên sóng không "
+        "thuộc khối nào (không vào ước lượng)."
+    )
+
+
 def muc_san_sang_nen_tang(settings: Any) -> list[dict[str, Any]]:
     """Trả lời "nền tảng nào thu được NGAY BÂY GIỜ, thiếu gì" cho trang web.
 
@@ -814,7 +854,7 @@ def muc_san_sang_nen_tang(settings: Any) -> list[dict[str, Any]]:
                 "note": (
                     "Đang dùng đường DỰ PHÒNG yt-dlp: không cần khoá nhưng trái Điều khoản "
                     "YouTube, trễ ~25 giây. Chỉ dùng cho kênh của chính mình; đường chuẩn là "
-                    "YOUTUBE_API_KEY với INGEST_YOUTUBE_BACKEND=api."
+                    "YOUTUBE_API_KEY với INGEST_YOUTUBE_BACKEND=api. " + CHO_NEN_TANG
                 ),
             }
         )
@@ -830,7 +870,7 @@ def muc_san_sang_nen_tang(settings: Any) -> list[dict[str, Any]]:
                 "source_hint": "Dán link video đang live (youtube.com/watch?v=… hoặc /live/…)",
                 "note": (
                     "YouTube Data API v3, miễn phí, hạn mức 10.000 đơn vị/ngày — đủ khoảng một "
-                    "buổi 90 phút khi thu bình luận và người xem."
+                    "buổi 90 phút khi thu bình luận và người xem. " + CHO_NEN_TANG
                 ),
             }
         )
@@ -853,7 +893,7 @@ def muc_san_sang_nen_tang(settings: Any) -> list[dict[str, Any]]:
             "source_hint": "Để trống để tự tìm buổi đang phát trên Page, hoặc dán live-video id",
             "note": (
                 "Graph API, cần quyền pages_read_engagement VÀ pages_read_user_content "
-                "(thiếu quyền thứ hai sẽ đọc được 0 bình luận mà không báo lỗi)."
+                "(thiếu quyền thứ hai sẽ đọc được 0 bình luận mà không báo lỗi). " + CHO_NEN_TANG
             ),
         }
     )
@@ -906,7 +946,9 @@ def muc_san_sang_nen_tang(settings: Any) -> list[dict[str, Any]]:
             "note": (
                 "Bình luận do AI soạn sẵn (dữ liệu tổng hợp), không phải khách thật — chỉ để "
                 "chạy thử Bàn trợ live từ đầu đến cuối. Chỉ bật được trên phiên chạy thử hoặc "
-                "phiên mẫu; không bao giờ trộn vào dữ liệu thật."
+                "phiên mẫu; không bao giờ trộn vào dữ liệu thật. Phát kịch bản NGAY khi bật, "
+                "không chờ nút Bắt đầu phát sóng: bật SAU khi phiên lên sóng để kịch bản rơi "
+                "vào các khối."
             ),
         }
     )

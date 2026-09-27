@@ -2,6 +2,11 @@
 
 *Cập nhật 07/09/2026 · tài liệu sống — cập nhật sau mỗi cột mốc*
 
+> **Ghi chú 25/09/2026:** bản tổng kết này dừng ở mốc 07/09 (vài dòng bổ sung tới 10/09). Số
+> hiện hành — test, sự cố, hiệu chuẩn, NLP — ở `docs/competition/FACT-SHEET.md`; việc còn lại ở
+> `docs/VIEC-CAN-LAM.md`. Đã sửa tại chỗ: 0.271 (không tái lập được; số chính thức 0,211), nguồn
+> nhãn 393 dòng (tác tử AI gán, không phải người), số sự cố, và "5–15 người xem" (ước tính CPM).
+
 > **Cột mốc 06–07/09:** kiểm toán toàn diện 13 tác tử (6 phân hệ mã + 5 khảo sát SOTA
 > 2024–2026 + phản biện đối kháng) rồi triển khai 6 gói fix P0 trong ngày:
 > (A) ingest sống — hợp đồng sink→API, idempotency, spool + backfill, phân loại lỗi
@@ -27,11 +32,11 @@ hoàn thành**.
 |---|---|---|
 | Bộ gán switchback 2 tầng theo văn liệu 2023–2025 (endpoint-double, rerandomization, jitter, burn-in thay washout) | ✅ | `core/assigner/` + 1000-lịch balance gate |
 | Kiểm định ngẫu nhiên hóa studentized, redraw bằng **hàm gán production trên toàn lịch** + Fisher CI | ✅ | `analysis/estimators.py` |
-| **Ước lượng viên được chứng minh hiệu chỉnh**: A/A 200 lặp → bác bỏ 3,50% (7/200, nhị thức p=0,4168), độ phủ 96,50% (đo lại 14/09/2026; số cũ 4,5%/0,872/95,5% của 30/08 không tái lập được) | ✅ | gate `test_sim_validation.py` |
+| **Ước lượng viên được chứng minh hiệu chỉnh**: A/A 200 lặp → bác bỏ 3,50% (7/200, nhị thức p=0,4168); độ phủ 96,50% là mặt kia của cùng KTC (193 = 200 − 7), không độc lập — độ phủ đo riêng bằng thu hồi tác động biết trước: lệch −0,84%, phủ 37/40 (đo lại 14/09 và 25/09/2026; số cũ 4,5%/0,872/95,5% của 30/08 không tái lập được) | ✅ | gate `test_sim_validation.py` |
 | Từ chối có kỷ luật: thiết kế không kiểm định được → `estimable=False` + lý do, **không bao giờ bịa số** | ✅ | sửa lỗi FATAL "NaN→significance" (52% dương tính giả → 6.2%) |
 | MDE gắn với **lực thống kê đo được** (margin 1.2 đo bằng sweep), within-session CV, poisson_floor | ✅ | `analysis/power.py`, gate MDE-khớp-lực |
 | Mô phỏng **hiệu chỉnh theo KuaiLive** (1.16M phòng shop thật) + đo trung thực dưới hiệu ứng lưu | ✅ | `docs/benchmarks/kuailive-calibration.md` |
-| Kiểm toán đối kháng 4 góc + 2 phản biện/phát hiện: 16/16 xử lý; đợt 2 (06/09, 13 tác tử): 5 nhóm lỗi chặn đã sửa | ✅ | `docs/incident-log.md` (18 sự cố đủ root cause) |
+| Kiểm toán đối kháng 4 góc + 2 phản biện/phát hiện: 16/16 xử lý; đợt 2 (06/09, 13 tác tử): 5 nhóm lỗi chặn đã sửa | ✅ | `docs/incident-log.md` (121 sự cố đủ root cause, đếm 25/09/2026) |
 | Tiền đăng ký phân tích bản mẫu đầy đủ (quy tắc hiệp biến hợp lệ, sensitivity burn-in, 2 kịch bản lực) | ✅ chưa khóa | `PREREGISTRATION.md` — khóa tuần 6 |
 
 ### I.2 Sản phẩm
@@ -39,15 +44,15 @@ hoàn thành**.
 | Thành phần | Trạng thái |
 |---|---|
 | Vòng đời phiên trọn vẹn trên giao diện (4 bước, không cần lệnh) + cảnh báo khoa học trước phát sóng | ✅ `/chay-phien` |
-| Bàn trung control 3 vùng · màn hình host **làm mù ở cấp kiểu dữ liệu** · replay engine | ✅ |
+| Bàn trung control 3 vùng · màn hình host **không nhận lịch khối ở cấp kiểu dữ liệu** (làm mù người dẫn một phần: vẫn thấy sản phẩm đang ghim) · replay engine | ✅ |
 | Trang Kết quả: tác động + KTC + p trung thực (sàn hoán vị, "chưa kết luận được") | ✅ `/ket-qua` |
 | Phân tích VOD YouTube thật: **live-fire 14.903 bình luận thật qua API** — nhãn "quan sát", không số nhân quả | ✅ |
 | **Live-fire trên buổi live BÁN HÀNG thật** (không chỉ VOD kỹ thuật): "Mega Live: Achan Shop Hải Phòng", 117 phút, **6.586 bình luận** qua chính API → phiên `b519f75c`; lọc PII che 588 bình luận (tên 270 · địa chỉ 209 · MXH 123 · mã đơn 6 · SĐT 1) đúng thiết kế | ✅ `docs/benchmarks/live-fire-achan.md` |
-| **Live-fire ĐA NGUỒN (10/09): 16 buổi live thật, 7 ngành hàng, 19.126 bình luận** qua `POST /replays/youtube`. **Tổng cộng đã xử lý 34.029 bình luận thật không trùng lặp** (14.903 VOD kỹ thuật + 6.586 Achan + 12.540 buổi mới). Chạy lại Achan sau 2 ngày trên tiến trình sạch: **trùng từng con số**. Cô lập phiên nối tiếp VÀ song song, đối chiếu với file gốc: **0 rò rỉ**. Tốc độ nạp ~**900 bình luận/giây** | ✅ `docs/benchmarks/live-fire-da-nguon.md` |
+| **Live-fire ĐA NGUỒN (10/09): 16 buổi live thật, 7 ngành hàng, 19.126 bình luận** qua `POST /replays/youtube` (chat của VOD YouTube công khai tải bằng yt-dlp; chỉ phân tích quan sát, không can thiệp). **Tổng cộng đã xử lý 34.029 bình luận thật không trùng lặp** (14.903 VOD kỹ thuật + 6.586 Achan + 12.540 buổi mới). Chạy lại Achan sau 2 ngày trên tiến trình sạch: **trùng từng con số**. Cô lập phiên nối tiếp VÀ song song, đối chiếu với file gốc: **0 rò rỉ**. Tốc độ nạp ~**900 bình luận/giây** | ✅ `docs/benchmarks/live-fire-da-nguon.md` |
 | Ma trận tín hiệu: "đo được gì, thiếu tín hiệu nào, vì sao" cho nguồn bất kỳ | ✅ `GET /sessions/{id}/signals` |
 | Phân loại ý định tiếng Việt **đã train** (macro-F1 0.870 vs 0.653 keyword; ngưỡng tự tin chống ngoài miền) | ✅ **kèm cảnh báo bắt buộc** — xem dòng dưới |
-| **Tự bác bỏ số của chính mình:** live-fire chat bán hàng thật cho thấy 0.870 **không chuyển giao** — macro-F1 thật **0.271**, precision gộp **11%**, accuracy còn thấp hơn baseline `return "khac"`. Đã đo, đã ghi sổ, **không giấu**, và **không train lại vội** khi chưa có nhãn | ✅ sự cố 08/09 trong `docs/incident-log.md` |
-| **…và bác bỏ tiếp trên 3 buổi nữa (gán nhãn tay MÙ, 393 dòng):** radar ý định **không có một độ chính xác duy nhất** — precision nhãn hành động **1,3% · 11,0% · 12,3% · 67,9%** trên bốn buổi. Nguyên nhân là **tỷ lệ nền** ý định mua của buổi đó (0,0% → 48,0%), không phải model. Vẫn thua `return "khac"` (accuracy 0,785 vs 0,905). Độ tự tin dùng được TRONG một phiên (AUC 0,696) nhưng **không** so sánh được GIỮA các phiên | ✅ `docs/benchmarks/live-fire-da-nguon.md` §4 |
+| **Tự bác bỏ số của chính mình:** live-fire chat bán hàng thật cho thấy 0.870 **không chuyển giao** — macro-F1 thật **0.271** (số 08/09 không tái lập được — tệp nhãn không được lưu; số chính thức từ 14/09 là **0,211** trên 393 dòng), precision gộp **11%**, accuracy còn thấp hơn baseline `return "khac"`. Đã đo, đã ghi sổ, **không giấu**, và **không train lại vội** khi chưa có nhãn | ✅ sự cố 08/09 trong `docs/incident-log.md` |
+| **…và bác bỏ tiếp trên 3 buổi nữa (393 dòng, nhãn do tác tử AI gán — chưa có nhãn người; đính chính 15/09):** radar ý định **không có một độ chính xác duy nhất** — precision nhãn hành động **1,3% · 11,0% · 12,3% · 67,9%** trên bốn buổi. Nguyên nhân là **tỷ lệ nền** ý định mua của buổi đó (0,0% → 48,0%), không phải model. Vẫn thua `return "khac"` (accuracy 0,785 vs 0,905). Độ tự tin dùng được TRONG một phiên (AUC 0,696) nhưng **không** so sánh được GIỮA các phiên | ✅ `docs/benchmarks/live-fire-da-nguon.md` §4 |
 | Bộ nhãn mở rộng 6 → **11 lớp** từ mẫu THẬT (`chao_hoi` 10% · `cam_on_khen` 28% · `hoi_sanpham` · `hoi_daily` · `bao_gia_shop`), gom về **một nguồn duy nhất** `nlp/labels.py` + lô **1.800 nhãn** đã xuất theo protocol hai tầng (ngẫu nhiên cho prevalence + uncertain-first cho học) | ✅ |
 | Thẻ hành động Gamma-Poisson: cold-start = prior = khám phá đều đúng propensity | ✅ |
 | Đo click qua redirect tự phục vụ; lọc PII tiếng Việt recall ≥95%; QC 6 mục sau phiên | ✅ |
@@ -58,7 +63,7 @@ hoàn thành**.
 
 **611** test (`pytest --collect-only`, 10/09; 598 chạy ở gate `not slow`) — 4 hành trình người dùng end-to-end · tích hợp ingest→API · contract WS
 envelope) · contract test web↔API sinh từ sự cố thật · hai store chung contract ·
-CI 5 job + nightly gate thống kê · **24** sự cố ghi sổ với root cause + gate chặn
+CI 5 job + nightly gate thống kê · **121** sự cố ghi sổ (đếm 25/09/2026) với root cause + gate chặn
 tái diễn · mọi benchmark sinh lại được bằng script (lệnh tái lập ghi ngay đầu
 file benchmark).
 
@@ -73,7 +78,7 @@ file benchmark).
 | Xác minh hạn nộp vòng 1 với BTC (tài liệu đang lệch 14 vs 15/09) + hợp nhất một bộ số (ngân sách 17,2M, số phiên) | SP | trễ 1 ngày = loại |
 | Lập Fanpage + app Facebook Developer (Development Mode **đọc được Page mình ngay**, không chờ App Review) · nộp App Review song song cho Page đối tác | SP + KS | điền `FACEBOOK_*` vào `.env` là ingest chạy |
 | Chốt mặt hàng, đặt lô đầu (~3M) — đơn giá thấp, mua lặp lại, dễ gói | SP | CV quyết định lực thống kê |
-| Chạy 2–3 phiên thử + quảng cáo đo **chi phí thật/người xem** — kế hoạch gốc hụt ~10 lần (300k ≈ 5–15 concurrent, không phải 80) | SP + TN | quyết định: tăng ngân sách / hạ ngưỡng / dồn vào đối tác |
+| Chạy 2–3 phiên thử + quảng cáo đo **chi phí thật/người xem** — kế hoạch gốc hụt ~10 lần (300k ≈ 5–15 concurrent — ước tính từ CPM, chưa đo — không phải 80) | SP + TN | quyết định: tăng ngân sách / hạ ngưỡng / dồn vào đối tác |
 | Gửi 10 thư mời đối tác dữ liệu (mẫu sẵn `ops/templates/`) | SP | 10 phiên phòng 200–500 người > 30 phiên phòng 20 người |
 
 ### P1 — trước khi khóa tiền đăng ký (tuần 6)
@@ -102,7 +107,8 @@ file benchmark).
 - `base_click_prob` mô phỏng là giả định — **không thể** hiệu chỉnh từ KuaiLive (ngữ
   nghĩa click khác); chờ phiên thử.
 - Số intent 0.870 đo trên bộ biên soạn cùng phân phối. **Đã đo lại trên chat bán
-  hàng thật (08/09): macro-F1 0.271, precision gộp 11%** — radar ý định hiện gần
+  hàng thật (08/09): macro-F1 0.271, precision gộp 11%** (không tái lập được — tệp nhãn
+  không được lưu; số chính thức từ 14/09: 0,211) — radar ý định hiện gần
   như là nhiễu trên chat kiểu này, trung control chưa nên tin vào nó. Đường sửa
   đã mở (11 lớp + lô 1.800 nhãn) nhưng **chưa train lại**: `docs/benchmarks/live-fire-achan.md`.
 - **Bổ sung 10/09 sau live-fire 4 buổi:** không có "độ chính xác của radar" —

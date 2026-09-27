@@ -1,42 +1,60 @@
-"""Dựng hồ sơ dự án Bảng C (.docx) cho Cuộc thi Sáng tạo trẻ Quốc gia về AI 2026.
+"""Dựng hồ sơ dự án Bảng C (.docx + .pdf) cho Cuộc thi Sáng tạo trẻ Quốc gia về AI 2026.
 
 Vì sao có tệp này: bản nộp phải DỰNG LẠI ĐƯỢC. Nội dung nằm ở ``noi-dung.md``,
 định dạng nằm ở đây, còn khung MẪU 3 lấy NGUYÊN XI từ file mẫu của ban tổ chức
 — kể cả bảng thông tin thí sinh và khối ký tên. Sửa chữ thì sửa Markdown rồi
 chạy lại; sửa thẳng .docx là lần dựng sau mất hết.
 
-Bộ dựng AISC dùng JSON; tệp này dùng Markdown vì hồ sơ phải qua tay ba người
-trong hai tuần, và sửa văn xuôi tiếng Việt trong JSON một dòng thì ai cũng
-làm hỏng dấu ngoặc. ``# `` là mục cấp 1, ``## `` cấp 2, ``### `` cấp 3.
+Mẫu của cuộc thi gộp cả ba bảng A, B, C vào MỘT file. Tệp này cắt lấy đúng đoạn
+MẪU 3 (Bảng C) rồi mới điền, nên nếu ban tổ chức phát hành lại mẫu thì chỉ cần
+thay file mẫu, không phải sửa mã.
 
-Khác với bộ dựng của AISC ở ``docs/competition/thuyet-minh/``: mẫu của cuộc thi
-này gộp cả ba bảng A, B, C vào MỘT file. Tệp này cắt lấy đúng đoạn MẪU 3 (Bảng
-C) rồi mới điền, nên nếu ban tổ chức phát hành lại mẫu thì chỉ cần thay file
-mẫu, không phải sửa mã.
-
-Giới hạn cứng: **20 trang**. Mẫu để giãn dòng 1,15 nên bộ dựng giữ đúng 1,15
-thay vì 1,5 — vừa đúng mẫu vừa đủ chỗ cho 13 mục. Chạy ``--dem-trang`` để Word
-đếm hộ trước khi nộp.
-
-Cần ``python-docx``, cố ý KHÔNG nằm trong phụ thuộc dự án::
+Chạy (cần ``python-docx``, cố ý KHÔNG nằm trong phụ thuộc dự án)::
 
     python -m venv .venv-docx
     .venv-docx/Scripts/pip install python-docx
     .venv-docx/Scripts/python docs/competition/sang-tao-tre-2026/dung_ho_so.py
+    # bản nháp khi còn ô ⬜ / thiếu hình, ra thư mục khác:
+    .venv-docx/Scripts/python docs/competition/sang-tao-tre-2026/dung_ho_so.py \
+        --out-dir <thư mục> --cho-phep-o-trong
+    # tự kiểm bộ dựng (không cần Word):
+    .venv-docx/Scripts/python docs/competition/sang-tao-tre-2026/dung_ho_so.py --tu-kiem
 
-Quy ước trong ``body`` (giống bộ dựng AISC, để chép qua lại được)::
+Luật an toàn của bản nộp (sửa 25/09/2026, sau kiểm toán hồ sơ):
 
-    đoạn thường      một dòng văn xuôi
-    gạch đầu dòng    "- nội dung"
-    bảng             "| ô | ô |", hàng đầu là tiêu đề
-    sơ đồ ASCII      đặt giữa hai dòng ```
-    ảnh              "![chú thích](đường/dẫn/anh.png)"
-    trong câu        **đậm**, *nghiêng*, `mã`
+1. **Không bao giờ ghi đè bản nộp bằng một bản hỏng.** Mọi thứ dựng ra tệp tạm
+   trong thư mục đích; chỉ khi đạt HẾT điều kiện (không ô ⬜, không thiếu hình,
+   ô "3 người" đã tích, không lọt ký tự Markdown, ≤ 20 trang do Word đếm) thì
+   tệp tạm mới được đổi tên thành ``AI2026_BangC_LiveLift_HoSoDuAn.docx/.pdf``.
+   Trước đây bộ dựng ghi .docx + .pdf RỒI mới báo lỗi và thoát mã 1.
+2. Còn ô ⬜ mà không có ``--cho-phep-o-trong`` → thoát mã 1 ngay, không tạo
+   tệp nào. Có cờ đó → dựng BẢN NHÁP mang hậu tố ``_NHAP``, không bao giờ trùng
+   tên bản nộp.
+3. Giới hạn cứng **20 trang**, đếm bằng Word (COM) — chỉ Word ngắt trang giống
+   thứ ban tổ chức sẽ mở. Mẫu để giãn dòng 1,15 nên bộ dựng giữ đúng 1,15.
+4. (27/09/2026, trưởng nhóm chốt) Hồ sơ nộp NGAY, không chờ link nào: mục 13 trỏ kho
+   mã công khai, không nhắc Google Drive. Bỏ hẳn "bản chờ link" (cờ ``--ban-cho-link``,
+   dải đỏ, hậu tố ``_CHO_LINK``). Dấu giữ chỗ ``[[…]]`` nào còn trong nội dung thì bản
+   nộp bị CHẶN như ô ⬜; bản nháp (``--cho-phep-o-trong``) in nó màu đỏ.
+5. (27/09/2026) Khối ký tên điền sẵn nơi ký VÀ ngày ký (``--ngay-ky``, mặc định hôm
+   nay) để bản in không còn dòng chấm nào phải điền tay; chỉ còn chữ ký.
+   Bản nộp chính thức dựng bằng ``hoan_tat_ho_so.py`` (không tham số): dựng hồ sơ và bản
+   kê khai, quét chữ của cả hai PDF, rồi mới chép vào thư mục nộp.
+
+Cú pháp Markdown được hỗ trợ — xem đầu ``noi-dung.md`` (khối chú thích).
 """
 
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import json
+import os
 import re
 import subprocess
 import sys
+import tempfile
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from docx import Document
@@ -44,7 +62,8 @@ from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
-from docx.shared import Cm, Pt
+from docx.shared import Cm, Pt, RGBColor
+from docx.text.paragraph import Paragraph
 
 DAY = Path(__file__).resolve().parent
 NOI_DUNG = DAY / "noi-dung.md"
@@ -54,70 +73,150 @@ MAU = Path(
     r"D:\AISC2026\sang tạo trẻ quốc gia\drive-download-20260914T062853Z-1-001"
     r"\AI2026_Mẫu hồ sơ.docx"
 )
-RA_MAC_DINH = Path(r"D:\AISC2026\AI2026_Ho_So_Du_An_LiveLift_BangC.docx")
+OUT_DIR_MAC_DINH = Path(r"D:\AISC2026")
+TEN_TEP = "AI2026_BangC_LiveLift_HoSoDuAn"
+HAU_TO_NHAP = "_NHAP"
+
+CHO_TRONG = "⬜"
+#: Dấu giữ chỗ ``[[TEN]]``: còn trong nội dung là CHẶN bản nộp (luật 4 ở đầu tệp).
+DAU_GIU_CHO = re.compile(r"\[\[[A-Z][A-Z_]*\]\]")
+_TACH_GIU_CHO = re.compile(r"(\[\[[A-Z][A-Z_]*\]\])")
+MAU_DO = RGBColor(0xC0, 0x00, 0x00)
+#: Nơi ký ở khối "…, ngày … tháng … năm 2026" của MẪU 3 (đội học tại TP.HCM).
+NOI_KY = "TP. Hồ Chí Minh"
+GIOI_HAN_TRANG = 20
+SO_MUC_MAU_3 = 13
 
 FONT = "Times New Roman"
+FONT_MA = "Consolas"
 CO = Pt(13)
 CO_BANG = Pt(10.5)
+CO_KHOI_MA = Pt(9)
+CO_TLTK = Pt(10)  # danh mục tài liệu tham khảo (27/09/2026: 11 → 10,5 → 10, giới hạn 20 trang)
 GIAN_DONG = 1.15  # đúng như mẫu MẪU 3 đặt cho phần nội dung
+
+NEN_TIEU_DE_BANG = "D5DCE4"  # đúng màu nền hàng tiêu đề trong bảng của mẫu BTC
+NEN_KHUNG = "EEF2F7"  # nền khung "> " (tóm tắt dự án)
+NEN_MA = "F0F0F0"  # nền chữ mã nội dòng
+
+RONG_HINH_MAC_DINH_CM = 15.0
+RONG_CHU_CM = 16.0  # A4 11907 twip − lề trái 1701 − lề phải 1134 = 9072 twip = 16,0 cm
+
+TAC_GIA = "Đội LiveLift"
+#: Tên sản phẩm đúng như trưởng nhóm chốt 27/09/2026: dấu "-" (gạch nối) sau LiveLift.
+TEN_SAN_PHAM = (
+    "LiveLift - Nền tảng thí nghiệm vận hành và hỗ trợ ra quyết định cho livestream thương mại"
+)
+TIEU_DE_TEP = (
+    f"{TEN_SAN_PHAM}. Hồ sơ dự án Bảng C, Cuộc thi Sáng tạo trẻ Quốc gia trong lĩnh vực "
+    "Trí tuệ nhân tạo năm 2026"
+)
+
+# MẪU 3 hỏi "Lớp hành chính, ngành, khoa, trường" — KHÔNG hỏi MSSV. Bản PDF còn
+# lên thư mục minh chứng, nên mặc định không in MSSV (tối thiểu hóa dữ liệu cá
+# nhân). Đổi thành True nếu ban tổ chức yêu cầu.
+GHI_MSSV = False
+
+W14 = "http://schemas.microsoft.com/office/word/2010/wordml"
 
 # ---------------------------------------------------------------- thông tin đội
 # Đọc từ docs/competition/thong-tin-doi.local.json (đã gitignore) — ngày sinh,
 # MSSV, số điện thoại không được nằm trong kho mã công khai. Xem thong_tin_doi.py.
-# Ô nào còn "⬜" là đội PHẢI tự điền trước khi nộp.
 sys.path.insert(0, str(DAY.parent))
 import thong_tin_doi  # noqa: E402
 
-_DOI = thong_tin_doi.doc()
-THANH_VIEN = [
-    {
-        "ho_ten": tv["ho_ten"],
-        "ngay_sinh": tv["ngay_sinh"],
-        "lop": f"Ngành {tv['nganh']}, Khoa {tv['khoa']}, Trường {tv['truong']} (MSSV {tv['mssv']})",
-        "noi_o": tv["noi_o"],
-        "dien_thoai": tv["dien_thoai"],
-        "email": tv["email"],
-    }
-    for tv in _DOI["thanh_vien"]
-]
-SO_THANH_VIEN = len(THANH_VIEN)
+
+def thanh_vien_tu(doi: dict) -> list[dict[str, str]]:
+    """Chuyển JSON thông tin đội thành đúng 6 ô mà MẪU 3 hỏi cho mỗi thí sinh."""
+    ra = []
+    for tv in doi["thanh_vien"]:
+        lop = (tv.get("lop_hanh_chinh") or CHO_TRONG).strip() or CHO_TRONG
+        phan = [
+            f"Lớp {lop}",
+            f"Ngành {tv['nganh']}",
+            f"Khoa {tv['khoa']}",
+            f"Trường {tv['truong']}",
+        ]
+        if GHI_MSSV:
+            phan.append(f"MSSV {tv['mssv']}")
+        ra.append(
+            {
+                "ho_ten": tv["ho_ten"],
+                "ngay_sinh": tv["ngay_sinh"],
+                "lop": ", ".join(phan),
+                "noi_o": tv["noi_o"],
+                "dien_thoai": tv["dien_thoai"],
+                "email": tv["email"],
+            }
+        )
+    return ra
 
 
 # ------------------------------------------------------------------ tiện ích Word
-def set_font(run, *, bold=False, size=CO, italic=False, mono=False):
-    name = "Consolas" if mono else FONT
-    run.font.name = name
-    run.font.size = Pt(8.5) if mono else size
-    run.font.bold = bold
-    run.font.italic = italic
+def _dat_font(run, name: str) -> None:
     rpr = run._element.get_or_add_rPr()
     rf = rpr.find(qn("w:rFonts"))
     if rf is None:
         rf = OxmlElement("w:rFonts")
-        rpr.append(rf)
+        rpr.insert(0, rf)
     for a in ("w:ascii", "w:hAnsi", "w:cs", "w:eastAsia"):
         rf.set(qn(a), name)
+
+
+def _to_nen(run, mau: str) -> None:
+    rpr = run._element.get_or_add_rPr()
+    shd = OxmlElement("w:shd")
+    shd.set(qn("w:val"), "clear")
+    shd.set(qn("w:color"), "auto")
+    shd.set(qn("w:fill"), mau)
+    rpr.append(shd)
+
+
+def set_font(run, *, bold=False, size=CO, italic=False, mono=False):
+    """Định dạng một run. ``mono`` = chữ mã: Consolas, nhỏ hơn chữ quanh nó ~15%."""
+    name = FONT_MA if mono else FONT
+    run.font.name = name
+    run.font.size = Pt(round(size.pt * 0.85 * 2) / 2) if mono else size
+    run.font.bold = bold
+    run.font.italic = italic
+    _dat_font(run, name)
     return run
 
 
-def emit_runs(p, text, *, size=CO, bold_default=False):
-    """Dịch **đậm**, *nghiêng* và `mã` thành run Word.
+# Mã trước, rồi đậm, rồi nghiêng: ở cùng một vị trí, phép chọn của regex theo thứ
+# tự nhánh — nên `a**b` là mã, không phải mở đầu chữ đậm.
+_INLINE = re.compile(r"(`[^`\n]+`|\*\*.+?\*\*|\*[^*\n]+?\*)")
+# "(Hình" cuối dòng, "1)" đầu dòng sau: Word ngắt ở khoảng trắng thường. Khoảng trắng
+# không ngắt (U+00A0) giữ tên đối tượng dính với số của nó (hội đồng biên tập 25/09/2026).
+_KHONG_NGAT = re.compile(r"\b(Hình|Bảng|mục|Điều|khoản) (?=\d)")
 
-    Bắt cả dấu sao ĐƠN: tên tạp chí trong mục tài liệu tham khảo viết kiểu
-    ``*Production and Operations Management*``; không xử thì dấu sao in ra
-    thành ký tự thật giữa câu.
+
+def emit_runs(p, text, *, size=CO, bold=False, italic=False):
+    """Dịch **đậm**, *nghiêng* và `mã` thành run Word — kể cả LỒNG nhau.
+
+    Lỗi cũ (kiểm toán 25/09/2026): regex tách ``**…**`` nuốt nguyên cụm, in cả cặp
+    dấu backtick bên trong ra bản PDF ("Phiên không có `design_hash`"). Nay phần
+    trong ``**…**`` và ``*…*`` được dịch đệ quy; mã thành run Consolas có nền nhạt.
     """
-    for chunk in re.split(r"(\*\*[^*]+\*\*|\*[^*\n]+\*|`[^`]+`)", text):
+    for chunk in _INLINE.split(text):
         if not chunk:
             continue
-        if chunk.startswith("**") and chunk.endswith("**") and len(chunk) > 4:
-            set_font(p.add_run(chunk[2:-2]), bold=True, size=size)
+        if chunk.startswith("`") and chunk.endswith("`") and len(chunk) > 2:
+            r = set_font(p.add_run(chunk[1:-1]), bold=bold, italic=italic, size=size, mono=True)
+            _to_nen(r, NEN_MA)
+        elif chunk.startswith("**") and chunk.endswith("**") and len(chunk) > 4:
+            emit_runs(p, chunk[2:-2], size=size, bold=True, italic=italic)
         elif chunk.startswith("*") and chunk.endswith("*") and len(chunk) > 2:
-            set_font(p.add_run(chunk[1:-1]), italic=True, size=size)
-        elif chunk.startswith("`") and chunk.endswith("`") and len(chunk) > 2:
-            set_font(p.add_run(chunk[1:-1]), mono=True)
+            emit_runs(p, chunk[1:-1], size=size, bold=bold, italic=True)
         else:
-            set_font(p.add_run(chunk), bold=bold_default, size=size)
+            chu = _KHONG_NGAT.sub("\\1\u00a0", chunk)
+            # Dấu giữ chỗ [[…]] (chỉ lọt tới đây ở BẢN NHÁP) in đỏ đậm: nhìn là thấy.
+            for k, phan in enumerate(_TACH_GIU_CHO.split(chu)):
+                if not phan:
+                    continue
+                r = set_font(p.add_run(phan), bold=bold or k % 2 == 1, italic=italic, size=size)
+                if k % 2 == 1:
+                    r.font.color.rgb = MAU_DO
 
 
 def para(
@@ -133,6 +232,7 @@ def para(
     indent=None,
     mono=False,
     giu_voi_doan_sau=False,
+    dinh_dang=True,
 ):
     p = doc.add_paragraph()
     pf = p.paragraph_format
@@ -147,15 +247,39 @@ def para(
     if giu_voi_doan_sau:
         pf.keep_with_next = True
     if text:
-        set_font(p.add_run(text), bold=bold, size=size, italic=italic, mono=mono)
+        if mono:
+            r = p.add_run(text)
+            r.font.name = FONT_MA
+            r.font.size = CO_KHOI_MA
+            _dat_font(r, FONT_MA)
+        elif dinh_dang:
+            emit_runs(p, text, size=size, bold=bold, italic=italic)
+        else:
+            set_font(p.add_run(text), bold=bold, size=size, italic=italic)
     return p
 
 
-def rich_para(doc, text, *, indent=None, space_after=3, hanging=False, italic_all=False):
+def _dem(doc, cao=6):
+    """Đoạn đệm sau bảng, khung, khối mã: Word cần một đoạn giữa hai bảng liền nhau.
+
+    Trước 27/09/2026 là một dòng trống cỡ 13 (~17 pt) sau MỖI bảng — 12 bảng và khung
+    tóm tắt ăn ~0,3 trang trong giới hạn cứng 20 trang. Nay cao đúng ``cao`` pt.
+    """
     p = doc.add_paragraph()
+    pf = p.paragraph_format
+    pf.space_before = Pt(0)
+    pf.space_after = Pt(0)
+    pf.first_line_indent = Pt(0)
+    pf.line_spacing = Pt(cao)  # khoảng cách dòng CỐ ĐỊNH
+    return p
+
+
+def rich_para(doc_or_cell, text, *, indent=None, space_after=2, hanging=False, size=CO):
+    p = doc_or_cell.add_paragraph()
     pf = p.paragraph_format
     pf.line_spacing = GIAN_DONG
     pf.space_after = Pt(space_after)
+    pf.space_before = Pt(0)
     pf.first_line_indent = Pt(0)
     # Văn xuôi canh đều; gạch đầu dòng canh trái, vì canh đều trên dòng có
     # thụt treo làm chữ giãn thành khoảng trắng loang lổ.
@@ -164,31 +288,80 @@ def rich_para(doc, text, *, indent=None, space_after=3, hanging=False, italic_al
         pf.left_indent = Pt(indent)
         if hanging:
             pf.first_line_indent = Pt(-11)
-    if italic_all:
-        set_font(p.add_run(text), italic=True)
-    else:
-        emit_runs(p, text)
+    emit_runs(p, text, size=size)
     return p
 
 
-def add_table(doc, rows):
+def _chu_thich(doc, nhan: str, noi_dung: str, *, giu_voi_doan_sau: bool, space_after=6):
+    """'Hình N.' / 'Bảng N.' in đậm, phần còn lại in nghiêng, canh giữa."""
+    p = doc.add_paragraph()
+    pf = p.paragraph_format
+    pf.line_spacing = 1.0
+    pf.space_before = Pt(2)
+    pf.space_after = Pt(space_after)
+    pf.first_line_indent = Pt(0)
+    pf.keep_with_next = giu_voi_doan_sau
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    set_font(p.add_run(nhan + " "), bold=True, size=Pt(11.5))
+    emit_runs(p, noi_dung, size=Pt(11.5), italic=True)
+    return p
+
+
+def _nen_o(cell, mau: str) -> None:
+    tcpr = cell._tc.get_or_add_tcPr()
+    shd = OxmlElement("w:shd")
+    shd.set(qn("w:val"), "clear")
+    shd.set(qn("w:color"), "auto")
+    shd.set(qn("w:fill"), mau)
+    tcpr.append(shd)
+
+
+def _do_rong_cot(rows: list[list[str]], ncol: int) -> list[float]:
+    """Chia 16 cm theo độ dài chữ của từng cột (mũ 0,7 để cột dài không nuốt hết).
+
+    Word tự co giãn thì cột đầu ngắn chữ bị ép hẹp, nhãn dòng xuống 3 dòng
+    (bảng baseline bản 15/09) — đặt độ rộng tường minh tiết kiệm được dòng.
+    """
+    trong_so = []
+    for j in range(ncol):
+        dai = max((len(r[j]) if j < len(r) else 0) for r in rows)
+        trong_so.append(max(min(dai, 60), 5) ** 0.7)
+    tong = sum(trong_so)
+    return [RONG_CHU_CM * w / tong for w in trong_so]
+
+
+def add_table(doc, rows, canh=None):
     ncol = max(len(r) for r in rows)
     t = doc.add_table(rows=0, cols=ncol)
     t.style = "Table Grid"
     t.alignment = WD_TABLE_ALIGNMENT.CENTER
+    t.autofit = False
+    rong = _do_rong_cot(rows, ncol)
+    grid = t._tbl.tblGrid
+    for j, gc in enumerate(grid.findall(qn("w:gridCol"))):
+        gc.set(qn("w:w"), str(int(rong[j] / 2.54 * 1440)))
     for i, row in enumerate(rows):
         cells = t.add_row().cells
         for j in range(ncol):
             txt = row[j] if j < len(row) else ""
+            cells[j].width = Cm(rong[j])
             cp = cells[j].paragraphs[0]
             cp.paragraph_format.line_spacing = 1.0
             cp.paragraph_format.space_after = Pt(1)
             cp.paragraph_format.space_before = Pt(1)
-            cp.alignment = WD_ALIGN_PARAGRAPH.CENTER if i == 0 else WD_ALIGN_PARAGRAPH.LEFT
+            if i == 0:
+                cp.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                _nen_o(cells[j], NEN_TIEU_DE_BANG)
+            elif canh and j < len(canh) and canh[j]:
+                cp.alignment = canh[j]
+            else:
+                cp.alignment = WD_ALIGN_PARAGRAPH.LEFT
             # Mẫu đặt thụt dòng đầu ở docDefaults; trong ô bảng nó đẩy dòng đầu
             # vào trong còn dòng xuống hàng sát mép trái, trông như lỗi in.
             cp.paragraph_format.first_line_indent = Pt(0)
-            emit_runs(cp, txt, size=CO_BANG, bold_default=(i == 0))
+            emit_runs(cp, txt, size=CO_BANG, bold=(i == 0))
+            if i == 0:
+                cp.paragraph_format.keep_with_next = True
 
         trpr = cells[0]._tc.getparent().get_or_add_trPr()
         if i == 0:
@@ -197,99 +370,206 @@ def add_table(doc, rows):
     return t
 
 
-def render_body(doc, body):
+def add_khung(doc, dong: list[str]):
+    """Khung nền nhạt một ô cho các dòng ``> …`` (dùng cho Tóm tắt dự án)."""
+    t = doc.add_table(rows=1, cols=1)
+    t.style = "Table Grid"
+    t.alignment = WD_TABLE_ALIGNMENT.CENTER
+    cell = t.rows[0].cells[0]
+    cell.width = Cm(RONG_CHU_CM)
+    _nen_o(cell, NEN_KHUNG)
+    cell._tc.remove(cell.paragraphs[0]._p)
+    for d in dong:
+        m = re.match(r"^[-•]\s+(.*)$", d)
+        if m:
+            rich_para(cell, "• " + m.group(1), indent=12, space_after=1, hanging=True, size=Pt(12))
+        elif d.strip():
+            rich_para(cell, d, space_after=2, size=Pt(12))
+    if not cell.paragraphs:
+        cell.add_paragraph()
+    trpr = t.rows[0]._tr.get_or_add_trPr()
+    trpr.append(OxmlElement("w:cantSplit"))
+    return t
+
+
+# ------------------------------------------------------------------ dựng thân bài
+@dataclass
+class NguCanh:
+    """Thứ bộ dựng ghi lại trong lúc đổ nội dung, để kiểm sau."""
+
+    goc: Path  # thư mục chứa noi-dung.md — đường dẫn hình tính từ đây
+    hinh: list[int] = field(default_factory=list)
+    bang: list[int] = field(default_factory=list)
+    thieu_hinh: list[str] = field(default_factory=list)
+    canh_bao: list[str] = field(default_factory=list)
+
+
+_HINH = re.compile(r"^!\[(.*?)\]\((.+?)\)(\{[^}]*\})?\s*$")
+_CHU_THICH_HINH = re.compile(r"^Hình\s+(\d+)\.\s+(.+)$")
+_CHU_THICH_BANG = re.compile(r"^:\s*Bảng\s+(\d+)\.\s+(.+)$")
+
+
+def _rong_hinh(thuoc_tinh: str | None, chu_thich: str) -> tuple[float, str]:
+    rong = RONG_HINH_MAC_DINH_CM
+    if thuoc_tinh:
+        m = re.search(r"width\s*=\s*([\d.,]+)\s*cm", thuoc_tinh)
+        if m:
+            rong = float(m.group(1).replace(",", "."))
+    elif "|" in chu_thich:  # cú pháp cũ ![chú thích|10.5](…)
+        truoc, _, so = chu_thich.rpartition("|")
+        if re.fullmatch(r"\s*\d+(?:[.,]\d+)?\s*", so):
+            rong, chu_thich = float(so.strip().replace(",", ".")), truoc
+    return min(rong, RONG_CHU_CM), chu_thich
+
+
+def _them_hinh(doc, ctx: NguCanh, alt: str, duong_dan: str, thuoc_tinh: str | None) -> None:
+    rong, alt = _rong_hinh(thuoc_tinh, alt)
+    m = _CHU_THICH_HINH.match(alt.strip())
+    if m:
+        so, noi_dung = int(m.group(1)), m.group(2)
+        ctx.hinh.append(so)
+        nhan = f"Hình {so}."
+    else:
+        ctx.canh_bao.append(f"chú thích hình phải bắt đầu bằng 'Hình N.': {alt[:50]!r}")
+        nhan, noi_dung = "Hình ?.", alt
+    anh = Path(duong_dan) if Path(duong_dan).is_absolute() else ctx.goc / duong_dan
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    pf = p.paragraph_format
+    pf.space_before = Pt(4)
+    pf.space_after = Pt(0)
+    pf.first_line_indent = Pt(0)
+    pf.keep_with_next = True  # hình không rời chú thích
+    if anh.is_file():
+        try:
+            p.add_run().add_picture(str(anh), width=Cm(rong))
+        except Exception as e:  # noqa: BLE001 — ảnh hỏng thì báo, không sập
+            ctx.thieu_hinh.append(f"{duong_dan} (không đọc được: {type(e).__name__})")
+            set_font(p.add_run(f"[HÌNH HỎNG: {duong_dan}]"), bold=True)
+    else:
+        # Thiếu hình phải THẤY được trong bản nháp và CHẶN bản nộp.
+        ctx.thieu_hinh.append(duong_dan)
+        set_font(p.add_run(f"[THIẾU HÌNH: {duong_dan}]"), bold=True)
+    _chu_thich(doc, nhan, noi_dung, giu_voi_doan_sau=False)
+
+
+def _canh_cot(dong_ke: str) -> list:
+    ra = []
+    for o in dong_ke.strip().strip("|").split("|"):
+        o = o.strip()
+        if o.startswith(":") and o.endswith(":"):
+            ra.append(WD_ALIGN_PARAGRAPH.CENTER)
+        elif o.endswith(":"):
+            ra.append(WD_ALIGN_PARAGRAPH.RIGHT)
+        else:
+            ra.append(None)
+    return ra
+
+
+def render_body(doc, body: str, ctx: NguCanh, co=CO) -> None:
+    """Đổ thân một mục. ``co`` = cỡ chữ văn xuôi/danh sách (danh mục tài liệu dùng nhỏ hơn)."""
     lines = body.split("\n")
     i = 0
+    chu_thich_bang = None  # (số, nội dung) đang chờ bảng kế tiếp
     while i < len(lines):
         line = lines[i].rstrip()
         stripped = line.strip()
 
-        # sơ đồ ASCII
+        # khối mã / sơ đồ ký tự — giữ liền một khối, không xẻ qua trang
         if stripped.startswith("```"):
             i += 1
+            khoi = []
             while i < len(lines) and not lines[i].strip().startswith("```"):
-                bl = lines[i].rstrip()
-                para(doc, bl if bl else " ", mono=True, space_after=0, indent=6)
+                khoi.append(lines[i].rstrip() or " ")
                 i += 1
             i += 1
-            para(doc, "", space_after=2)
+            for k, bl in enumerate(khoi):
+                para(
+                    doc, bl, mono=True, space_after=0, indent=6, giu_voi_doan_sau=k < len(khoi) - 1
+                )
+            _dem(doc)
             continue
 
-        # ảnh minh chứng: ![chú thích](đường dẫn) hoặc ![chú thích|11](đường dẫn)
-        # Số sau dấu | là bề rộng tính bằng cm. Mặc định 13 cm: ảnh chụp màn
-        # hình tỉ lệ 16:10 ở 15,5 cm cao gần 10 cm, ba ảnh là mất hơn một trang
-        # trong khi hồ sơ chỉ có 20 trang.
-        m = re.match(r"^!\[(.*?)\]\((.+?)\)$", stripped)
+        m = _HINH.match(stripped)
         if m:
-            chu_thich, duong_dan = m.group(1), m.group(2)
-            rong = 13.0
-            if "|" in chu_thich:
-                chu_thich, _, so = chu_thich.rpartition("|")
-                try:
-                    rong = float(so.strip())
-                except ValueError:
-                    chu_thich = m.group(1)
-            anh = (DAY / duong_dan) if not Path(duong_dan).is_absolute() else Path(duong_dan)
-            if anh.exists():
-                p = doc.add_paragraph()
-                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                p.paragraph_format.space_after = Pt(2)
-                p.paragraph_format.keep_with_next = True  # ảnh không rời chú thích
-                p.add_run().add_picture(str(anh), width=Cm(rong))
-                cap = rich_para(doc, chu_thich, space_after=6, italic_all=True)
-                cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            else:
-                # Thiếu ảnh thì phải THẤY được, không im lặng bỏ qua.
-                rich_para(doc, f"[THIẾU ẢNH: {duong_dan}] {chu_thich}")
+            _them_hinh(doc, ctx, m.group(1), m.group(2), m.group(3))
             i += 1
             continue
 
-        # bảng markdown
+        m = _CHU_THICH_BANG.match(stripped)
+        if m:
+            chu_thich_bang = (int(m.group(1)), m.group(2))
+            i += 1
+            continue
+
         if stripped.startswith("|"):
-            rows = []
+            rows, canh = [], None
             while i < len(lines) and lines[i].strip().startswith("|"):
                 cur = lines[i].strip()
-                if not re.fullmatch(r"[\s|:\-]+", cur):
+                if re.fullmatch(r"[\s|:\-]+", cur):
+                    canh = _canh_cot(cur)
+                else:
                     rows.append([c.strip() for c in cur.strip("|").split("|")])
                 i += 1
             if rows:
-                add_table(doc, rows)
-                para(doc, "", space_after=2)
+                if chu_thich_bang:
+                    so, nd = chu_thich_bang
+                    ctx.bang.append(so)
+                    _chu_thich(doc, f"Bảng {so}.", nd, giu_voi_doan_sau=True, space_after=2)
+                    chu_thich_bang = None
+                add_table(doc, rows, canh)
+                _dem(doc)
+            continue
+
+        if chu_thich_bang and stripped:
+            ctx.canh_bao.append(
+                f"chú thích 'Bảng {chu_thich_bang[0]}.' không đứng ngay trên một bảng"
+            )
+            chu_thich_bang = None
+
+        if stripped.startswith(">"):
+            dong = []
+            while i < len(lines) and lines[i].strip().startswith(">"):
+                dong.append(lines[i].strip()[1:].strip())
+                i += 1
+            add_khung(doc, dong)
+            _dem(doc)
             continue
 
         if not stripped:
             i += 1
             continue
 
-        # gạch đầu dòng
         m = re.match(r"^(\s*)[-•]\s+(.*)$", line)
         if m:
             depth = min(len(m.group(1)) // 2, 2)
-            rich_para(doc, "• " + m.group(2), indent=14 + depth * 14, space_after=2, hanging=True)
+            rich_para(
+                doc, "• " + m.group(2), indent=14 + depth * 14, space_after=2, hanging=True, size=co
+            )
             i += 1
             continue
 
-        # danh sách đánh số
         if re.match(r"^\s*\d+[.)]\s", line):
-            rich_para(doc, stripped, indent=14, space_after=2, hanging=True)
+            rich_para(doc, stripped, indent=14, space_after=2, hanging=True, size=co)
             i += 1
             continue
 
-        rich_para(doc, stripped)
+        rich_para(doc, stripped, size=co)
         i += 1
 
 
 # ------------------------------------------------------------- cắt và điền mẫu
+def _chu_cua(el) -> str:
+    return "".join(n.text or "" for n in el.iter(qn("w:t")))
+
+
 def cat_lay_mau_3(doc):
     """Xoá mọi thứ không thuộc MẪU 3, giữ nguyên sectPr ở cuối."""
     body = doc.element.body
     con = list(body)
     dau = None
     for idx, c in enumerate(con):
-        if c.tag != qn("w:p"):
-            continue
-        txt = "".join(n.text or "" for n in c.iter(qn("w:t")))
-        if "MẪU HỒ SƠ DỰ ÁN DỰ THI BẢNG C" in txt:
+        if c.tag == qn("w:p") and "MẪU HỒ SƠ DỰ ÁN DỰ THI BẢNG C" in _chu_cua(c):
             dau = idx
             break
     if dau is None:
@@ -301,41 +581,106 @@ def cat_lay_mau_3(doc):
 
 def diem_moc_noi_dung(doc):
     """Vị trí đoạn 'NỘI DUNG HỒ SƠ DỰ ÁN' và bảng ký tên cuối mẫu."""
-    body = doc.element.body
-    con = list(body)
+    con = list(doc.element.body)
     moc = None
     for idx, c in enumerate(con):
-        if c.tag != qn("w:p"):
-            continue
-        txt = "".join(n.text or "" for n in c.iter(qn("w:t")))
-        if "NỘI DUNG HỒ SƠ DỰ ÁN" in txt:
+        if c.tag == qn("w:p") and "NỘI DUNG HỒ SƠ DỰ ÁN" in _chu_cua(c):
             moc = idx
             break
     if moc is None:
         sys.exit("Không tìm thấy mốc 'NỘI DUNG HỒ SƠ DỰ ÁN'")
     ky_ten = None
     for c in con[moc:]:
-        if c.tag == qn("w:tbl"):
-            txt = "".join(n.text or "" for n in c.iter(qn("w:t")))
-            if "Đại diện đội thi" in txt:
-                ky_ten = c
-                break
+        if c.tag == qn("w:tbl") and "Đại diện đội thi" in _chu_cua(c):
+            ky_ten = c
+            break
     return moc, ky_ten
 
 
-def dien_thong_tin_thi_sinh(doc):
-    """Điền bảng thông tin 3 thí sinh của MẪU 3.
+def _bang_thi_sinh(doc):
+    return next(
+        (t for t in doc.tables if "Số lượng thí sinh" in "".join(c.text for c in t.rows[0].cells)),
+        None,
+    )
+
+
+def _o_duy_nhat(row):
+    """row.cells lặp lại cùng một ô khi ô gộp; lọc theo phần tử XML."""
+    thay, ra = set(), []
+    for c in row.cells:
+        if id(c._tc) not in thay:
+            thay.add(id(c._tc))
+            ra.append(c)
+    return ra
+
+
+def tich_o_so_luong(tbl, so: int) -> int:
+    """Tích ô "<so> người" ở hàng 'Số lượng thí sinh'. Trả số ô đã tích.
+
+    Lỗi cũ (bản dựng 15/09 và 25/09): ký tự ☐ nằm trong ``w:sdt/w:sdtContent/w:r``
+    (điều khiển nội dung do Google Docs sinh), mà ``cell.paragraphs[].runs`` của
+    python-docx chỉ thấy run con TRỰC TIẾP của ``w:p`` — nên ô không bao giờ được
+    tích. Nay đi qua MỌI ``w:t`` của ô. Nếu điều khiển là hộp kiểm thật của Word
+    (``w14:checkbox``) thì đặt cả ``w14:checked`` để Word không vẽ lại ☐.
+    """
+    for row in tbl.rows:
+        o = _o_duy_nhat(row)
+        if not o[0].text.strip().lower().startswith("số lượng thí sinh"):
+            continue
+        da_tich = 0
+        for cell in o[1:]:
+            tc = cell._tc
+            if not re.match(rf"\s*{so}\s*người", _chu_cua(tc)):
+                continue
+            for sdt in tc.iter(qn("w:sdt")):
+                sdt_pr = sdt.find(qn("w:sdtPr"))
+                cb = sdt_pr.find(f"{{{W14}}}checkbox") if sdt_pr is not None else None
+                if cb is not None:
+                    chk = cb.find(f"{{{W14}}}checked")
+                    if chk is None:
+                        chk = OxmlElement("w14:checked")
+                        cb.insert(0, chk)
+                    chk.set(f"{{{W14}}}val", "1")
+            for t in tc.iter(qn("w:t")):
+                if t.text and "☐" in t.text:
+                    t.text = t.text.replace("☐", "☒", 1)
+                    da_tich += 1
+                    break
+        return da_tich
+    return 0
+
+
+def dem_o_tich(doc, so: int) -> tuple[int, int]:
+    """Đọc lại XML: (số ☒ trong ô "<so> người", tổng số ☒ ở hàng số lượng)."""
+    tbl = _bang_thi_sinh(doc)
+    if tbl is None:
+        return 0, 0
+    for row in tbl.rows:
+        o = _o_duy_nhat(row)
+        if not o[0].text.strip().lower().startswith("số lượng thí sinh"):
+            continue
+        dung, tong = 0, 0
+        for cell in o[1:]:
+            chu = _chu_cua(cell._tc)
+            n = chu.count("☒")
+            tong += n
+            if re.match(rf"\s*{so}\s*người", chu):
+                dung += n
+        return dung, tong
+    return 0, 0
+
+
+def dien_thong_tin_thi_sinh(doc, thanh_vien: list[dict[str, str]]) -> int:
+    """Điền bảng thông tin thí sinh của MẪU 3; tích ô số lượng.
 
     Mẫu là MỘT bảng dọc: hàng đầu là 'Số lượng thí sinh', rồi mỗi thí sinh 6
     hàng nhãn-giá trị. Điền theo NHÃN chứ không theo chỉ số hàng, vì ban tổ
     chức có thể phát hành lại mẫu với số hàng khác.
     """
-    tbl = next(
-        (t for t in doc.tables if "Số lượng thí sinh" in "".join(c.text for c in t.rows[0].cells)),
-        None,
-    )
+    tbl = _bang_thi_sinh(doc)
     if tbl is None:
         sys.exit("Không tìm thấy bảng thông tin thí sinh trong MẪU 3")
+    tich_o_so_luong(tbl, len(thanh_vien))
 
     khoa = {
         "họ và tên": "ho_ten",
@@ -348,54 +693,129 @@ def dien_thong_tin_thi_sinh(doc):
     chi_so = -1  # -1 = chưa tới thí sinh nào
     da_dien = 0
     for row in tbl.rows:
-        nhan = row.cells[0].text.strip().lower().replace("\n", " ")
-        nhan = re.sub(r"\s+", " ", nhan)
-
+        o = _o_duy_nhat(row)
+        nhan = re.sub(r"\s+", " ", o[0].text.strip().lower())
         if nhan.startswith("số lượng thí sinh"):
-            # Tích ô "3 người". Các ô ☐ nằm ngay trên cùng hàng.
-            for cell in row.cells[1:]:
-                if f"{SO_THANH_VIEN} người" in cell.text:
-                    for p in cell.paragraphs:
-                        for r in p.runs:
-                            r.text = r.text.replace("☐", "☒")
             continue
-
         if nhan.startswith("thí sinh thứ"):
             chi_so += 1
             continue
-
-        if chi_so < 0 or chi_so >= len(THANH_VIEN):
+        if chi_so < 0 or chi_so >= len(thanh_vien) or len(o) < 2:
             continue
-
         for k, truong in khoa.items():
-            if nhan.startswith(k.split(",")[0]) and k.split(",")[0] in nhan:
-                cell = row.cells[1] if len(row.cells) > 1 else None
-                if cell is None:
-                    break
+            dau = k.split(",")[0]
+            if nhan.startswith(dau):
+                cell = o[1]
                 cell.text = ""
                 cp = cell.paragraphs[0]
                 cp.paragraph_format.line_spacing = 1.0
                 cp.paragraph_format.first_line_indent = Pt(0)
-                set_font(cp.add_run(THANH_VIEN[chi_so][truong]), size=CO_BANG)
+                set_font(cp.add_run(thanh_vien[chi_so][truong]), size=CO_BANG)
                 da_dien += 1
                 break
-    if da_dien < len(THANH_VIEN) * 4:
-        print(
-            f"  CẢNH BÁO: chỉ điền được {da_dien} ô thông tin thí sinh — "
-            "kiểm tra lại mẫu của ban tổ chức có đổi nhãn không"
-        )
     return da_dien
 
 
-def doc_muc(duong_dan):
+def _o_khoi_ky(tbl_el, doc):
+    """(ô trái, ô phải) của bảng ký tên cuối MẪU 3 — bảng 1 hàng 2 ô, ô trái để trống."""
+    from docx.table import Table
+
+    o = _o_duy_nhat(Table(tbl_el, doc._body).rows[0])
+    return (o[0], o[-1]) if len(o) >= 2 else (None, o[0])
+
+
+def chu_ngay_ky(ngay: dt.date) -> str:
+    """Chữ ngày ký, ví dụ "ngày 27 tháng 9 năm 2026".
+
+    Theo Nghị định 30/2020/NĐ-CP: ngày dưới 10 và tháng 1, 2 thì thêm số 0 phía trước.
+    """
+    d = f"{ngay.day:02d}" if ngay.day < 10 else str(ngay.day)
+    m = f"{ngay.month:02d}" if ngay.month < 3 else str(ngay.month)
+    return f"ngày {d} tháng {m} năm {ngay.year}"
+
+
+_DONG_NGAY_MAU = re.compile(r"^[.…\s]+,\s*ngày\s*[.…\s]*tháng\s*[.…\s]*năm\s*\d{4}")
+
+
+def dien_khoi_ky(tbl_el, doc, dai_dien: str | None, ngay: dt.date | None = None) -> bool:
+    """Điền nơi ký, ngày ký và họ tên người đại diện vào khối ký tên; giữ khối liền một trang.
+
+    Mẫu ghi "………, ngày …… tháng …… năm 2026 / Đại diện đội thi / (Ký, ghi rõ họ
+    tên)" rồi hết. Bản 25/09 để khối này sát đáy trang 20, không còn chỗ ký; nay thêm ba
+    dòng trống để ký tay và họ tên in đậm NGAY TRONG ô, rồi cấm xẻ hàng: không đủ chỗ thì
+    cả khối sang trang 21 và bộ đếm trang chặn bản nộp. Từ 27/09/2026 điền luôn ngày ký
+    (``ngay``) để bản in không còn dòng chấm nào; ``ngay`` là None thì giữ chấm của mẫu.
+    Trả True nếu điền được nơi ký (và ngày, khi có ``ngay``).
+    """
+    _trai, phai = _o_khoi_ky(tbl_el, doc)
+    da_dien = False
+    for t in phai._tc.iter(qn("w:t")):
+        if not t.text or not re.match(r"^[.…\s]+,\s*ngày", t.text):
+            continue
+        if ngay is None:
+            t.text = re.sub(r"^[.…\s]+(?=,\s*ngày)", NOI_KY, t.text)
+            da_dien = True
+        elif _DONG_NGAY_MAU.match(t.text):
+            t.text = _DONG_NGAY_MAU.sub(f"{NOI_KY}, {chu_ngay_ky(ngay)}", t.text)
+            da_dien = True
+        break
+    # Mẫu chia đôi 4505/4510 twip: dòng "TP. Hồ Chí Minh, ngày 27 tháng 9 năm 2026" (nghiêng,
+    # cỡ 13) dài hơn 8 cm nên "2026" rơi xuống dòng riêng. Ô trái vốn trống: nhường 1 cm.
+    luoi = tbl_el.find(qn("w:tblGrid"))
+    cot = luoi.findall(qn("w:gridCol")) if luoi is not None else []
+    if len(cot) == 2:
+        tong = sum(int(float(c.get(qn("w:w")) or 0)) for c in cot)
+        if tong > 7000:
+            cot[0].set(qn("w:w"), str(tong - 5600))
+            cot[1].set(qn("w:w"), "5600")
+    if dai_dien and CHO_TRONG not in dai_dien:
+        p = phai.paragraphs[-1]
+        set_font(p.add_run("\n\n\n"), size=CO)  # ba dòng trống để ký tay
+        set_font(p.add_run(dai_dien), bold=True, size=CO)
+    trpr = tbl_el.find(f"{qn('w:tr')}/{qn('w:trPr')}")
+    if trpr is not None:
+        cs = trpr.find(qn("w:cantSplit"))
+        if cs is None:
+            cs = OxmlElement("w:cantSplit")
+            trpr.append(cs)
+        cs.set(qn("w:val"), "1")
+    return da_dien
+
+
+def dat_thuoc_tinh(doc) -> None:
+    """Tác giả/tiêu đề của tệp = đội LiveLift, không thừa hưởng 'TuanKhai' của mẫu."""
+    cp = doc.core_properties
+    now = dt.datetime.now(dt.UTC).replace(microsecond=0, tzinfo=None)
+    cp.author = TAC_GIA
+    cp.last_modified_by = TAC_GIA
+    cp.title = TIEU_DE_TEP
+    cp.subject = "Hồ sơ dự án dự thi Bảng C"
+    cp.keywords = "LiveLift; switchback; livestream; suy luận nhân quả"
+    cp.comments = ""
+    cp.category = ""
+    cp.created = now
+    cp.modified = now
+    cp.revision = 1
+
+
+# ------------------------------------------------------------------ đọc Markdown
+def doc_muc(duong_dan: Path) -> list[dict]:
     """Tách Markdown thành [{heading, level, body}].
 
-    Bỏ qua mọi dòng ``<!-- ... -->``: chú thích cho người viết, không ra bản nộp.
+    Bỏ mọi chú thích ``<!-- … -->`` (kể cả nhiều dòng): ghi chú cho người viết,
+    không ra bản nộp.
     """
-    secs = []
+    secs: list[dict] = []
     cur = None
+    trong_chu_thich = False
     for line in duong_dan.read_text(encoding="utf-8").splitlines():
-        if line.lstrip().startswith("<!--"):
+        s = line.strip()
+        if trong_chu_thich:
+            if "-->" in s:
+                trong_chu_thich = False
+            continue
+        if s.startswith("<!--"):
+            trong_chu_thich = "-->" not in s
             continue
         m = re.match(r"^(#{1,3})\s+(.*)$", line)
         if m:
@@ -411,10 +831,109 @@ def doc_muc(duong_dan):
     return secs
 
 
-GIOI_HAN_TRANG = 20
+def _so_muc(heading: str) -> str | None:
+    m = re.match(r"^(\d+(?:\.\d+)*)\.?\s", heading)
+    return m.group(1) if m else None
 
 
-def xuat_pdf_va_dem_trang(docx):
+def kiem_dau_vao(thanh_vien, secs, goc: Path, doi: dict) -> list[str]:
+    """Mọi lý do CHƯA NỘP ĐƯỢC tìm thấy trước khi dựng (không cần Word)."""
+    chan: list[str] = []
+    chua_dien = sum(1 for tv in thanh_vien for v in tv.values() if CHO_TRONG in v)
+    if chua_dien:
+        chan.append(
+            f"{chua_dien} ô thông tin thí sinh còn dấu {CHO_TRONG} "
+            "(điền docs/competition/thong-tin-doi.local.json)"
+        )
+    if doi.get("thieu_tep_that"):
+        chan.append("chưa có docs/competition/thong-tin-doi.local.json — đang dùng tệp mẫu")
+    con_trong = [
+        s["heading"][:40] for s in secs if CHO_TRONG in s["body"] or CHO_TRONG in s["heading"]
+    ]
+    if con_trong:
+        chan.append(
+            f"{len(con_trong)} mục còn dấu {CHO_TRONG} trong noi-dung.md: " + "; ".join(con_trong)
+        )
+
+    # Cấu trúc MẪU 3: đúng 13 mục cấp 1 đánh số 1..13 theo thứ tự; không trùng số mục.
+    cap1 = [_so_muc(s["heading"]) for s in secs if s["level"] == 1 and _so_muc(s["heading"])]
+    if cap1 != [str(k) for k in range(1, SO_MUC_MAU_3 + 1)]:
+        chan.append(f"mục cấp 1 phải là 1..{SO_MUC_MAU_3} đúng thứ tự, đang có: {', '.join(cap1)}")
+    so = [_so_muc(s["heading"]) for s in secs if _so_muc(s["heading"])]
+    trung = sorted({x for x in so if so.count(x) > 1})
+    if trung:
+        chan.append("trùng số mục: " + ", ".join(trung))
+
+    # Tham chiếu chéo: "mục X.Y", "Hình N", "Bảng N" phải trỏ tới thứ có thật.
+    toan_van = "\n".join(s["body"] for s in secs)
+    co_muc = set(so)
+    sai_muc = sorted({m for m in re.findall(r"mục (\d+(?:\.\d+)*)", toan_van) if m not in co_muc})
+    if sai_muc:
+        chan.append("tham chiếu tới mục không tồn tại: " + ", ".join(sai_muc))
+    so_hinh = [int(m) for m in re.findall(r"^!\[Hình (\d+)\.", toan_van, re.M)]
+    so_bang = [int(m) for m in re.findall(r"^:\s*Bảng (\d+)\.", toan_van, re.M)]
+    dong_van = [
+        d
+        for d in toan_van.splitlines()
+        if not _HINH.match(d.strip()) and not _CHU_THICH_BANG.match(d.strip())
+    ]
+    for ten, ds in (("Hình", so_hinh), ("Bảng", so_bang)):
+        if ds != list(range(1, len(ds) + 1)):
+            chan.append(f"{ten} phải đánh số liên tiếp 1..n theo thứ tự xuất hiện, đang có: {ds}")
+        nhac = {int(m) for d in dong_van for m in re.findall(rf"\b{ten} (\d+)", d)}
+        sai = sorted(n for n in nhac if n not in ds)
+        if sai:
+            chan.append(f"nhắc tới {ten} không tồn tại: {sai}")
+
+    # Hình thiếu tệp
+    for _alt, duong_dan in re.findall(r"^!\[(.*?)\]\((.+?)\)", toan_van, re.M):
+        anh = Path(duong_dan) if Path(duong_dan).is_absolute() else goc / duong_dan
+        if not anh.is_file():
+            chan.append(f"thiếu tệp hình: {duong_dan}")
+    return chan
+
+
+def giu_cho_trong(secs) -> list[str]:
+    """Các dấu giữ chỗ ``[[…]]`` còn trong nội dung (không trùng, theo thứ tự gặp)."""
+    ra: list[str] = []
+    for s in secs:
+        for m in DAU_GIU_CHO.findall(s["heading"] + "\n" + s["body"]):
+            if m not in ra:
+                ra.append(m)
+    return ra
+
+
+def kiem_sau_khi_dung(tep: Path, so_thanh_vien: int, *, cho_phep_giu_cho=False) -> list[str]:
+    """Đọc lại chính tệp .docx vừa ghi: thứ gì lọt ra bản in thì chặn ở đây."""
+    doc = Document(str(tep))
+    chan = []
+    lot = []
+    giu_cho = 0
+    o_trong = 0
+    for t in doc.element.body.iter(qn("w:t")):
+        s = t.text or ""
+        if "`" in s or "**" in s:
+            lot.append(s.strip()[:40])
+        giu_cho += s.count("[[")
+        o_trong += s.count(CHO_TRONG)
+    if lot:
+        chan.append(f"lọt ký tự Markdown vào bản in ({len(lot)} chỗ): " + " | ".join(lot[:3]))
+    if giu_cho and not cho_phep_giu_cho:
+        chan.append(f"bản in còn {giu_cho} dấu giữ chỗ '[['")
+    if o_trong:
+        chan.append(f"bản in còn {o_trong} ô {CHO_TRONG}")
+    dung, tong = dem_o_tich(doc, so_thanh_vien)
+    if dung != 1 or tong != 1:
+        chan.append(
+            f"ô '{so_thanh_vien} người' chưa được tích đúng (☒ đúng ô: {dung}, cả hàng: {tong})"
+        )
+    if doc.core_properties.author != TAC_GIA:
+        chan.append(f"tác giả tệp là {doc.core_properties.author!r}, không phải {TAC_GIA!r}")
+    return chan
+
+
+# ------------------------------------------------------------------ Word COM
+def xuat_pdf_va_dem_trang(docx: Path):
     """Nhờ Word đếm trang rồi xuất PDF. Trả (số trang, số từ, đường dẫn PDF).
 
     Vì sao phải là Word: giới hạn 20 trang là giới hạn CỨNG, và chỉ Word mới
@@ -426,11 +945,14 @@ def xuat_pdf_va_dem_trang(docx):
     tiếng Việt trong .ps1 làm hỏng bộ phân tích cú pháp. Đã dính một lần rồi.
     """
     pdf = docx.with_suffix(".pdf")
+    d_ps = str(docx).replace("'", "''")
+    p_ps = str(pdf).replace("'", "''")
     ps = (
         "$w = New-Object -ComObject Word.Application; $w.Visible = $false; "
-        f"$d = $w.Documents.Open('{docx}', $false, $true); $d.Repaginate(); "
+        "$w.DisplayAlerts = 0; "
+        f"$d = $w.Documents.Open('{d_ps}', $false, $true); $d.Repaginate(); "
         "$t = $d.ComputeStatistics(2); $u = $d.ComputeStatistics(0); "
-        f"$d.SaveAs([ref]'{pdf}', [ref]17); $d.Close($false); $w.Quit(); "
+        f"$d.SaveAs([ref]'{p_ps}', [ref]17); $d.Close($false); $w.Quit(); "
         'Write-Output "$t $u"'
     )
     try:
@@ -440,13 +962,13 @@ def xuat_pdf_va_dem_trang(docx):
             ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],  # noqa: S607
             capture_output=True,
             text=True,
-            timeout=180,
+            timeout=240,
         )
     except (OSError, subprocess.TimeoutExpired) as e:
         print(f"  Không đếm trang được ({e}) — mở Word xem thanh trạng thái")
         return None, None, None
     so = out.stdout.split()
-    if len(so) < 2 or not so[0].isdigit():
+    if len(so) < 2 or not so[0].isdigit() or not pdf.exists():
         print("  Không đếm trang được. Word có đang mở chính tệp này không?")
         if out.stderr.strip():
             print("  ", out.stderr.strip().splitlines()[0])
@@ -454,95 +976,565 @@ def xuat_pdf_va_dem_trang(docx):
     return int(so[0]), int(so[1]), pdf
 
 
-def main():
-    argv = [a for a in sys.argv[1:] if not a.startswith("--")]
-    ra = Path(argv[0]) if argv else RA_MAC_DINH
+# ------------------------------------------------------------------ dựng toàn bộ
+def dung(secs, thanh_vien, goc: Path, *, dai_dien: str | None = None, ngay_ky=None):
+    """Dựng Document từ mẫu + nội dung. Trả (doc, ngữ cảnh, số ô thí sinh đã điền).
 
+    ``dai_dien``: họ tên in dưới chữ ký; ``ngay_ky`` (``datetime.date``): ngày in ở khối
+    ký tên, None thì giữ dòng chấm của mẫu.
+    """
     if not MAU.exists():
         sys.exit(f"Không thấy file mẫu của ban tổ chức: {MAU}")
-    secs = doc_muc(NOI_DUNG)
-
     doc = Document(str(MAU))
     cat_lay_mau_3(doc)
-    so_o = dien_thong_tin_thi_sinh(doc)
+    so_o = dien_thong_tin_thi_sinh(doc, thanh_vien)
 
     moc, ky_ten = diem_moc_noi_dung(doc)
     body = doc.element.body
+    # Tiêu đề "NỘI DUNG HỒ SƠ DỰ ÁN" không được nằm một mình ở đáy trang 1.
+    Paragraph(list(body)[moc], doc._body).paragraph_format.keep_with_next = True
     if ky_ten is not None:
         body.remove(ky_ten)  # đặt lại ở cuối sau khi đổ nội dung
     for c in list(body)[moc + 1 :]:
         if c.tag != qn("w:sectPr"):
             body.remove(c)
 
+    ctx = NguCanh(goc=goc)
     for s in secs:
         lv = s.get("level", 1)
-        if lv == 1:
-            para(
-                doc,
-                s["heading"],
-                bold=True,
-                size=Pt(13.5),
-                space_before=9,
-                space_after=3,
-                giu_voi_doan_sau=True,
-            )
-        else:
-            para(
-                doc,
-                s["heading"],
-                bold=True,
-                size=Pt(13),
-                italic=(lv >= 3),
-                space_before=6,
-                space_after=3,
-                giu_voi_doan_sau=True,
-            )
-        render_body(doc, s["body"])
+        para(
+            doc,
+            s["heading"],
+            bold=True,
+            size=Pt(13.5) if lv == 1 else Pt(13),
+            italic=(lv >= 3),
+            # 27/09/2026: 9/6 → 7/4 pt (~0,1 trang trong giới hạn cứng 20 trang)
+            space_before=7 if lv == 1 else 4,
+            space_after=3,
+            giu_voi_doan_sau=True,
+        )
+        # Danh mục tài liệu tham khảo in cỡ CO_TLTK (10 pt, nhỏ hơn chữ bảng) — tiết kiệm
+        # ~0,25 trang mà vẫn trên ngưỡng đọc được khi in.
+        la_tltk = s["heading"].strip().lower().startswith("tài liệu tham khảo")
+        render_body(doc, s["body"], ctx, co=CO_TLTK if la_tltk else CO)
 
     if ky_ten is not None:
-        para(doc, "", space_before=8, space_after=0)
+        _dem(doc, cao=12)  # tách khối ký tên khỏi danh mục tài liệu
         sect = body.find(qn("w:sectPr"))
         if sect is not None:
             sect.addprevious(ky_ten)
         else:
             body.append(ky_ten)
+        if not dien_khoi_ky(ky_ten, doc, dai_dien, ngay_ky):
+            ctx.canh_bao.append("không điền được nơi ký, ngày ký ở khối ký tên (mẫu BTC đổi chữ?)")
+        # Word bắt buộc có một đoạn sau bảng cuối tài liệu; để Word tự thêm thì đoạn đó cỡ 13,
+        # và khi khối ký tên vừa khít đáy trang 20, riêng đoạn rỗng ấy sinh ra trang 21 trắng
+        # (27/09/2026). Đoạn đệm cao 1 pt đặt sẵn ở đây.
+        _dem(doc, cao=1)
+    dat_thuoc_tinh(doc)
+    return doc, ctx, so_o
 
-    ra.parent.mkdir(parents=True, exist_ok=True)
-    doc.save(str(ra))
-    print("Đã ghi:", ra)
-    print(
-        f"  {len(secs)} mục · {len(doc.paragraphs)} đoạn · {len(doc.tables)} bảng "
-        f"· {so_o} ô thông tin thí sinh"
+
+def dai_dien_tu(doi: dict) -> str | None:
+    """Họ tên đội trưởng (người đại diện ký) từ tệp thông tin đội; ô còn ⬜ thì None."""
+    tv = doi.get("thanh_vien") or []
+    i = doi.get("truong_nhom", 0)
+    ten = (tv[i].get("ho_ten") or "").strip() if 0 <= i < len(tv) else ""
+    return ten if ten and CHO_TRONG not in ten else None
+
+
+def _doc_doi(duong_dan: str | None) -> dict:
+    if duong_dan:
+        d = json.loads(Path(duong_dan).read_text(encoding="utf-8"))
+        d["thieu_tep_that"] = False
+        return d
+    return thong_tin_doi.doc()
+
+
+def _xoa(*tep):
+    for t in tep:
+        if t is not None and Path(t).exists():
+            Path(t).unlink()
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description="Dựng hồ sơ dự án Bảng C (MẪU 3) từ noi-dung.md")
+    ap.add_argument("--out-dir", default=str(OUT_DIR_MAC_DINH), help="thư mục ghi .docx/.pdf")
+    ap.add_argument(
+        "--cho-phep-o-trong",
+        action="store_true",
+        help="dựng BẢN NHÁP (hậu tố _NHAP) dù còn ô ⬜, dấu giữ chỗ [[…]] hoặc thiếu hình",
     )
-    if _DOI["thieu_tep_that"]:
-        print(
-            "  CẢNH BÁO: chưa có docs/competition/thong-tin-doi.local.json — "
-            "đang dựng bằng tệp mẫu, bảng thí sinh toàn ô trống"
-        )
-    trang, tu, pdf = xuat_pdf_va_dem_trang(ra)
-    if trang is not None:
-        print(f"  {trang}/{GIOI_HAN_TRANG} trang · {tu} từ · PDF: {pdf}")
+    ap.add_argument(
+        "--ngay-ky",
+        default=None,
+        help="ngày in ở khối ký tên, dạng DD/MM/YYYY (mặc định: hôm nay)",
+    )
+    ap.add_argument("--khong-pdf", action="store_true", help="bỏ bước Word (không đếm trang)")
+    ap.add_argument("--noi-dung", default=str(NOI_DUNG), help=argparse.SUPPRESS)
+    # Thư mục gốc của đường dẫn hình: hoan_tat_ho_so.py dựng từ bản sao tạm của noi-dung.md
+    # nằm ở thư mục khác, nhưng hình vẫn ở hinh/ cạnh bản gốc.
+    ap.add_argument("--goc-hinh", default=None, help=argparse.SUPPRESS)
+    ap.add_argument("--thong-tin", default=None, help=argparse.SUPPRESS)
+    ap.add_argument("--tu-kiem", action="store_true", help="tự kiểm bộ dựng rồi thoát")
+    args = ap.parse_args(argv)
+    if args.tu_kiem:
+        return tu_kiem()
 
-    canh_bao = []
-    chua_dien = sum(1 for tv in THANH_VIEN for v in tv.values() if "⬜" in v)
-    if chua_dien:
-        canh_bao.append(
-            f"{chua_dien} ô thông tin thí sinh còn dấu ⬜ "
-            "(điền docs/competition/thong-tin-doi.local.json)"
+    try:
+        ngay_ky = (
+            dt.datetime.strptime(args.ngay_ky, "%d/%m/%Y").date()
+            if args.ngay_ky
+            else dt.date.today()
         )
-    con_trong = sum(1 for s in secs if "⬜" in s["body"])
-    if con_trong:
-        canh_bao.append(f"{con_trong} mục còn dấu ⬜ trong noi-dung.md")
-    if trang is not None and trang > GIOI_HAN_TRANG:
-        canh_bao.append(f"VƯỢT GIỚI HẠN {GIOI_HAN_TRANG} TRANG — phải cắt bớt")
-    if canh_bao:
-        print("  CHƯA NỘP ĐƯỢC:")
-        for c in canh_bao:
+    except ValueError:
+        print(f"--ngay-ky phải có dạng DD/MM/YYYY, nhận {args.ngay_ky!r}")
+        return 2
+    out_dir = Path(args.out_dir)
+    noi_dung = Path(args.noi_dung).resolve()
+    goc = Path(args.goc_hinh).resolve() if args.goc_hinh else noi_dung.parent
+    doi = _doc_doi(args.thong_tin)
+    thanh_vien = thanh_vien_tu(doi)
+    secs = doc_muc(noi_dung)
+
+    chan = kiem_dau_vao(thanh_vien, secs, goc, doi)
+    giu_cho = giu_cho_trong(secs)
+    if giu_cho:
+        chan.append(f"còn dấu giữ chỗ {', '.join(giu_cho)}: điền nội dung thật vào noi-dung.md")
+    if chan and not args.cho_phep_o_trong:
+        print("CHƯA NỘP ĐƯỢC — không tạo và không ghi đè tệp nào:")
+        for c in chan:
             print("   -", c)
+        print("  (dựng bản nháp: thêm --cho-phep-o-trong)")
         return 1
-    print("  Sẵn sàng nộp.")
-    return 0
+
+    doc, ctx, so_o = dung(secs, thanh_vien, goc, dai_dien=dai_dien_tu(doi), ngay_ky=ngay_ky)
+    for c in ctx.canh_bao:
+        chan.append(c)
+    if so_o < 6 * len(thanh_vien):
+        chan.append(f"chỉ điền được {so_o}/{6 * len(thanh_vien)} ô thí sinh — mẫu BTC đổi nhãn?")
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    tam = out_dir / f"{TEN_TEP}.tam-{os.getpid()}.docx"
+    doc.save(str(tam))
+    chan += kiem_sau_khi_dung(tam, len(thanh_vien), cho_phep_giu_cho=args.cho_phep_o_trong)
+
+    trang = tu = pdf_tam = None
+    # Word có thể đã ghi PDF tạm rồi mới hỏng ở bước đọc số trang; khi đó
+    # xuat_pdf_va_dem_trang trả None nên phải dọn theo tên dự kiến.
+    pdf_tam_du_kien = tam.with_suffix(".pdf")
+    if args.khong_pdf:
+        chan.append("chưa đếm trang (chạy với --khong-pdf)")
+    else:
+        trang, tu, pdf_tam = xuat_pdf_va_dem_trang(tam)
+        if trang is None:
+            chan.append("Word không đếm được trang")
+        elif trang > GIOI_HAN_TRANG:
+            chan.append(f"VƯỢT GIỚI HẠN: {trang}/{GIOI_HAN_TRANG} trang — phải cắt bớt")
+
+    print(
+        f"  {len(secs)} mục · {len(doc.paragraphs)} đoạn · {len(doc.tables)} bảng · "
+        f"{len(ctx.hinh)} hình · {len(ctx.bang)} bảng có chú thích · {so_o} ô thí sinh"
+    )
+    if trang is not None:
+        print(f"  {trang}/{GIOI_HAN_TRANG} trang · {tu} từ (Word đếm)")
+    for h in ctx.thieu_hinh:
+        print(f"  THIẾU HÌNH: {h}")
+
+    if not chan:
+        dich = out_dir / f"{TEN_TEP}.docx"
+        os.replace(tam, dich)
+        os.replace(pdf_tam, dich.with_suffix(".pdf"))
+        print("Đã ghi:", dich, "và", dich.with_suffix(".pdf"))
+        print("  Đạt mọi cổng của bộ dựng (bản nộp chính thức: hoan_tat_ho_so.py).")
+        return 0
+
+    print("  CHƯA NỘP ĐƯỢC:")
+    for c in chan:
+        print("   -", c)
+    if not args.cho_phep_o_trong:
+        _xoa(tam, pdf_tam, pdf_tam_du_kien)
+        print("  Giữ nguyên bản cũ — không ghi đè .docx/.pdf nào.")
+        return 1
+    dich = out_dir / f"{TEN_TEP}{HAU_TO_NHAP}.docx"
+    os.replace(tam, dich)
+    if pdf_tam is not None:
+        os.replace(pdf_tam, dich.with_suffix(".pdf"))
+    else:
+        # PDF nháp của lần dựng trước không còn khớp .docx nháp vừa ghi.
+        _xoa(pdf_tam_du_kien, dich.with_suffix(".pdf"))
+    print("BẢN NHÁP:", dich, "(không phải bản nộp)")
+    vuot = trang is not None and trang > GIOI_HAN_TRANG
+    return 1 if vuot or (trang is None and not args.khong_pdf) else 0
+
+
+# ------------------------------------------------------------------ tự kiểm
+def _png_1x1() -> bytes:
+    """Một ảnh PNG 1×1 hợp lệ, tự sinh — để tự kiểm không phụ thuộc tệp hình nào."""
+    import struct
+    import zlib
+
+    def khoi(loai: bytes, du_lieu: bytes) -> bytes:
+        return (
+            struct.pack(">I", len(du_lieu))
+            + loai
+            + du_lieu
+            + struct.pack(">I", zlib.crc32(loai + du_lieu) & 0xFFFFFFFF)
+        )
+
+    ihdr = struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + khoi(b"IHDR", ihdr)
+        + khoi(b"IDAT", zlib.compress(b"\x00\xff\xff\xff"))
+        + khoi(b"IEND", b"")
+    )
+
+
+def tu_kiem() -> int:
+    """Nghiệm thu bộ dựng trên dữ liệu tổng hợp — không cần Word, không đọc dữ liệu đội.
+
+    Mỗi kiểm tra ứng với một lỗi thật đã gặp (kiểm toán hồ sơ 25/09/2026).
+    """
+    if not MAU.exists():
+        print(f"BỎ QUA: không có file mẫu BTC ({MAU})")
+        return 0
+    loi = 0
+
+    def kq(ten, dat, chi_tiet=""):
+        nonlocal loi
+        loi += 0 if dat else 1
+        print(f"  [{'ĐẠT' if dat else 'HỎNG'}] {ten}{(' — ' + chi_tiet) if chi_tiet else ''}")
+
+    tv = {
+        "ho_ten": "Nguyễn Văn A",
+        "ngay_sinh": "01/01/2006",
+        "mssv": "000",
+        "lop_hanh_chinh": "24050301",
+        "nganh": "Công nghệ thông tin",
+        "khoa": "Công nghệ thông tin",
+        "truong": "Đại học Tôn Đức Thắng",
+        "noi_o": "Phường X, TP. Hồ Chí Minh",
+        "dien_thoai": "0000000000",
+        "email": "a@example.com",
+    }
+    doi = {"thanh_vien": [dict(tv), dict(tv), dict(tv)]}
+    md = "\n".join(
+        [
+            "<!-- chú thích\nnhiều dòng -->",
+            "# Tóm tắt dự án",
+            "> Dòng tóm tắt có `mã` và **đậm `mã trong đậm`**.",
+            *[f"# {k}. Mục {k}\n\nĐoạn văn mục {k}, xem mục 1." for k in range(1, 14)],
+            ": Bảng 1. Bảng thử",
+            "| A | B |",
+            "|---|---:|",
+            "| **`x`** | 1 |",
+            "",
+            "Như Hình 1 cho thấy.",
+            "![Hình 1. Hình thử](khong-ton-tai.png){width=12cm}",
+        ]
+    )
+    with tempfile.TemporaryDirectory() as td:
+        td = Path(td)
+        (td / "nd.md").write_text(md, encoding="utf-8")
+        (td / "doi.json").write_text(json.dumps(doi, ensure_ascii=False), encoding="utf-8")
+
+        # (1) Tích ô "3 người" nằm trong w:sdt — đọc lại XML sau khi lưu.
+        secs = doc_muc(td / "nd.md")
+        doc, ctx, so_o = dung(secs, thanh_vien_tu(doi), td)
+        doc.save(str(td / "a.docx"))
+        dung_o, tong = dem_o_tich(Document(str(td / "a.docx")), 3)
+        kq(
+            "tích đúng một ô '3 người' (ký tự trong w:sdt)",
+            dung_o == 1 and tong == 1,
+            f"{dung_o}/{tong}",
+        )
+        kq("điền đủ 18 ô thí sinh, có 'Lớp …'", so_o == 18, str(so_o))
+
+        # (2) Không lọt dấu backtick / ** vào bản in; mã là run Consolas.
+        lot = kiem_sau_khi_dung(td / "a.docx", 3)
+        kq("không lọt ký tự Markdown, tác giả = đội", not lot, "; ".join(lot))
+        font_ma = {}  # chữ của run → font, kể cả run trong ô bảng và khung tóm tắt
+        for r in Document(str(td / "a.docx")).element.body.iter(qn("w:r")):
+            chu = "".join(t.text or "" for t in r.iter(qn("w:t")))
+            rf = r.find(f"{qn('w:rPr')}/{qn('w:rFonts')}")
+            if chu in ("mã", "mã trong đậm", "x"):
+                font_ma[chu] = rf.get(qn("w:ascii")) if rf is not None else None
+        kq(
+            "chữ mã (cả trong đậm, trong ô bảng) là Consolas",
+            len(font_ma) == 3 and set(font_ma.values()) == {FONT_MA},
+            str(font_ma),
+        )
+        kq("thiếu hình được ghi nhận, không sập", ctx.thieu_hinh == ["khong-ton-tai.png"])
+        # Hội đồng biên tập 25/09/2026: bản PDF ngắt dòng giữa "(Hình" và "1)", giữa
+        # "mục" và số. Khoảng trắng sau Hình/Bảng/mục/Điều/khoản đứng trước chữ số phải
+        # là khoảng trắng không ngắt (U+00A0) — trong văn bản thường, không đụng chữ mã.
+        chu_in = "".join(
+            t.text or "" for t in Document(str(td / "a.docx")).element.body.iter(qn("w:t"))
+        )
+        kq(
+            "khoảng trắng không ngắt giữa 'Hình'/'mục' và số, chú thích 'Hình 1.' giữ nguyên",
+            "Như Hình 1 cho thấy" in chu_in
+            and "xem mục 1." in chu_in
+            and "Như Hình 1 cho" not in chu_in,
+            repr(chu_in[chu_in.find("Như") : chu_in.find("Như") + 20]),
+        )
+
+        # (3) Còn ⬜ → mã 1, KHÔNG đụng bản nộp cũ.
+        doi_o = {"thanh_vien": [dict(tv, noi_o="⬜"), dict(tv), dict(tv)]}
+        (td / "doi_o.json").write_text(json.dumps(doi_o, ensure_ascii=False), encoding="utf-8")
+        cu = td / "ra"
+        cu.mkdir()
+        for duoi in (".docx", ".pdf"):
+            (cu / f"{TEN_TEP}{duoi}").write_bytes(b"BAN-CU")
+        truoc = {p.name: (p.read_bytes(), p.stat().st_mtime_ns) for p in cu.iterdir()}
+        ma_thoat = main(
+            [
+                "--out-dir",
+                str(cu),
+                "--noi-dung",
+                str(td / "nd.md"),
+                "--thong-tin",
+                str(td / "doi_o.json"),
+            ]
+        )
+        sau = {p.name: (p.read_bytes(), p.stat().st_mtime_ns) for p in cu.iterdir()}
+        kq("còn ⬜ → thoát mã 1, bản cũ nguyên vẹn", ma_thoat == 1 and truoc == sau)
+
+        # (4) Bản nháp: ra tệp _NHAP, vẫn không đụng bản nộp.
+        ma_thoat = main(
+            [
+                "--out-dir",
+                str(cu),
+                "--noi-dung",
+                str(td / "nd.md"),
+                "--thong-tin",
+                str(td / "doi_o.json"),
+                "--cho-phep-o-trong",
+                "--khong-pdf",
+            ]
+        )
+        sau = {
+            p.name: (p.read_bytes(), p.stat().st_mtime_ns)
+            for p in cu.iterdir()
+            if "NHAP" not in p.name
+        }
+        kq(
+            "bản nháp ra _NHAP, bản nộp nguyên vẹn, không sót tệp tạm",
+            ma_thoat == 0
+            and (cu / f"{TEN_TEP}{HAU_TO_NHAP}.docx").exists()
+            and truoc == sau
+            and not list(cu.glob("*.tam-*")),
+        )
+
+        # (5) Trùng số mục và tham chiếu sai bị chặn trước khi dựng.
+        (td / "sai.md").write_text(
+            md.replace("# 9. Mục 9", "# 8. Mục 9") + "\nxem mục 42, Hình 9 và Bảng 7.",
+            encoding="utf-8",
+        )
+        chan = kiem_dau_vao(thanh_vien_tu(doi), doc_muc(td / "sai.md"), td, {})
+        kq(
+            "chặn trùng số mục và tham chiếu tới mục, Hình, Bảng không có",
+            any("trùng số mục" in c for c in chan)
+            and any("42" in c for c in chan)
+            and any("Hình không tồn tại: [9]" in c for c in chan)
+            and any("Bảng không tồn tại: [7]" in c for c in chan),
+            "; ".join(chan),
+        )
+        # Lỗi 25/09: một lần sửa qua heredoc biến "\b" của regex thành ký tự 0x08,
+        # tắt âm thầm kiểm tra "nhắc tới Hình/Bảng". Chặn mọi ký tự điều khiển.
+        dieu_khien = [
+            i
+            for i, ch in enumerate(Path(__file__).read_text(encoding="utf-8"))
+            if ord(ch) < 32 and ch not in "\n\t"
+        ]
+        kq("mã bộ dựng không chứa ký tự điều khiển lạ", not dieu_khien, str(dieu_khien[:3]))
+
+        # (6) Hình có thật: ảnh nhúng + chú thích "Hình 1." NGAY dưới, cùng khối trang;
+        #     bảng có chú thích "Bảng 1." dính với bảng, hàng tiêu đề tô nền; tiêu đề
+        #     và khối mã không mồ côi (keep_with_next).
+        (td / "a.png").write_bytes(_png_1x1())
+        md6 = "\n".join(
+            [
+                "# 1. Mục một",
+                "Đoạn dẫn, xem Hình 1 và Bảng 1.",
+                "![Hình 1. Hình có thật](a.png){width=4cm}",
+                ": Bảng 1. Bảng có chú thích",
+                "| Cột A | Cột B |",
+                "|---|---|",
+                "| x | y |",
+                "```",
+                "dòng mã 1",
+                "dòng mã 2",
+                "```",
+                *[f"# {k}. Mục {k}\n\nĐoạn {k}." for k in range(2, 14)],
+            ]
+        )
+        (td / "hinh.md").write_text(md6, encoding="utf-8")
+        secs6 = doc_muc(td / "hinh.md")
+        chan6 = kiem_dau_vao(thanh_vien_tu(doi), secs6, td, {})
+        doc6, ctx6, _ = dung(secs6, thanh_vien_tu(doi), td)
+        doc6.save(str(td / "h.docx"))
+        d6 = Document(str(td / "h.docx"))
+        ps = d6.paragraphs
+        # Mẫu BTC có sẵn ảnh (quốc hiệu/logo) ở trang 1 — tìm từ CHÚ THÍCH ngược lên.
+        i_cap = next((i for i, p in enumerate(ps) if p.text.startswith("Hình 1.")), None)
+        i_anh = i_cap - 1 if i_cap else None
+        co_anh = i_anh is not None and bool(ps[i_anh]._p.xpath(".//pic:pic"))
+        kq(
+            "hình có thật được nhúng, chú thích 'Hình 1.' ngay dưới, ảnh dính chú thích",
+            co_anh and bool(ps[i_anh].paragraph_format.keep_with_next) and ctx6.hinh == [1],
+            f"vị trí ảnh {i_anh}, cảnh báo đầu vào: {chan6}",
+        )
+        cap_bang = next((p for p in ps if p.text.startswith("Bảng 1.")), None)
+        bang = next((t for t in d6.tables if t.rows[0].cells[0].text == "Cột A"), None)
+        nen = None
+        if bang is not None:
+            shd = bang.rows[0].cells[0]._tc.find(f"{qn('w:tcPr')}/{qn('w:shd')}")
+            nen = shd.get(qn("w:fill")) if shd is not None else None
+        kq(
+            "chú thích 'Bảng 1.' dính bảng; hàng tiêu đề tô nền",
+            cap_bang is not None
+            and bool(cap_bang.paragraph_format.keep_with_next)
+            and nen == NEN_TIEU_DE_BANG,
+            f"nền {nen}",
+        )
+        tieu_de = next(p for p in ps if p.text == "1. Mục một")
+        ma = [p for p in ps if p.text.startswith("dòng mã")]
+        moc = next(p for p in ps if "NỘI DUNG HỒ SƠ DỰ ÁN" in p.text)
+        kq(
+            "tiêu đề, dòng mã (trừ dòng cuối) và 'NỘI DUNG HỒ SƠ DỰ ÁN' giữ với đoạn sau",
+            bool(tieu_de.paragraph_format.keep_with_next)
+            and bool(ma[0].paragraph_format.keep_with_next)
+            and not ma[-1].paragraph_format.keep_with_next
+            and bool(moc.paragraph_format.keep_with_next),
+        )
+
+        # (7) Word đã ghi PDF tạm rồi mới hỏng (không đọc được số trang): thoát mã 1,
+        #     KHÔNG sót ``*.tam-*.pdf`` trong thư mục nộp (phản biện 25/09/2026).
+        # (8) Bản nháp dựng lại với --khong-pdf: xoá PDF nháp CŨ, để .docx và .pdf
+        #     nháp không bao giờ là hai phiên bản khác nhau.
+        goc_word = globals()["xuat_pdf_va_dem_trang"]
+
+        def word_hong(docx: Path):
+            docx.with_suffix(".pdf").write_bytes(b"PDF-TAM")
+            return None, None, None
+
+        globals()["xuat_pdf_va_dem_trang"] = word_hong
+        try:
+            ra7 = td / "ra7"
+            ra7.mkdir()
+            doi_du = ["--noi-dung", str(td / "hinh.md"), "--thong-tin", str(td / "doi.json")]
+            ma7 = main(["--out-dir", str(ra7), *doi_du])
+        finally:
+            globals()["xuat_pdf_va_dem_trang"] = goc_word
+        kq(
+            "Word hỏng sau khi ghi PDF tạm → thoát 1, không sót tệp tạm",
+            ma7 == 1 and not list(ra7.iterdir()),
+            str(sorted(p.name for p in ra7.iterdir())),
+        )
+        nhap_pdf = ra7 / f"{TEN_TEP}{HAU_TO_NHAP}.pdf"
+        nhap_pdf.write_bytes(b"PDF-NHAP-CU")
+        main(["--out-dir", str(ra7), *doi_du, "--cho-phep-o-trong", "--khong-pdf"])
+        kq(
+            "bản nháp --khong-pdf xoá PDF nháp cũ (không để .docx/.pdf lệch nhau)",
+            not nhap_pdf.exists() and (ra7 / f"{TEN_TEP}{HAU_TO_NHAP}.docx").exists(),
+        )
+
+        # (9) Dấu giữ chỗ [[…]] (27/09/2026, bỏ "bản chờ link"): bản nộp CHẶN, bản cũ nguyên
+        #     vẹn; bản nháp in dấu đó màu đỏ. Nội dung ở thư mục KHÁC, hình lấy theo --goc-hinh.
+        sao = td / "sao"
+        sao.mkdir()
+        (sao / "cho.md").write_text(
+            md6.replace("Đoạn 13.", "Link: [[LINK_THIEU]]."), encoding="utf-8"
+        )
+        doi9 = {"truong_nhom": 0, "thanh_vien": [dict(tv), dict(tv), dict(tv)]}
+        (td / "doi9.json").write_text(json.dumps(doi9, ensure_ascii=False), encoding="utf-8")
+        ra9 = td / "ra9"
+        ra9.mkdir()
+        for duoi in (".docx", ".pdf"):
+            (ra9 / f"{TEN_TEP}{duoi}").write_bytes(b"BAN-CU")
+        truoc9 = {p.name: p.read_bytes() for p in ra9.iterdir()}
+        doi_cho = ["--goc-hinh", str(td), "--thong-tin", str(td / "doi9.json")]
+        ma_nop = main(["--out-dir", str(ra9), "--noi-dung", str(sao / "cho.md"), *doi_cho])
+        sau_nop = {p.name: p.read_bytes() for p in ra9.iterdir()}
+        main(
+            [
+                "--out-dir",
+                str(ra9),
+                "--noi-dung",
+                str(sao / "cho.md"),
+                *doi_cho,
+                "--cho-phep-o-trong",
+                "--khong-pdf",
+            ]
+        )
+        tep_nhap = ra9 / f"{TEN_TEP}{HAU_TO_NHAP}.docx"
+        do = []
+        if tep_nhap.exists():
+            do = [
+                r.text
+                for p in Document(str(tep_nhap)).paragraphs
+                for r in p.runs
+                if r.text.startswith("[[") and r.font.color.rgb == MAU_DO
+            ]
+        kq(
+            "còn [[…]] → bản nộp thoát 1, bản cũ nguyên vẹn; bản nháp in dấu giữ chỗ màu đỏ",
+            ma_nop == 1 and sau_nop == truoc9 and do == ["[[LINK_THIEU]]"],
+            f"mã {ma_nop}, đỏ {do}",
+        )
+
+        # (10) Bản nộp đủ điều kiện (Word giả): khối ký có nơi ký, NGÀY KÝ, họ tên người đại
+        #      diện, không xẻ trang; bản in không còn dòng chấm "…… tháng ……" nào.
+        (sao / "du.md").write_text(md6, encoding="utf-8")
+        ra10 = td / "ra10"
+        ra10.mkdir()
+
+        def word_gia(docx: Path):
+            pdf = docx.with_suffix(".pdf")
+            pdf.write_bytes(b"PDF-GIA")
+            return 5, 100, pdf
+
+        globals()["xuat_pdf_va_dem_trang"] = word_gia
+        try:
+            ma10 = main(
+                [
+                    "--out-dir",
+                    str(ra10),
+                    "--noi-dung",
+                    str(sao / "du.md"),
+                    *doi_cho,
+                    "--ngay-ky",
+                    "05/02/2026",
+                ]
+            )
+        finally:
+            globals()["xuat_pdf_va_dem_trang"] = goc_word
+        tep10 = ra10 / f"{TEN_TEP}.docx"
+        chu10 = ""
+        tach = None
+        if tep10.exists():
+            d10 = Document(str(tep10))
+            chu10 = "".join(t.text or "" for t in d10.element.body.iter(qn("w:t")))
+            ky = next(t for t in d10.tables if "Đại diện đội thi" in t._tbl.xml)
+            tach = ky._tbl.find(f"{qn('w:tr')}/{qn('w:trPr')}/{qn('w:cantSplit')}")
+        kq(
+            "bản nộp: nơi ký và ngày ký điền sẵn, họ tên người đại diện, khối ký không xẻ trang",
+            ma10 == 0
+            and f"{NOI_KY}, ngày 05 tháng 02 năm 2026" in chu10
+            and "……" not in chu10
+            and chu10.rstrip().endswith(tv["ho_ten"])
+            and tach is not None
+            and tach.get(qn("w:val")) == "1",
+            f"mã {ma10}",
+        )
+    print("TỰ KIỂM:", "ĐẠT" if not loi else f"{loi} HỎNG")
+    return 0 if not loi else 1
 
 
 if __name__ == "__main__":
+    # Bảng mã cp1252 của console Windows không in được tiếng Việt.
+    for _luong in (sys.stdout, sys.stderr):
+        if hasattr(_luong, "reconfigure"):
+            _luong.reconfigure(encoding="utf-8", errors="replace")
     sys.exit(main())

@@ -29,17 +29,31 @@ server = [
     "yt-dlp>=2025.1.1",
 ]
 # Modeling extras — heavy, install only where needed.
-# scikit-learn is pinned to a range because the intent artifact (joblib) is
-# NOT portable across sklearn majors; intent.py warns when the running
-# version differs from the one recorded at training time.
+# scikit-learn PHẢI khớp đúng từng chữ số với "sklearn_version" trong
+# src/livelift/nlp/model/*.meta.json (hiện 1.9.0): artifact joblib KHÔNG mang
+# được sang bản sklearn khác. Kiểm toán 25/09/2026: ghim cũ ">=1.5,<1.8" làm ảnh
+# Docker và CI cài 1.7.2 ⇒ predict_proba vỡ, 393/393 bình luận âm thầm rơi về
+# bộ từ khoá; ">=1.9,<1.10" cũng chưa đủ (pip chọn 1.9.1). Đổi bản sklearn =
+# huấn luyện lại cả hai artifact rồi sửa dòng này — tests/test_intent_artifact_hong.py
+# chặn lệch. intent.py tự kiểm predict_proba lúc nạp và /health báo keyword_fallback.
 ml = [
-    "scikit-learn>=1.5,<1.8",
+    "scikit-learn==1.9.0",
     "lightgbm>=4.3",
     "statsmodels>=0.14",
 ]
 # Vietnamese NLP — heavy (torch); only on the NLP worker
 nlp = [
     "underthesea>=6.8",
+]
+# Vẽ hình hồ sơ thuyết minh (scripts/ve_hinh_ho_so.py): matplotlib cho hình 1, 3–6,
+# Pillow ghi dpi, Playwright chụp hình 2 (sau khi cài: `playwright install chromium`).
+# matplotlib >= 3.9 vì lõi cho phép numpy 2.x. Bộ hình trong hồ sơ 25/09/2026 vẽ
+# bằng matplotlib 3.11.2, Pillow 12.3.0, Playwright 1.63.0 — muốn trùng từng điểm
+# ảnh thì cài đúng các bản đó. Gate: tests/test_pyproject_extra_hinh.py.
+hinh = [
+    "matplotlib>=3.9",
+    "pillow>=10.1",
+    "playwright>=1.40",
 ]
 dev = [
     "pytest>=8.2",
